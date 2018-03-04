@@ -49,12 +49,18 @@ class ACMEHandler(object):
 
     def get_server_name(self):
         """ dumb function to return servername """
-        self.server_name = os.environ['SERVER_NAME']
-        return self.server_name
+        try:
+            self.server_name = os.environ['SERVER_NAME']
+            return self.server_name
+        except KeyError:
+            return json.dumps({'error': 'SERVER_NAME variable missing...'})
 
     def get_uri(self):
         """ returns url """
-        return os.environ['REQUEST_URI']
+        try:
+            return os.environ['REQUEST_URI']
+        except KeyError:
+            return json.dumps({'error': 'REQUEST_URI variable missing...'})
 
     def return_error(self):
         """ returns an error message """

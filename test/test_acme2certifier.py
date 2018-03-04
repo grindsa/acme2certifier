@@ -3,8 +3,8 @@
 import unittest
 import os
 import sys
-from acme2certifier import ACMEHandler
 sys.path.insert(0, '..')
+from acme2certifier import ACMEHandler
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
@@ -17,11 +17,21 @@ class TestACMEHandler(unittest.TestCase):
     def test_get_servername(self):
         """ test ACMEHandler.get_server_name() method """
         self.assertEqual(self.acme.get_server_name(), 'http://acme.test.local')
-
+ 
+    def test_1_no_servername(self):
+        """ test ACMEHandler.get_server_name() method without servername"""
+        del os.environ['SERVER_NAME']     
+        self.assertEqual(self.acme.get_server_name(), '{"error": "SERVER_NAME variable missing..."}')
+        
     def test_get_uri(self):
         """ test ACMEHandler.get_uri() method """
         os.environ['REQUEST_URI'] = '/testing'
         self.assertEqual(self.acme.get_uri(), '/testing')
+        
+    def test_get_uri(self):
+        """ test ACMEHandler.get_uri() method without having an URI"""
+        del os.environ['REQUEST_URI']         
+        self.assertEqual(self.acme.get_uri(), '{"error": "REQUEST_URI variable missing..."}')        
 
     def test_return_error(self):
         """ test ACMEHandler.get_error() method """
