@@ -9,9 +9,6 @@ setup(name='acme2certifier',
     license='MIT',
     packages=['acme2certifier'],
     platforms='any',
-    install_requires=[
-        'cgi'
-    ],
     classifiers = [
         'Programming Language :: Python',
         'Development Status :: 4 - Beta',
