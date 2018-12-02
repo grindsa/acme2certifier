@@ -99,4 +99,14 @@ ENV/
 .mypy_cache/
 
 # mystuff
-/*.bat
+/acme2certifier/
+db.sqlite3
+manage.py
+acme/migrations/
+acme/admin.py
+acme/apps.py
+acme/models.py
+acme/tests.py
+acme/urls.py
+acme/views.py
+acme/__init__.py

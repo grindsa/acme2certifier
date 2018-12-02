@@ -1,18 +1,18 @@
 #!/usr/bin/python
 """ cgi based acme server for Netguard Certificate manager / Insta certifier """
 from __future__ import print_function
-import os
-import json
 import random
 import string
+import uuid
 
-class ACMEHandler(object):
+class ACMEsrv(object):
     """ ACME server class """
 
     server_name = None
 
-    def __init__(self):
-        self.get_server_name()
+    def __init__(self, srv_name=None):
+        self.server_name = srv_name
+        # self.nonce = nonce
 
     def __enter__(self):
         """
@@ -29,6 +29,9 @@ class ACMEHandler(object):
     def get_directory(self):
         """ return response to ACME directory call """
         d_dic = {
+            'newNonce': self.server_name + '/acme/newnonce',
+            'newAccount': self.server_name + '/acme/newaccount',            
+            
             'key-change': self.server_name + '/acme/key-change',
             'new-authz': self.server_name + '/acme/new-authz',
             'meta' : {
@@ -36,46 +39,17 @@ class ACMEHandler(object):
                 'author': 'grindsa <grindelsack@gmail.com>',
             },
             'new-cert': self.server_name + '/acme/new-cert',
-            'new-reg': self.server_name + '/acme/new-reg',
+
             'revoke-cert': self.server_name + '/acme/revoke-cert'
         }
         char_set = string.ascii_uppercase + string.digits
         d_dic[''.join(random.sample(char_set*6, 6))] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
-        return json.dumps(d_dic)
-
-    def get_http_header(self):
-        """ return full http header """
-        return os.environ
+        return d_dic
 
     def get_server_name(self):
         """ dumb function to return servername """
-        try:
-            self.server_name = os.environ['SERVER_NAME']
-            return self.server_name
-        except KeyError:
-            return json.dumps({'error': 'SERVER_NAME variable missing...'})
-
-    def get_uri(self):
-        """ returns url """
-        try:
-            return os.environ['REQUEST_URI']
-        except KeyError:
-            return json.dumps({'error': 'REQUEST_URI variable missing...'})
-
-    def return_error(self):
-        """ returns an error message """
-        return json.dumps({'error': 'dont now what to do'})
-
-if __name__ == "__main__":
-
-    with ACMEHandler() as acm:
-
-        # print("Content-type: text/html")
-        print("Content-Type: application/json")
-        print()
-        URI = acm.get_uri()
-
-        if URI == '/directory':
-            print(acm.get_directory())
-        else:
-            print(acm.return_error())
+        return self.server_name
+        
+    def newnonce(self):
+        """ generate a new nonce """
+        return(uuid.uuid4().hex)
