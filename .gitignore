@@ -110,3 +110,6 @@ acme/tests.py
 acme/urls.py
 acme/views.py
 acme/__init__.py
+acme2certifier_cgi.py.lnk
+commands.txt
+sync_cgi.bat

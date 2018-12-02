@@ -1,8 +1,6 @@
 #!/usr/bin/python
 """ cgi based acme server for Netguard Certificate manager / Insta certifier """
 from __future__ import print_function
-import random
-import string
 import uuid
 
 class ACMEsrv(object):
@@ -30,8 +28,8 @@ class ACMEsrv(object):
         """ return response to ACME directory call """
         d_dic = {
             'newNonce': self.server_name + '/acme/newnonce',
-            'newAccount': self.server_name + '/acme/newaccount',            
-            
+            'newAccount': self.server_name + '/acme/newaccount',
+
             'key-change': self.server_name + '/acme/key-change',
             'new-authz': self.server_name + '/acme/new-authz',
             'meta' : {
@@ -42,14 +40,14 @@ class ACMEsrv(object):
 
             'revoke-cert': self.server_name + '/acme/revoke-cert'
         }
-        char_set = string.ascii_uppercase + string.digits
-        d_dic[''.join(random.sample(char_set*6, 6))] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
+        # generate random key in json has as recommended by LE
+        d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
     def get_server_name(self):
         """ dumb function to return servername """
         return self.server_name
-        
+
     def newnonce(self):
         """ generate a new nonce """
-        return(uuid.uuid4().hex)
+        return uuid.uuid4().hex
