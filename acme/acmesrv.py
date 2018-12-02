@@ -57,15 +57,15 @@ class ACMEsrv(object):
             content = json.loads(content)
         except ValueError:
             content = None
-            
+
         if content and 'protected' in content and 'payload' in content and 'signature' in content:
             protected_decoded = self.decode_deserialize(content['protected'])
             payload_decoded = self.decode_deserialize(content['payload'])
         else:
             result = 'ERR: content Json decoding error'
-            
+
         return(result)
-        
+
     def newnonce(self):
         """ generate a new nonce """
         return uuid.uuid4().hex
@@ -75,7 +75,7 @@ class ACMEsrv(object):
         string += '=' * (-len(string) % 4)  # restore stripped '='s
         try:
             b64dec = base64.b64decode(string)
-        except:
+        except TypeError:
             b64dec = 'ERR: b64 decoding error'
         return b64dec
 
