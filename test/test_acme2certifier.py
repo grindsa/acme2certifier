@@ -4,70 +4,55 @@ import unittest
 import os
 import sys
 sys.path.insert(0, '..')
-from acme2certifier import ACMEHandler
+from acme.acmesrv import *
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
     acme = None
     def setUp(self):
         """ setup unittest """
-        os.environ['SERVER_NAME'] = 'http://acme.test.local'
-        self.acme = ACMEHandler()
+        self.acme = ACMEsrv('http://tester.local')
 
     def test_get_servername(self):
-        """ test ACMEHandler.get_server_name() method """
-        self.assertEqual(self.acme.get_server_name(), 'http://acme.test.local')
- 
-    def test_1_no_servername(self):
-        """ test ACMEHandler.get_server_name() method without servername"""
-        del os.environ['SERVER_NAME']     
-        self.assertEqual(self.acme.get_server_name(), '{"error": "SERVER_NAME variable missing..."}')
+        """ test ACMEsrv.get_server_name() method """
+        self.assertEqual('http://tester.local', self.acme.get_server_name())
         
-    def test_get_uri(self):
-        """ test ACMEHandler.get_uri() method """
-        os.environ['REQUEST_URI'] = '/testing'
-        self.assertEqual(self.acme.get_uri(), '/testing')
+    def test_get_dir_newnonce(self):
+        """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
+        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.acme.get_directory())     
         
-    def test_get_uri(self):
-        """ test ACMEHandler.get_uri() method without having an URI"""
-        del os.environ['REQUEST_URI']         
-        self.assertEqual(self.acme.get_uri(), '{"error": "REQUEST_URI variable missing..."}')        
-
-    def test_return_error(self):
-        """ test ACMEHandler.get_error() method """
-        os.environ['REQUEST_URI'] = '/foo'
-        self.assertEqual(self.acme.return_error(), '{"error": "dont now what to do"}')
-
-    def test_get_dir_new_authz(self):
-        """ test ACMEHandler.get_directory() method and check for "new-authz" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"new-authz": "http://acme.test.local/acme/new-authz"', self.acme.get_directory())
-
-    def test_get_dir_key_change(self):
-        """ test ACMEHandler.get_directory() method and check for "key-change" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"key-change": "http://acme.test.local/acme/key-change"', self.acme.get_directory())
-
-    def test_get_dir_revoke_cert(self):
-        """ test ACMEHandler.get_directory() method and check for "revoke-cert" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"revoke-cert": "http://acme.test.local/acme/revoke-cert"', self.acme.get_directory())
-
+    def test_new_noce(self):
+        """ test ACMEsrv.newnonce() and check if we get something back """
+        self.assertIsNotNone(self.acme.newnonce())
+        
     def test_get_dir_meta(self):
-        """ test ACMEHandler.get_directory() method and check for "meta" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}', self.acme.get_directory())
+        """ test ACMEsrv.get_directory() method and check for "meta" tag in output"""
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.acme.get_directory())
 
-    def test_get_dir_new_cert(self):
-        """ test ACMEHandler.get_directory() method and check for "new-cert" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"new-cert": "http://acme.test.local/acme/new-cert"', self.acme.get_directory())
+    def test_get_dir_newaccount(self):
+        """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
+        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.acme.get_directory())   
+        
+    def test_b64decode_pad_correct(self):
+        """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """
+        self.assertEqual('this-is-foo-correctly-padded', self.acme.b64decode_pad('dGhpcy1pcy1mb28tY29ycmVjdGx5LXBhZGRlZA=='))
 
-    def test_get_dir_new_reg(self):
-        """ test ACMEHandler.get_directory() method and check for "new-req" tag in output"""
-        os.environ['REQUEST_URI'] = '/directory'
-        self.assertIn('"new-reg": "http://acme.test.local/acme/new-reg"', self.acme.get_directory())
+    def test_b64decode_pad_missing(self):
+        """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """
+        self.assertEqual('this-is-foo-with-incorrect-padding', self.acme.b64decode_pad('dGhpcy1pcy1mb28td2l0aC1pbmNvcnJlY3QtcGFkZGluZw')) 
 
+    def test_b64decode_failed(self):
+        """ test b64 decoding failure """
+        self.assertEqual('ERR: b64 decoding error', self.acme.b64decode_pad('b'))
+
+    def test_decode_deserialize(self): 
+        """ test successful deserialization of a b64 encoded string """
+        self.assertEqual({u'a': u'b', u'c': u'd'}, self.acme.decode_deserialize('eyJhIiA6ICJiIiwgImMiIDogImQifQ=='))        
+
+    def test_decode_deserialize_failed(self): 
+        """ test failed deserialization of a b64 encoded string """
+        self.assertEqual('ERR: Json decoding error', self.acme.decode_deserialize('Zm9vLXdoaWNoLWNhbm5vdC1iZS1qc29uaXplZA=='))   
+        
 if __name__ == '__main__':
 
     unittest.main()
