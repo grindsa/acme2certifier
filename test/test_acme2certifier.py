@@ -1,10 +1,11 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 """ unittests for acme2certifier """
 
 import unittest
 import sys
-from acme.acmesrv import ACMEsrv
 sys.path.insert(0, '..')
-
+from acme.acmesrv import ACMEsrv
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
@@ -13,25 +14,25 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         self.acme = ACMEsrv('http://tester.local')
 
-    def test_get_servername(self):
+    def test_servername_new(self):
         """ test ACMEsrv.get_server_name() method """
-        self.assertEqual('http://tester.local', self.acme.get_server_name())
+        self.assertEqual('http://tester.local', self.acme.servername_get())
 
     def test_get_dir_newnonce(self):
         """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.acme.get_directory())
+        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.acme.directory_get())
 
-    def test_new_noce(self):
+    def test_nonce_new(self):
         """ test ACMEsrv.newnonce() and check if we get something back """
-        self.assertIsNotNone(self.acme.newnonce())
+        self.assertIsNotNone(self.acme.nonce_new())
 
     def test_get_dir_meta(self):
         """ test ACMEsrv.get_directory() method and check for "meta" tag in output"""
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.acme.get_directory())
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.acme.directory_get())
 
     def test_get_dir_newaccount(self):
         """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.acme.get_directory())
+        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.acme.directory_get())
 
     def test_b64decode_pad_correct(self):
         """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """

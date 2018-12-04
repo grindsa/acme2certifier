@@ -1,10 +1,12 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 """ cgi based acme server for Netguard Certificate manager / Insta certifier """
 from __future__ import print_function
 import uuid
 import base64
 import json
-from pprint import pprint
+from acme.cgi_handler import DBstore
+# from acme.django_handler import DBstore
 
 class ACMEsrv(object):
     """ ACME server class """
@@ -13,21 +15,39 @@ class ACMEsrv(object):
 
     def __init__(self, srv_name=None):
         self.server_name = srv_name
-        # self.nonce = nonce
+        self.dbstore = DBstore()
 
     def __enter__(self):
-        """
-        Makes ACMEHandler a Context Manager
-
-        """
+        """ Makes ACMEHandler a Context Manager """
         return self
 
     def __exit__(self, *args):
-        """
-        Close the connection at the end of the context
-        """
+        """ cose the connection at the end of the context """
 
-    def get_directory(self):
+    def account_new(self, content):
+        """ generate a new account """
+        try:
+            content = json.loads(content)
+        except ValueError:
+            content = None
+
+        if content and 'protected' in content and 'payload' in content and 'signature' in content:
+            protected_decoded = self.decode_deserialize(content['protected'])
+            payload_decoded = self.decode_deserialize(content['payload'])
+            if 'nonce' in protected_decoded:
+                (code, message, detail) = self.nonce_check_and_delete(protected_decoded['nonce'])
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:badNonce'
+                detail = 'JWS has no anti-replay nonce'
+        else:
+            code = 400
+            message = 'content Json decoding error'
+            detail = None
+
+        return(code, message, detail)
+
+    def directory_get(self):
         """ return response to ACME directory call """
         d_dic = {
             'newNonce': self.server_name + '/acme/newnonce',
@@ -47,30 +67,36 @@ class ACMEsrv(object):
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
-    def get_server_name(self):
+    def  nonce_check_and_delete(self, nonce):
+        """ check if nonce exists and delete it """
+        if self.dbstore.nonce_check(nonce):
+            self.dbstore.nonce_delete(nonce)
+            code = 200
+            message = None
+            detail = None
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:badNonce'
+            detail = 'JWS has invalid anti-replay nonce {0}'.format(nonce)
+        return(code, message, detail)
+
+    def nonce_generate_and_add(self):
+        """ generate new nonce and store it """
+        nonce = self.nonce_new()
+        _id = self.dbstore.nonce_add(nonce)
+        return nonce
+
+    def servername_get(self):
         """ dumb function to return servername """
         return self.server_name
 
-    def newaccount(self, content):
-        """ generate a new nonce """
-        try:
-            content = json.loads(content)
-        except ValueError:
-            content = None
-
-        if content and 'protected' in content and 'payload' in content and 'signature' in content:
-            protected_decoded = self.decode_deserialize(content['protected'])
-            payload_decoded = self.decode_deserialize(content['payload'])
-        else:
-            result = 'ERR: content Json decoding error'
-
-        return(result)
-
-    def newnonce(self):
+    @staticmethod
+    def nonce_new():
         """ generate a new nonce """
         return uuid.uuid4().hex
 
-    def b64decode_pad(self, string):
+    @staticmethod
+    def b64decode_pad(string):
         """ b64 decoding and padding of missing "=" """
         string += '=' * (-len(string) % 4)  # restore stripped '='s
         try:
