@@ -5,8 +5,8 @@ from __future__ import print_function
 import uuid
 import base64
 import json
-from acme.cgi_handler import DBstore
-# from acme.django_handler import DBstore
+# from acme.cgi_handler import DBstore
+from acme.django_handler import DBstore
 
 class ACMEsrv(object):
     """ ACME server class """
@@ -39,13 +39,27 @@ class ACMEsrv(object):
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:badNonce'
-                detail = 'JWS has no anti-replay nonce'
+                detail = 'NONE'
         else:
             code = 400
             message = 'content Json decoding error'
             detail = None
 
+        if code != 200 and detail:
+            detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
+
         return(code, message, detail)
+
+    @staticmethod
+    def acme_errormessage(message):
+        """ dictionary containing the implemented acme error messages """
+        error_dic = {
+            'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
+        }
+        if message:
+            return error_dic[message]
+        else:
+            return None
 
     def directory_get(self):
         """ return response to ACME directory call """
@@ -63,7 +77,7 @@ class ACMEsrv(object):
 
             'revoke-cert': self.server_name + '/acme/revoke-cert'
         }
-        # generate random key in json has as recommended by LE
+        # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
@@ -77,13 +91,13 @@ class ACMEsrv(object):
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:badNonce'
-            detail = 'JWS has invalid anti-replay nonce {0}'.format(nonce)
+            detail = nonce
         return(code, message, detail)
 
     def nonce_generate_and_add(self):
         """ generate new nonce and store it """
         nonce = self.nonce_new()
-        _id = self.dbstore.nonce_add(nonce)
+        # _id = self.dbstore.nonce_add(nonce)
         return nonce
 
     def servername_get(self):
