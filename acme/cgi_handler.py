@@ -62,15 +62,7 @@ class DBstore(object):
         rid = self.cursor.lastrowid
         self.db_close()
         return rid
-
-    def nonce_delete(self, nonce):
-        """ delete nonce from datbase
-        in: nonce """
-        print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
-        self.db_open()
-        self.cursor.execute('''delete FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
-        self.db_close()
-
+        
     def nonce_check(self, nonce):
         """ ceck if nonce is in datbase
         in: nonce
@@ -80,4 +72,12 @@ class DBstore(object):
         self.cursor.execute('''SELECT nonce FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         result = bool(self.cursor.fetchone())
         self.db_close()
-        return result
+        return result        
+
+    def nonce_delete(self, nonce):
+        """ delete nonce from datbase
+        in: nonce """
+        print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
+        self.db_open()
+        self.cursor.execute('''delete FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
+        self.db_close()

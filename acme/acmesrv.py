@@ -5,17 +5,30 @@ from __future__ import print_function
 import uuid
 import base64
 import json
+from datetime import datetime
 # from acme.cgi_handler import DBstore
 from acme.django_handler import DBstore
+
+def print_debug(debug, text):
+    """ little helper to print debug messages
+        args:
+            debug = debug flag
+            text  = text to print
+        returns:
+            (text)
+    """
+    if debug:
+        print('{0}: {1}'.format(datetime.now(), text))
 
 class ACMEsrv(object):
     """ ACME server class """
 
     server_name = None
 
-    def __init__(self, srv_name=None):
+    def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
-        self.dbstore = DBstore()
+        self.debug = debug
+        self.dbstore = DBstore(self.debug)
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -23,7 +36,7 @@ class ACMEsrv(object):
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
-            
+
     def account_new(self, content):
         """ generate a new account """
         try:
@@ -63,6 +76,7 @@ class ACMEsrv(object):
 
     def directory_get(self):
         """ return response to ACME directory call """
+        print_debug(self.debug, 'ACMEsrv.directory_get()')
         d_dic = {
             'newNonce': self.server_name + '/acme/newnonce',
             'newAccount': self.server_name + '/acme/newaccount',
@@ -83,6 +97,7 @@ class ACMEsrv(object):
 
     def  nonce_check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
+        print_debug(self.debug, 'ACMEsrv.nonce_check_and_delete({0})'.format(nonce))
         if self.dbstore.nonce_check(nonce):
             self.dbstore.nonce_delete(nonce)
             code = 200
@@ -96,17 +111,20 @@ class ACMEsrv(object):
 
     def nonce_generate_and_add(self):
         """ generate new nonce and store it """
+        print_debug(self.debug, 'ACMEsrv.nonce_generate_and_add()')
         nonce = self.nonce_new()
-        # _id = self.dbstore.nonce_add(nonce)
+        print_debug(self.debug, 'got nonce: {0}'.format(nonce))
+        _id = self.dbstore.nonce_add(nonce)
         return nonce
 
     def servername_get(self):
         """ dumb function to return servername """
+        print_debug(self.debug, 'ACMEsrv.servername_get()')
         return self.server_name
 
-    @staticmethod
-    def nonce_new():
+    def nonce_new(self):
         """ generate a new nonce """
+        print_debug(self.debug, 'ACMEsrv.nonce_new()')
         return uuid.uuid4().hex
 
     @staticmethod
@@ -131,8 +149,3 @@ class ACMEsrv(object):
                 string_decode = 'ERR: Json decoding error'
 
         return string_decode
-        
-    def store_create(self, db_name):
-        """ create store in case it is needed """
-        self.dbstore.db_create(db_name)
-        

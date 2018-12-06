@@ -6,6 +6,8 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from acme.acmesrv import ACMEsrv
 
+DEBUG = True
+
 def pretty_request(request):
     """ print request details for debugging """
     headers = ''
@@ -30,13 +32,13 @@ def pretty_request(request):
 
 def directory(request):
     """ get directory """
-    with ACMEsrv(request.META['HTTP_HOST']) as acm:
+    with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
         return JsonResponse(acm.directory_get())
 
 def newaccount(request):
     """ new account """
     if request.method == 'POST':
-        with ACMEsrv(request.META['HTTP_HOST']) as acm:
+        with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
             (code, message, detail) = acm.account_new(request.body)
             # create the response
             response = JsonResponse(status=code, data={'status':code, 'message':message, 'detail': detail})
@@ -49,7 +51,7 @@ def newaccount(request):
 def newnonce(request):
     """ new nonce """
     if request.method == 'HEAD':
-        with ACMEsrv(request.META['HTTP_HOST']) as acm:
+        with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
             response = HttpResponse('')
             # generate nonce
             response['Replay-Nonce'] = acm.nonce_generate_and_add()
@@ -59,7 +61,7 @@ def newnonce(request):
 
 def servername_get(request):
     """ get server name """
-    with ACMEsrv(request.META['HTTP_HOST']) as acm:
+    with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
         return JsonResponse({'server_name' : acm.servername_get()})
 
 #def blubb(request):
