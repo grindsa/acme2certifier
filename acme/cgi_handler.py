@@ -20,14 +20,14 @@ def print_debug(debug, text):
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, debug=False, db_name=None):
+    def __init__(self, debug=False):
         """ init """
-        self.db_name = db_name
+        self.db_name = 'acme.db'
         self.debug = debug
         self.dbs = None
         self.cursor = None
 
-        if not os.path.exists(db_name):
+        if not os.path.exists(self.db_name):
             self.db_create()
 
     def db_close(self):
@@ -62,7 +62,7 @@ class DBstore(object):
         rid = self.cursor.lastrowid
         self.db_close()
         return rid
-        
+
     def nonce_check(self, nonce):
         """ ceck if nonce is in datbase
         in: nonce
@@ -72,7 +72,7 @@ class DBstore(object):
         self.cursor.execute('''SELECT nonce FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         result = bool(self.cursor.fetchone())
         self.db_close()
-        return result        
+        return result
 
     def nonce_delete(self, nonce):
         """ delete nonce from datbase

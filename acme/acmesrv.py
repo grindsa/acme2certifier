@@ -6,8 +6,8 @@ import uuid
 import base64
 import json
 from datetime import datetime
-# from acme.cgi_handler import DBstore
-from acme.django_handler import DBstore
+from acme.cgi_handler import DBstore
+# from acme.django_handler import DBstore
 
 def print_debug(debug, text):
     """ little helper to print debug messages

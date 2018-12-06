@@ -2,6 +2,7 @@
 """ cgi based acme server for Netguard Certificate manager / Insta certifier """
 from __future__ import print_function
 import os
+import sys
 import json
 from acme.acmesrv import ACMEsrv
 
@@ -15,6 +16,7 @@ def return_error(text):
 if __name__ == "__main__":
 
     DBNAME = 'acme.db'
+    DEBUG = False
 
     # obtain servername
     if 'SERVER_NAME' in os.environ:
@@ -29,19 +31,38 @@ if __name__ == "__main__":
         URI = None
 
     # real stuff starts here
-    with ACMEsrv(SERVER_NAME) as acm:
+    with ACMEsrv(DEBUG, SERVER_NAME) as acm:
 
-        # create database if does not exists
-        if not os.path.exists(DBNAME):
-            acm.store_create(DBNAME)
-    
         if SERVER_NAME:
-            if URI == '/acme/newnonce':
-                print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
-                print('Content-type: text/html')
-                print()
+            if URI == '/acme/newaccount':
+                if os.environ['REQUEST_METHOD'] == 'POST':
+                    (CODE, MESSAGE, DETAIL) = acm.account_new(sys.stdin.read())
+                    # generate new nonce
+                    print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
+                    print('Content-Type: application/json')
+                    print()
+                    # create the response
+                    print(json.dumps({'status':CODE, 'message':MESSAGE, 'detail': DETAIL}))
+
+                    # return response
+                else:
+                    print('Status: 400 Bad Request')
+                    print('Content-Type: application/json')
+                    print()
+                    print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected POST.'}))
+
+            elif URI == '/acme/newnonce':
+                if os.environ['REQUEST_METHOD'] == 'HEAD':
+                    print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
+                    print('Content-type: text/html')
+                    print()
+                else:
+                    print('Status: 400 Bad Request')
+                    print('Content-Type: application/json')
+                    print()
+                    print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected HEAD.'}))
             else:
-                print("Content-Type: application/json")
+                print('Content-Type: application/json')
                 print()
                 if URI == '/directory' or URI == '/':
                     print(json.dumps(acm.directory_get()))
