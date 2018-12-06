@@ -21,6 +21,6 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', views.directory, name='index'),      
 	url(r'^directory$',views.directory, name='directory'),    
-	url(r'^get_servername$',views.get_servername, name='get_servername'),  
+	url(r'^get_servername$',views.servername_get, name='servername_get'),  
     url(r'^acme/', include('acme.urls')),    
 ]

@@ -23,7 +23,7 @@ class ACMEsrv(object):
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
-
+            
     def account_new(self, content):
         """ generate a new account """
         try:
@@ -131,3 +131,8 @@ class ACMEsrv(object):
                 string_decode = 'ERR: Json decoding error'
 
         return string_decode
+        
+    def store_create(self, db_name):
+        """ create store in case it is needed """
+        self.dbstore.db_create(db_name)
+        

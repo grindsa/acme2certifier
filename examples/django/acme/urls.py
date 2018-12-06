@@ -5,6 +5,6 @@ urlpatterns = [
     url(r'^directory$', views.directory, name='directory'),	
     url(r'^newnonce$', views.newnonce, name='newnonce'),	
     url(r'^newaccount$', views.newaccount, name='newaccount'),	    
-    url(r'^get_servername$', views.get_servername, name='get_servername'),
+    url(r'^servername_get$', views.servername_get, name='servername_get'),
     # url(r'^new_authz$', views.new_authz, name='new_authz'),    
 ]

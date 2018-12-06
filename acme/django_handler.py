@@ -6,6 +6,11 @@ from acme.models import Nonce
 class DBstore(object):
     """ helper to do datebase operations """
 
+    @staticmethod    
+    def db_create(db_name):
+        """ create the database if dos not exist """
+        pass
+        
     @staticmethod
     def nonce_add(nonce):
         """ check if nonce is in datbase

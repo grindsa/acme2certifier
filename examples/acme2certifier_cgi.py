@@ -14,6 +14,8 @@ def return_error(text):
 
 if __name__ == "__main__":
 
+    DBNAME = 'acme.db'
+
     # obtain servername
     if 'SERVER_NAME' in os.environ:
         SERVER_NAME = os.environ['SERVER_NAME']
@@ -29,16 +31,20 @@ if __name__ == "__main__":
     # real stuff starts here
     with ACMEsrv(SERVER_NAME) as acm:
 
+        # create database if does not exists
+        if not os.path.exists(DBNAME):
+            acm.store_create(DBNAME)
+    
         if SERVER_NAME:
             if URI == '/acme/newnonce':
-                print('Replay-Nonce: {0}'.format(acm.newnonce()))
+                print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
                 print('Content-type: text/html')
                 print()
             else:
                 print("Content-Type: application/json")
                 print()
                 if URI == '/directory' or URI == '/':
-                    print(json.dumps(acm.get_directory()))
+                    print(json.dumps(acm.directory_get()))
 
                 else:
                     # print(URI)
