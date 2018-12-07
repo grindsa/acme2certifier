@@ -95,7 +95,7 @@ class ACMEsrv(object):
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
-    def  nonce_check_and_delete(self, nonce):
+    def nonce_check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
         print_debug(self.debug, 'ACMEsrv.nonce_check_and_delete({0})'.format(nonce))
         if self.dbstore.nonce_check(nonce):

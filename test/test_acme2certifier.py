@@ -1,18 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for acme2certifier """
-
 import unittest
+try:
+    from mock import patch, MagicMock
+except ImportError:
+    from unittest.mock import patch, MagicMock
 import sys
 sys.path.insert(0, '..')
-from acme.acmesrv import ACMEsrv
+
+
+class FakeDBStore(object):
+    pass
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
     acme = None
     def setUp(self):
         """ setup unittest """
-        self.acme = ACMEsrv('http://tester.local')
+        models_mock = MagicMock()
+        models_mock.acme.django_handler.DBstore.return_value = FakeDBStore
+        models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore        
+        modules = {'acme.django_handler': models_mock, 'acme.cgi_handler': models_mock}
+        patch.dict('sys.modules', modules).start()
+        from acme.acmesrv import ACMEsrv
+        self.acme = ACMEsrv(False, 'http://tester.local')
 
     def test_servername_new(self):
         """ test ACMEsrv.get_server_name() method """
@@ -53,6 +65,19 @@ class TestACMEHandler(unittest.TestCase):
     def test_decode_deserialize_failed(self):
         """ test failed deserialization of a b64 encoded string """
         self.assertEqual('ERR: Json decoding error', self.acme.decode_deserialize('Zm9vLXdoaWNoLWNhbm5vdC1iZS1qc29uaXplZA=='))
+        
+    def test_acme_err_badnonce(self):
+        """ test badnonce error message """
+        self.assertEqual('JWS has invalid anti-replay nonce', self.acme.acme_errormessage('urn:ietf:params:acme:error:badNonce'))  
+
+    def test_nonce_generate_and_add(self):
+        """ test ACMEsrv.nonce_generate_and_add() and check if we get something back """
+        self.assertIsNotNone(self.acme.nonce_generate_and_add())
+        
+    def test_nonce_check_and_delete(self):
+        """ test ACMEsrv.nonce_check_and_delete """
+        self.assertEqual((200, None, None), self.acme.nonce_check_and_delete('aaa'))        
+        
 
 if __name__ == '__main__':
 
