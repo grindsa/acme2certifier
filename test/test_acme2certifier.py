@@ -12,14 +12,7 @@ sys.path.insert(0, '..')
 
 class FakeDBStore(object):
     """ face DBStore class needed for mocking """
-    @staticmethod
-    def first():
-        """ dummy 1 for pylint """
-        _first = 1
-    @staticmethod
-    def second():
-        """ dummy 2 for pyling """
-        _second = 2
+    pass
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
