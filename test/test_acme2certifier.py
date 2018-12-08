@@ -124,6 +124,18 @@ class TestACMEHandler(unittest.TestCase):
         """ test successful tos check """
         self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.acme.tos_check({'foo': 'bar'}))
 
+    def test_contact_check_valid(self):
+        """ test successful tos check """
+        self.assertEqual((200, None, None), self.acme.contact_check({'contact': ['mailto: foo@example.com']}))
+
+    def test_contact_check_invalid(self):
+        """ test successful tos check """
+        self.assertEqual((400, 'urn:ietf:params:acme:error:invalidContact', 'mailto: bar@exa,mple.com'), self.acme.contact_check({'contact': ['mailto: bar@exa,mple.com']}))
+
+    def test_contact_check_missing(self):
+        """ test successful tos check """
+        self.assertEqual((400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified'), self.acme.contact_check({'foo': 'bar'}))
+
 if __name__ == '__main__':
 
     unittest.main()
