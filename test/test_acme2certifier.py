@@ -24,8 +24,9 @@ class TestACMEHandler(unittest.TestCase):
         models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore
         modules = {'acme.django_handler': models_mock, 'acme.cgi_handler': models_mock}
         patch.dict('sys.modules', modules).start()
-        from acme.acmesrv import ACMEsrv
+        from acme.acmesrv import ACMEsrv, validate_email
         self.acme = ACMEsrv(False, 'http://tester.local')
+        self.validate_email = validate_email
 
     def test_servername_new(self):
         """ test ACMEsrv.get_server_name() method """
@@ -78,8 +79,39 @@ class TestACMEHandler(unittest.TestCase):
     def test_nonce_check_and_delete(self):
         """ test ACMEsrv.nonce_check_and_delete """
         self.assertEqual((200, None, None), self.acme.nonce_check_and_delete('aaa'))
+        
+    def test_validate_email_0(self):
+        """ validate normal email """
+        self.assertTrue(self.validate_email(False,'foo@example.com'))
+ 
+    def test_validate_email_1(self):
+        """ validate normal email """
+        self.assertTrue(self.validate_email(False,'mailto:foo@example.com')) 
+        
+    def test_validate_email_2(self):
+        """ validate normal email """
+        self.assertTrue(self.validate_email(False,'mailto: foo@example.com')) 
+        
+    def test_validate_email_3(self):
+        """ validate normal email """
+        self.assertTrue(self.validate_email(False,['mailto: foo@example.com', 'mailto: bar@example.com']))           
 
+    def test_validate_wrong_email_1(self):
+        """ validate normal email """
+        self.assertFalse(self.validate_email(False,'example.com'))
 
+    def test_validate_wrong_email_2(self):
+        """ validate normal email """
+        self.assertFalse(self.validate_email(False,'me@exam,ple.com'))
+        
+    def test_validate_wrong_email_3(self):
+        """ validate normal email """
+        self.assertFalse(self.validate_email(False,['mailto: foo@exa,mple.com', 'mailto: bar@example.com']))      
+
+    def test_validate_wrong_email_4(self):
+        """ validate normal email """
+        self.assertFalse(self.validate_email(False,['mailto: foo@example.com', 'mailto: bar@exa,mple.com']))          
+        
 if __name__ == '__main__':
 
     unittest.main()

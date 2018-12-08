@@ -5,9 +5,13 @@ from __future__ import print_function
 import uuid
 import base64
 import json
+import validators
 from datetime import datetime
-from acme.cgi_handler import DBstore
-# from acme.django_handler import DBstore
+from acme.django_handler import DBstore
+# from acme.cgi_handler import DBstore
+import re
+
+from pprint import pprint
 
 def print_debug(debug, text):
     """ little helper to print debug messages
@@ -19,7 +23,29 @@ def print_debug(debug, text):
     """
     if debug:
         print('{0}: {1}'.format(datetime.now(), text))
-
+        
+def validate_email(debug, contact_list):
+    """ validate contact against RFC608"""
+    print_debug(debug, 'validate_email()')    
+    result = True
+    pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
+    # check if we got a list or single address
+    if isinstance(contact_list, list):    
+        for contact in contact_list:
+            contact = contact.replace('mailto:', '')
+            contact = contact.lstrip()
+            tmp_result = bool(re.search(pattern, contact))  
+            print_debug(debug, '# validate: {0} result: {1}'.format(contact, tmp_result))              
+            if not tmp_result:
+                result = tmp_result
+    else:
+        contact_list = contact_list.replace('mailto:', '')
+        contact_list = contact_list.lstrip()
+        result = bool(re.search(pattern, contact_list))
+        print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))          
+        
+    return(result)
+    
 class ACMEsrv(object):
     """ ACME server class """
 
@@ -39,26 +65,36 @@ class ACMEsrv(object):
 
     def account_new(self, content):
         """ generate a new account """
+        print_debug(self.debug, 'ACMEsrv.account_new()')        
         try:
             content = json.loads(content)
         except ValueError:
             content = None
-
+            
         if content and 'protected' in content and 'payload' in content and 'signature' in content:
             protected_decoded = self.decode_deserialize(content['protected'])
-            payload_decoded = self.decode_deserialize(content['payload'])
-            if 'nonce' in protected_decoded:
-                (code, message, detail) = self.nonce_check_and_delete(protected_decoded['nonce'])
-            else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:badNonce'
-                detail = 'NONE'
+            payload_decoded = self.decode_deserialize(content['payload'])         
+            (code, message, detail) = self.nonce_check(protected_decoded)            
+            if code == 200:
+                if 'contact' in payload_decoded:
+                    contact_check = validate_email(self.debug, payload_decoded['contact'])
+                    if contact_check:
+                        # continue here
+                        pass
+                    else:
+                        # invalidcontact message
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:invalidContact'
+                        detail = ', '.join(payload_decoded['contact'])
+            
         else:
             code = 400
             message = 'content Json decoding error'
             detail = None
 
+        # enrich error message with detail
         if code != 200 and detail:
+            # some error occured get details
             detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
 
         return(code, message, detail)
@@ -68,6 +104,7 @@ class ACMEsrv(object):
         """ dictionary containing the implemented acme error messages """
         error_dic = {
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
+            'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
         }
         if message:
             return error_dic[message]
@@ -95,6 +132,19 @@ class ACMEsrv(object):
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
+    def nonce_check(self, protected_decoded):
+        """ check nonce """
+        print_debug(self.debug, 'ACMEsrv.check_nonce()')        
+        if 'nonce' in protected_decoded:
+            (code, message, detail) = self.nonce_check_and_delete(protected_decoded['nonce'])
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:badNonce'
+            detail = 'NONE'  
+            
+        return(code, message, detail)
+       
+        
     def nonce_check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
         print_debug(self.debug, 'ACMEsrv.nonce_check_and_delete({0})'.format(nonce))
