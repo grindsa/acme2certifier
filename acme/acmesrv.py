@@ -5,14 +5,10 @@ from __future__ import print_function
 import uuid
 import base64
 import json
-import validators
+import re
 from datetime import datetime
 from acme.django_handler import DBstore
 # from acme.cgi_handler import DBstore
-import re
-
-from pprint import pprint
-
 def print_debug(debug, text):
     """ little helper to print debug messages
         args:
@@ -23,29 +19,29 @@ def print_debug(debug, text):
     """
     if debug:
         print('{0}: {1}'.format(datetime.now(), text))
-        
+
 def validate_email(debug, contact_list):
     """ validate contact against RFC608"""
-    print_debug(debug, 'validate_email()')    
+    print_debug(debug, 'validate_email()')
     result = True
     pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
     # check if we got a list or single address
-    if isinstance(contact_list, list):    
+    if isinstance(contact_list, list):
         for contact in contact_list:
             contact = contact.replace('mailto:', '')
             contact = contact.lstrip()
-            tmp_result = bool(re.search(pattern, contact))  
-            print_debug(debug, '# validate: {0} result: {1}'.format(contact, tmp_result))              
+            tmp_result = bool(re.search(pattern, contact))
+            print_debug(debug, '# validate: {0} result: {1}'.format(contact, tmp_result))
             if not tmp_result:
                 result = tmp_result
     else:
         contact_list = contact_list.replace('mailto:', '')
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
-        print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))          
-        
-    return(result)
-    
+        print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
+
+    return result
+
 class ACMEsrv(object):
     """ ACME server class """
 
@@ -65,28 +61,25 @@ class ACMEsrv(object):
 
     def account_new(self, content):
         """ generate a new account """
-        print_debug(self.debug, 'ACMEsrv.account_new()')        
+        print_debug(self.debug, 'ACMEsrv.account_new()')
         try:
             content = json.loads(content)
         except ValueError:
             content = None
-            
+
         if content and 'protected' in content and 'payload' in content and 'signature' in content:
+            # decode the message
             protected_decoded = self.decode_deserialize(content['protected'])
-            payload_decoded = self.decode_deserialize(content['payload'])         
-            (code, message, detail) = self.nonce_check(protected_decoded)            
+            payload_decoded = self.decode_deserialize(content['payload'])
+            # noce check
+            (code, message, detail) = self.nonce_check(protected_decoded)
+            # tos check
             if code == 200:
-                if 'contact' in payload_decoded:
-                    contact_check = validate_email(self.debug, payload_decoded['contact'])
-                    if contact_check:
-                        # continue here
-                        pass
-                    else:
-                        # invalidcontact message
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:invalidContact'
-                        detail = ', '.join(payload_decoded['contact'])
-            
+                (code, message, detail) = self.tos_check(payload_decoded)
+
+            if code == 200:
+                pass
+
         else:
             code = 400
             message = 'content Json decoding error'
@@ -94,8 +87,11 @@ class ACMEsrv(object):
 
         # enrich error message with detail
         if code != 200 and detail:
-            # some error occured get details
-            detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
+            if detail == 'tosfalse':
+                detail = 'Terms of service must be accepted'
+            else:
+                # some error occured get details
+                detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
 
         return(code, message, detail)
 
@@ -105,6 +101,7 @@ class ACMEsrv(object):
         error_dic = {
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
+            'urn:ietf:params:acme:error:userActionRequired' : ''
         }
         if message:
             return error_dic[message]
@@ -134,17 +131,17 @@ class ACMEsrv(object):
 
     def nonce_check(self, protected_decoded):
         """ check nonce """
-        print_debug(self.debug, 'ACMEsrv.check_nonce()')        
+        print_debug(self.debug, 'ACMEsrv.check_nonce()')
         if 'nonce' in protected_decoded:
             (code, message, detail) = self.nonce_check_and_delete(protected_decoded['nonce'])
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:badNonce'
-            detail = 'NONE'  
-            
+            detail = 'NONE'
+
         return(code, message, detail)
-       
-        
+
+
     def nonce_check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
         print_debug(self.debug, 'ACMEsrv.nonce_check_and_delete({0})'.format(nonce))
@@ -167,15 +164,38 @@ class ACMEsrv(object):
         _id = self.dbstore.nonce_add(nonce)
         return nonce
 
+    def nonce_new(self):
+        """ generate a new nonce """
+        print_debug(self.debug, 'ACMEsrv.nonce_new()')
+        return uuid.uuid4().hex
+
     def servername_get(self):
         """ dumb function to return servername """
         print_debug(self.debug, 'ACMEsrv.servername_get()')
         return self.server_name
 
-    def nonce_new(self):
-        """ generate a new nonce """
-        print_debug(self.debug, 'ACMEsrv.nonce_new()')
-        return uuid.uuid4().hex
+    def tos_check(self, content):
+        """ check terms of service """
+        print_debug(self.debug, 'ACMEsrv.tos_check()')
+        if 'termsOfServiceAgreed' in content:
+            print_debug(self.debug, 'tos:{0}'.format(content['termsOfServiceAgreed']))
+            if content['termsOfServiceAgreed']:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = 'urn:ietf:params:acme:error:userActionRequired'
+                detail = 'tosfalse'
+        else:
+            print_debug(self.debug, 'no tos statement found.')
+            code = 403
+            message = 'urn:ietf:params:acme:error:userActionRequired'
+            detail = 'tosfalse'
+
+        return(code, message, detail)
+
+
 
     @staticmethod
     def b64decode_pad(string):

@@ -79,39 +79,51 @@ class TestACMEHandler(unittest.TestCase):
     def test_nonce_check_and_delete(self):
         """ test ACMEsrv.nonce_check_and_delete """
         self.assertEqual((200, None, None), self.acme.nonce_check_and_delete('aaa'))
-        
+
     def test_validate_email_0(self):
         """ validate normal email """
-        self.assertTrue(self.validate_email(False,'foo@example.com'))
- 
+        self.assertTrue(self.validate_email(False, 'foo@example.com'))
+
     def test_validate_email_1(self):
         """ validate normal email """
-        self.assertTrue(self.validate_email(False,'mailto:foo@example.com')) 
-        
+        self.assertTrue(self.validate_email(False, 'mailto:foo@example.com'))
+
     def test_validate_email_2(self):
         """ validate normal email """
-        self.assertTrue(self.validate_email(False,'mailto: foo@example.com')) 
-        
+        self.assertTrue(self.validate_email(False, 'mailto: foo@example.com'))
+
     def test_validate_email_3(self):
         """ validate normal email """
-        self.assertTrue(self.validate_email(False,['mailto: foo@example.com', 'mailto: bar@example.com']))           
+        self.assertTrue(self.validate_email(False, ['mailto: foo@example.com', 'mailto: bar@example.com']))
 
     def test_validate_wrong_email_1(self):
         """ validate normal email """
-        self.assertFalse(self.validate_email(False,'example.com'))
+        self.assertFalse(self.validate_email(False, 'example.com'))
 
     def test_validate_wrong_email_2(self):
         """ validate normal email """
-        self.assertFalse(self.validate_email(False,'me@exam,ple.com'))
-        
+        self.assertFalse(self.validate_email(False, 'me@exam,ple.com'))
+
     def test_validate_wrong_email_3(self):
         """ validate normal email """
-        self.assertFalse(self.validate_email(False,['mailto: foo@exa,mple.com', 'mailto: bar@example.com']))      
+        self.assertFalse(self.validate_email(False, ['mailto: foo@exa,mple.com', 'mailto: bar@example.com']))
 
     def test_validate_wrong_email_4(self):
         """ validate normal email """
-        self.assertFalse(self.validate_email(False,['mailto: foo@example.com', 'mailto: bar@exa,mple.com']))          
-        
+        self.assertFalse(self.validate_email(False, ['mailto: foo@example.com', 'mailto: bar@exa,mple.com']))
+
+    def test_tos_check_true(self):
+        """ test successful tos check """
+        self.assertEqual((200, None, None), self.acme.tos_check({'termsOfServiceAgreed': True}))
+
+    def test_tos_check_false(self):
+        """ test successful tos check """
+        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.acme.tos_check({'termsOfServiceAgreed': False}))
+
+    def test_tos_check_missing(self):
+        """ test successful tos check """
+        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.acme.tos_check({'foo': 'bar'}))
+
 if __name__ == '__main__':
 
     unittest.main()
