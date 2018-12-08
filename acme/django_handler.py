@@ -3,7 +3,7 @@
 """ django handler for acmesrv.py """
 from __future__ import print_function
 from datetime import datetime
-from acme.models import Nonce
+from acme.models import Account, Nonce
 
 def print_debug(debug, text):
     """ little helper to print debug messages
@@ -22,6 +22,13 @@ class DBstore(object):
     def __init__(self, debug=False):
         """ init """
         self.debug = debug
+
+    def account_add(self, alg, exponent, kty, modulus, contact):
+        """ add account in database """
+        print_debug(self.debug, 'DBStore.account_add(alg:{0}, e:{1}, kty:{2}, n:{3}, contact: {4})'.format(alg, exponent, kty, modulus, contact))
+        obj, created = Account.objects.update_or_create(modulus=modulus, defaults={'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
+        obj.save()
+        return (obj.id, created)
 
     def nonce_add(self, nonce):
         """ check if nonce is in datbase

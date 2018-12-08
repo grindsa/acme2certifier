@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 from acme.django_handler import DBstore
 # from acme.cgi_handler import DBstore
+
 def print_debug(debug, text):
     """ little helper to print debug messages
         args:
@@ -59,6 +60,31 @@ class ACMEsrv(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def account_add(self, content, contact):
+        """ prepare db insert and call DBstore helper """
+        # check request
+        if 'alg' in content and 'jwk' in content:
+            # check jwk
+            if 'e' in content['jwk'] and 'kty' in content['jwk'] and 'n' in content['jwk']:
+                (account_id, new) = self.dbstore.account_add(content['alg'], content['jwk']['e'], content['jwk']['kty'], content['jwk']['n'], json.dumps(contact))
+                print_debug(self.debug, 'god account_id:{0} new:{1}'.format(account_id, new))
+                if new:
+                    code = 201
+                else:
+                    code = 200
+                message = account_id
+                detail = None
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'incomplete JSON Web Key '
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'incomplete protectedpayload'
+
+        return(code, message, detail)
+
     def account_new(self, content):
         """ generate a new account """
         print_debug(self.debug, 'ACMEsrv.account_new()')
@@ -67,36 +93,60 @@ class ACMEsrv(object):
         except ValueError:
             content = None
 
+        response_dic = {}
+        header_dic = {}
         if content and 'protected' in content and 'payload' in content and 'signature' in content:
             # decode the message
             protected_decoded = self.decode_deserialize(content['protected'])
             payload_decoded = self.decode_deserialize(content['payload'])
-            # noce check
+
+            # nonce check
             (code, message, detail) = self.nonce_check(protected_decoded)
+
             # tos check
             if code == 200:
                 (code, message, detail) = self.tos_check(payload_decoded)
 
+            # contact check
             if code == 200:
                 (code, message, detail) = self.contact_check(payload_decoded)
-                
+
+            # add account to database
             if code == 200:
-                print(code, message, detail)                
+                (code, message, detail) = self.account_add(protected_decoded, payload_decoded['contact'])
 
         else:
             code = 400
             message = 'content Json decoding error'
             detail = None
 
-        # enrich error message with detail
-        if code != 200 and detail:
-            if detail == 'tosfalse':
-                detail = 'Terms of service must be accepted'
+        # enrich response dictionary with details
+        if code == 200 or code == 201:
+            response_dic['data'] = {
+                'status': 'valid',
+                'contact': payload_decoded['contact'],
+                'orders': '{0}/acme/acct/{1}/orders'.format(self.server_name, message),
+            }
+            header_dic['Location'] = '{0}/acme/acct/{1}'.format(self.server_name, message)
+        else:
+            if detail:
+                if detail == 'tosfalse':
+                    detail = 'Terms of service must be accepted'
+                else:
+                    # some error occured get details
+                    detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
             else:
-                # some error occured get details
-                detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
+                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
 
-        return(code, message, detail)
+        # add nonce to header
+        header_dic['Replay-Nonce'] = self.nonce_generate_and_add()
+
+        # create response
+        response_dic['code'] = code
+        response_dic['header'] = header_dic
+        print_debug(self.debug, 'ACMEsrv.account_new() returns: {0}'.format(json.dumps(response_dic)))
+
+        return response_dic
 
     @staticmethod
     def acme_errormessage(message):
@@ -104,34 +154,35 @@ class ACMEsrv(object):
         error_dic = {
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:userActionRequired' : ''
+            'urn:ietf:params:acme:error:userActionRequired' : '',
+            'urn:ietf:params:acme:error:malformed' : '',
         }
         if message:
             return error_dic[message]
         else:
             return None
-            
+
     def contact_check(self, content):
         """ check contact information from payload"""
-        print_debug(self.debug, 'ACMEsrv.contact_check()') 
+        print_debug(self.debug, 'ACMEsrv.contact_check()')
         code = 200
         message = None
-        detail = None        
+        detail = None
         if 'contact' in content:
             contact_check = validate_email(self.debug, content['contact'])
             if not contact_check:
                 # invalidcontact message
                 code = 400
                 message = 'urn:ietf:params:acme:error:invalidContact'
-                detail = ', '.join(content['contact'])  
+                detail = ', '.join(content['contact'])
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:invalidContact'
             detail = 'no contacts specified'
-                
+
         return(code, message, detail)
-        
-                
+
+
     def directory_get(self):
         """ return response to ACME directory call """
         print_debug(self.debug, 'ACMEsrv.directory_get()')
