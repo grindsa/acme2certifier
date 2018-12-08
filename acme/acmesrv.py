@@ -78,7 +78,10 @@ class ACMEsrv(object):
                 (code, message, detail) = self.tos_check(payload_decoded)
 
             if code == 200:
-                pass
+                (code, message, detail) = self.contact_check(payload_decoded)
+                
+            if code == 200:
+                print(code, message, detail)                
 
         else:
             code = 400
@@ -107,7 +110,28 @@ class ACMEsrv(object):
             return error_dic[message]
         else:
             return None
-
+            
+    def contact_check(self, content):
+        """ check contact information from payload"""
+        print_debug(self.debug, 'ACMEsrv.contact_check()') 
+        code = 200
+        message = None
+        detail = None        
+        if 'contact' in content:
+            contact_check = validate_email(self.debug, content['contact'])
+            if not contact_check:
+                # invalidcontact message
+                code = 400
+                message = 'urn:ietf:params:acme:error:invalidContact'
+                detail = ', '.join(content['contact'])  
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:invalidContact'
+            detail = 'no contacts specified'
+                
+        return(code, message, detail)
+        
+                
     def directory_get(self):
         """ return response to ACME directory call """
         print_debug(self.debug, 'ACMEsrv.directory_get()')
