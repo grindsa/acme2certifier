@@ -24,17 +24,18 @@ class TestACMEHandler(unittest.TestCase):
         models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore
         modules = {'acme.django_handler': models_mock, 'acme.cgi_handler': models_mock}
         patch.dict('sys.modules', modules).start()
-        from acme.acmesrv import ACMEsrv, validate_email
+        from acme.acmesrv import ACMEsrv, Directory, validate_email
+        self.directory = Directory(False, 'http://tester.local')
         self.acme = ACMEsrv(False, 'http://tester.local')
         self.validate_email = validate_email
 
     def test_servername_new(self):
         """ test ACMEsrv.get_server_name() method """
-        self.assertEqual('http://tester.local', self.acme.servername_get())
+        self.assertEqual('http://tester.local', self.directory.servername_get())
 
     def test_get_dir_newnonce(self):
         """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.acme.directory_get())
+        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.directory.directory_get())
 
     def test_nonce_new(self):
         """ test ACMEsrv.newnonce() and check if we get something back """
@@ -42,11 +43,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_get_dir_meta(self):
         """ test ACMEsrv.get_directory() method and check for "meta" tag in output"""
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.acme.directory_get())
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.directory.directory_get())
 
     def test_get_dir_newaccount(self):
         """ test ACMEsrv.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.acme.directory_get())
+        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.directory.directory_get())
 
     def test_b64decode_pad_correct(self):
         """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """

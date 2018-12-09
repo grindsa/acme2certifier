@@ -42,20 +42,20 @@ def validate_email(debug, contact_list):
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
 
     return result
-    
+
 class Directory(object):
     """ class for directory handling """
-    def __init__(self, debug=None, srv_name=None):    
+    def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
         self.debug = debug
-        
+
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         return self
 
     def __exit__(self, *args):
-        """ cose the connection at the end of the context """    
-        
+        """ cose the connection at the end of the context """
+
     def directory_get(self):
         """ return response to ACME directory call """
         print_debug(self.debug, 'ACMEsrv.directory_get()')
@@ -76,7 +76,11 @@ class Directory(object):
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
-        
+
+    def servername_get(self):
+        """ dumb function to return servername """
+        print_debug(self.debug, 'ACMEsrv.servername_get()')
+        return self.server_name
 
 class ACMEsrv(object):
     """ ACME server class """
@@ -256,11 +260,6 @@ class ACMEsrv(object):
         """ generate a new nonce """
         print_debug(self.debug, 'ACMEsrv.nonce_new()')
         return uuid.uuid4().hex
-
-    def servername_get(self):
-        """ dumb function to return servername """
-        print_debug(self.debug, 'ACMEsrv.servername_get()')
-        return self.server_name
 
     def tos_check(self, content):
         """ check terms of service """
