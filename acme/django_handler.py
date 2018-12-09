@@ -2,19 +2,8 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
-from datetime import datetime
 from acme.models import Account, Nonce
-
-def print_debug(debug, text):
-    """ little helper to print debug messages
-        args:
-            debug = debug flag
-            text  = text to print
-        returns:
-            (text)
-    """
-    if debug:
-        print('{0}: {1}'.format(datetime.now(), text))
+from acme.helper import print_debug
 
 class DBstore(object):
     """ helper to do datebase operations """

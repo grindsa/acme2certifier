@@ -4,18 +4,7 @@
 from __future__ import print_function
 import sqlite3
 import os
-from datetime import datetime
-
-def print_debug(debug, text):
-    """ little helper to print debug messages
-        args:
-            debug = debug flag
-            text  = text to print
-        returns:
-            (text)
-    """
-    if debug:
-        print('{0}: {1}'.format(datetime.now(), text))
+from acme.helper import print_debug
 
 class DBstore(object):
     """ helper to do datebase operations """

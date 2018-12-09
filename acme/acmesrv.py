@@ -5,46 +5,13 @@ from __future__ import print_function
 import uuid
 import base64
 import json
-import re
-from datetime import datetime
+from acme.helper import print_debug, validate_email
 from acme.django_handler import DBstore
 # from acme.cgi_handler import DBstore
 
-def print_debug(debug, text):
-    """ little helper to print debug messages
-        args:
-            debug = debug flag
-            text  = text to print
-        returns:
-            (text)
-    """
-    if debug:
-        print('{0}: {1}'.format(datetime.now(), text))
-
-def validate_email(debug, contact_list):
-    """ validate contact against RFC608"""
-    print_debug(debug, 'validate_email()')
-    result = True
-    pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
-    # check if we got a list or single address
-    if isinstance(contact_list, list):
-        for contact in contact_list:
-            contact = contact.replace('mailto:', '')
-            contact = contact.lstrip()
-            tmp_result = bool(re.search(pattern, contact))
-            print_debug(debug, '# validate: {0} result: {1}'.format(contact, tmp_result))
-            if not tmp_result:
-                result = tmp_result
-    else:
-        contact_list = contact_list.replace('mailto:', '')
-        contact_list = contact_list.lstrip()
-        result = bool(re.search(pattern, contact_list))
-        print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
-
-    return result
-
 class Directory(object):
     """ class for directory handling """
+
     def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
         self.debug = debug
@@ -82,8 +49,29 @@ class Directory(object):
         print_debug(self.debug, 'Directory.servername_get()')
         return self.server_name
 
+class Error(object):
+    """ error messages """
+
+    def __init__(self, debug=None):
+        self.debug = debug
+
+    def acme_errormessage(self, message):
+        """ dictionary containing the implemented acme error messages """
+        print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))
+        error_dic = {
+            'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
+            'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
+            'urn:ietf:params:acme:error:userActionRequired' : '',
+            'urn:ietf:params:acme:error:malformed' : '',
+        }
+        if message:
+            return error_dic[message]
+        else:
+            return None
+
 class Nonce(object):
     """ Nonce handler """
+
     def __init__(self, debug=None):
         self.debug = debug
         self.dbstore = DBstore(self.debug)
@@ -238,20 +226,6 @@ class ACMEsrv(object):
         print_debug(self.debug, 'ACMEsrv.account_new() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic
-
-    @staticmethod
-    def acme_errormessage(message):
-        """ dictionary containing the implemented acme error messages """
-        error_dic = {
-            'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
-            'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:userActionRequired' : '',
-            'urn:ietf:params:acme:error:malformed' : '',
-        }
-        if message:
-            return error_dic[message]
-        else:
-            return None
 
     def contact_check(self, content):
         """ check contact information from payload"""
