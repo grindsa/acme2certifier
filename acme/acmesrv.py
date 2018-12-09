@@ -3,9 +3,8 @@
 """ cgi based acme server for Netguard Certificate manager / Insta certifier """
 from __future__ import print_function
 import uuid
-import base64
 import json
-from acme.helper import print_debug, validate_email
+from acme.helper import decode_deserialize, print_debug, validate_email
 from acme.django_handler import DBstore
 # from acme.cgi_handler import DBstore
 
@@ -122,7 +121,7 @@ class Nonce(object):
         print_debug(self.debug, 'Nonce.nonce_new()')
         return uuid.uuid4().hex
 
-class ACMEsrv(object):
+class Account(object):
     """ ACME server class """
 
     server_name = None
@@ -130,6 +129,8 @@ class ACMEsrv(object):
     def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
         self.debug = debug
+        self.nonce = Nonce(self.debug)
+        self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
 
     def __enter__(self):
@@ -139,10 +140,11 @@ class ACMEsrv(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def account_add(self, content, contact):
+    def add(self, content, contact):
         """ prepare db insert and call DBstore helper """
+        print_debug(self.debug, 'Account.account_add()')
         # check request
-        if 'alg' in content and 'jwk' in content:
+        if 'alg' in content and 'jwk' in content and contact:
             # check jwk
             if 'e' in content['jwk'] and 'kty' in content['jwk'] and 'n' in content['jwk']:
                 (account_id, new) = self.dbstore.account_add(content['alg'], content['jwk']['e'], content['jwk']['kty'], content['jwk']['n'], json.dumps(contact))
@@ -156,7 +158,7 @@ class ACMEsrv(object):
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'incomplete JSON Web Key '
+                detail = 'incomplete JSON Web Key'
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
@@ -164,9 +166,9 @@ class ACMEsrv(object):
 
         return(code, message, detail)
 
-    def account_new(self, content):
+    def new(self, content):
         """ generate a new account """
-        print_debug(self.debug, 'ACMEsrv.account_new()')
+        print_debug(self.debug, 'Account.account_new()')
         try:
             content = json.loads(content)
         except ValueError:
@@ -176,11 +178,11 @@ class ACMEsrv(object):
         header_dic = {}
         if content and 'protected' in content and 'payload' in content and 'signature' in content:
             # decode the message
-            protected_decoded = self.decode_deserialize(content['protected'])
-            payload_decoded = self.decode_deserialize(content['payload'])
+            protected_decoded = decode_deserialize(self.debug, content['protected'])
+            payload_decoded = decode_deserialize(self.debug, content['payload'])
 
             # nonce check
-            (code, message, detail) = self.nonce_check(protected_decoded)
+            (code, message, detail) = self.nonce.check(protected_decoded)
 
             # tos check
             if code == 200:
@@ -192,7 +194,7 @@ class ACMEsrv(object):
 
             # add account to database
             if code == 200:
-                (code, message, detail) = self.account_add(protected_decoded, payload_decoded['contact'])
+                (code, message, detail) = self.add(protected_decoded, payload_decoded['contact'])
 
         else:
             code = 400
@@ -213,23 +215,25 @@ class ACMEsrv(object):
                     detail = 'Terms of service must be accepted'
                 else:
                     # some error occured get details
-                    detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
-            else:
+                    detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
+
                 response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+            else:
+                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
 
         # add nonce to header
-        header_dic['Replay-Nonce'] = self.nonce_generate_and_add()
+        header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
 
         # create response
         response_dic['code'] = code
         response_dic['header'] = header_dic
-        print_debug(self.debug, 'ACMEsrv.account_new() returns: {0}'.format(json.dumps(response_dic)))
+        print_debug(self.debug, 'Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic
 
     def contact_check(self, content):
         """ check contact information from payload"""
-        print_debug(self.debug, 'ACMEsrv.contact_check()')
+        print_debug(self.debug, 'Account.contact_check()')
         code = 200
         message = None
         detail = None
@@ -249,7 +253,7 @@ class ACMEsrv(object):
 
     def tos_check(self, content):
         """ check terms of service """
-        print_debug(self.debug, 'ACMEsrv.tos_check()')
+        print_debug(self.debug, 'Account.tos_check()')
         if 'termsOfServiceAgreed' in content:
             print_debug(self.debug, 'tos:{0}'.format(content['termsOfServiceAgreed']))
             if content['termsOfServiceAgreed']:
@@ -267,28 +271,3 @@ class ACMEsrv(object):
             detail = 'tosfalse'
 
         return(code, message, detail)
-
-
-
-    @staticmethod
-    def b64decode_pad(string):
-        """ b64 decoding and padding of missing "=" """
-        string += '=' * (-len(string) % 4)  # restore stripped '='s
-        try:
-            b64dec = base64.b64decode(string)
-        except TypeError:
-            b64dec = 'ERR: b64 decoding error'
-        return b64dec
-
-    def decode_deserialize(self, string):
-        """ decode and deserialize string """
-        # b64 decode
-        string_decode = self.b64decode_pad(string)
-        # deserialize if b64 decoding was successful
-        if string_decode and string_decode != 'ERR: b64 decoding error':
-            try:
-                string_decode = json.loads(string_decode)
-            except ValueError:
-                string_decode = 'ERR: Json decoding error'
-
-        return string_decode

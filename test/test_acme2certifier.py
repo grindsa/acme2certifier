@@ -24,10 +24,10 @@ class TestACMEHandler(unittest.TestCase):
         models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore
         modules = {'acme.django_handler': models_mock, 'acme.cgi_handler': models_mock}
         patch.dict('sys.modules', modules).start()
-        from acme.acmesrv import ACMEsrv, Directory, Nonce, Error
+        from acme.acmesrv import Account, Directory, Nonce, Error
         from acme.helper import b64decode_pad, decode_deserialize, validate_email
         self.directory = Directory(False, 'http://tester.local')
-        self.acme = ACMEsrv(False, 'http://tester.local')
+        self.account = Account(False, 'http://tester.local')
         self.nonce = Nonce(False)
         self.error = Error(False)
         self.b64decode_pad = b64decode_pad
@@ -87,11 +87,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('', self.error.acme_errormessage('urn:ietf:params:acme:error:malformed'))
 
     def test_b64decode_pad_correct(self):
-        """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """
+        """ test b64decode_pad() method with a regular base64 encoded string """
         self.assertEqual('this-is-foo-correctly-padded', self.b64decode_pad(False, 'dGhpcy1pcy1mb28tY29ycmVjdGx5LXBhZGRlZA=='))
 
     def test_b64decode_pad_missing(self):
-        """ test ACMEsrv.b64decode_pad() method with a regular base64 encoded string """
+        """ test b64decode_pad() method with a regular base64 encoded string """
         self.assertEqual('this-is-foo-with-incorrect-padding', self.b64decode_pad(False, 'dGhpcy1pcy1mb28td2l0aC1pbmNvcnJlY3QtcGFkZGluZw'))
 
     def test_b64decode_failed(self):
@@ -105,7 +105,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_decode_deserialize_failed(self):
         """ test failed deserialization of a b64 encoded string """
         self.assertEqual('ERR: Json decoding error', self.decode_deserialize(False, 'Zm9vLXdoaWNoLWNhbm5vdC1iZS1qc29uaXplZA=='))
-        
+
     def test_validate_email_0(self):
         """ validate normal email """
         self.assertTrue(self.validate_email(False, 'foo@example.com'))
@@ -137,7 +137,60 @@ class TestACMEHandler(unittest.TestCase):
     def test_validate_wrong_email_4(self):
         """ validate normal email """
         self.assertFalse(self.validate_email(False, ['mailto: foo@example.com', 'mailto: bar@exa,mple.com']))
-        
+
+    def test_tos_check_true(self):
+        """ test successful tos check """
+        self.assertEqual((200, None, None), self.account.tos_check({'termsOfServiceAgreed': True}))
+
+    def test_tos_check_false(self):
+        """ test successful tos check """
+        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.account.tos_check({'termsOfServiceAgreed': False}))
+
+    def test_tos_check_missing(self):
+        """ test successful tos check """
+        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.account.tos_check({'foo': 'bar'}))
+
+    def test_contact_check_valid(self):
+        """ test successful tos check """
+        self.assertEqual((200, None, None), self.account.contact_check({'contact': ['mailto: foo@example.com']}))
+
+    def test_contact_check_invalid(self):
+        """ test successful tos check """
+        self.assertEqual((400, 'urn:ietf:params:acme:error:invalidContact', 'mailto: bar@exa,mple.com'), self.account.contact_check({'contact': ['mailto: bar@exa,mple.com']}))
+
+    def test_contact_check_missing(self):
+        """ test successful tos check """
+        self.assertEqual((400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified'), self.account.contact_check({'foo': 'bar'}))
+
+    def test_account_add_failed1(self):
+        """ test account add without ALG """
+        dic = {'foo': 'bar', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protectedpayload'), self.account.add(dic, ['me@example.com']))
+
+    def test_account_add_failed2(self):
+        """ test account add without jwk """
+        dic = {'alg': 'RS256', 'foo': {'foo': u'bar'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protectedpayload'), self.account.add(dic, ['me@example.com']))
+
+    def test_account_add_failed3(self):
+        """ test account add without jwk e """
+        dic = {'alg': 'RS256', 'jwk': {'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
+
+    def test_account_add_failed4(self):
+        """ test account add without jwk kty """
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
+
+    def test_account_add_failed5(self):
+        """ test account add without jwk n """
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
+
+    def test_account_add_failed6(self):
+        """ test account add without contact """
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protectedpayload'), self.account.add(dic, None))
 
 if __name__ == '__main__':
 
