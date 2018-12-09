@@ -42,6 +42,41 @@ def validate_email(debug, contact_list):
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
 
     return result
+    
+class Directory(object):
+    """ class for directory handling """
+    def __init__(self, debug=None, srv_name=None):    
+        self.server_name = srv_name
+        self.debug = debug
+        
+    def __enter__(self):
+        """ Makes ACMEHandler a Context Manager """
+        return self
+
+    def __exit__(self, *args):
+        """ cose the connection at the end of the context """    
+        
+    def directory_get(self):
+        """ return response to ACME directory call """
+        print_debug(self.debug, 'ACMEsrv.directory_get()')
+        d_dic = {
+            'newNonce': self.server_name + '/acme/newnonce',
+            'newAccount': self.server_name + '/acme/newaccount',
+
+            'key-change': self.server_name + '/acme/key-change',
+            'new-authz': self.server_name + '/acme/new-authz',
+            'meta' : {
+                'home': 'https://github.com/grindsa/acme2certifier',
+                'author': 'grindsa <grindelsack@gmail.com>',
+            },
+            'new-cert': self.server_name + '/acme/new-cert',
+
+            'revoke-cert': self.server_name + '/acme/revoke-cert'
+        }
+        # generate random key in json as recommended by LE
+        d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
+        return d_dic
+        
 
 class ACMEsrv(object):
     """ ACME server class """
@@ -181,28 +216,6 @@ class ACMEsrv(object):
             detail = 'no contacts specified'
 
         return(code, message, detail)
-
-
-    def directory_get(self):
-        """ return response to ACME directory call """
-        print_debug(self.debug, 'ACMEsrv.directory_get()')
-        d_dic = {
-            'newNonce': self.server_name + '/acme/newnonce',
-            'newAccount': self.server_name + '/acme/newaccount',
-
-            'key-change': self.server_name + '/acme/key-change',
-            'new-authz': self.server_name + '/acme/new-authz',
-            'meta' : {
-                'home': 'https://github.com/grindsa/acme2certifier',
-                'author': 'grindsa <grindelsack@gmail.com>',
-            },
-            'new-cert': self.server_name + '/acme/new-cert',
-
-            'revoke-cert': self.server_name + '/acme/revoke-cert'
-        }
-        # generate random key in json as recommended by LE
-        d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
-        return d_dic
 
     def nonce_check(self, protected_decoded):
         """ check nonce """
