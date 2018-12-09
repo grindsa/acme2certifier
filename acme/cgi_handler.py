@@ -30,9 +30,14 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.db_create({0})'.format(self.db_name))
         self.db_open()
         # create nonce table
+        print_debug(self.debug, 'create nonce')       
         self.cursor.execute('''
             CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
+        print_debug(self.debug, 'create account')       
+        self.cursor.execute('''
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')        
         self.db_close()
 
     def db_open(self):

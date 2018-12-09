@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 import sys
 import json
-from acme.acmesrv import ACMEsrv
+from acme.acmesrv import Account, Directory, Nonce
 
 def return_error(text):
     """ returns an error message """
@@ -30,45 +30,46 @@ if __name__ == "__main__":
     else:
         URI = None
 
-    # real stuff starts here
-    with ACMEsrv(DEBUG, SERVER_NAME) as acm:
+    DIRECTORY = Directory(DEBUG, SERVER_NAME)
+    NONCE = Nonce(DEBUG)
+    ACCOUNT = Account(DEBUG, SERVER_NAME)
 
-        if SERVER_NAME:
-            if URI == '/acme/newaccount':
-                if os.environ['REQUEST_METHOD'] == 'POST':
-                    (CODE, MESSAGE, DETAIL) = acm.account_new(sys.stdin.read())
-                    # generate new nonce
-                    print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
-                    print('Content-Type: application/json')
-                    print()
-                    # create the response
-                    print(json.dumps({'status':CODE, 'message':MESSAGE, 'detail': DETAIL}))
-
-                    # return response
-                else:
-                    print('Status: 400 Bad Request')
-                    print('Content-Type: application/json')
-                    print()
-                    print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected POST.'}))
-
-            elif URI == '/acme/newnonce':
-                if os.environ['REQUEST_METHOD'] == 'HEAD':
-                    print('Replay-Nonce: {0}'.format(acm.nonce_generate_and_add()))
-                    print('Content-type: text/html')
-                    print()
-                else:
-                    print('Status: 400 Bad Request')
-                    print('Content-Type: application/json')
-                    print()
-                    print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected HEAD.'}))
-            else:
+    if SERVER_NAME:
+        if URI == '/acme/newaccount':
+            if os.environ['REQUEST_METHOD'] == 'POST':
+                (CODE, MESSAGE, DETAIL) = Account.new(sys.stdin.read())
+                # generate new nonce
+                print('Replay-Nonce: {0}'.format(NONCE.generate_and_add()))
                 print('Content-Type: application/json')
                 print()
-                if URI == '/directory' or URI == '/':
-                    print(json.dumps(acm.directory_get()))
+                # create the response
+                print(json.dumps({'status':CODE, 'message':MESSAGE, 'detail': DETAIL}))
 
-                else:
-                    # print(URI)
-                    print(return_error('path: {0} unknown'.format(URI)))
+                # return response
+            else:
+                print('Status: 400 Bad Request')
+                print('Content-Type: application/json')
+                print()
+                print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected POST.'}))
+
+        elif URI == '/acme/newnonce':
+            if os.environ['REQUEST_METHOD'] == 'HEAD':
+                print('Replay-Nonce: {0}'.format(NONCE.generate_and_add()))
+                print('Content-type: text/html')
+                print()
+            else:
+                print('Status: 400 Bad Request')
+                print('Content-Type: application/json')
+                print()
+                print(json.dumps({'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected HEAD.'}))
         else:
-            print(return_error('SERVER_NAME missing'))
+            print('Content-Type: application/json')
+            print()
+            if URI == '/directory' or URI == '/':
+                print(json.dumps(DIRECTORY.directory_get()))
+
+            else:
+                # print(URI)
+                print(return_error('path: {0} unknown'.format(URI)))
+    else:
+        print(return_error('SERVER_NAME missing'))
