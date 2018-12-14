@@ -183,7 +183,10 @@ class Account(object):
 
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
-
+            # code = 200
+            # message = None
+            # detail = None
+            
             # tos check
             if code == 200:
                 (code, message, detail) = self.tos_check(payload_decoded)
@@ -203,11 +206,13 @@ class Account(object):
 
         # enrich response dictionary with details
         if code == 200 or code == 201:
-            response_dic['data'] = {
-                'status': 'valid',
-                'contact': payload_decoded['contact'],
-                'orders': '{0}/acme/acct/{1}/orders'.format(self.server_name, message),
-            }
+            response_dic['data'] = {}  
+            if code == 201:
+                response_dic['data'] = {
+                    'status': 'valid',
+                    'contact': payload_decoded['contact'],
+                    'orders': '{0}/acme/acct/{1}/orders'.format(self.server_name, message),
+                }         
             header_dic['Location'] = '{0}/acme/acct/{1}'.format(self.server_name, message)
         else:
             if detail:

@@ -6,5 +6,6 @@ urlpatterns = [
     url(r'^newnonce$', views.newnonce, name='newnonce'),
     url(r'^newaccount$', views.newaccount, name='newaccount'),
     url(r'^servername_get$', views.servername_get, name='servername_get'),
+    url(r'^acct', views.acct, name='acct'),    
     # url(r'^new_authz$', views.new_authz, name='new_authz'),
 ]

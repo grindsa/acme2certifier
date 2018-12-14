@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 from django.http import HttpResponse
 from django.http import JsonResponse
-from acme.acmesrv import ACMEsrv
+from acme.acmesrv import Account, Directory, Nonce
 
 DEBUG = True
 
@@ -32,18 +32,22 @@ def pretty_request(request):
 
 def directory(request):
     """ get directory """
-    with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
-        return JsonResponse(acm.directory_get())
+    with Directory(DEBUG, request.META['HTTP_HOST']) as cfg_dir:
+        return JsonResponse(cfg_dir.directory_get())
 
 def newaccount(request):
     """ new account """
     if request.method == 'POST':
-        with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
-            (code, message, detail) = acm.account_new(request.body)
+        with Account(DEBUG, request.META['HTTP_HOST']) as account:
+            response_dic = account.new(request.body)
             # create the response
-            response = JsonResponse(status=code, data={'status':code, 'message':message, 'detail': detail})
-            # generate new nonce
-            response['Replay-Nonce'] = acm.nonce_generate_and_add()
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # send response
             return response
     else:
         return JsonResponse(status=400, data={'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected POST.'})
@@ -51,18 +55,24 @@ def newaccount(request):
 def newnonce(request):
     """ new nonce """
     if request.method == 'HEAD':
-        with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
+        with Nonce(DEBUG) as nonce:
             response = HttpResponse('')
             # generate nonce
-            response['Replay-Nonce'] = acm.nonce_generate_and_add()
+            response['Replay-Nonce'] = nonce.generate_and_add()
             return response
     else:
         return JsonResponse(status=400, data={'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected HEAD.'})
 
 def servername_get(request):
     """ get server name """
-    with ACMEsrv(DEBUG, request.META['HTTP_HOST']) as acm:
-        return JsonResponse({'server_name' : acm.servername_get()})
+    with Directory(DEBUG, request.META['HTTP_HOST']) as cfg_dir:
+        return JsonResponse({'server_name' : cfg_dir.servername_get()})
+
+def acct(request):
+    """ xxxx command """
+    with Account(request.META['HTTP_HOST']) as _acm:
+        return HttpResponse('ok')
+
 
 #def blubb(request):
 #    """ xxxx command """

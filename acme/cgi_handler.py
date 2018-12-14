@@ -11,13 +11,47 @@ class DBstore(object):
 
     def __init__(self, debug=False):
         """ init """
-        self.db_name = 'acme.db'
+        self.db_name = os.path.dirname(__file__) + '/acme.db'
         self.debug = debug
         self.dbs = None
         self.cursor = None
 
         if not os.path.exists(self.db_name):
             self.db_create()
+
+    def account_add(self, alg, exponent, kty, modulus, contact):
+        """ add account in database """
+        print_debug(self.debug, 'DBStore.account_add(alg:{0}, e:{1}, kty:{2}, n:{3}, contact: {4})'.format(alg, exponent, kty, modulus, contact))
+
+        # we need this for compability with django
+        created = False
+
+        # check if we alredy have an entry for the key
+        exists = self.account_search('modulus', modulus)
+        self.db_open()
+        if bool(exists):
+            # update
+            rid = exists[0]
+            print_debug(self.debug, 'account exists: {0} id: {1}'.format(modulus, rid))
+            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, exponent = :exponent, kty = :kty, contact = :contact WHERE modulus = :modulus''', {'alg': alg, 'modulus': modulus, 'exponent': exponent, 'kty': kty, 'contact': contact})
+        else:
+            # insert
+            self.cursor.execute('''INSERT INTO ACCOUNT(alg, exponent, kty, modulus, contact) VALUES(:alg, :exponent, :kty, :modulus, :contact)''', {'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
+            rid = self.cursor.lastrowid
+            created = True
+
+        self.db_close()
+        return (rid, created)
+
+    def account_search(self, column, string):
+        """ search account table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.account_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT * from account WHERE {0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
 
     def db_close(self):
         """ commit and close """
@@ -30,14 +64,14 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.db_create({0})'.format(self.db_name))
         self.db_open()
         # create nonce table
-        print_debug(self.debug, 'create nonce')       
+        print_debug(self.debug, 'create nonce')
         self.cursor.execute('''
             CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
-        print_debug(self.debug, 'create account')       
+        print_debug(self.debug, 'create account')
         self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')        
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self.db_close()
 
     def db_open(self):
