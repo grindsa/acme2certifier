@@ -9,9 +9,9 @@ from acme.helper import print_debug
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, db_name=os.path.dirname(__file__)+'/'+'acme_srv.db'):
         """ init """
-        self.db_name = os.path.dirname(__file__) + '/acme.db'
+        self.db_name = db_name
         self.debug = debug
         self.dbs = None
         self.cursor = None

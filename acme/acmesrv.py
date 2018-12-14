@@ -6,7 +6,7 @@ import uuid
 import json
 from acme.helper import decode_deserialize, print_debug, validate_email
 # from acme.django_handler import DBstore
-from acme.cgi_handler import DBstore
+from acme.wsgi_handler import DBstore
 
 class Directory(object):
     """ class for directory handling """
