@@ -9,14 +9,9 @@ sys.path.insert(0, '..')
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
-        """ setup unittest """       
+        """ setup unittest """
         from acme.wsgi_handler import DBstore
         self.dbstore = DBstore(True, 'acme_test.db')
-        
-    # def tearDown(self):
-    #     """ tear down """
-    #    if os.path.exists('acme_test.db'):
-    #        os.remove('acme_test.db')  
 
     def test_nonce_add_1(self):
         """ test DBstore.nonce_add() method """
@@ -81,8 +76,5 @@ class TestACMEHandler(unittest.TestCase):
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):
-        os.remove('acme_test.db') 
-
+        os.remove('acme_test.db')
     unittest.main()
-    
-    

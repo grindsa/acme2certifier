@@ -7,6 +7,17 @@ import base64
 import json
 from datetime import datetime
 
+
+def get_url(environ):
+    """ get url """
+    server_name = environ['HTTP_HOST']
+    port = environ['SERVER_PORT']
+    if port == 443:
+        proto = 'https'
+    else:
+        proto = 'http'
+    return '{0}://{1}'.format(proto, server_name)
+
 def b64decode_pad(debug, string):
     """ b64 decoding and padding of missing "=" """
     print_debug(debug, 'b64decode_pad()')

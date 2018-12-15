@@ -166,6 +166,26 @@ class Account(object):
 
         return(code, message, detail)
 
+    def contact_check(self, content):
+        """ check contact information from payload"""
+        print_debug(self.debug, 'Account.contact_check()')
+        code = 200
+        message = None
+        detail = None
+        if 'contact' in content:
+            contact_check = validate_email(self.debug, content['contact'])
+            if not contact_check:
+                # invalidcontact message
+                code = 400
+                message = 'urn:ietf:params:acme:error:invalidContact'
+                detail = ', '.join(content['contact'])
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:invalidContact'
+            detail = 'no contacts specified'
+
+        return(code, message, detail)        
+        
     def new(self, content):
         """ generate a new account """
         print_debug(self.debug, 'Account.account_new()')
@@ -186,7 +206,7 @@ class Account(object):
             # code = 200
             # message = None
             # detail = None
-            
+
             # tos check
             if code == 200:
                 (code, message, detail) = self.tos_check(payload_decoded)
@@ -206,13 +226,13 @@ class Account(object):
 
         # enrich response dictionary with details
         if code == 200 or code == 201:
-            response_dic['data'] = {}  
+            response_dic['data'] = {}
             if code == 201:
                 response_dic['data'] = {
                     'status': 'valid',
                     'contact': payload_decoded['contact'],
                     'orders': '{0}/acme/acct/{1}/orders'.format(self.server_name, message),
-                }         
+                }
             header_dic['Location'] = '{0}/acme/acct/{1}'.format(self.server_name, message)
         else:
             if detail:
@@ -236,25 +256,21 @@ class Account(object):
 
         return response_dic
 
-    def contact_check(self, content):
-        """ check contact information from payload"""
-        print_debug(self.debug, 'Account.contact_check()')
-        code = 200
-        message = None
-        detail = None
-        if 'contact' in content:
-            contact_check = validate_email(self.debug, content['contact'])
-            if not contact_check:
-                # invalidcontact message
-                code = 400
-                message = 'urn:ietf:params:acme:error:invalidContact'
-                detail = ', '.join(content['contact'])
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:invalidContact'
-            detail = 'no contacts specified'
+    def parse(self, content):
+        print_debug(self.debug, 'Account.parse()')  
+        try:
+            content = json.loads(content)
+        except ValueError:
+            content = None
 
-        return(code, message, detail)
+        response_dic = {}
+        header_dic = {}
+        if content and 'protected' in content and 'payload' in content and 'signature' in content:
+            # decode the message
+            protected_decoded = decode_deserialize(self.debug, content['protected'])
+            payload_decoded = decode_deserialize(self.debug, content['payload'])
+            from pprint import pprint
+            pprint(payload_decoded)
 
     def tos_check(self, content):
         """ check terms of service """

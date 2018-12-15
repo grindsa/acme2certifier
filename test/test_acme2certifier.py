@@ -191,11 +191,11 @@ class TestACMEHandler(unittest.TestCase):
         """ test account add without contact """
         dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protectedpayload'), self.account.add(dic, None))
-        
-    # @patch('dkb_robo.DKBRobo.get_document_links')        
+
+    # @patch('dkb_robo.DKBRobo.get_document_links')
     # def test_account_add_201(self, mock_db):
     #    """ test account add for new entry """
-    #    dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}        
+    #    dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
 
 if __name__ == '__main__':
 
