@@ -4,9 +4,9 @@
 from __future__ import print_function
 import uuid
 import json
-from acme.helper import decode_deserialize, print_debug, validate_email
-# from acme.django_handler import DBstore
-from acme.wsgi_handler import DBstore
+from acme.helper import decode_deserialize, decode_message, print_debug, signature_check, validate_email
+from acme.django_handler import DBstore
+# from acme.wsgi_handler import DBstore
 
 class Directory(object):
     """ class for directory handling """
@@ -132,6 +132,7 @@ class Account(object):
         self.nonce = Nonce(self.debug)
         self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
+        self.path = 'acme/acct'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -184,8 +185,22 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:invalidContact'
             detail = 'no contacts specified'
 
-        return(code, message, detail)        
-        
+        return(code, message, detail)
+
+    def id_get(self, url):
+        """ get id for account """
+        print_debug(self.debug, 'Account.id_get({0})'.format(url))
+        try:
+            kid = int(url.replace('{0}/{1}/'.format(self.server_name, self.path), ''))
+        except ValueError:
+            kid = None
+        return kid
+
+    def jwk_load(self, kid):
+        """ get key for a specific account id """
+        print_debug(self.debug, 'Account.jwk_load({0})'.format(kid))
+        return self.dbstore.jwk_load(kid)
+
     def new(self, content):
         """ generate a new account """
         print_debug(self.debug, 'Account.account_new()')
@@ -231,9 +246,9 @@ class Account(object):
                 response_dic['data'] = {
                     'status': 'valid',
                     'contact': payload_decoded['contact'],
-                    'orders': '{0}/acme/acct/{1}/orders'.format(self.server_name, message),
+                    'orders': '{0}/{1}/{2}/orders'.format(self.server_name, self.path, message),
                 }
-            header_dic['Location'] = '{0}/acme/acct/{1}'.format(self.server_name, message)
+            header_dic['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.path, message)
         else:
             if detail:
                 if detail == 'tosfalse':
@@ -257,20 +272,16 @@ class Account(object):
         return response_dic
 
     def parse(self, content):
-        print_debug(self.debug, 'Account.parse()')  
-        try:
-            content = json.loads(content)
-        except ValueError:
-            content = None
-
-        response_dic = {}
-        header_dic = {}
-        if content and 'protected' in content and 'payload' in content and 'signature' in content:
-            # decode the message
-            protected_decoded = decode_deserialize(self.debug, content['protected'])
-            payload_decoded = decode_deserialize(self.debug, content['payload'])
-            from pprint import pprint
-            pprint(payload_decoded)
+        """ parse message """
+        print_debug(self.debug, 'Account.parse()')
+        (protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+        if 'kid' in json.loads(protected_decoded):
+            kid = self.id_get(json.loads(protected_decoded)['kid'])
+            if kid:
+                pub_key = self.jwk_load(kid)
+                if pub_key:
+                    (sig_check, error) = signature_check(self.debug, content, pub_key)
+                    print(sig_check, error)
 
     def tos_check(self, content):
         """ check terms of service """

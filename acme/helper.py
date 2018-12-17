@@ -6,7 +6,7 @@ import re
 import base64
 import json
 from datetime import datetime
-
+from jwcrypto import jwk, jws
 
 def get_url(environ):
     """ get url """
@@ -42,6 +42,13 @@ def decode_deserialize(debug, string):
 
     return string_decode
 
+def decode_message(debug, message):
+    """ decode jwstoken and return header, payload and signature """
+    print_debug(debug, 'decode_message()')
+    jwstoken = jws.JWS()
+    jwstoken.deserialize(message)
+    return(jwstoken.objects['protected'], jwstoken.objects['payload'], jwstoken.objects['signature'])
+
 def print_debug(debug, text):
     """ little helper to print debug messages
         args:
@@ -52,6 +59,38 @@ def print_debug(debug, text):
     """
     if debug:
         print('{0}: {1}'.format(datetime.now(), text))
+
+def signature_check(debug, message, pub_key):
+    """ check JWS """
+    print_debug(debug, 'signature_check()')
+
+    result = False
+    error = None
+
+    if pub_key:
+        # load key
+        try:
+            jwkey = jwk.JWK(**pub_key)
+        except BaseException as err:
+            jwkey = None
+            result = False
+            error = str(err)
+
+        # verify signature
+        if jwkey:
+            jwstoken = jws.JWS()
+            jwstoken.deserialize(message)
+            try:
+                jwstoken.verify(jwkey)
+                result = True
+            except BaseException as err:
+                error = str(err)
+    else:
+        error = 'No key specified.'
+
+    # return result
+    return(result, error)
+
 
 def validate_email(debug, contact_list):
     """ validate contact against RFC608"""
