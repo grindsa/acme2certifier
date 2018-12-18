@@ -11,8 +11,6 @@ from acme.helper import get_url
 
 DEBUG = True
 
-pass
-
 def pretty_request(request):
     """ print request details for debugging """
     headers = ''
