@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """ model for acme django database """
 from __future__ import unicode_literals
-
 from django.db import models
 
 # Create your models here.
@@ -11,7 +10,7 @@ class Nonce(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     def __unicode__(self):
         return self.nonce
-        
+
 class Account(models.Model):
     """ account table """
     alg = models.CharField(max_length=10)
@@ -19,4 +18,6 @@ class Account(models.Model):
     kty = models.CharField(max_length=10)
     modulus = models.CharField(max_length=1024)
     contact = models.CharField(max_length=15)
-    created_at = models.DateTimeField(auto_now_add=True)    
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __unicode__(self):
+        return self.contact

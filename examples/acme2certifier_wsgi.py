@@ -6,8 +6,10 @@ import re
 from cgi import escape
 import json
 import os
-from acme.acmesrv import Account, Directory, Nonce
-from acme.helper import print_debug
+from acme.account import Account
+from acme.directory import Directory
+from acme.nonce import Nonce
+from acme.helper import print_debug, get_url
 
 DEBUG = True
 
@@ -21,15 +23,27 @@ HTTP_CODE_DIC = {
     405 : 'Method Not Allowed'
 }
 
-def get_url(environ):
-    """ get url """
-    server_name = environ['HTTP_HOST']
-    port = environ['SERVER_PORT']
-    if port == 443:
-        proto = 'https'
-    else:
-        proto = 'http'
-    return '{0}://{1}'.format(proto, server_name)
+def acct(environ, start_response):
+    """ account handling """
+    account = Account(DEBUG, get_url(environ))
+    nonce = Nonce(DEBUG)
+
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
+    request_body = environ['wsgi.input'].read(request_body_size)
+    response_dic = account.parse(request_body)
+
+    # generate header and nonce
+    headers = [('Content-Type', 'application/json'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
+
+    # enrich header
+    for element, value in response_dic['header'].items():
+        print_debug(DEBUG,'newaccount header {0}: {1}'.format(element, value))
+        headers.append((element, value))
+    start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+    return [json.dumps(response_dic['data'])]
 
 def directory(environ, start_response):
     """ directory listing """
@@ -85,6 +99,7 @@ URLS = [
     (r'^directory?$', directory),
     (r'^acme/newaccount$', newaccount),
     (r'^acme/newnonce$', newnonce),
+    (r'^acme/acct', acct),
 ]
 
 def application(environ, start_response):

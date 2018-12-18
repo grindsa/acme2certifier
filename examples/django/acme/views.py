@@ -4,7 +4,10 @@ from __future__ import unicode_literals
 
 from django.http import HttpResponse
 from django.http import JsonResponse
-from acme.acmesrv import Account, Directory, Nonce
+from acme.account import Account
+from acme.directory import Directory
+from acme.nonce import Nonce
+from acme.helper import print_debug, get_url
 
 DEBUG = True
 
@@ -32,13 +35,13 @@ def pretty_request(request):
 
 def directory(request):
     """ get directory """
-    with Directory(DEBUG, request.META['HTTP_HOST']) as cfg_dir:
+    with Directory(DEBUG, get_url(request.META)) as cfg_dir:
         return JsonResponse(cfg_dir.directory_get())
 
 def newaccount(request):
     """ new account """
     if request.method == 'POST':
-        with Account(DEBUG, request.META['HTTP_HOST']) as account:
+        with Account(DEBUG, get_url(request.META)) as account:
             response_dic = account.new(request.body)
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
@@ -65,13 +68,22 @@ def newnonce(request):
 
 def servername_get(request):
     """ get server name """
-    with Directory(DEBUG, request.META['HTTP_HOST']) as cfg_dir:
+    with Directory(DEBUG, get_url(request.META)) as cfg_dir:
         return JsonResponse({'server_name' : cfg_dir.servername_get()})
 
 def acct(request):
     """ xxxx command """
-    with Account(request.META['HTTP_HOST']) as _acm:
-        return HttpResponse('ok')
+    with Account(DEBUG, get_url(request.META)) as account:
+        response_dic = account.parse(request.body)
+        # create the response
+        response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+
+        # generate additional header elements
+        for element in response_dic['header']:
+            response[element] = response_dic['header'][element]
+
+        # send response
+        return response
 
 
 #def blubb(request):
