@@ -92,6 +92,16 @@ class Account(object):
 
         return(code, message, detail)
 
+    def enrich_error(self, message, detail):
+        """ put some more content into the error messgae """
+        print_debug(self.debug, 'Account.enrich_error()')
+        if message and self.error.acme_errormessage(message):
+            detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
+        else:
+            detail = '{0}{1}'.format(self.error.acme_errormessage(message), detail)
+
+        return detail
+
     def id_get(self, content):
         """ get id for account """
         print_debug(self.debug, 'Account.id_get()')
@@ -104,39 +114,6 @@ class Account(object):
             kid = None
 
         return kid
-
-    def onlyreturnexisting(self, protected, payload):
-        """ check onlyreturnexisting """
-        if payload['onlyReturnExisting']:
-            code = None
-            message = None
-            detail = None
-            if 'jwk' in protected:
-                if 'n' in protected['jwk']:
-                    result = self.dbstore.account_lookup('modulus', protected['jwk']['n'])
-                    if result:
-                        code = 200
-                        message = result
-                        detail = None
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
-                        detail = None
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'n value missing'
-            else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'jwk structure missing'
-
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:userActionRequired'
-            detail = 'onlyReturnExisting must be true'
-
-        return(code, message, detail)
 
     def new(self, content):
         """ generate a new account """
@@ -209,15 +186,38 @@ class Account(object):
 
         return response_dic
 
-    def enrich_error(self, message, detail):
-        """ put some more content into the error messgae """
-        print_debug(self.debug, 'Account.enrich_error()')
-        if message and self.error.acme_errormessage(message):
-            detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
-        else:
-            detail = '{0}{1}'.format(self.error.acme_errormessage(message), detail)
+    def onlyreturnexisting(self, protected, payload):
+        """ check onlyreturnexisting """
+        if payload['onlyReturnExisting']:
+            code = None
+            message = None
+            detail = None
+            if 'jwk' in protected:
+                if 'n' in protected['jwk']:
+                    result = self.dbstore.account_lookup('modulus', protected['jwk']['n'])
+                    if result:
+                        code = 200
+                        message = result
+                        detail = None
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                        detail = None
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'n value missing'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'jwk structure missing'
 
-        return detail
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:userActionRequired'
+            detail = 'onlyReturnExisting must be true'
+
+        return(code, message, detail)
 
     def parse(self, content):
         """ parse message """
@@ -268,7 +268,6 @@ class Account(object):
         print_debug(self.debug, 'Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic
-
 
     def tos_check(self, content):
         """ check terms of service """
