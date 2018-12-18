@@ -53,15 +53,14 @@ def decode_message(debug, message):
         jwstoken.deserialize(message)
         protected = json.loads(jwstoken.objects['protected'])
         payload = json.loads(jwstoken.objects['payload'])
-        signature = json.loads(jwstoken.objects['signature'])
+        signature = jwstoken.objects['signature']
         result = True
-        
     except BaseException as err:
         error = str(err)
         protected = None
         payload = None
         signature = None
-    return(result, err, protected, payload, signature)
+    return(result, error, protected, payload, signature)
 
 def print_debug(debug, text):
     """ little helper to print debug messages

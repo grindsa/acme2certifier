@@ -14,9 +14,11 @@ I am not a professional developer. Keep this in mind while laughing about my cod
 
 So far, the library is far from being useful for either lab or production usage as only the below ACME functions are supported
 
-- "directory" resource (Section 7.1.1)
-- "newNonce" resource (Section 7.2)
-- "newAccount" resource (Section 7.3)
+- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.1.1)
+- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.2)
+- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.3)
+    - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.1)
+    - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.6)
 
 
 # Installation

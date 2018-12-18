@@ -43,6 +43,16 @@ class DBstore(object):
         self.db_close()
         return (rid, created)
 
+    def account_delete(self, aid):
+        """ add account in database """
+        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
+        self.db_open()
+        pre_statement = 'DELETE FROM account WHERE id LIKE ?'
+        self.cursor.execute(pre_statement, [aid])
+        result = bool(self.cursor.rowcount)
+        self.db_close()
+        return result
+
     def account_search(self, column, string):
         """ search account table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.account_search(column:{0}, pattern:{1})'.format(column, string))
@@ -79,6 +89,20 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.db_open()')
         self.dbs = sqlite3.connect(self.db_name)
         self.cursor = self.dbs.cursor()
+
+    def jwk_load(self, aid):
+        """ looad account informatino and build jwk key dictionary """
+        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aid))
+        account_list = self.account_search('id', aid)
+
+        # account_dict = Account.objects.filter(id=aid).values('alg', 'exponent', 'kty', 'modulus')[:1]
+        jwk_dict = {}
+        if account_list:
+            jwk_dict['alg'] = account_list[1]
+            jwk_dict['e'] = account_list[2]
+            jwk_dict['kty'] = account_list[3]
+            jwk_dict['n'] = account_list[4]
+        return jwk_dict
 
     def nonce_add(self, nonce):
         """ check if nonce is in datbase
