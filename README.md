@@ -22,7 +22,7 @@ So far, the library is far from being useful for either lab or production usage 
 
 
 # Installation
-The proxy can run either as Django project or as plain wsgi script
+The proxy can run either as Django project or as plain wsgi-script
 
 ## Installation as Django project
 
