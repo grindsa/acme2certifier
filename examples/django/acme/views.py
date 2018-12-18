@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from acme.account import Account
 from acme.directory import Directory
 from acme.nonce import Nonce
-from acme.helper import get_url
+from acme.helper import print_debug, get_url
 
 DEBUG = True
 
