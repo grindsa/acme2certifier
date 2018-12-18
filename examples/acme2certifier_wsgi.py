@@ -3,9 +3,7 @@
 """ wsgi based acme server """
 from __future__ import print_function
 import re
-from cgi import escape
 import json
-import os
 from acme.account import Account
 from acme.directory import Directory
 from acme.nonce import Nonce
@@ -40,7 +38,7 @@ def acct(environ, start_response):
 
     # enrich header
     for element, value in response_dic['header'].items():
-        print_debug(DEBUG,'newaccount header {0}: {1}'.format(element, value))
+        print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
         headers.append((element, value))
     start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
     return [json.dumps(response_dic['data'])]
@@ -68,7 +66,7 @@ def newaccount(environ, start_response):
         headers = [('Content-Type', 'application/json'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
         # enrich header
         for element, value in response_dic['header'].items():
-            print_debug(DEBUG,'newaccount header {0}: {1}'.format(element, value))
+            print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
             headers.append((element, value))
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
         return [json.dumps(response_dic['data'])]
