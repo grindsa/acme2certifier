@@ -46,8 +46,22 @@ def decode_message(debug, message):
     """ decode jwstoken and return header, payload and signature """
     print_debug(debug, 'decode_message()')
     jwstoken = jws.JWS()
-    jwstoken.deserialize(message)
-    return(jwstoken.objects['protected'], jwstoken.objects['payload'], jwstoken.objects['signature'])
+
+    result = False
+    error = None
+    try:
+        jwstoken.deserialize(message)
+        protected = json.loads(jwstoken.objects['protected'])
+        payload = json.loads(jwstoken.objects['payload'])
+        signature = json.loads(jwstoken.objects['signature'])
+        result = True
+        
+    except BaseException as err:
+        error = str(err)
+        protected = None
+        payload = None
+        signature = None
+    return(result, err, protected, payload, signature)
 
 def print_debug(debug, text):
     """ little helper to print debug messages

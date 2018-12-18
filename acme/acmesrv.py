@@ -62,6 +62,7 @@ class Error(object):
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
             'urn:ietf:params:acme:error:userActionRequired' : '',
             'urn:ietf:params:acme:error:malformed' : '',
+            'urn:ietf:params:acme:error:accountDoesNotExist' : "",
         }
         if message:
             return error_dic[message]
@@ -132,6 +133,7 @@ class Account(object):
         self.nonce = Nonce(self.debug)
         self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
+        self.signature = Signature(self.debug)
         self.path = 'acme/acct'
 
     def __enter__(self):
@@ -187,19 +189,34 @@ class Account(object):
 
         return(code, message, detail)
 
-    def id_get(self, url):
-        """ get id for account """
-        print_debug(self.debug, 'Account.id_get({0})'.format(url))
-        try:
-            kid = int(url.replace('{0}/{1}/'.format(self.server_name, self.path), ''))
-        except ValueError:
-            kid = None
-        return kid
+    def delete(self, aid):
+        """ delete account """
+        print_debug(self.debug, 'Account.delete({0})'.format(aid))
+        result = self.dbstore.account_delete(aid)
 
-    def jwk_load(self, kid):
-        """ get key for a specific account id """
-        print_debug(self.debug, 'Account.jwk_load({0})'.format(kid))
-        return self.dbstore.jwk_load(kid)
+        if result:
+            code = 200
+            message = None
+            detail = None
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+            detail = 'deletion failed'
+
+        return(code, message, detail)
+
+    def id_get(self, content):
+        """ get id for account """
+        print_debug(self.debug, 'Account.id_get()')
+        if 'kid' in content:
+            try:
+                kid = int(content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), ''))
+            except ValueError:
+                kid = None
+        else:
+            kid = None
+
+        return kid
 
     def new(self, content):
         """ generate a new account """
@@ -255,7 +272,7 @@ class Account(object):
                     detail = 'Terms of service must be accepted'
                 else:
                     # some error occured get details
-                    detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
+                    detail = self.enrich_error(message, detail)
 
                 response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
             else:
@@ -271,17 +288,66 @@ class Account(object):
 
         return response_dic
 
+    def enrich_error(self, message, detail):
+        """ put some more content into the error messgae """
+        print_debug(self.debug, 'Account.enrich_error()')
+        if message and self.error.acme_errormessage(message):
+            detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
+        else:
+            detail = '{0}{1}'.format(self.error.acme_errormessage(message), detail)
+
+        return detail
+
     def parse(self, content):
         """ parse message """
         print_debug(self.debug, 'Account.parse()')
-        (protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
-        if 'kid' in json.loads(protected_decoded):
-            kid = self.id_get(json.loads(protected_decoded)['kid'])
-            if kid:
-                pub_key = self.jwk_load(kid)
-                if pub_key:
-                    (sig_check, error) = signature_check(self.debug, content, pub_key)
-                    print(sig_check, error)
+        (result, error, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+
+        response_dic = {}
+        response_dic['data'] = {}
+        header_dic = {}
+        if result:
+            aid = self.id_get(protected_decoded)
+            (sig_check, error) = self.signature.check(content, aid)
+            if sig_check:
+                if 'status' in payload_decoded:
+                    if payload_decoded['status'].lower() == 'deactivated':
+                        (code, message, detail) = self.delete(aid)
+                        if code == 200:
+                            response_dic['data'] = payload_decoded
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'status attribute without sense'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'dont know what to do with this request'
+            else:
+                code = 403
+                message = error
+                detail = None
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = error
+
+        # enrich response dictionary with details
+        if not code == 200:
+            if detail:
+                # some error occured get details
+                detail = self.enrich_error(message, detail)
+                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+            else:
+                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
+
+        # create response
+        response_dic['code'] = code
+        response_dic['header'] = header_dic
+        print_debug(self.debug, 'Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
+
+        return response_dic
+
 
     def tos_check(self, content):
         """ check terms of service """
@@ -303,3 +369,32 @@ class Account(object):
             detail = 'tosfalse'
 
         return(code, message, detail)
+
+class Signature(object):
+    """ Signature handler """
+
+    def __init__(self, debug=None):
+        self.debug = debug
+        self.dbstore = DBstore(self.debug)
+
+    def check(self, content, aid):
+        """ signature check """
+        print_debug(self.debug, 'Signature.check({0})'.format(aid))
+
+        result = False
+        error = None
+        if aid:
+            pub_key = self.jwk_load(aid)
+            if pub_key:
+                (result, error) = signature_check(self.debug, content, pub_key)
+            else:
+                error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+        else:
+            error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+
+        return(result, error)
+
+    def jwk_load(self, kid):
+        """ get key for a specific account id """
+        print_debug(self.debug, 'Account.jwk_load({0})'.format(kid))
+        return self.dbstore.jwk_load(kid)

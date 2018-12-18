@@ -18,18 +18,24 @@ class DBstore(object):
         obj, created = Account.objects.update_or_create(modulus=modulus, defaults={'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
         obj.save()
         return (obj.id, created)
-        
-    def jwk_load(self, id):
+
+    def account_delete(self, aid):
+        """ add account in database """
+        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
+        result = Account.objects.filter(id=aid).delete()
+        return result
+
+    def jwk_load(self, aid):
         """ looad account informatino and build jwk key dictionary """
-        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(id))
-        account_dict = Account.objects.filter(id=id).values('alg', 'exponent', 'kty', 'modulus')[:1]
+        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aid))
+        account_dict = Account.objects.filter(id=aid).values('alg', 'exponent', 'kty', 'modulus')[:1]
         jwk_dict = {}
         if account_dict:
             jwk_dict['alg'] = account_dict[0]['alg']
-            jwk_dict['kty'] = account_dict[0]['kty']     
-            jwk_dict['e'] = account_dict[0]['exponent']       
-            jwk_dict['n'] = account_dict[0]['modulus']              
-        return jwk_dict    
+            jwk_dict['kty'] = account_dict[0]['kty']
+            jwk_dict['e'] = account_dict[0]['exponent']
+            jwk_dict['n'] = account_dict[0]['modulus']
+        return jwk_dict
 
     def nonce_add(self, nonce):
         """ check if nonce is in datbase
