@@ -62,19 +62,8 @@ root@rlh:~# a2ensite acme_acme.conf
 8. copy the content of the acme -directory to /var/www/acme/acme
 9. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
 ```
-root@rlh:~# chown -R www-data.www-data /var/www/acme/^C
+root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
-
-### check if wsgi module is enabled
-
-root@rlh:~# apache2ctl -M | grep -i wsgi
- wsgi_module (shared)
-root@rlh:~##
-
-### install module
-sudo apt-get install libapache2-mod-wsgi
-
-sudo a2enmod wsgi 
 
 
 ## Contributing
