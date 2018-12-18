@@ -69,7 +69,7 @@ root@rlh:~# chown -R www-data.www-data /var/www/acme/^C
 
 root@rlh:~# apache2ctl -M | grep -i wsgi
  wsgi_module (shared)
-root@rlh:~#
+root@rlh:~##
 
 ### install module
 sudo apt-get install libapache2-mod-wsgi
