@@ -11,6 +11,8 @@ from acme.helper import print_debug, get_url
 
 DEBUG = True
 
+pass
+
 HTTP_CODE_DIC = {
     200 : 'Created',
     201 : 'OK',
