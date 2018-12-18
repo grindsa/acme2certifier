@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import decode_deserialize, decode_message, print_debug, signature_check, validate_email
+from acme.helper import decode_deserialize, decode_message, print_debug, validate_email
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
 from acme.error import Error
@@ -290,4 +290,3 @@ class Account(object):
             detail = 'tosfalse'
 
         return(code, message, detail)
-
