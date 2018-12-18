@@ -443,6 +443,65 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {}}, self.account.parse(message))
 
+    def test_067_onlyreturnexisting(self):
+        """ test onlyReturnExisting with False """
+        # self.signature.dbstore.jwk_load.return_value = 1
+        protected = {}
+        payload = {'onlyReturnExisting' : False}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:userActionRequired', 'onlyReturnExisting must be true'), self.account.onlyreturnexisting(protected, payload))
+
+    def test_068_onlyreturnexisting(self):
+        """ test onlyReturnExisting without jwk structure """
+        # self.signature.dbstore.jwk_load.return_value = 1
+        protected = {}
+        payload = {'onlyReturnExisting' : True}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'jwk structure missing'), self.account.onlyreturnexisting(protected, payload))
+
+    def test_069_onlyreturnexisting(self):
+        """ test onlyReturnExisting without jwk[n] structure """
+        # self.signature.dbstore.jwk_load.return_value = 1
+        protected = {'jwk' : {}}
+        payload = {'onlyReturnExisting' : True}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'n value missing'), self.account.onlyreturnexisting(protected, payload))
+
+    def test_070_onlyreturnexisting(self):
+        """ test onlyReturnExisting for existing account """
+        self.signature.dbstore.account_lookup.return_value = 1
+        protected = {'jwk' : {'n' : 'foo'}}
+        payload = {'onlyReturnExisting' : True}
+        self.assertEqual((200, 1, None), self.account.onlyreturnexisting(protected, payload))
+
+    def test_071_onlyreturnexisting(self):
+        """ test onlyReturnExisting for non existing account """
+        self.signature.dbstore.account_lookup.return_value = False
+        protected = {'jwk' : {'n' : 'foo'}}
+        payload = {'onlyReturnExisting' : True}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.account.onlyreturnexisting(protected, payload))
+
+    @patch('acme.acmesrv.Account.onlyreturnexisting')
+    @patch('acme.acmesrv.Nonce.generate_and_add')
+    @patch('acme.acmesrv.Nonce.check')
+    def test_072_account_new(self, mock_ncheck, mock_nnonce, mock_existing):
+        """ test onlyReturnExisting for non existing account """
+        mock_nnonce.return_value = 'foo'
+        mock_ncheck.return_value = (200, None, None)
+        mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
+        message = '{"protected": "eyJub25jZSI6ICIxNWVmNTczNGNjNGQ0ZDY4YWQ5ODM2ZjVlMTcwYzJhYyIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm1aZDcyNGxVWVBySXJsRjBYVnVBV3ByUWZtTm05WEdNZ2djUEN0eThhME1MTXptQ2FQWlFzdTl0aDRWWnBSRXRNY0t3aXJfZEJiRTFRRVZNSHJOREIzUWNFbkZka0RSRTFrZU4zMl9oVGowWDBXX2FadDVDeENzZ3loOURxWllRZENDNVV4NEtCSU1sVzA4MjhWTDdSazduMzU2N2VJeUotMHo2aE5hSk1MX2hvR2hhYklmNm1mZUlRai1uWHUyR2dhZzNuaXV5TFNZdTU0TVlEME9YNVU2OHV5cGptbkJzV3RVWGxYM2lLUjhZNFgtejdXM0tqRDMtYk9pSUNJcTNuYy13T2dobFI1ekJSdVhncEh2N2NoMHJSX21LWDdxYlFSS2RONEY5NE0xY3QzTnBycnQtU1ItZE1aNHR6ZzB6bXVXZl9xMDdHZUJWdERPT1o5Nkx1dyJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAib25seVJldHVybkV4aXN0aW5nIjogdHJ1ZX0", "signature": "Y8XHbZLoI3bDNa9YmHc2WINSonZmBdLCpOCFrWyClWCUD5BFbAUpo12zgzEmf4kBYNN0L8AV2NM5QwG59zC8nN5mmuPy9b3DX12J0q6n9UF4PM6Wl1WWGTAZ-lmS-G27_MHHSnTrt7kGlq-PGf4eRPjYCmIyCK8Jl-3TOht61kyGB4IP_Z3fF95oDAE57POora6zl5OYTHoL5RAl0Oic3i8UAiFDMbKa0N8o4Gc6l3y-uT-JxYTLzAHMOaPOXetrX5RUx-4Qpc1IZQ4BiLzNvEA-0vHQ9-NoCARyj2kufG7UqGi_eRQ8y6SGPZMzljO9yMJDTtfLug80Zb4GUJrEFA"}'
+        e_result = {'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.acmesrv.Account.onlyreturnexisting')
+    @patch('acme.acmesrv.Nonce.generate_and_add')
+    @patch('acme.acmesrv.Nonce.check')
+    def test_073_account_new(self, mock_ncheck, mock_nnonce, mock_existing):
+        """ test onlyReturnExisting for an existing account """
+        mock_nnonce.return_value = 'foo'
+        mock_ncheck.return_value = (200, None, None)
+        mock_existing.return_value = (200, 100, None)
+        message = '{"protected": "eyJub25jZSI6ICIxNWVmNTczNGNjNGQ0ZDY4YWQ5ODM2ZjVlMTcwYzJhYyIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm1aZDcyNGxVWVBySXJsRjBYVnVBV3ByUWZtTm05WEdNZ2djUEN0eThhME1MTXptQ2FQWlFzdTl0aDRWWnBSRXRNY0t3aXJfZEJiRTFRRVZNSHJOREIzUWNFbkZka0RSRTFrZU4zMl9oVGowWDBXX2FadDVDeENzZ3loOURxWllRZENDNVV4NEtCSU1sVzA4MjhWTDdSazduMzU2N2VJeUotMHo2aE5hSk1MX2hvR2hhYklmNm1mZUlRai1uWHUyR2dhZzNuaXV5TFNZdTU0TVlEME9YNVU2OHV5cGptbkJzV3RVWGxYM2lLUjhZNFgtejdXM0tqRDMtYk9pSUNJcTNuYy13T2dobFI1ekJSdVhncEh2N2NoMHJSX21LWDdxYlFSS2RONEY5NE0xY3QzTnBycnQtU1ItZE1aNHR6ZzB6bXVXZl9xMDdHZUJWdERPT1o5Nkx1dyJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAib25seVJldHVybkV4aXN0aW5nIjogdHJ1ZX0", "signature": "Y8XHbZLoI3bDNa9YmHc2WINSonZmBdLCpOCFrWyClWCUD5BFbAUpo12zgzEmf4kBYNN0L8AV2NM5QwG59zC8nN5mmuPy9b3DX12J0q6n9UF4PM6Wl1WWGTAZ-lmS-G27_MHHSnTrt7kGlq-PGf4eRPjYCmIyCK8Jl-3TOht61kyGB4IP_Z3fF95oDAE57POora6zl5OYTHoL5RAl0Oic3i8UAiFDMbKa0N8o4Gc6l3y-uT-JxYTLzAHMOaPOXetrX5RUx-4Qpc1IZQ4BiLzNvEA-0vHQ9-NoCARyj2kufG7UqGi_eRQ8y6SGPZMzljO9yMJDTtfLug80Zb4GUJrEFA"}'
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/100', 'Replay-Nonce': 'foo'}}
+        self.assertEqual(e_result, self.account.new(message))
+
 if __name__ == '__main__':
 
     unittest.main()

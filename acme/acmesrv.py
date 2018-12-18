@@ -218,6 +218,39 @@ class Account(object):
 
         return kid
 
+    def onlyreturnexisting(self, protected, payload):
+        """ check onlyreturnexisting """
+        if payload['onlyReturnExisting']:
+            code = None
+            message = None
+            detail = None
+            if 'jwk' in protected:
+                if 'n' in protected['jwk']:
+                    result = self.dbstore.account_lookup('modulus', protected['jwk']['n'])
+                    if result:
+                        code = 200
+                        message = result
+                        detail = None
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                        detail = None
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'n value missing'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'jwk structure missing'
+
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:userActionRequired'
+            detail = 'onlyReturnExisting must be true'
+
+        return(code, message, detail)
+
     def new(self, content):
         """ generate a new account """
         print_debug(self.debug, 'Account.account_new()')
@@ -235,21 +268,22 @@ class Account(object):
 
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
-            # code = 200
-            # message = None
-            # detail = None
 
-            # tos check
-            if code == 200:
-                (code, message, detail) = self.tos_check(payload_decoded)
+            # onlyReturnExisting check
+            if code == 200 and 'onlyReturnExisting' in payload_decoded:
+                (code, message, detail) = self.onlyreturnexisting(protected_decoded, payload_decoded)
+            else:
+                # tos check
+                if code == 200:
+                    (code, message, detail) = self.tos_check(payload_decoded)
 
-            # contact check
-            if code == 200:
-                (code, message, detail) = self.contact_check(payload_decoded)
+                # contact check
+                if code == 200:
+                    (code, message, detail) = self.contact_check(payload_decoded)
 
-            # add account to database
-            if code == 200:
-                (code, message, detail) = self.add(protected_decoded, payload_decoded['contact'])
+                # add account to database
+                if code == 200:
+                    (code, message, detail) = self.add(protected_decoded, payload_decoded['contact'])
 
         else:
             code = 400

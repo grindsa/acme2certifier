@@ -83,11 +83,19 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_018_account_delete(self):
         """ test DBstore.account_delete() for an exisitng key"""
-        self.assertEqual(True, self.dbstore.account_delete(2))
+        self.assertTrue(self.dbstore.account_delete(2))
 
     def test_019_account_delete(self):
         """ test DBstore.account_delete() for an non exisitng key"""
-        self.assertEqual(False, self.dbstore.account_delete(3))
+        self.assertFalse(self.dbstore.account_delete(3))
+
+    def test_020_account_lookup(self):
+        """ test DBstore.account_delete() for an exisitng key"""
+        self.assertEqual(1, self.dbstore.account_lookup('modulus', 'modulus'))
+
+    def test_021_account_lookup(self):
+        """ test DBstore.account_delete() for an non exisitng key"""
+        self.assertFalse(self.dbstore.account_lookup('modulus', 'modulus2'))
 
 if __name__ == '__main__':
 

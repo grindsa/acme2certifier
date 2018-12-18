@@ -53,6 +53,16 @@ class DBstore(object):
         self.db_close()
         return result
 
+    def account_lookup(self, column, string):
+        """ lookup account table for a certain key/value pair and return id"""
+        print_debug(self.debug, 'DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
+        lookup = self.account_search(column, string)
+        if lookup:
+            result = lookup[0]
+        else:
+            result = None
+        return result
+
     def account_search(self, column, string):
         """ search account table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.account_search(column:{0}, pattern:{1})'.format(column, string))

@@ -19,6 +19,16 @@ class DBstore(object):
         obj.save()
         return (obj.id, created)
 
+    @staticmethod
+    def account_lookup(mkey, value):
+        """ search account for a given id """
+        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus')[:1]
+        if account_dict:
+            result = account_dict[0]['id']
+        else:
+            result = None
+        return result
+
     def account_delete(self, aid):
         """ add account in database """
         print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
