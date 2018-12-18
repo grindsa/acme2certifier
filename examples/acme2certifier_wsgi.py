@@ -3,7 +3,9 @@
 """ wsgi based acme server """
 from __future__ import print_function
 import re
+from cgi import escape
 import json
+import os
 from acme.account import Account
 from acme.directory import Directory
 from acme.nonce import Nonce
