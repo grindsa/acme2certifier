@@ -1,126 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" cgi based acme server for Netguard Certificate manager / Insta certifier """
+""" Account class """
 from __future__ import print_function
-import uuid
 import json
 from acme.helper import decode_deserialize, decode_message, print_debug, signature_check, validate_email
-from acme.django_handler import DBstore
-# from acme.wsgi_handler import DBstore
-
-class Directory(object):
-    """ class for directory handling """
-
-    def __init__(self, debug=None, srv_name=None):
-        self.server_name = srv_name
-        self.debug = debug
-
-    def __enter__(self):
-        """ Makes ACMEHandler a Context Manager """
-        return self
-
-    def __exit__(self, *args):
-        """ cose the connection at the end of the context """
-
-    def directory_get(self):
-        """ return response to ACME directory call """
-        print_debug(self.debug, 'Directory.directory_get()')
-        d_dic = {
-            'newNonce': self.server_name + '/acme/newnonce',
-            'newAccount': self.server_name + '/acme/newaccount',
-
-            'key-change': self.server_name + '/acme/key-change',
-            'new-authz': self.server_name + '/acme/new-authz',
-            'meta' : {
-                'home': 'https://github.com/grindsa/acme2certifier',
-                'author': 'grindsa <grindelsack@gmail.com>',
-            },
-            'new-cert': self.server_name + '/acme/new-cert',
-
-            'revoke-cert': self.server_name + '/acme/revoke-cert'
-        }
-        # generate random key in json as recommended by LE
-        d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
-        return d_dic
-
-    def servername_get(self):
-        """ dumb function to return servername """
-        print_debug(self.debug, 'Directory.servername_get()')
-        return self.server_name
-
-class Error(object):
-    """ error messages """
-
-    def __init__(self, debug=None):
-        self.debug = debug
-
-    def acme_errormessage(self, message):
-        """ dictionary containing the implemented acme error messages """
-        print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))
-        error_dic = {
-            'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
-            'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:userActionRequired' : '',
-            'urn:ietf:params:acme:error:malformed' : '',
-            'urn:ietf:params:acme:error:accountDoesNotExist' : "",
-        }
-        if message:
-            return error_dic[message]
-        else:
-            return None
-
-class Nonce(object):
-    """ Nonce handler """
-
-    def __init__(self, debug=None):
-        self.debug = debug
-        self.dbstore = DBstore(self.debug)
-
-    def __enter__(self):
-        """ Makes ACMEHandler a Context Manager """
-        return self
-
-    def __exit__(self, *args):
-        """ cose the connection at the end of the context """
-
-    def check(self, protected_decoded):
-        """ check nonce """
-        print_debug(self.debug, 'Nonce.check_nonce()')
-        if 'nonce' in protected_decoded:
-            (code, message, detail) = self.check_and_delete(protected_decoded['nonce'])
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:badNonce'
-            detail = 'NONE'
-
-        return(code, message, detail)
-
-    def check_and_delete(self, nonce):
-        """ check if nonce exists and delete it """
-        print_debug(self.debug, 'Nonce.nonce_check_and_delete({0})'.format(nonce))
-        if self.dbstore.nonce_check(nonce):
-            self.dbstore.nonce_delete(nonce)
-            code = 200
-            message = None
-            detail = None
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:badNonce'
-            detail = nonce
-        return(code, message, detail)
-
-    def generate_and_add(self):
-        """ generate new nonce and store it """
-        print_debug(self.debug, 'Nonce.nonce_generate_and_add()')
-        nonce = self.new()
-        print_debug(self.debug, 'got nonce: {0}'.format(nonce))
-        _id = self.dbstore.nonce_add(nonce)
-        return nonce
-
-    def new(self):
-        """ generate a new nonce """
-        print_debug(self.debug, 'Nonce.nonce_new()')
-        return uuid.uuid4().hex
+from acme.db_handler import DBstore
+from acme.nonce import Nonce
+from acme.error import Error
+from acme.signature import Signature
 
 class Account(object):
     """ ACME server class """
@@ -404,30 +291,3 @@ class Account(object):
 
         return(code, message, detail)
 
-class Signature(object):
-    """ Signature handler """
-
-    def __init__(self, debug=None):
-        self.debug = debug
-        self.dbstore = DBstore(self.debug)
-
-    def check(self, content, aid):
-        """ signature check """
-        print_debug(self.debug, 'Signature.check({0})'.format(aid))
-
-        result = False
-        error = None
-        if aid:
-            pub_key = self.jwk_load(aid)
-            if pub_key:
-                (result, error) = signature_check(self.debug, content, pub_key)
-            else:
-                error = 'urn:ietf:params:acme:error:accountDoesNotExist'
-        else:
-            error = 'urn:ietf:params:acme:error:accountDoesNotExist'
-        return(result, error)
-
-    def jwk_load(self, kid):
-        """ get key for a specific account id """
-        print_debug(self.debug, 'Account.jwk_load({0})'.format(kid))
-        return self.dbstore.jwk_load(kid)
