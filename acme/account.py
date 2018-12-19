@@ -106,13 +106,13 @@ class Account(object):
         """ get id for account """
         print_debug(self.debug, 'Account.id_get()')
         if 'kid' in content:
+            print_debug(self.debug, 'kid: {0}'.format(content['kid']))
             try:
                 kid = int(content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), ''))
             except ValueError:
                 kid = None
         else:
             kid = None
-
         return kid
 
     def new(self, content):

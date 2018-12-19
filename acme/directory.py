@@ -25,16 +25,11 @@ class Directory(object):
         d_dic = {
             'newNonce': self.server_name + '/acme/newnonce',
             'newAccount': self.server_name + '/acme/newaccount',
-
-            'key-change': self.server_name + '/acme/key-change',
-            'new-authz': self.server_name + '/acme/new-authz',
+            "newOrder": self.server_name + '/acme/neworders',          
             'meta' : {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',
             },
-            'new-cert': self.server_name + '/acme/new-cert',
-
-            'revoke-cert': self.server_name + '/acme/revoke-cert'
         }
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'

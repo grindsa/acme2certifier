@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
-from acme.models import Account, Nonce
+from acme.models import Account, Authorization, Nonce, Order, Orderstatus
 from acme.helper import print_debug
 
 class DBstore(object):
@@ -18,6 +18,12 @@ class DBstore(object):
         obj, created = Account.objects.update_or_create(modulus=modulus, defaults={'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
         obj.save()
         return (obj.id, created)
+
+    # django specific
+    def account_getinstance(self, aid):
+        """ get account instance """
+        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aid))
+        return Account.objects.get(id=aid)
 
     @staticmethod
     def account_lookup(mkey, value):
@@ -69,3 +75,27 @@ class DBstore(object):
         in: nonce """
         print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
         Nonce.objects.filter(nonce=nonce).delete()
+
+    def order_add(self, data_dic, auth_name):
+        """ add order to database """
+        print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
+        # replace accountid with instance
+        data_dic['account'] = self.account_getinstance(data_dic['account'])
+
+        # replace orderstatus with an instance
+        data_dic['status'] = self.oderstatus_getinstance(data_dic['status'])
+        oobj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        oobj.save()
+        print_debug(self.debug, 'order_id({0})'.format(oobj.id))
+
+        # add authorization
+        aobj = Authorization(name=auth_name, order=oobj)
+        aobj.save()
+        print_debug(self.debug, 'auth_id({0})'.format(aobj.id))
+        return oobj.id
+
+    # django specific
+    def oderstatus_getinstance(self, oid):
+        """ get account instance """
+        print_debug(self.debug, 'DBStore.oderstatus_getinstance({0})'.format(oid))
+        return Orderstatus.objects.get(id=oid)

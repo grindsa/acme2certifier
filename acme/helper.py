@@ -5,7 +5,12 @@ from __future__ import print_function
 import re
 import base64
 import json
+import random
+import calendar
+import time
 from datetime import datetime
+from string import digits, ascii_letters
+import pytz
 from jwcrypto import jwk, jws
 
 def get_url(environ):
@@ -62,6 +67,12 @@ def decode_message(debug, message):
         signature = None
     return(result, error, protected, payload, signature)
 
+def generate_random_string(debug, length):
+    """ generate random string to be used as name """
+    print_debug(debug, 'generate_random_string()')
+    char_set = digits + ascii_letters
+    return ''.join(random.choice(char_set) for _ in range(length))
+
 def print_debug(debug, text):
     """ little helper to print debug messages
         args:
@@ -104,7 +115,6 @@ def signature_check(debug, message, pub_key):
     # return result
     return(result, error)
 
-
 def validate_email(debug, contact_list):
     """ validate contact against RFC608"""
     print_debug(debug, 'validate_email()')
@@ -126,3 +136,15 @@ def validate_email(debug, contact_list):
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
 
     return result
+
+def uts_now():
+    """ return unixtimestamp in utc """
+    return calendar.timegm(datetime.utcnow().utctimetuple())
+
+def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert unix timestamp to date format """
+    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
+
+def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert date to unix timestamp """
+    return int(calendar.timegm(time.strptime(date_human, tformat)))
