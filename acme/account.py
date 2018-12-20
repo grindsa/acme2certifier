@@ -252,6 +252,10 @@ class Account(object):
             else:
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
 
+        else:        
+            # add nonce to header
+            header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
+        
         # create response
         response_dic['code'] = code
         response_dic['header'] = header_dic

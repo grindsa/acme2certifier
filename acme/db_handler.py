@@ -88,12 +88,12 @@ class DBstore(object):
         obj.save()
         print_debug(self.debug, 'order_id({0})'.format(obj.id))
         return obj.id
-        
+
     # django specific
     def oder_getinstance(self, oid):
         """ get account instance """
         print_debug(self.debug, 'DBStore.oder_getinstance({0})'.format(oid))
-        return Order.objects.get(id=oid)        
+        return Order.objects.get(id=oid)
 
     # django specific
     def oderstatus_getinstance(self, oid):
@@ -104,12 +104,12 @@ class DBstore(object):
     def authorization_add(self, data_dic):
         """ add authorization to database """
         print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
-        
+
         # get order instance for DB insert
         data_dic['order'] = self.oder_getinstance(data_dic['order'])
-        
+
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
-        obj.save()        
+        obj.save()
         print_debug(self.debug, 'auth_id({0})'.format(obj.id))
         return obj.id

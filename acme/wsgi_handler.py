@@ -92,6 +92,23 @@ class DBstore(object):
         self.cursor.execute('''
             CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
+        print_debug(self.debug, 'create orderstatus')
+        self.cursor.execute('''
+            CREATE TABLE "orderstatus" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
+        ''')
+        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'invalid'})
+        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'pending'})
+        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'ready'})
+        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'processing'})
+        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'valid'})
+        print_debug(self.debug, 'create orders')
+        self.cursor.execute('''
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer, "notafter" integer, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "acme_account" ("id"), "status_id" integer NOT NULL REFERENCES "acme_orderstatus" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        print_debug(self.debug, 'create authorization')
+        self.cursor.execute('''
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "acme_order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self.db_close()
 
     def db_open(self):
@@ -141,5 +158,23 @@ class DBstore(object):
         in: nonce """
         print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
         self.db_open()
-        self.cursor.execute('''delete FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
+        self.cursor.execute('''DELETE FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         self.db_close()
+
+    def order_add(self, data_dic):
+        """ add order to database """
+        print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
+        self.db_open()
+        self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires) VALUES(:name, :identifiers, :account, :status, :expires )''', data_dic)
+        rid = self.cursor.lastrowid
+        self.db_close()
+        return rid
+
+    def authorization_add(self, data_dic):
+        """ add authorization to database """
+        print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
+        self.db_open()
+        self.cursor.execute('''INSERT INTO authorization(name, order_id, type, value) VALUES(:name, :order, :type, :value)''', data_dic)
+        rid = self.cursor.lastrowid
+        self.db_close()
+        return rid

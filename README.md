@@ -30,7 +30,7 @@ The proxy can run either as Django project or as plain wsgi-script
 ```
 missing
 ```
-2. crate a new app inside your project called "acme"
+2. create a new app inside your project called "acme"
 ```
 missing
 ```

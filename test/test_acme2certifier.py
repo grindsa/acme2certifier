@@ -360,7 +360,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.tos_check')
     @patch('acme.nonce.Nonce.check')
     def test_056_account_new(self, mock_ncheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
-        """ successful Account.add() account"""
+        """ successful Account.add() existing account"""
         mock_nnonce.return_value = 'foo'
         mock_ncheck.return_value = (200, None, None)
         mock_tos.return_value = (200, None, None)
@@ -440,18 +440,20 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': 'deletion failed'}}, self.account.parse(message))
 
+    @patch('acme.nonce.Nonce.generate_and_add')        
     @patch('acme.account.Account.delete')
     @patch('acme.signature.Signature.check')
     @patch('acme.account.Account.id_get')
     @patch('acme.account.decode_message')
-    def test_066_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del):
+    def test_066_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del, mock_nnonce):
         """ test succ account parse for reqeust with succ deletion """
         mock_decode.return_value = (True, None, 'protected', {'status' : 'deactivated'}, 'signature')
         mock_id.return_value = 1
         mock_sig.return_value = (True, None, None)
         mock_del.return_value = (200, None, None)
+        mock_nnonce.return_value = 'newnonce'        
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {}}, self.account.parse(message))
+        self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'newnonce'}}, self.account.parse(message))
 
     def test_067_onlyreturnexisting(self):
         """ test onlyReturnExisting with False """
