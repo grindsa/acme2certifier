@@ -96,6 +96,26 @@ class TestACMEHandler(unittest.TestCase):
     def test_021_account_lookup(self):
         """ test DBstore.account_delete() for an non exisitng key"""
         self.assertFalse(self.dbstore.account_lookup('modulus', 'modulus2'))
+        
+    def test_022_order_add(self):
+        """ test DBstore.order_add() method for a new entry """
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 1, 'status' : 1, 'expires' : '25'}
+        self.assertEqual(1, self.dbstore.order_add(data_dic))    
+        
+    def test_023_order_add(self):
+        """ test DBstore.order_add() method for a new entry with notbefore and notafter entries """
+        data_dic = {'name' : 'name2', 'identifiers' : 'identifiers', 'notbefore': 10, 'notafter': 20, 'account' : 1, 'status' : 2, 'expires' : '25'}
+        self.assertEqual(2, self.dbstore.order_add(data_dic))       
+
+    def test_024_authorization_add(self):
+        """ test DBstore.authorization_add() method  """
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.assertEqual(1, self.dbstore.authorization_add(data_dic))         
+
+    def test_025_authorization_add(self):
+        """ test DBstore.authorization_add() method  """
+        data_dic = {'name' : 'name2', 'type' : 'type2', 'value': 'value2', 'order' : 2}
+        self.assertEqual(2, self.dbstore.authorization_add(data_dic))          
 
 if __name__ == '__main__':
 

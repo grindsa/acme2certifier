@@ -21,7 +21,7 @@ class TestACMEHandler(unittest.TestCase):
         models_mock = MagicMock()
         models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
         models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore
-        modules = {'acme.db_handler': models_mock, 'acme.cgi_handler': models_mock}
+        modules = {'acme.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
         from acme.directory import Directory

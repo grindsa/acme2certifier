@@ -163,9 +163,16 @@ class DBstore(object):
 
     def order_add(self, data_dic):
         """ add order to database """
+
+        if 'notbefore' not in data_dic:
+            data_dic['notbefore'] = ''
+
+        if 'notafter' not in data_dic:
+            data_dic['notafter'] = ''
+
         print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
         self.db_open()
-        self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires) VALUES(:name, :identifiers, :account, :status, :expires )''', data_dic)
+        self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )''', data_dic)
         rid = self.cursor.lastrowid
         self.db_close()
         return rid

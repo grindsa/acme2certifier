@@ -50,9 +50,9 @@ class Order(object):
             data_dic['identifiers'] = json.dumps(payload['identifiers'])
 
             #if 'notBefore' in payload:
-            #    data_dic['notBefore'] = payload['notBefore']
+            #    data_dic['notbefore'] = payload['notBefore']
             #if 'notAfter' in payload:
-            #    data_dic['notAfter'] = payload['notAfter']
+            #    data_dic['notafter'] = payload['notAfter']
 
             oid = self.dbstore.order_add(data_dic)
             if oid:
