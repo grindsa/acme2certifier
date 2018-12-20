@@ -26,7 +26,7 @@ class Signature(object):
                 error = 'urn:ietf:params:acme:error:accountDoesNotExist'
         else:
             error = 'urn:ietf:params:acme:error:accountDoesNotExist'
-        return(result, error)
+        return(result, error, None)
 
     def jwk_load(self, kid):
         """ get key for a specific account id """

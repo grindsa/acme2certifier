@@ -76,7 +76,7 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
         Nonce.objects.filter(nonce=nonce).delete()
 
-    def order_add(self, data_dic, auth_name):
+    def order_add(self, data_dic):
         """ add order to database """
         print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
         # replace accountid with instance
@@ -84,18 +84,32 @@ class DBstore(object):
 
         # replace orderstatus with an instance
         data_dic['status'] = self.oderstatus_getinstance(data_dic['status'])
-        oobj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
-        oobj.save()
-        print_debug(self.debug, 'order_id({0})'.format(oobj.id))
-
-        # add authorization
-        aobj = Authorization(name=auth_name, order=oobj)
-        aobj.save()
-        print_debug(self.debug, 'auth_id({0})'.format(aobj.id))
-        return oobj.id
+        obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+        print_debug(self.debug, 'order_id({0})'.format(obj.id))
+        return obj.id
+        
+    # django specific
+    def oder_getinstance(self, oid):
+        """ get account instance """
+        print_debug(self.debug, 'DBStore.oder_getinstance({0})'.format(oid))
+        return Order.objects.get(id=oid)        
 
     # django specific
     def oderstatus_getinstance(self, oid):
         """ get account instance """
         print_debug(self.debug, 'DBStore.oderstatus_getinstance({0})'.format(oid))
         return Orderstatus.objects.get(id=oid)
+
+    def authorization_add(self, data_dic):
+        """ add authorization to database """
+        print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
+        
+        # get order instance for DB insert
+        data_dic['order'] = self.oder_getinstance(data_dic['order'])
+        
+        # add authorization
+        obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()        
+        print_debug(self.debug, 'auth_id({0})'.format(obj.id))
+        return obj.id

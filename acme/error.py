@@ -10,6 +10,16 @@ class Error(object):
     def __init__(self, debug=None):
         self.debug = debug
 
+    def enrich_error(self, message, detail):
+        """ put some more content into the error messgae """
+        print_debug(self.debug, 'Account.enrich_error()')
+        if message and self.acme_errormessage(message):
+            detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
+        else:
+            detail = '{0}{1}'.format(self.acme_errormessage(message), detail)
+
+        return detail
+
     def acme_errormessage(self, message):
         """ dictionary containing the implemented acme error messages """
         print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))

@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import decode_deserialize, decode_message, print_debug, signature_check, validate_email
+from acme.helper import decode_deserialize, decode_message, print_debug, validate_email
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
 from acme.error import Error
@@ -92,16 +92,6 @@ class Account(object):
 
         return(code, message, detail)
 
-    def enrich_error(self, message, detail):
-        """ put some more content into the error messgae """
-        print_debug(self.debug, 'Account.enrich_error()')
-        if message and self.error.acme_errormessage(message):
-            detail = '{0} {1}'.format(self.error.acme_errormessage(message), detail)
-        else:
-            detail = '{0}{1}'.format(self.error.acme_errormessage(message), detail)
-
-        return detail
-
     def id_get(self, content):
         """ get id for account """
         print_debug(self.debug, 'Account.id_get()')
@@ -170,7 +160,7 @@ class Account(object):
                     detail = 'Terms of service must be accepted'
                 else:
                     # some error occured get details
-                    detail = self.enrich_error(message, detail)
+                    detail = self.error.enrich_error(message, detail)
 
                 response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
             else:
@@ -222,14 +212,14 @@ class Account(object):
     def parse(self, content):
         """ parse message """
         print_debug(self.debug, 'Account.parse()')
-        (result, error, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
         response_dic['data'] = {}
         header_dic = {}
         if result:
             aid = self.id_get(protected_decoded)
-            (sig_check, error) = self.signature.check(content, aid)
+            (sig_check, error, error_detail) = self.signature.check(content, aid)
             if sig_check:
                 if 'status' in payload_decoded:
                     if payload_decoded['status'].lower() == 'deactivated':
@@ -247,17 +237,17 @@ class Account(object):
             else:
                 code = 403
                 message = error
-                detail = None
+                detail = error_detail
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
-            detail = error
+            detail = error_detail
 
-        # enrich response dictionary with details
+        # enrich response dictionary with error details
         if not code == 200:
             if detail:
                 # some error occured get details
-                detail = self.enrich_error(message, detail)
+                detail = self.error.enrich_error(message, detail)
                 response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
             else:
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
