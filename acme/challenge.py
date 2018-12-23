@@ -32,7 +32,7 @@ class Challenge(object):
 
         challenge_dic = {}
         if chid:
-            challenge_dic['type'] = type
+            challenge_dic['type'] = mtype
             challenge_dic['url'] = '{0}/{1}/{2}'.format(self.srv_name, self.path, challenge_name)
             challenge_dic['token'] = token
 
