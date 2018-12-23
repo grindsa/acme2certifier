@@ -24,6 +24,8 @@ class TestACMEHandler(unittest.TestCase):
         modules = {'acme.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
+        from acme.authorization import Authorization
+        from acme.challenge import Challenge
         from acme.directory import Directory
         from acme.nonce import Nonce
         from acme.error import Error
@@ -32,6 +34,8 @@ class TestACMEHandler(unittest.TestCase):
         from acme.helper import b64decode_pad, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc
         self.directory = Directory(False, 'http://tester.local')
         self.account = Account(False, 'http://tester.local')
+        self.authorization = Authorization(False, 'http://tester.local')
+        self.challenge = Challenge(False, 'http://tester.local')
         self.nonce = Nonce(False)
         self.error = Error(False)
         self.order = Order(False, 'http://tester.local')
@@ -440,7 +444,7 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': 'deletion failed'}}, self.account.parse(message))
 
-    @patch('acme.nonce.Nonce.generate_and_add')        
+    @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.delete')
     @patch('acme.signature.Signature.check')
     @patch('acme.account.Account.id_get')
@@ -451,7 +455,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_id.return_value = 1
         mock_sig.return_value = (True, None, None)
         mock_del.return_value = (200, None, None)
-        mock_nnonce.return_value = 'newnonce'        
+        mock_nnonce.return_value = 'newnonce'
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'newnonce'}}, self.account.parse(message))
 
@@ -692,9 +696,30 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'newnonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
+    @patch('acme.challenge.generate_random_string')
+    def test_091_challenge_new(self, mock_random):
+        """ test challenge generation """
+        mock_random.return_value = 'foo'
+        self.order.dbstore.challenge_new.return_value = 1
+        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge.new('authz_name', 'mtype', 'token'))
 
-        
-        
+    @patch('acme.challenge.Challenge.new')
+    def test_092_challenge_new_set(self, mock_challenge):
+        """ test generation of a challenge set """
+        mock_challenge.return_value = {'foo' : 'bar'}
+        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.authorization.uts_now')
+    @patch('acme.authorization.generate_random_string')
+    def test_093_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+        """ test Authorization.auth_info() """
+        mock_name.return_value = 'randowm_string'
+        mock_uts.return_value = 1543640400
+        mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
+        self.authorization.dbstore.authorization_update.return_value = 'foo'
+        self.authorization.dbstore.authorization_lookup.return_value = {'identifier_key' : 'identifier_value'}
+        self.assertEqual({'status': 'pending', 'expires': 1543726800, 'identifier': {'challenges': [{'key2': 'value2', 'key1': 'value1'}], 'identifier_key': 'identifier_value'}}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+
 if __name__ == '__main__':
-
     unittest.main()

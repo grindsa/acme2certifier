@@ -46,7 +46,6 @@ class Authorization(object):
         authz_info_dic['status'] = 'pending'
         authz_info_dic['expires'] = expires
         authz_info_dic['identifier'] = self.dbstore.authorization_lookup('name', authz_name)
-
         challenge = Challenge(self.debug, self.server_name, expires)
         authz_info_dic['identifier']['challenges'] = challenge.new_set(authz_name, token)
 
@@ -63,7 +62,6 @@ class Authorization(object):
         print_debug(self.debug, 'Authorization.new_post()')
         (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
         response_dic = {}
-
 
         if result:
             # nonce check
