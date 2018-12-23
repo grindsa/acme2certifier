@@ -81,7 +81,7 @@ class Order(object):
         (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
-        header_dic = {}
+        response_dic['header'] = {}
 
         if result:
             # nonce check
@@ -93,7 +93,7 @@ class Order(object):
                     (error, order_name, auth_dic, expires) = self.add(payload_decoded, aid)
                     if not error:
                         code = 201
-                        header_dic['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.order_path, order_name)
+                        response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.order_path, order_name)
                         response_dic['data'] = {}
                         response_dic['data']['identifiers'] = []
                         response_dic['data']['authorizations'] = []
@@ -126,11 +126,10 @@ class Order(object):
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
         else:
             # add nonce to header
-            header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
+            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         # create response
         response_dic['code'] = code
-        response_dic['header'] = header_dic
         print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic

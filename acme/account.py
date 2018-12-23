@@ -216,7 +216,8 @@ class Account(object):
 
         response_dic = {}
         response_dic['data'] = {}
-        header_dic = {}
+        response_dic['header'] = {}
+
         if result:
             aid = self.id_get(protected_decoded)
             (sig_check, error, error_detail) = self.signature.check(content, aid)
@@ -252,13 +253,12 @@ class Account(object):
             else:
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
 
-        else:        
+        else:
             # add nonce to header
-            header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
-        
+            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+
         # create response
         response_dic['code'] = code
-        response_dic['header'] = header_dic
         print_debug(self.debug, 'Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic

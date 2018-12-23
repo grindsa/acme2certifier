@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 
 from django.http import HttpResponse
 from django.http import JsonResponse
+from acme.authorization import Authorization
 from acme.account import Account
 from acme.directory import Directory
 from acme.nonce import Nonce
+from acme.order import Order
 from acme.helper import get_url
 
 DEBUG = True
@@ -53,7 +55,7 @@ def newaccount(request):
             # send response
             return response
     else:
-        return JsonResponse(status=400, data={'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 
 def newnonce(request):
     """ new nonce """
@@ -64,7 +66,7 @@ def newnonce(request):
             response['Replay-Nonce'] = nonce.generate_and_add()
             return response
     else:
-        return JsonResponse(status=400, data={'status':400, 'message':'bad request ', 'detail': 'Wrong request type. Expected HEAD.'})
+        return JsonResponse(status=400, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD.'})
 
 def servername_get(request):
     """ get server name """
@@ -85,8 +87,51 @@ def acct(request):
         # send response
         return response
 
+def neworders(request):
+    """ new account """
+    if request.method == 'POST':
+        with Order(DEBUG, get_url(request.META)) as order:
+            response_dic = order.new(request.body)
+            # create the response
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
 
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # send response
+            return response
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+        
+def authz(request):
+    """ xxxx command """
+    if request.method == 'POST' or request.method == 'GET':    
+        with Authorization(DEBUG, get_url(request.META)) as authorization:
+            print(request.body)
+            
+            if request.method == 'POST':
+                response_dic = authorization.new_post(request.body)
+            else:   
+                return JsonResponse(authorization.new_get(request.build_absolute_uri()) )               
+                
+            # create the response
+            # response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+
+            # generate additional header elements
+            # for element in response_dic['header']:
+            #    response[element] = response_dic['header'][element]
+
+            # send response
+            # return response       
+            return JsonResponse(status=403, data={'status':403, 'message':'not that far', 'detail': 'we are ot that far.'})      
+
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})  
+        
 #def blubb(request):
 #    """ xxxx command """
 #    with ACMEsrv(request.META['HTTP_HOST']) as acm:
 #        return HttpResponse('ok')
+# return JsonResponse(status=403, data={'status':403, 'message':'not that far', 'detail': 'we are ot that far.'})

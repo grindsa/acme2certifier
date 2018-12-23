@@ -148,4 +148,3 @@ def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
 def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
     return int(calendar.timegm(time.strptime(date_human, tformat)))
-

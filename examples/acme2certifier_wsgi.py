@@ -7,6 +7,7 @@ import json
 from acme.account import Account
 from acme.directory import Directory
 from acme.nonce import Nonce
+from acme.order import Order
 from acme.helper import print_debug, get_url
 
 DEBUG = True
@@ -24,7 +25,6 @@ HTTP_CODE_DIC = {
 def acct(environ, start_response):
     """ account handling """
     account = Account(DEBUG, get_url(environ))
-    nonce = Nonce(DEBUG)
 
     try:
         request_body_size = int(environ.get('CONTENT_LENGTH', 0))
@@ -34,7 +34,7 @@ def acct(environ, start_response):
     response_dic = account.parse(request_body)
 
     # generate header and nonce
-    headers = [('Content-Type', 'application/json'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
+    headers = [('Content-Type', 'application/json')]
 
     # enrich header
     for element, value in response_dic['header'].items():
@@ -53,7 +53,6 @@ def newaccount(environ, start_response):
     """ create new account """
     if environ['REQUEST_METHOD'] == 'POST':
         account = Account(DEBUG, get_url(environ))
-        nonce = Nonce(DEBUG)
 
         try:
             request_body_size = int(environ.get('CONTENT_LENGTH', 0))
@@ -63,7 +62,7 @@ def newaccount(environ, start_response):
         response_dic = account.new(request_body)
 
         # generate header and nonce
-        headers = [('Content-Type', 'application/json'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
+        headers = [('Content-Type', 'application/json')]
         # enrich header
         for element, value in response_dic['header'].items():
             print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
@@ -86,6 +85,31 @@ def newnonce(environ, start_response):
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'})]
 
+
+def neworders(environ, start_response):
+    """ generate a new order """
+    if environ['REQUEST_METHOD'] == 'POST':
+        order = Order(DEBUG, get_url(environ))
+        try:
+            request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+        except ValueError:
+            request_body_size = 0
+        request_body = environ['wsgi.input'].read(request_body_size)
+        response_dic = order.new(request_body)
+
+        # generate header
+        headers = [('Content-Type', 'application/json')]
+        # enrich header
+        for element, value in response_dic['header'].items():
+            print_debug(DEBUG, 'neworders header {0}: {1}'.format(element, value))
+            headers.append((element, value))
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        return [json.dumps(response_dic['data'])]
+
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
@@ -98,6 +122,7 @@ URLS = [
     (r'^acme/newaccount$', newaccount),
     (r'^acme/newnonce$', newnonce),
     (r'^acme/acct', acct),
+    (r'^acme/neworders$', neworders),
 ]
 
 def application(environ, start_response):
@@ -114,3 +139,6 @@ if __name__ == '__main__':
     from wsgiref.simple_server import make_server
     SRV = make_server('0.0.0.0', 80, application)
     SRV.serve_forever()
+
+# start_response('403 {0}'.format(HTTP_CODE_DIC[403]), [('Content-Type', 'application/json')])
+# return [json.dumps({'status':403, 'message':HTTP_CODE_DIC[403], 'detail': 'we are not there yet'})]
