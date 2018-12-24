@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
-from acme.models import Account, Authorization, Nonce, Order, Orderstatus
+from acme.models import Account, Authorization, Challenge, Nonce, Order, Orderstatus
 from acme.helper import print_debug
 
 class DBstore(object):
@@ -83,22 +83,22 @@ class DBstore(object):
         data_dic['account'] = self.account_getinstance(data_dic['account'])
 
         # replace orderstatus with an instance
-        data_dic['status'] = self.oderstatus_getinstance(data_dic['status'])
+        data_dic['status'] = self.orderstatus_getinstance(data_dic['status'])
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
         print_debug(self.debug, 'order_id({0})'.format(obj.id))
         return obj.id
 
     # django specific
-    def oder_getinstance(self, oid):
+    def order_getinstance(self, oid):
         """ get account instance """
         print_debug(self.debug, 'DBStore.oder_getinstance({0})'.format(oid))
         return Order.objects.get(id=oid)
 
     # django specific
-    def oderstatus_getinstance(self, oid):
+    def orderstatus_getinstance(self, oid):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.oderstatus_getinstance({0})'.format(oid))
+        print_debug(self.debug, 'DBStore.orderstatus_getinstance({0})'.format(oid))
         return Orderstatus.objects.get(id=oid)
 
     def authorization_add(self, data_dic):
@@ -106,10 +106,51 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
 
         # get order instance for DB insert
-        data_dic['order'] = self.oder_getinstance(data_dic['order'])
+        data_dic['order'] = self.order_getinstance(data_dic['order'])
 
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
         print_debug(self.debug, 'auth_id({0})'.format(obj.id))
+        return obj.id
+
+    def authorization_update(self, data_dic):
+        """ update existing authorization """
+        print_debug(self.debug, 'DBStore.authorization_update({0})'.format(data_dic))
+
+        # add authorization
+        obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+
+        print_debug(self.debug, 'auth_id({0})'.format(obj.id))
+        return obj.id
+
+    @staticmethod
+    def authorization_lookup(mkey, value):
+        """ search account for a given id """
+        authz_list = Authorization.objects.filter(**{mkey: value}).values('type', 'value')[:1]
+        if authz_list:
+            result = authz_list[0]
+        else:
+            result = None
+
+        return result
+
+    # django specific
+    def authorization_getinstance(self, name):
+        """ get authorization instance """
+        print_debug(self.debug, 'DBStore.authorization_getinstance({0})'.format(name))
+        return Authorization.objects.get(name=name)
+
+    def challenge_add(self, data_dic):
+        """ add challenge to database """
+        print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
+
+        # get order instance for DB insert
+        data_dic['authorization'] = self.authorization_getinstance(data_dic['authorization'])
+
+        # add authorization
+        obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+        print_debug(self.debug, 'cid({0})'.format(obj.id))
         return obj.id

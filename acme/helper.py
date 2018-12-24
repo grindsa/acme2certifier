@@ -13,7 +13,7 @@ from string import digits, ascii_letters
 import pytz
 from jwcrypto import jwk, jws
 
-def get_url(environ):
+def get_url(environ, include_path=False):
     """ get url """
     server_name = environ['HTTP_HOST']
     port = environ['SERVER_PORT']
@@ -21,7 +21,11 @@ def get_url(environ):
         proto = 'https'
     else:
         proto = 'http'
-    return '{0}://{1}'.format(proto, server_name)
+        
+    if include_path:
+        return '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])   
+    else:
+        return '{0}://{1}'.format(proto, server_name)
 
 def b64decode_pad(debug, string):
     """ b64 decoding and padding of missing "=" """

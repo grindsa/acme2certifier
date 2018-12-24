@@ -55,7 +55,10 @@ class Authorization(object):
     def new_get(self, url):
         """ challenge computation based on get request """
         print_debug(self.debug, 'Authorization.new_get()')
-        return self.authz_info(url)
+        response_dic = {}
+        response_dic['code'] = 200
+        response_dic['data'] = self.authz_info(url)
+        return response_dic
 
     def new_post(self, content):
         """ challenge computation based on post request """

@@ -96,26 +96,57 @@ class TestACMEHandler(unittest.TestCase):
     def test_021_account_lookup(self):
         """ test DBstore.account_delete() for an non exisitng key"""
         self.assertFalse(self.dbstore.account_lookup('modulus', 'modulus2'))
-        
+
     def test_022_order_add(self):
         """ test DBstore.order_add() method for a new entry """
         data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 1, 'status' : 1, 'expires' : '25'}
-        self.assertEqual(1, self.dbstore.order_add(data_dic))    
-        
+        self.assertEqual(1, self.dbstore.order_add(data_dic))
+
     def test_023_order_add(self):
         """ test DBstore.order_add() method for a new entry with notbefore and notafter entries """
         data_dic = {'name' : 'name2', 'identifiers' : 'identifiers', 'notbefore': 10, 'notafter': 20, 'account' : 1, 'status' : 2, 'expires' : '25'}
-        self.assertEqual(2, self.dbstore.order_add(data_dic))       
+        self.assertEqual(2, self.dbstore.order_add(data_dic))
 
     def test_024_authorization_add(self):
         """ test DBstore.authorization_add() method  """
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
-        self.assertEqual(1, self.dbstore.authorization_add(data_dic))         
+        self.assertEqual(1, self.dbstore.authorization_add(data_dic))
 
     def test_025_authorization_add(self):
         """ test DBstore.authorization_add() method  """
         data_dic = {'name' : 'name2', 'type' : 'type2', 'value': 'value2', 'order' : 2}
-        self.assertEqual(2, self.dbstore.authorization_add(data_dic))          
+        self.assertEqual(2, self.dbstore.authorization_add(data_dic))
+
+    def test_026_authorization_update(self):
+        """ test DBstore.authorization_update() method  """
+        data_dic = {'name' : 'name1', 'token' : 'token1', 'expires': '25'}
+        self.assertEqual(1, self.dbstore.authorization_update(data_dic))
+
+    def test_027_authorization_search(self):
+        """ test DBstore.authorization_search() by name """
+        self.assertIn(('token1'), self.dbstore.authorization_search('name', 'name1'))
+
+    def test_028_authorization_search(self):
+        """ test DBstore.authorization_search() by token """
+        self.assertIn(('name2'), self.dbstore.authorization_search('type', 'type2'))
+
+    def test_029_authorization_lookup(self):
+        """ test DBstore.authorization_lookup() by name """
+        self.assertEqual({'type': u'type2', 'value': u'value2'}, self.dbstore.authorization_lookup('name', 'name2'))
+
+    def test_30_authorization_lookup(self):
+        """ test DBstore.authorization_lookup() by token """
+        self.assertEqual({'type': u'type1', 'value': u'value1'}, self.dbstore.authorization_lookup('token', 'token1'))
+
+    def test_031_challenge_add(self):
+        """ test DBstore.challenge_add() method  """
+        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 1, 'expires' : 25, 'type' : 'type1'}
+        self.assertEqual(1, self.dbstore.challenge_add(data_dic))
+
+    def test_032_challenge_add(self):
+        """ test DBstore.challenge_add() method  """
+        data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 1, 'expires' : 25, 'type' : 'type2'}
+        self.assertEqual(2, self.dbstore.challenge_add(data_dic))
 
 if __name__ == '__main__':
 

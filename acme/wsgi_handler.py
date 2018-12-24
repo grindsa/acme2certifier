@@ -107,8 +107,11 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create authorization')
         self.cursor.execute('''
-            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "acme_order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "acme_order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
+        print_debug(self.debug, 'create authorization')
+        self.cursor.execute('''
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "acme_authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)       ''')
         self.db_close()
 
     def db_open(self):
@@ -184,4 +187,44 @@ class DBstore(object):
         self.cursor.execute('''INSERT INTO authorization(name, order_id, type, value) VALUES(:name, :order, :type, :value)''', data_dic)
         rid = self.cursor.lastrowid
         self.db_close()
+        return rid
+
+    def authorization_update(self, data_dic):
+        """ update existing authorization """
+        print_debug(self.debug, 'DBStore.authorization_update({0})'.format(data_dic))
+        self.db_open()
+        self.cursor.execute('''UPDATE authorization SET token = :token, expires = :expires WHERE name = :name''', data_dic)
+        self.cursor.execute('''SELECT id FROM authorization WHERE name=:name''', {'name': data_dic['name']})
+        result = self.cursor.fetchone()[0]
+        self.db_close()
+        return result
+
+    def authorization_lookup(self, column, string):
+        """ search account for a given id """
+        print_debug(self.debug, 'DBStore.authorization_lookup(column:{0}, pattern:{1})'.format(column, string))
+        lookup = self.authorization_search(column, string)
+
+        if lookup:
+            result = {'type': lookup[3], 'value': lookup[4]}
+        else:
+            result = None
+        return result
+
+    def authorization_search(self, column, string):
+        """ search account table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.authorization_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT * from authorization WHERE {0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
+
+    def challenge_add(self, data_dic):
+        """ add challenge to database """
+        print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
+        self.db_open()
+        self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type) VALUES(:name, :token, :authorization, :expires, :type)''', data_dic)
+        rid = self.cursor.lastrowid
+        self.db_close()       
         return rid

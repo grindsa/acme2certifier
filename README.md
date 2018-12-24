@@ -14,12 +14,15 @@ I am not a professional developer. Keep this in mind while laughing about my cod
 
 So far, the library is far from being useful for either lab or production usage as only the below ACME functions are supported
 
-- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.1.1)
-- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.2)
-- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.3)
+- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.1.1)
+- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.2)
+- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3)
     - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.1)
     - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.6)
+- "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
+- "authz" resource [(Section 7.5)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5)
 
+Additional funitonality will be added over time. If you are badly missing certain functionality please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) and let me know.
 
 # Installation
 The proxy can run either as Django project or as plain wsgi-script
@@ -73,7 +76,7 @@ Please note that I have a life besides programming. Thus, expect a delay in answ
 
 ## Versioning
 
-I use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags). 
+I use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
 
 ## License
 
