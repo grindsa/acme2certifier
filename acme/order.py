@@ -32,9 +32,9 @@ class Order(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def add(self, payload, aid):
+    def add(self, payload, aname):
         """ add order request to database """
-        print_debug(self.debug, 'Order.add({0})'.format(aid))
+        print_debug(self.debug, 'Order.add({0})'.format(aname))
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.debug, 12)
@@ -44,7 +44,7 @@ class Order(object):
 
             data_dic = {'status' : 2,
                         'expires' : expires,
-                        'account' : int(aid)}
+                        'account' : aname}
 
             data_dic['name'] = order_name
             data_dic['identifiers'] = json.dumps(payload['identifiers'])
@@ -87,10 +87,10 @@ class Order(object):
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
             if not message:
-                aid = self.account.id_get(protected_decoded)
-                (sig_check, error, error_detail) = self.signature.check(content, aid)
+                aname = self.account.id_get(protected_decoded)
+                (sig_check, error, error_detail) = self.signature.check(content, aname)
                 if sig_check:
-                    (error, order_name, auth_dic, expires) = self.add(payload_decoded, aid)
+                    (error, order_name, auth_dic, expires) = self.add(payload_decoded, aname)
                     if not error:
                         code = 201
                         response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.order_path, order_name)

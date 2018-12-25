@@ -29,6 +29,8 @@ class Error(object):
             'urn:ietf:params:acme:error:userActionRequired' : '',
             'urn:ietf:params:acme:error:malformed' : '',
             'urn:ietf:params:acme:error:accountDoesNotExist' : "",
+            'notImplementedYet' : "we are not that far. Stay tuned",
+            
         }
         if message:
             return error_dic[message]

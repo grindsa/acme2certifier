@@ -70,8 +70,8 @@ class Authorization(object):
             # nonce check
             (code, message, _detail) = self.nonce.check(protected_decoded)
             if not message:
-                aid = self.account.id_get(protected_decoded)
-                (sig_check, error, error_detail) = self.signature.check(content, aid)
+                aname = self.account.id_get(protected_decoded)
+                (sig_check, error, error_detail) = self.signature.check(content, aname)
                 if sig_check:
                     print(payload_decoded)
                 else:

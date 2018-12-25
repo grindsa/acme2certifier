@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import decode_deserialize, decode_message, print_debug, validate_email
+from acme.helper import decode_message, generate_random_string, print_debug, validate_email
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
 from acme.error import Error
@@ -33,17 +33,28 @@ class Account(object):
     def add(self, content, contact):
         """ prepare db insert and call DBstore helper """
         print_debug(self.debug, 'Account.account_add()')
+        account_name = generate_random_string(self.debug, 12)
+
         # check request
         if 'alg' in content and 'jwk' in content and contact:
             # check jwk
             if 'e' in content['jwk'] and 'kty' in content['jwk'] and 'n' in content['jwk']:
-                (account_id, new) = self.dbstore.account_add(content['alg'], content['jwk']['e'], content['jwk']['kty'], content['jwk']['n'], json.dumps(contact))
-                print_debug(self.debug, 'god account_id:{0} new:{1}'.format(account_id, new))
+                data_dic = {
+                    'name' : account_name,
+                    'alg' : content['alg'],
+                    'exponent' : content['jwk']['e'],
+                    'kty' : content['jwk']['kty'],
+                    'modulus' : content['jwk']['n'],
+                    'contact' : json.dumps(contact),
+                }
+                (db_name, new) = self.dbstore.account_add(data_dic)
+                print_debug(self.debug, 'god account_name:{0} new:{1}'.format(db_name, new))
                 if new:
                     code = 201
+                    message = account_name
                 else:
                     code = 200
-                message = account_id
+                    message = db_name
                 detail = None
             else:
                 code = 400
@@ -76,10 +87,10 @@ class Account(object):
 
         return(code, message, detail)
 
-    def delete(self, aid):
+    def delete(self, aname):
         """ delete account """
-        print_debug(self.debug, 'Account.delete({0})'.format(aid))
-        result = self.dbstore.account_delete(aid)
+        print_debug(self.debug, 'Account.delete({0})'.format(aname))
+        result = self.dbstore.account_delete(aname)
 
         if result:
             code = 200
@@ -97,9 +108,8 @@ class Account(object):
         print_debug(self.debug, 'Account.id_get()')
         if 'kid' in content:
             print_debug(self.debug, 'kid: {0}'.format(content['kid']))
-            try:
-                kid = int(content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), ''))
-            except ValueError:
+            kid = content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), '')
+            if '/' in kid:
                 kid = None
         else:
             kid = None
@@ -108,17 +118,13 @@ class Account(object):
     def new(self, content):
         """ generate a new account """
         print_debug(self.debug, 'Account.account_new()')
-        try:
-            content = json.loads(content)
-        except ValueError:
-            content = None
+
+        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
-        header_dic = {}
-        if content and 'protected' in content and 'payload' in content and 'signature' in content:
-            # decode the message
-            protected_decoded = decode_deserialize(self.debug, content['protected'])
-            payload_decoded = decode_deserialize(self.debug, content['payload'])
+        response_dic['header'] = {}
+
+        if result:
 
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
@@ -141,8 +147,8 @@ class Account(object):
 
         else:
             code = 400
-            message = 'content Json decoding error'
-            detail = None
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = error_detail
 
         # enrich response dictionary with details
         if code == 200 or code == 201:
@@ -153,7 +159,7 @@ class Account(object):
                     'contact': payload_decoded['contact'],
                     'orders': '{0}/{1}/{2}/orders'.format(self.server_name, self.path, message),
                 }
-            header_dic['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.path, message)
+            response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.path, message)
         else:
             if detail:
                 if detail == 'tosfalse':
@@ -167,13 +173,11 @@ class Account(object):
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
 
         # add nonce to header
-        header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
+        response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         # create response
         response_dic['code'] = code
-        response_dic['header'] = header_dic
         print_debug(self.debug, 'Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
-
         return response_dic
 
     def onlyreturnexisting(self, protected, payload):
@@ -187,7 +191,7 @@ class Account(object):
                     result = self.dbstore.account_lookup('modulus', protected['jwk']['n'])
                     if result:
                         code = 200
-                        message = result
+                        message = result['name']
                         detail = None
                     else:
                         code = 400
@@ -219,12 +223,12 @@ class Account(object):
         response_dic['header'] = {}
 
         if result:
-            aid = self.id_get(protected_decoded)
-            (sig_check, error, error_detail) = self.signature.check(content, aid)
+            aname = self.id_get(protected_decoded)
+            (sig_check, error, error_detail) = self.signature.check(content, aname)
             if sig_check:
                 if 'status' in payload_decoded:
                     if payload_decoded['status'].lower() == 'deactivated':
-                        (code, message, detail) = self.delete(aid)
+                        (code, message, detail) = self.delete(aname)
                         if code == 200:
                             response_dic['data'] = payload_decoded
                     else:

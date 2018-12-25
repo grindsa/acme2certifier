@@ -177,17 +177,21 @@ class TestACMEHandler(unittest.TestCase):
         """ test successful tos check """
         self.assertEqual((400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified'), self.account.contact_check({'foo': 'bar'}))
 
-    def test_033_account_add_new(self):
+    @patch('acme.account.generate_random_string')
+    def test_033_account_add_new(self, mock_name):
         """ test successful account add for a new account"""
         self.account.dbstore.account_add.return_value = (2, True)
+        mock_name.return_value = 'randowm_string'
         dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
-        self.assertEqual((201, 2, None), self.account.add(dic, 'foo@example.com'))
+        self.assertEqual((201, 'randowm_string', None), self.account.add(dic, 'foo@example.com'))
 
-    def test_034_account_add_existing(self):
+    @patch('acme.account.generate_random_string')
+    def test_034_account_add_existing(self, mock_name):
         """ test successful account add for a new account"""
-        self.account.dbstore.account_add.return_value = (2, False)
+        self.account.dbstore.account_add.return_value = ('foo', False)
+        mock_name.return_value = 'randowm_string'
         dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
-        self.assertEqual((200, 2, None), self.account.add(dic, 'foo@example.com'))
+        self.assertEqual((200, 'foo', None), self.account.add(dic, 'foo@example.com'))
 
     def test_035_account_add_failed1(self):
         """ test account add without ALG """
@@ -221,22 +225,22 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_041_get_id_succ(self):
         """ test successfull get_id """
-        string = {'kid' : 'http://tester.local/acme/acct/1'}
-        self.assertEqual(1, self.account.id_get(string))
+        string = {'kid' : 'http://tester.local/acme/acct/foo'}
+        self.assertEqual('foo', self.account.id_get(string))
 
     def test_042_get_id_failed(self):
         """ test failed get_id bcs of suffix """
-        string = 'http://tester.local/acme/acct/1/foo'
+        string = 'http://tester.local/acme/acct/bar/foo'
         self.assertFalse(self.account.id_get(string))
 
     def test_043_get_id_failed(self):
         """ test failed get_id bcs wrong servername """
-        string = {'kid' : 'http://test.local/acme/acct/1'}
+        string = {'kid' : 'http://test.local/acme/acct/foo'}
         self.assertFalse(self.account.id_get(string))
 
-    def test_044_get_id_failed_3(self):
+    def test_044_get_id_failed(self):
         """ test failed get_id bcs of wrong path """
-        string = {'kid' : 'http://tester.local/acct/1'}
+        string = {'kid' : 'http://tester.local/acct/foo'}
         self.assertFalse(self.account.id_get(string))
 
     def test_045_validate_sig_succ(self):
@@ -287,7 +291,7 @@ class TestACMEHandler(unittest.TestCase):
         """ failed account add bcs of incomplete json file """
         mock_nonce.return_value = 'foo'
         dic = '{"foo" : "bar"}'
-        e_result = {'header': {'Replay-Nonce': 'foo'}, 'code': 400, 'data': {'status': 400, 'message': 'content Json decoding error', 'detail': None}}
+        e_result = {'header': {'Replay-Nonce': 'foo'}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': "Invalid JWS Object [Invalid format] {KeyError('signature',)}"}}
         self.assertEqual(e_result, self.account.new(dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')

@@ -12,39 +12,45 @@ class DBstore(object):
         """ init """
         self.debug = debug
 
-    def account_add(self, alg, exponent, kty, modulus, contact):
+    def account_add(self, data_dic):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_add(alg:{0}, e:{1}, kty:{2}, n:{3}, contact: {4})'.format(alg, exponent, kty, modulus, contact))
-        obj, created = Account.objects.update_or_create(modulus=modulus, defaults={'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
-        obj.save()
-        return (obj.id, created)
+        print_debug(self.debug, 'DBStore.account_add({0})'.format(data_dic))
+        account_list = self.account_lookup('modulus', data_dic['modulus'])
+        if account_list:
+            created = False
+            aname = account_list['name']
+        else:
+            obj, created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+            obj.save()
+            aname = data_dic['name']
+        return (aname, created)
 
     # django specific
-    def account_getinstance(self, aid):
+    def account_getinstance(self, aname):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aid))
-        return Account.objects.get(id=aid)
+        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aname))
+        return Account.objects.get(name=aname)
 
-    @staticmethod
-    def account_lookup(mkey, value):
+    def account_lookup(self, mkey, value):
         """ search account for a given id """
-        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus')[:1]
+        print_debug(self.debug, 'DBStore.account_lookup({0},{1})'.format(mkey, value))
+        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus', 'name')[:1]
         if account_dict:
-            result = account_dict[0]['id']
+            result = account_dict[0]
         else:
             result = None
         return result
 
-    def account_delete(self, aid):
+    def account_delete(self, aname):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
-        result = Account.objects.filter(id=aid).delete()
+        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aname))
+        result = Account.objects.filter(name=aname).delete()
         return result
 
-    def jwk_load(self, aid):
+    def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
-        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aid))
-        account_dict = Account.objects.filter(id=aid).values('alg', 'exponent', 'kty', 'modulus')[:1]
+        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aname))
+        account_dict = Account.objects.filter(name=aname).values('alg', 'exponent', 'kty', 'modulus')[:1]
         jwk_dict = {}
         if account_dict:
             jwk_dict['alg'] = account_dict[0]['alg']
