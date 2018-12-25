@@ -103,9 +103,9 @@ class Account(object):
 
         return(code, message, detail)
 
-    def id_get(self, content):
+    def name_get(self, content):
         """ get id for account """
-        print_debug(self.debug, 'Account.id_get()')
+        print_debug(self.debug, 'Account.name_get()')
         if 'kid' in content:
             print_debug(self.debug, 'kid: {0}'.format(content['kid']))
             kid = content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), '')
@@ -223,7 +223,7 @@ class Account(object):
         response_dic['header'] = {}
 
         if result:
-            aname = self.id_get(protected_decoded)
+            aname = self.name_get(protected_decoded)
             (sig_check, error, error_detail) = self.signature.check(content, aname)
             if sig_check:
                 if 'status' in payload_decoded:

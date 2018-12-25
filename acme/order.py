@@ -87,7 +87,7 @@ class Order(object):
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
             if not message:
-                aname = self.account.id_get(protected_decoded)
+                aname = self.account.name_get(protected_decoded)
                 (sig_check, error, error_detail) = self.signature.check(content, aname)
                 if sig_check:
                     (error, order_name, auth_dic, expires) = self.add(payload_decoded, aname)

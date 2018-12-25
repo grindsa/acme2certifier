@@ -19,36 +19,35 @@ class DBstore(object):
         if not os.path.exists(self.db_name):
             self.db_create()
 
-    def account_add(self, alg, exponent, kty, modulus, contact):
+    def account_add(self, data_dic):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_add(alg:{0}, e:{1}, kty:{2}, n:{3}, contact: {4})'.format(alg, exponent, kty, modulus, contact))
+        print_debug(self.debug, 'DBStore.account_add({0})'.format(data_dic))
 
         # we need this for compability with django
         created = False
-
         # check if we alredy have an entry for the key
-        exists = self.account_search('modulus', modulus)
+        exists = self.account_search('modulus', data_dic['modulus'])
         self.db_open()
         if bool(exists):
             # update
-            rid = exists[0]
-            print_debug(self.debug, 'account exists: {0} id: {1}'.format(modulus, rid))
-            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, exponent = :exponent, kty = :kty, contact = :contact WHERE modulus = :modulus''', {'alg': alg, 'modulus': modulus, 'exponent': exponent, 'kty': kty, 'contact': contact})
+            aname = exists[1]
+            print_debug(self.debug, 'account exists: {0} id: {1}'.format(aname, exists[0]))
+            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, exponent = :exponent, kty = :kty, contact = :contact WHERE modulus = :modulus''', data_dic)
         else:
             # insert
-            self.cursor.execute('''INSERT INTO ACCOUNT(alg, exponent, kty, modulus, contact) VALUES(:alg, :exponent, :kty, :modulus, :contact)''', {'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
-            rid = self.cursor.lastrowid
+            self.cursor.execute('''INSERT INTO ACCOUNT(alg, exponent, kty, modulus, contact, name) VALUES(:alg, :exponent, :kty, :modulus, :contact, :name)''', data_dic)
+            aname = data_dic['name']
             created = True
 
         self.db_close()
-        return (rid, created)
+        return(aname, created)
 
-    def account_delete(self, aid):
+    def account_delete(self, aname):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
+        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aname))
         self.db_open()
-        pre_statement = 'DELETE FROM account WHERE id LIKE ?'
-        self.cursor.execute(pre_statement, [aid])
+        pre_statement = 'DELETE FROM account WHERE name LIKE ?'
+        self.cursor.execute(pre_statement, [aname])
         result = bool(self.cursor.rowcount)
         self.db_close()
         return result
@@ -58,7 +57,7 @@ class DBstore(object):
         print_debug(self.debug, 'DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
         lookup = self.account_search(column, string)
         if lookup:
-            result = lookup[0]
+            result = {'id' : lookup[0], 'name' : lookup[1]}
         else:
             result = None
         return result
@@ -90,7 +89,7 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create account')
         self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         print_debug(self.debug, 'create orderstatus')
         self.cursor.execute('''
@@ -120,18 +119,17 @@ class DBstore(object):
         self.dbs = sqlite3.connect(self.db_name)
         self.cursor = self.dbs.cursor()
 
-    def jwk_load(self, aid):
+    def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
-        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aid))
-        account_list = self.account_search('id', aid)
+        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aname))
+        account_list = self.account_search('name', aname)
 
-        # account_dict = Account.objects.filter(id=aid).values('alg', 'exponent', 'kty', 'modulus')[:1]
         jwk_dict = {}
         if account_list:
-            jwk_dict['alg'] = account_list[1]
-            jwk_dict['e'] = account_list[2]
-            jwk_dict['kty'] = account_list[3]
-            jwk_dict['n'] = account_list[4]
+            jwk_dict['alg'] = account_list[2]
+            jwk_dict['e'] = account_list[3]
+            jwk_dict['kty'] = account_list[4]
+            jwk_dict['n'] = account_list[5]
         return jwk_dict
 
     def nonce_add(self, nonce):
@@ -166,18 +164,22 @@ class DBstore(object):
 
     def order_add(self, data_dic):
         """ add order to database """
-
+        print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
         if 'notbefore' not in data_dic:
             data_dic['notbefore'] = ''
 
         if 'notafter' not in data_dic:
             data_dic['notafter'] = ''
 
-        print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
-        self.db_open()
-        self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )''', data_dic)
-        rid = self.cursor.lastrowid
-        self.db_close()
+        account = self.account_lookup('name', data_dic['account'])
+        if account:
+            data_dic['account'] = account['id']
+            self.db_open()
+            self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )''', data_dic)
+            rid = self.cursor.lastrowid
+            self.db_close()
+        else:
+            rid = None
         return rid
 
     def authorization_add(self, data_dic):
@@ -226,5 +228,5 @@ class DBstore(object):
         self.db_open()
         self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type) VALUES(:name, :token, :authorization, :expires, :type)''', data_dic)
         rid = self.cursor.lastrowid
-        self.db_close()       
+        self.db_close()
         return rid

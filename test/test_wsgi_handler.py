@@ -41,17 +41,38 @@ class TestACMEHandler(unittest.TestCase):
         """ test DBstore.nonce_delete() method for deleted entry """
         self.assertFalse(self.dbstore.nonce_check('bbb'))
 
-    def test_008_accout_add_1(self):
+    def test_008_accout_add(self):
         """ test DBstore.account_add() method for a new entry """
-        self.assertEqual((1, True), self.dbstore.account_add('alg', 'exponent', 'kty', 'modulus', 'contact'))
+        data_dic = {
+            'alg' : 'alg',
+            'exponent' : 'exponent',
+            'kty' : 'kty',
+            'modulus' : 'modulus',
+            'contact' : 'contact',
+            'name' : 'name'}
+        self.assertEqual(('name', True), self.dbstore.account_add(data_dic))
 
-    def test_009_accout_add_2(self):
+    def test_009_accout_add(self):
         """ test DBstore.account_add() method for a new entry """
-        self.assertEqual((2, True), self.dbstore.account_add('alg2', 'exponent2', 'kty2', 'modulus2', 'contact2'))
+        data_dic = {
+            'alg' : 'alg2',
+            'exponent' : 'exponent2',
+            'kty' : 'kty2',
+            'modulus' : 'modulus2',
+            'contact' : 'contact2',
+            'name' : 'name2'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
 
-    def test_010_accout_add_3(self):
+    def test_010_accout_add(self):
         """ test DBstore.account_add() method for an existing entry """
-        self.assertEqual((1, False), self.dbstore.account_add('alg', 'exponent', 'kty', 'modulus', 'contact'))
+        data_dic = {
+            'alg' : 'alg',
+            'exponent' : 'exponent',
+            'kty' : 'kty',
+            'modulus' : 'modulus',
+            'contact' : 'contact',
+            'name' : 'name3'}        
+        self.assertEqual(('name', False), self.dbstore.account_add(data_dic))
 
     def test_011_accout_search_alg(self):
         """ test DBstore.account_seach() method for alg field"""
@@ -75,23 +96,23 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_016_jkw_load(self):
         """ test DBstore.jwk_load() for an exisitng key"""
-        self.assertEqual({'alg': u'alg', 'e': u'exponent', 'kty': u'kty', 'n': u'modulus'}, self.dbstore.jwk_load(1))
+        self.assertEqual({'alg': u'alg', 'e': u'exponent', 'kty': u'kty', 'n': u'modulus'}, self.dbstore.jwk_load('name'))
 
     def test_017_jkw_load(self):
         """ test DBstore.jwk_load() for an not exisitng key"""
-        self.assertEqual({}, self.dbstore.jwk_load(3))
+        self.assertEqual({}, self.dbstore.jwk_load('not_existing'))
 
     def test_018_account_delete(self):
         """ test DBstore.account_delete() for an exisitng key"""
-        self.assertTrue(self.dbstore.account_delete(2))
+        self.assertTrue(self.dbstore.account_delete('name2'))
 
     def test_019_account_delete(self):
         """ test DBstore.account_delete() for an non exisitng key"""
-        self.assertFalse(self.dbstore.account_delete(3))
+        self.assertFalse(self.dbstore.account_delete('not_existing'))
 
     def test_020_account_lookup(self):
         """ test DBstore.account_delete() for an exisitng key"""
-        self.assertEqual(1, self.dbstore.account_lookup('modulus', 'modulus'))
+        self.assertEqual({'id': 1, 'name': u'name'}, self.dbstore.account_lookup('modulus', 'modulus'))
 
     def test_021_account_lookup(self):
         """ test DBstore.account_delete() for an non exisitng key"""
@@ -99,12 +120,12 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_022_order_add(self):
         """ test DBstore.order_add() method for a new entry """
-        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 1, 'status' : 1, 'expires' : '25'}
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name', 'status' : 1, 'expires' : '25'}
         self.assertEqual(1, self.dbstore.order_add(data_dic))
 
     def test_023_order_add(self):
         """ test DBstore.order_add() method for a new entry with notbefore and notafter entries """
-        data_dic = {'name' : 'name2', 'identifiers' : 'identifiers', 'notbefore': 10, 'notafter': 20, 'account' : 1, 'status' : 2, 'expires' : '25'}
+        data_dic = {'name' : 'name2', 'identifiers' : 'identifiers', 'notbefore': 10, 'notafter': 20, 'account' : 'name', 'status' : 2, 'expires' : '25'}
         self.assertEqual(2, self.dbstore.order_add(data_dic))
 
     def test_024_authorization_add(self):

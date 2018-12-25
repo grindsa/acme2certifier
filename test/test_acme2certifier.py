@@ -226,22 +226,22 @@ class TestACMEHandler(unittest.TestCase):
     def test_041_get_id_succ(self):
         """ test successfull get_id """
         string = {'kid' : 'http://tester.local/acme/acct/foo'}
-        self.assertEqual('foo', self.account.id_get(string))
+        self.assertEqual('foo', self.account.name_get(string))
 
     def test_042_get_id_failed(self):
         """ test failed get_id bcs of suffix """
         string = 'http://tester.local/acme/acct/bar/foo'
-        self.assertFalse(self.account.id_get(string))
+        self.assertFalse(self.account.name_get(string))
 
     def test_043_get_id_failed(self):
         """ test failed get_id bcs wrong servername """
         string = {'kid' : 'http://test.local/acme/acct/foo'}
-        self.assertFalse(self.account.id_get(string))
+        self.assertFalse(self.account.name_get(string))
 
     def test_044_get_id_failed(self):
         """ test failed get_id bcs of wrong path """
         string = {'kid' : 'http://tester.local/acct/foo'}
-        self.assertFalse(self.account.id_get(string))
+        self.assertFalse(self.account.name_get(string))
 
     def test_045_validate_sig_succ(self):
         """ successful validation of singature """
@@ -381,7 +381,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_057_get_id_failed(self):
         """ test failed get_id bcs of wrong data """
         string = {'foo' : 'bar'}
-        self.assertFalse(self.account.id_get(string))
+        self.assertFalse(self.account.name_get(string))
 
     def test_058_signature_check_failed(self):
         """ test Signature.check() without having a kid """
@@ -414,7 +414,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 403, 'data': {'status': 403, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': None}}, self.account.parse(message))
 
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.account.decode_message')
     def test_063_accout_parse(self, mock_decode, mock_id, mock_sig):
         """ test failed account parse for request which does not has a "status" field in payload """
@@ -425,7 +425,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'dont know what to do with this request'}}, self.account.parse(message))
 
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.account.decode_message')
     def test_064_accout_parse(self, mock_decode, mock_id, mock_sig):
         """ test failed account parse for reqeust with a "status" field other than "deactivated" """
@@ -437,7 +437,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.delete')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.account.decode_message')
     def test_065_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del):
         """ test failed account parse for reqeust with failed deletion """
@@ -451,7 +451,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.delete')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.account.decode_message')
     def test_066_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del, mock_nnonce):
         """ test succ account parse for reqeust with succ deletion """
@@ -599,7 +599,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'detail'}}, self.order.new(message))
 
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_085_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig):
@@ -613,7 +613,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_086_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig, mock_err):
@@ -629,7 +629,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.add')
     @patch('acme.error.Error.enrich_error')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_087_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig, mock_err, mock_orderadd):
@@ -647,7 +647,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.add')
     @patch('acme.error.Error.enrich_error')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_088_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig, mock_err, mock_orderadd, mock_nnonce):
@@ -666,7 +666,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.add')
     @patch('acme.error.Error.enrich_error')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_089_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig, mock_err, mock_orderadd, mock_nnonce):
@@ -685,7 +685,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.add')
     @patch('acme.error.Error.enrich_error')
     @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.id_get')
+    @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.order.decode_message')
     def test_090_order_new(self, mock_decode, mock_ncheck, mock_id, mock_sig, mock_err, mock_orderadd, mock_nnonce):
