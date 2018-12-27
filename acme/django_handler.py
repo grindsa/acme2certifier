@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
-from acme.models import Account, Authorization, Challenge, Nonce, Order, Orderstatus
+from acme.models import Account, Authorization, Challenge, Nonce, Order, Status
 from acme.helper import print_debug
 
 class DBstore(object):
@@ -12,39 +12,45 @@ class DBstore(object):
         """ init """
         self.debug = debug
 
-    def account_add(self, alg, exponent, kty, modulus, contact):
+    def account_add(self, data_dic):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_add(alg:{0}, e:{1}, kty:{2}, n:{3}, contact: {4})'.format(alg, exponent, kty, modulus, contact))
-        obj, created = Account.objects.update_or_create(modulus=modulus, defaults={'alg': alg, 'exponent': exponent, 'kty': kty, 'modulus': modulus, 'contact': contact})
-        obj.save()
-        return (obj.id, created)
+        print_debug(self.debug, 'DBStore.account_add({0})'.format(data_dic))
+        account_list = self.account_lookup('modulus', data_dic['modulus'])
+        if account_list:
+            created = False
+            aname = account_list['name']
+        else:
+            obj, created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+            obj.save()
+            aname = data_dic['name']
+        return (aname, created)
 
     # django specific
-    def account_getinstance(self, aid):
+    def account_getinstance(self, aname):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aid))
-        return Account.objects.get(id=aid)
+        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aname))
+        return Account.objects.get(name=aname)
 
-    @staticmethod
-    def account_lookup(mkey, value):
+    def account_lookup(self, mkey, value):
         """ search account for a given id """
-        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus')[:1]
+        print_debug(self.debug, 'DBStore.account_lookup({0}:{1})'.format(mkey, value))
+        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus', 'name')[:1]
         if account_dict:
-            result = account_dict[0]['id']
+            result = account_dict[0]
         else:
             result = None
         return result
 
-    def account_delete(self, aid):
+    def account_delete(self, aname):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aid))
-        result = Account.objects.filter(id=aid).delete()
+        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aname))
+        result = Account.objects.filter(name=aname).delete()
         return result
 
-    def jwk_load(self, aid):
+    def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
-        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aid))
-        account_dict = Account.objects.filter(id=aid).values('alg', 'exponent', 'kty', 'modulus')[:1]
+        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aname))
+        account_dict = Account.objects.filter(name=aname).values('alg', 'exponent', 'kty', 'modulus')[:1]
         jwk_dict = {}
         if account_dict:
             jwk_dict['alg'] = account_dict[0]['alg']
@@ -83,7 +89,7 @@ class DBstore(object):
         data_dic['account'] = self.account_getinstance(data_dic['account'])
 
         # replace orderstatus with an instance
-        data_dic['status'] = self.orderstatus_getinstance(data_dic['status'])
+        data_dic['status'] = self.status_getinstance(data_dic['status'])
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
         print_debug(self.debug, 'order_id({0})'.format(obj.id))
@@ -96,10 +102,10 @@ class DBstore(object):
         return Order.objects.get(id=oid)
 
     # django specific
-    def orderstatus_getinstance(self, oid):
+    def status_getinstance(self, oid):
         """ get account instance """
         print_debug(self.debug, 'DBStore.orderstatus_getinstance({0})'.format(oid))
-        return Orderstatus.objects.get(id=oid)
+        return Status.objects.get(id=oid)
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
@@ -125,15 +131,14 @@ class DBstore(object):
         print_debug(self.debug, 'auth_id({0})'.format(obj.id))
         return obj.id
 
-    @staticmethod
-    def authorization_lookup(mkey, value):
+    def authorization_lookup(self, mkey, value):
         """ search account for a given id """
+        print_debug(self.debug, 'authorization_lookup({0}:{1})'.format(mkey, value))
         authz_list = Authorization.objects.filter(**{mkey: value}).values('type', 'value')[:1]
         if authz_list:
             result = authz_list[0]
         else:
             result = None
-
         return result
 
     # django specific
@@ -149,8 +154,32 @@ class DBstore(object):
         # get order instance for DB insert
         data_dic['authorization'] = self.authorization_getinstance(data_dic['authorization'])
 
+        # replace orderstatus with an instance
+        data_dic['status'] = self.status_getinstance(data_dic['status'])
+
         # add authorization
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
         print_debug(self.debug, 'cid({0})'.format(obj.id))
         return obj.id
+
+    def challenge_lookup(self, mkey, value):
+        """ search account for a given id """
+        print_debug(self.debug, 'challenge_lookup({0}:{1})'.format(mkey, value))
+        challenge_list = Challenge.objects.filter(**{mkey: value}).values('type', 'token', 'status__name')[:1]
+        if challenge_list:
+            result = challenge_list[0]
+            result['status'] = result['status__name']
+            del result['status__name']
+        else:
+            result = None
+        return result
+
+    def challenge_update(self, data_dic):
+        """ update challenge """
+        print_debug(self.debug, 'challenge_update({0})'.format(data_dic))
+        # replace orderstatus with an instance
+        if 'status' in data_dic:
+            data_dic['status'] = self.status_getinstance(data_dic['status'])
+        obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()

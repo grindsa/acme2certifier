@@ -17,11 +17,8 @@ class Authorization(object):
     def __init__(self, debug=None, srv_name=None, expiry=86400):
         self.server_name = srv_name
         self.debug = debug
-        self.account = Account(self.debug, self.server_name)
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
-        self.error = Error(self.debug)
-        self.signature = Signature(self.debug)
         self.expiry = expiry
         self.authz_path = 'acme/authz'
         self.order_path = 'acme/order'
@@ -65,13 +62,16 @@ class Authorization(object):
         print_debug(self.debug, 'Authorization.new_post()')
         (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
         response_dic = {}
+        response_dic['header'] = {}
 
         if result:
             # nonce check
             (code, message, _detail) = self.nonce.check(protected_decoded)
             if not message:
-                aid = self.account.id_get(protected_decoded)
-                (sig_check, error, error_detail) = self.signature.check(content, aid)
+                account = Account(self.debug, self.server_name)
+                aname = account.name_get(protected_decoded)
+                signature = Signature(self.debug)
+                (sig_check, error, error_detail) = signature.check(content, aname)
                 if sig_check:
                     print(payload_decoded)
                 else:
@@ -84,20 +84,20 @@ class Authorization(object):
             detail = error_detail
 
         # enrich response dictionary with error details
-        #if not code == 201:
-        #    if detail:
-        #        # some error occured get details
-        #        detail = self.error.enrich_error(message, detail)
-        #        response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
-        #    else:
-        #        response_dic['data'] = {'status':code, 'message':message, 'detail': None}
-        #else:
-        #    # add nonce to header
-        #    header_dic['Replay-Nonce'] = self.nonce.generate_and_add()
+        if not code == 201:
+            if detail:
+                # some error occured get details
+                error_message = Error(self.debug)
+                detail = error_message.enrich_error(message, detail)
+                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+            else:
+                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
+        else:
+            # add nonce to header
+            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         # create response
-        #response_dic['code'] = code
-        #response_dic['header'] = header_dic
-        #print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
+        response_dic['code'] = code
+        print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic

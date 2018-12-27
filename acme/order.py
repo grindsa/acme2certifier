@@ -16,11 +16,8 @@ class Order(object):
     def __init__(self, debug=None, srv_name=None, expiry=86400):
         self.server_name = srv_name
         self.debug = debug
-        self.account = Account(self.debug, srv_name)
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
-        self.error = Error(self.debug)
-        self.signature = Signature(self.debug)
         self.expiry = expiry
         self.authz_path = 'acme/authz'
         self.order_path = 'acme/order'
@@ -32,9 +29,9 @@ class Order(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def add(self, payload, aid):
+    def add(self, payload, aname):
         """ add order request to database """
-        print_debug(self.debug, 'Order.add({0})'.format(aid))
+        print_debug(self.debug, 'Order.add({0})'.format(aname))
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.debug, 12)
@@ -44,7 +41,7 @@ class Order(object):
 
             data_dic = {'status' : 2,
                         'expires' : expires,
-                        'account' : int(aid)}
+                        'account' : aname}
 
             data_dic['name'] = order_name
             data_dic['identifiers'] = json.dumps(payload['identifiers'])
@@ -87,10 +84,12 @@ class Order(object):
             # nonce check
             (code, message, detail) = self.nonce.check(protected_decoded)
             if not message:
-                aid = self.account.id_get(protected_decoded)
-                (sig_check, error, error_detail) = self.signature.check(content, aid)
+                account = Account(self.debug, self.server_name)
+                aname = account.name_get(protected_decoded)
+                signature = Signature(self.debug)
+                (sig_check, error, error_detail) = signature.check(content, aname)
                 if sig_check:
-                    (error, order_name, auth_dic, expires) = self.add(payload_decoded, aid)
+                    (error, order_name, auth_dic, expires) = self.add(payload_decoded, aname)
                     if not error:
                         code = 201
                         response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.order_path, order_name)
@@ -120,7 +119,8 @@ class Order(object):
         if not code == 201:
             if detail:
                 # some error occured get details
-                detail = self.error.enrich_error(message, detail)
+                error_message = Error(self.debug)
+                detail = error_message.enrich_error(message, detail)
                 response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
             else:
                 response_dic['data'] = {'status':code, 'message':message, 'detail': None}
