@@ -225,8 +225,14 @@ class DBstore(object):
     def challenge_add(self, data_dic):
         """ add challenge to database """
         print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
-        self.db_open()
-        self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type) VALUES(:name, :token, :authorization, :expires, :type)''', data_dic)
-        rid = self.cursor.lastrowid
-        self.db_close()
+        authorization = self.authorization_search('name', data_dic['authorization'])
+        if authorization:
+            data_dic['authorization'] = authorization[0]
+            self.db_open()
+            self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type) VALUES(:name, :token, :authorization, :expires, :type)''', data_dic)
+            rid = self.cursor.lastrowid
+            self.db_close()
+        else:
+            rid = None
+            
         return rid
