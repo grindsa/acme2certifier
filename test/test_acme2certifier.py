@@ -47,7 +47,6 @@ class TestACMEHandler(unittest.TestCase):
         self.uts_to_date_utc = uts_to_date_utc
         self.date_to_uts_utc = date_to_uts_utc
         self.generate_random_string = generate_random_string
-        self.maxDiff = None
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -583,7 +582,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.generate_random_string')
     def test_083_order_add(self, mock_name, mock_uts):
         """ test Oder.add() with multiple identifier in payload dbstore-add returns something real"""
-        mock_name.side_effect = ['order','identifier1','identifier2']
+        mock_name.side_effect = ['order', 'identifier1', 'identifier2']
         mock_uts.return_value = 1543640400
         self.order.dbstore.order_add.return_value = 1
         self.order.dbstore.authorization_add.return_value = True
@@ -606,7 +605,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test failed order new bcs of nonce check failed """
         mock_decode.return_value = (True, 'detail', 'protected', 'payload', 'sig')
         mock_ncheck.return_value = (400, 'urn:ietf:params:acme:error:badNonce', None)
-        mock_id = 1
+        mock_id.return_value = 1
         mock_sig.return_value = (True, None, None)
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:badNonce', 'detail': None}}, self.order.new(message))
@@ -621,7 +620,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_decode.return_value = (True, 'detail', 'protected', 'payload', 'sig')
         mock_ncheck.return_value = (200, None, None)
         mock_err.return_value = 'detail'
-        mock_id = 1
+        mock_id.return_value = 1
         mock_sig.return_value = (False, 'message', 'detail')
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 403, 'data': {'status': 403, 'message': 'message', 'detail': 'detail'}}, self.order.new(message))
@@ -639,7 +638,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sig.return_value = (True, None, None)
         mock_err.return_value = 'detail'
         mock_orderadd.return_value = ('urn:ietf:params:acme:error:malformed', None, None, None)
-        mock_id = 1
+        mock_id.return_value = 1
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'detail'}}, self.order.new(message))
 
@@ -658,7 +657,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_err.return_value = 'detail'
         mock_nnonce.return_value = 'newnonce'
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth': {u'type': u'dns', u'value': u'acme.nclm-samba.local'}}, 'expires')
-        mock_id = 1
+        mock_id.return_value = 1
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'newnonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{u'type': u'dns', u'value': u'acme.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
@@ -677,7 +676,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_err.return_value = 'detail'
         mock_nnonce.return_value = 'newnonce'
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth1': {u'type': u'dns', u'value': u'acme1.nclm-samba.local'}, 'foo_auth2': {u'type': u'dns', u'value': u'acme2.nclm-samba.local'}}, 'expires')
-        mock_id = 1
+        mock_id.return_value = 1
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'newnonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{u'type': u'dns', u'value': u'acme2.nclm-samba.local'}, {u'type': u'dns', u'value': u'acme1.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth2', 'http://tester.local/acme/authz/foo_auth1'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
@@ -696,7 +695,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_err.return_value = 'detail'
         mock_nnonce.return_value = 'newnonce'
         mock_orderadd.return_value = (None, 'foo_order', {}, 'expires')
-        mock_id = 1
+        mock_id.return_value = 1
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'newnonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
@@ -724,6 +723,70 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_update.return_value = 'foo'
         self.authorization.dbstore.authorization_lookup.return_value = {'identifier_key' : 'identifier_value'}
         self.assertEqual({'status': 'pending', 'expires': 1543726800, 'identifier': {'challenges': [{'key2': 'value2', 'key1': 'value1'}], 'identifier_key': 'identifier_value'}}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+
+    def test_094_challenge_info(self):
+        """ test challenge.info() """
+        self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
+        self.assertEqual({'status': 'pending', 'token': 'token', 'type': 'http-01'}, self.challenge.info('foo'))
+
+    @patch('acme.challenge.decode_message')
+    def test_095_challenge_parse(self, mock_decode):
+        """ test challenge.parse() - failed message decoding """
+        mock_decode.return_value = (False, 'foo', None, None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 400, 'data': {'detail': 'foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('url', message))
+
+    @patch('acme.nonce.Nonce.check')
+    @patch('acme.challenge.decode_message')
+    def test_096_challenge_parse(self, mock_decode, mock_ncheck):
+        """ test challenge.parse() - failed nonce check """
+        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
+        mock_ncheck.return_value = (400, 'urn:ietf:params:acme:error:badNonce', None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:badNonce', 'status': 400}, 'header': {}}, self.challenge.parse('url', message))
+
+    @patch('acme.account.Account.name_get')
+    @patch('acme.nonce.Nonce.check')
+    @patch('acme.challenge.decode_message')
+    def test_097_challenge_parse(self, mock_decode, mock_ncheck, mock_name):
+        """ test challenge.parse() - failed account lookup """
+        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
+        mock_ncheck.return_value = (200, None, None)
+        mock_name.return_value = None
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 403, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 403}, 'header': {}}, self.challenge.parse('url', message))
+
+    @patch('acme.error.Error.enrich_error')
+    @patch('acme.signature.Signature.check')
+    @patch('acme.account.Account.name_get')
+    @patch('acme.nonce.Nonce.check')
+    @patch('acme.challenge.decode_message')
+    def test_098_challenge_parse(self, mock_decode, mock_ncheck, mock_name, mock_sig, mock_err):
+        """ test challenge.parse() - failed signature check """
+        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
+        mock_ncheck.return_value = (200, None, None)
+        mock_name.return_value = 'aaa'
+        mock_sig.return_value = (False, 'message', 'detail')
+        mock_err.return_value = 'detail'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 403, 'data': {'status': 403, 'message': 'message', 'detail': 'detail'}, 'header': {}}, self.challenge.parse('url', message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.challenge.Challenge.info')
+    @patch('acme.signature.Signature.check')
+    @patch('acme.account.Account.name_get')
+    @patch('acme.nonce.Nonce.check')
+    @patch('acme.challenge.decode_message')
+    def test_099_challenge_parse(self, mock_decode, mock_ncheck, mock_name, mock_sig, mock_info, mock_nnonce):
+        """ test challenge.parse() - successful """
+        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
+        mock_ncheck.return_value = (200, None, None)
+        mock_name.return_value = 'aaa'
+        mock_sig.return_value = (True, None, None)
+        mock_info.return_value = {'challenge_foo': 'challenge_bar'}
+        mock_nnonce.return_value = 'aaaaa'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 200, 'data': {'challenge_foo': 'challenge_bar', 'url': 'url'}, 'header': {'Replay-Nonce': 'aaaaa'}}, self.challenge.parse('url', message))
 
 if __name__ == '__main__':
     unittest.main()

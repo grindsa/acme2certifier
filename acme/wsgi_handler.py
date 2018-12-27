@@ -91,18 +91,18 @@ class DBstore(object):
         self.cursor.execute('''
             CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
-        print_debug(self.debug, 'create orderstatus')
+        print_debug(self.debug, 'create status')
         self.cursor.execute('''
-            CREATE TABLE "orderstatus" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
+            CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
         ''')
-        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'invalid'})
-        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'pending'})
-        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'ready'})
-        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'processing'})
-        self.cursor.execute('''INSERT INTO orderstatus(name) VALUES(:name)''', {'name': 'valid'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'invalid'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'pending'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'ready'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'processing'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
         print_debug(self.debug, 'create orders')
         self.cursor.execute('''
-            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer, "notafter" integer, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "acme_account" ("id"), "status_id" integer NOT NULL REFERENCES "acme_orderstatus" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer, "notafter" integer, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "acme_account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         print_debug(self.debug, 'create authorization')
         self.cursor.execute('''
@@ -110,7 +110,8 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create authorization')
         self.cursor.execute('''
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "acme_authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)       ''')
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "acme_authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self.db_close()
 
     def db_open(self):
@@ -226,13 +227,51 @@ class DBstore(object):
         """ add challenge to database """
         print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
         authorization = self.authorization_search('name', data_dic['authorization'])
+
+        if not "status" in data_dic:
+            data_dic['status'] = 2
         if authorization:
             data_dic['authorization'] = authorization[0]
             self.db_open()
-            self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type) VALUES(:name, :token, :authorization, :expires, :type)''', data_dic)
+            self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type, status_id) VALUES(:name, :token, :authorization, :expires, :type, :status)''', data_dic)
             rid = self.cursor.lastrowid
             self.db_close()
         else:
             rid = None
-            
+
         return rid
+
+    def challenge_lookup(self, column, string):
+        """ search account for a given id """
+        print_debug(self.debug, 'challenge_lookup({0}:{1})'.format(column, string))
+        lookup = self.challenge_search(column, string)
+
+        if lookup:
+            result = {'type' : lookup[5], 'token' : lookup[2], 'status' : lookup[10]}
+        else:
+            result = None
+        return result
+
+    def challenge_search(self, column, string):
+        """ search challenge table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT * from challenge INNER JOIN status on status.id = challenge.status_id WHERE challenge.{0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
+
+    def challenge_update(self, data_dic):
+        """ update challenge """
+        print_debug(self.debug, 'challenge_update({0})'.format(data_dic))
+        lookup = self.challenge_search('name', data_dic['name'])
+
+        if 'status' not in data_dic:
+            data_dic['status'] = lookup[7]
+        if 'keyauthorization' not in data_dic:
+            data_dic['keyauthorization'] = lookup[6]
+
+        self.db_open()
+        self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
+        self.db_close()        

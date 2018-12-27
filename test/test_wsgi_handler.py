@@ -71,7 +71,7 @@ class TestACMEHandler(unittest.TestCase):
             'kty' : 'kty',
             'modulus' : 'modulus',
             'contact' : 'contact',
-            'name' : 'name3'}        
+            'name' : 'name3'}
         self.assertEqual(('name', False), self.dbstore.account_add(data_dic))
 
     def test_011_accout_search_alg(self):
@@ -161,13 +161,49 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_031_challenge_add(self):
         """ test DBstore.challenge_add() method  """
-        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 1, 'expires' : 25, 'type' : 'type1'}
+        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
         self.assertEqual(1, self.dbstore.challenge_add(data_dic))
 
     def test_032_challenge_add(self):
         """ test DBstore.challenge_add() method  """
-        data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 1, 'expires' : 25, 'type' : 'type2'}
+        data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 'name2', 'expires' : 25, 'type' : 'type2'}
         self.assertEqual(2, self.dbstore.challenge_add(data_dic))
+
+    def test_033_challenge_search(self):
+        """ test DBstore.challenge_search() method  """
+        self.assertIn(('type1'), self.dbstore.challenge_search('name', 'challenge1'))
+
+    def test_034_challenge_search(self):
+        """ test DBstore.challenge_search() method for not existing challenges  """
+        self.assertFalse(self.dbstore.challenge_search('name', 'challenge3'))
+
+    def test_035_challenge_lookup(self):
+        """ test DBstore.challenge_lookup() method  """
+        self.assertEqual({'status': u'pending', 'token': u'token1', 'type': u'type1'}, self.dbstore.challenge_lookup('name', 'challenge1'))
+
+    def test_036_challenge_lookup(self):
+        """ test DBstore.challenge_lookup() method  """
+        self.assertEqual({'status': u'pending', 'token': u'token2', 'type': u'type2'}, self.dbstore.challenge_lookup('name', 'challenge2'))
+
+    def test_037_challenge_update(self):
+        """ test DBstore.challenge_updatep() method  without any parameter"""
+        data_dic = {'name' : 'challenge1'}
+        self.assertFalse(self.dbstore.challenge_update(data_dic))
+
+    def test_038_challenge_update(self):
+        """ test DBstore.challenge_updatep() method  with keyauth only"""
+        data_dic = {'name' : 'challenge1', 'status' : 5, 'keyauthorization' : 'auth'}
+        self.assertFalse(self.dbstore.challenge_update(data_dic))
+
+    def test_039_challenge_update(self):
+        """ test DBstore.challenge_updatep() method  with status only"""
+        data_dic = {'name' : 'challenge1', 'status' : 5}
+        self.assertFalse(self.dbstore.challenge_update(data_dic))
+
+    def test_040_challenge_update(self):
+        """ test DBstore.challenge_updatep() method  with both"""
+        data_dic = {'name' : 'challenge2', 'status' : 5, 'keyauthorization' : 'auth2'}
+        self.assertFalse(self.dbstore.challenge_update(data_dic))
 
 if __name__ == '__main__':
 

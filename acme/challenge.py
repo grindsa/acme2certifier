@@ -79,7 +79,7 @@ class Challenge(object):
 
     def parse(self, url, content):
         """ new oder request """
-        print_debug(self.debug, 'Challenge.parse()')
+        print_debug(self.debug, 'Challenge.parse({0})'.format(url))
         (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
@@ -150,3 +150,7 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
         print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
         self.update({'name' : challenge_name, 'status' : 5})
+        
+        if 'keyAuthorization' in payload:
+            data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
+            self.update(data_dic)

@@ -21,6 +21,10 @@ So far, the library is far from being useful for either lab or production usage 
     - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.6)
 - "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
 - "authz" resource [(Section 7.5)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5)
+- "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5.1)
+
+<span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each callenge to "valid" forcing an acme client to send the CSR immediately.</span> 
+
 
 Additional funitonality will be added over time. If you are badly missing certain functionality please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) and let me know.
 
