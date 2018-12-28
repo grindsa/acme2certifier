@@ -3,8 +3,9 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, generate_random_string, print_debug, uts_to_date_utc, uts_now
+from acme.helper import decode_message, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
 from acme.account import Account
+from acme.certificate import Certificate
 from acme.db_handler import DBstore
 from acme.error import Error
 from acme.nonce import Nonce
@@ -19,8 +20,8 @@ class Order(object):
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
-        self.authz_path = 'acme/authz'
-        self.order_path = 'acme/order'
+        self.authz_path = '/acme/authz/'
+        self.order_path = '/acme/order/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -72,6 +73,20 @@ class Order(object):
         # print(auth_dic)
         return(error, order_name, auth_dic, uts_to_date_utc(expires))
 
+    def get_name(self, url):
+        """ get ordername """
+        print_debug(self.debug, 'Order.get_name({0})'.format(url))
+        url_dic = parse_url(self.debug, url)
+        order_name = url_dic['path'].replace(self.order_path, '')
+        if '/' in order_name:
+            (order_name, _sinin) = order_name.split('/', 1)
+        return order_name
+
+    def info(self, order_name):
+        """ list details of an order """
+        print_debug(self.debug, 'Order.info({0})'.format(order_name))
+        return self.dbstore.order_lookup('name', order_name)
+
     def new(self, content):
         """ new oder request """
         print_debug(self.debug, 'Order.new()')
@@ -92,15 +107,15 @@ class Order(object):
                     (error, order_name, auth_dic, expires) = self.add(payload_decoded, aname)
                     if not error:
                         code = 201
-                        response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.order_path, order_name)
+                        response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
                         response_dic['data'] = {}
                         response_dic['data']['identifiers'] = []
                         response_dic['data']['authorizations'] = []
                         response_dic['data']['status'] = 'pending'
                         response_dic['data']['expires'] = expires
-                        response_dic['data']['finalize'] = '{0}/{1}/{2}/finalize'.format(self.server_name, self.order_path, order_name)
+                        response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
                         for auth_name in auth_dic:
-                            response_dic['data']['authorizations'].append('{0}/{1}/{2}'.format(self.server_name, self.authz_path, auth_name))
+                            response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.authz_path, auth_name))
                             response_dic['data']['identifiers'].append(auth_dic[auth_name])
                     else:
                         code = 400
@@ -133,3 +148,72 @@ class Order(object):
         print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic
+
+    def parse(self, content):
+        """ new oder request """
+        print_debug(self.debug, 'Order.parse()')
+        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+
+        response_dic = {}
+        response_dic['header'] = {}
+
+        if result:
+            # nonce check
+            (code, message, detail) = self.nonce.check(protected_decoded)
+            if not message:
+                account = Account(self.debug, self.server_name)
+                aname = account.name_get(protected_decoded)
+                signature = Signature(self.debug)
+                (sig_check, error, error_detail) = signature.check(content, aname)
+                if sig_check:
+                    order_name = self.get_name(protected_decoded['url'])
+                    if 'csr' in payload_decoded:
+                        (code, message, detail) = self.process_csr(order_name, payload_decoded['csr'])
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:badCSR'
+                        detail = 'csr is missing in payload'
+                    # dump_csr(self.debug, aname, payload_decoded['csr'])
+                else:
+                    code = 403
+                    message = error
+                    detail = error_detail
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = error_detail
+
+        # enrich response dictionary with error details
+        # if not code == 201:
+        #   if detail:
+        #       # some error occured get details
+        #        error_message = Error(self.debug)
+        #        detail = error_message.enrich_error(message, detail)
+        #        response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+        #    else:
+        #        response_dic['data'] = {'status':code, 'message':message, 'detail': None}
+        #else:
+        #    # add nonce to header
+        #    response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+
+        # create response
+        # response_dic['code'] = code
+        # print_debug(self.debug, 'Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+
+    def process_csr(self, order_name, csr):
+        """ process certificate signing request """
+        print_debug(self.debug, 'Order.process_csr({0})'.format(order_name))
+
+        order_dic = self.info(order_name)
+
+        if order_dic:
+            csr_check = validate_csr(self.debug, order_dic, csr)
+            if csr_check:
+                certificate = Certificate(self.debug)
+                cert_id = certificate.store_csr(order_name, csr)
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:unauthorized'
+            detail = 'order: {0} not found'.format(order_name)
+
+        return(None, None, None)

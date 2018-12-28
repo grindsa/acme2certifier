@@ -8,10 +8,12 @@ import json
 import random
 import calendar
 import time
+import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
 import pytz
 from jwcrypto import jwk, jws
+from urlparse import urlparse
 
 def get_url(environ, include_path=False):
     """ get url """
@@ -37,6 +39,12 @@ def b64decode_pad(debug, string):
         b64dec = 'ERR: b64 decoding error'
     return b64dec
 
+def base64_url_decode(debug, string):
+    padding_factor = (4 - len(string) % 4) % 4
+    string += "="*padding_factor 
+    return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))    
+    # return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))        
+    
 def decode_deserialize(debug, string):
     """ decode and deserialize string """
     print_debug(debug, 'decode_deserialize()')
@@ -70,7 +78,17 @@ def decode_message(debug, message):
         payload = None
         signature = None
     return(result, error, protected, payload, signature)
-
+    
+def dump_csr(debug, name, csr):
+    """ dump CSR """
+    print_debug(debug, 'dump_csr()')
+    fobj = open('{0}.csr'.format(name), 'wb')
+    #fobj.write('-----BEGIN CERTIFICATE REQUEST-----\n')
+    #fobj.write(textwrap.fill(base64.b64encode(base64_url_decode(debug, csr)), 64))
+    #fobj.write('\n-----END CERTIFICATE REQUEST-----\n')  
+    fobj.write(base64.b64encode(base64_url_decode(debug, csr)))
+    fobj.close()
+    
 def generate_random_string(debug, length):
     """ generate random string to be used as name """
     print_debug(debug, 'generate_random_string()')
@@ -118,7 +136,29 @@ def signature_check(debug, message, pub_key):
 
     # return result
     return(result, error)
+    
+def parse_url(debug, url):
+    """ split url into pieces """
+    print_debug(debug, 'parse_url({0})'.format(url))    
+    url_dic = {
+        'proto' : urlparse(url).scheme,
+        'host' : urlparse(url).netloc, 
+        'path' : urlparse(url).path
+    }
+    return url_dic
 
+def uts_now():
+    """ return unixtimestamp in utc """
+    return calendar.timegm(datetime.utcnow().utctimetuple())
+
+def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert unix timestamp to date format """
+    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
+
+def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert date to unix timestamp """
+    return int(calendar.timegm(time.strptime(date_human, tformat)))
+    
 def validate_email(debug, contact_list):
     """ validate contact against RFC608"""
     print_debug(debug, 'validate_email()')
@@ -138,17 +178,11 @@ def validate_email(debug, contact_list):
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
+    return result  
+ 
+def validate_csr(debug, order_dic, csr):
+    """ validate certificate signing request against order"""
+    print_debug(debug, 'validate_csr({0})'.format(order_dic))
+    return True        
 
-    return result
-
-def uts_now():
-    """ return unixtimestamp in utc """
-    return calendar.timegm(datetime.utcnow().utctimetuple())
-
-def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
-    """ convert unix timestamp to date format """
-    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
-
-def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
-    """ convert date to unix timestamp """
-    return int(calendar.timegm(time.strptime(date_human, tformat)))
+   

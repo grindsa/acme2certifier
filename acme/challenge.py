@@ -19,7 +19,7 @@ class Challenge(object):
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
-        self.path = 'acme/chall'
+        self.path = '/acme/chall/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -31,7 +31,7 @@ class Challenge(object):
     def get(self, url):
         """ get challenge details based on get request """
         print_debug(self.debug, 'challenge.new_get({0})'.format(url))
-        challenge_name = url.replace('{0}/{1}/'.format(self.server_name, self.path), '')
+        challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
         response_dic = {}
         response_dic['code'] = 200
         response_dic['data'] = self.info(challenge_name)
@@ -63,7 +63,7 @@ class Challenge(object):
         challenge_dic = {}
         if chid:
             challenge_dic['type'] = mtype
-            challenge_dic['url'] = '{0}/{1}/{2}'.format(self.server_name, self.path, challenge_name)
+            challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path, challenge_name)
             challenge_dic['token'] = token
 
         return challenge_dic
@@ -94,7 +94,7 @@ class Challenge(object):
                 signature = Signature(self.debug)
                 (sig_check, error, error_detail) = signature.check(content, aname)
                 if sig_check:
-                    challenge_name = url.replace('{0}/{1}/'.format(self.server_name, self.path), '')
+                    challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
                     if challenge_name:
                         challenge_dic = self.info(challenge_name)
                         self.validate(challenge_name, payload_decoded)

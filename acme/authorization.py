@@ -20,8 +20,8 @@ class Authorization(object):
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
-        self.authz_path = 'acme/authz'
-        self.order_path = 'acme/order'
+        self.authz_path = '/acme/authz/'
+        self.order_path = '/acme/order/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -32,7 +32,7 @@ class Authorization(object):
 
     def authz_info(self, url):
         """ return authzs information """
-        authz_name = url.replace('{0}/{1}/'.format(self.server_name, self.authz_path), '')
+        authz_name = url.replace('{0}{1}'.format(self.server_name, self.authz_path), '')
 
         expires = uts_now() + self.expiry
         token = generate_random_string(self.debug, 22)
