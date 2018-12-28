@@ -13,8 +13,8 @@ class CAhandler(object):
     def __init__(self, debug=None):
         self.debug = debug
         self.api_host = 'http://192.168.14.137:8084'
-        self.api_user = 'nclm_test'
-        self.api_passwd = 'Test1234'
+        self.api_user = 'xxxxx'
+        self.api_passwd = 'xxxx'
         self.auth = HTTPBasicAuth(self.api_user, self.api_passwd)
 
     def __enter__(self):
