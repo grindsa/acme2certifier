@@ -3,7 +3,7 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
+from acme.helper import decode_message, b64_url_recode, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
 from acme.account import Account
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
@@ -22,6 +22,7 @@ class Order(object):
         self.expiry = expiry
         self.authz_path = '/acme/authz/'
         self.order_path = '/acme/order/'
+        self.cert_path = '/acme/cert/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -169,11 +170,21 @@ class Order(object):
                     order_name = self.get_name(protected_decoded['url'])
                     if 'csr' in payload_decoded:
                         (code, message, detail) = self.process_csr(order_name, payload_decoded['csr'])
+                        if code == 200:
+                            # update order_status / set to valid
+                            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
+                            response_dic['data'] = self.lookup(order_name)
+                            response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
+                            response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, message)
+                            print(response_dic)
+                        else:
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:badCSR'
+                            detail = 'enrollment failed'
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:badCSR'
                         detail = 'csr is missing in payload'
-                    # dump_csr(self.debug, aname, payload_decoded['csr'])
                 else:
                     code = 403
                     message = error
@@ -184,21 +195,22 @@ class Order(object):
             detail = error_detail
 
         # enrich response dictionary with error details
-        # if not code == 201:
-        #   if detail:
-        #       # some error occured get details
-        #        error_message = Error(self.debug)
-        #        detail = error_message.enrich_error(message, detail)
-        #        response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
-        #    else:
-        #        response_dic['data'] = {'status':code, 'message':message, 'detail': None}
-        #else:
-        #    # add nonce to header
-        #    response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+        if not code == 200:
+            if detail:
+                # some error occured get details
+                error_message = Error(self.debug)
+                detail = error_message.enrich_error(message, detail)
+                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+            else:
+                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
+        else:
+            # add nonce to header
+            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         # create response
-        # response_dic['code'] = code
-        # print_debug(self.debug, 'Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+        response_dic['code'] = code
+        print_debug(self.debug, 'Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
 
     def process_csr(self, order_name, csr):
         """ process certificate signing request """
@@ -207,13 +219,54 @@ class Order(object):
         order_dic = self.info(order_name)
 
         if order_dic:
+            # change decoding from b64url to b64
+            csr = b64_url_recode(self.debug, csr)
             csr_check = validate_csr(self.debug, order_dic, csr)
             if csr_check:
                 certificate = Certificate(self.debug)
-                cert_id = certificate.store_csr(order_name, csr)
+                certificate_name = certificate.store_csr(order_name, csr)
+                if certificate_name:
+                    result = certificate.enroll_and_store(certificate_name, csr)
+                    if result:
+                        code = 200
+                        message = certificate_name
+                        detail = None
+
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'order: {0} not found'.format(order_name)
 
-        return(None, None, None)
+        return(code, message, detail)
+
+    def update(self, data_dic):
+        """ update order based on ordername """
+        print_debug(self.debug, 'Order.update({0})'.format(data_dic))
+        return self.dbstore.order_update(data_dic)
+
+    def lookup(self, order_name):
+        """ sohw order details based on ordername """
+        print_debug(self.debug, 'Order.show({0})'.format(order_name))
+        order_dic = {}
+
+        tmp_dic = self.info(order_name)
+        if 'status' in tmp_dic:
+            order_dic['status'] = tmp_dic['status']
+        if 'expires' in tmp_dic:
+            order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
+        if 'notbefore' in tmp_dic:
+            if tmp_dic['notbefore'] != 0:
+                order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
+        if 'notafter' in tmp_dic:
+            if tmp_dic['notafter'] != 0:
+                order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
+        if 'identifiers' in tmp_dic:
+            order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
+
+        authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name'])
+        if authz_list:
+            order_dic["authorizations"] = []
+            for authz in authz_list:
+                order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.authz_path, authz['name']))
+
+        return order_dic

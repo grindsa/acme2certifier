@@ -7,7 +7,9 @@ import base64
 import json
 import random
 import calendar
+import configparser
 import time
+import os
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
@@ -39,11 +41,16 @@ def b64decode_pad(debug, string):
         b64dec = 'ERR: b64 decoding error'
     return b64dec
 
-def base64_url_decode(debug, string):
+def b64_encode(debug, string):
+    print_debug(debug, 'b64_encode()')
+    return base64.b64encode(string)
+
+def b64_url_recode(debug, string):
+    print_debug(debug, 'b64_url_recode()') 
     padding_factor = (4 - len(string) % 4) % 4
     string += "="*padding_factor 
-    return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))    
-    # return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))        
+    # return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))    
+    return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))        
     
 def decode_deserialize(debug, string):
     """ decode and deserialize string """
@@ -183,6 +190,23 @@ def validate_email(debug, contact_list):
 def validate_csr(debug, order_dic, csr):
     """ validate certificate signing request against order"""
     print_debug(debug, 'validate_csr({0})'.format(order_dic))
-    return True        
+    return True      
 
-   
+
+def load_config(debug=None, filter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
+    """ small configparser wrappter to load a config file """
+    config = configparser.ConfigParser()
+    config.read(cfg_file)
+    
+    config_dic = {}
+    
+    if filter in config:
+        for ele in config[filter]:
+            config_dic[ele] = config[filter][ele]
+    else:
+        for section in config:
+            config_dic[section] = {}
+            for ele in config[section]:
+                config_dic[section][ele] = config[section][ele]
+        
+    return config_dic     

@@ -119,3 +119,4 @@ commands.txt
 env.txt
 gna.py
 acme/db_handler.py
+/acme/acme_srv.cfg

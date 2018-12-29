@@ -2,23 +2,27 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
+import textwrap
 import requests
 from requests.auth import HTTPBasicAuth
-from acme.helper import print_debug
-import textwrap
+from acme.helper import load_config, print_debug
 
 class CAhandler(object):
     """ CA  handler """
 
     def __init__(self, debug=None):
         self.debug = debug
-        self.api_host = 'http://192.168.14.137:8084'
-        self.api_user = 'xxxxx'
-        self.api_passwd = 'xxxx'
-        self.auth = HTTPBasicAuth(self.api_user, self.api_passwd)
+        self.api_host = None
+        self.api_user = None
+        self.api_password = None
+        self.ca_name = None
+        self.auth = None
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        if not self.api_host:
+            self.load_config()
+            self.set_auth()
         return self
 
     def __exit__(self, *args):
@@ -41,10 +45,10 @@ class CAhandler(object):
             print(api_response.raise_for_status())
             return None
 
-    def enroll(self, ca_name, csr):
+    def enroll(self, csr):
         """ get key for a specific account id """
-        print_debug(self.debug, 'CAhandler.enroll({0},{1})'.format(ca_name, csr))
-        ca_dic = self.get_ca_properties('name', 'ncm_sub_ca')
+        print_debug(self.debug, 'CAhandler.enroll({0})'.format(csr))
+        ca_dic = self.get_ca_properties('name', self.ca_name)
         cert_dic = {}
         if 'href' in ca_dic:
             data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
@@ -73,7 +77,6 @@ class CAhandler(object):
 
     def generate_pem_cert_chain(self, cert_dic):
         """ build certificate chain based """
-
         pem_list = []
         issuer_loop = True
 
@@ -102,7 +105,24 @@ class CAhandler(object):
 
         pem_file = ''
         for cert in pem_list:
-            pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))           
-            
-        print(pem_file)    
- 
+            pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
+
+        return pem_file
+
+    def load_config(self):
+        """" load config from file """
+        print_debug(self.debug, 'load_config()')
+        config_dic = load_config(self.debug, 'CAhandler')
+        if 'api_host' in config_dic:
+            self.api_host = config_dic['api_host']
+        if 'api_user' in config_dic:
+            self.api_user = config_dic['api_user']
+        if 'api_password' in config_dic:
+            self.api_password = config_dic['api_password']
+        if 'ca_name' in config_dic:
+            self.ca_name = config_dic['ca_name']
+
+    def set_auth(self):
+        """ set basic authentication header """
+        print_debug(self.debug, 'set_auth()')
+        self.auth = HTTPBasicAuth(self.api_user, self.api_password)
