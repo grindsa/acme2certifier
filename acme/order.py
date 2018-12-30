@@ -172,11 +172,12 @@ class Order(object):
                         (code, message, detail) = self.process_csr(order_name, payload_decoded['csr'])
                         if code == 200:
                             # update order_status / set to valid
+                            self.update({'name' : order_name, 'status': 'valid'})
+                            # create response
                             response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
                             response_dic['data'] = self.lookup(order_name)
                             response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
                             response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, message)
-                            print(response_dic)
                         else:
                             code = 400
                             message = 'urn:ietf:params:acme:error:badCSR'
@@ -250,23 +251,24 @@ class Order(object):
         order_dic = {}
 
         tmp_dic = self.info(order_name)
-        if 'status' in tmp_dic:
-            order_dic['status'] = tmp_dic['status']
-        if 'expires' in tmp_dic:
-            order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
-        if 'notbefore' in tmp_dic:
-            if tmp_dic['notbefore'] != 0:
-                order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
-        if 'notafter' in tmp_dic:
-            if tmp_dic['notafter'] != 0:
-                order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
-        if 'identifiers' in tmp_dic:
-            order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
+        if tmp_dic:
+            if 'status' in tmp_dic:
+                order_dic['status'] = tmp_dic['status']
+            if 'expires' in tmp_dic:
+                order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
+            if 'notbefore' in tmp_dic:
+                if tmp_dic['notbefore'] != 0:
+                    order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
+            if 'notafter' in tmp_dic:
+                if tmp_dic['notafter'] != 0:
+                    order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
+            if 'identifiers' in tmp_dic:
+                order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
 
-        authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name'])
-        if authz_list:
-            order_dic["authorizations"] = []
-            for authz in authz_list:
-                order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.authz_path, authz['name']))
+            authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name'])
+            if authz_list:
+                order_dic["authorizations"] = []
+                for authz in authz_list:
+                    order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.authz_path, authz['name']))
 
         return order_dic

@@ -74,7 +74,7 @@ class Challenge(object):
         challenge_list = []
         challenge_list.append(self.new(authz_name, 'http-01', token))
         challenge_list.append(self.new(authz_name, 'dns-01', token))
-
+        print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))        
         return challenge_list
 
     def parse(self, url, content):

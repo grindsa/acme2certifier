@@ -6,6 +6,10 @@ import sys
 import os
 sys.path.insert(0, '..')
 
+def dict_from_row(row):
+    """ small helper to convert a select list into a dictionary """
+    return dict(zip(row.keys(), row))
+    
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
@@ -143,21 +147,21 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'token' : 'token1', 'expires': '25'}
         self.assertEqual(1, self.dbstore.authorization_update(data_dic))
 
-    def test_027_authorization_search(self):
-        """ test DBstore.authorization_search() by name """
-        self.assertIn(('token1'), self.dbstore.authorization_search('name', 'name1'))
+    # def test_027_authorization_search(self):
+    #    """ test DBstore.authorization_search() by name """
+    #    self.assertIn(('token1'), self.dbstore.authorization_search('name', 'name1'))
 
-    def test_028_authorization_search(self):
-        """ test DBstore.authorization_search() by token """
-        self.assertIn(('name2'), self.dbstore.authorization_search('type', 'type2'))
+    # def test_028_authorization_search(self):
+    #    """ test DBstore.authorization_search() by token """
+    #    self.assertIn({'name': u'name2'}, dict_from_row(self.dbstore.authorization_search('type', 'type2')[0]))
 
     def test_029_authorization_lookup(self):
         """ test DBstore.authorization_lookup() by name """
-        self.assertEqual({'type': u'type2', 'value': u'value2'}, self.dbstore.authorization_lookup('name', 'name2'))
+        self.assertEqual([{'type': u'type2', 'value': u'value2'}], self.dbstore.authorization_lookup('name', 'name2'))
 
     def test_30_authorization_lookup(self):
         """ test DBstore.authorization_lookup() by token """
-        self.assertEqual({'type': u'type1', 'value': u'value1'}, self.dbstore.authorization_lookup('token', 'token1'))
+        self.assertEqual([{'type': u'type1', 'value': u'value1'}], self.dbstore.authorization_lookup('token', 'token1'))
 
     def test_031_challenge_add(self):
         """ test DBstore.challenge_add() method  """

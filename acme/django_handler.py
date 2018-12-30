@@ -134,15 +134,8 @@ class DBstore(object):
     def authorization_lookup(self, mkey, value, vlist=('type', 'value')):
         """ search account for a given id """
         print_debug(self.debug, 'authorization_lookup({0}:{1}:{2})'.format(mkey, value, vlist))
-
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
-        if len(authz_list) == 1:
-            result = authz_list[0]
-        elif len(authz_list) > 1:
-            result = authz_list
-        else:
-            result = None
-        return result
+        return authz_list
 
     # django specific
     def authorization_getinstance(self, name):
