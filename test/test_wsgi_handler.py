@@ -147,13 +147,13 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'token' : 'token1', 'expires': '25'}
         self.assertEqual(1, self.dbstore.authorization_update(data_dic))
 
-    # def test_027_authorization_search(self):
-    #    """ test DBstore.authorization_search() by name """
-    #    self.assertIn(('token1'), self.dbstore.authorization_search('name', 'name1'))
+    def test_027_authorization_search(self):
+        """ test DBstore.authorization_search() by name """
+        self.assertIn('token1', dict_from_row(self.dbstore.authorization_search('name', 'name1')[0])['token'])
 
-    # def test_028_authorization_search(self):
-    #    """ test DBstore.authorization_search() by token """
-    #    self.assertIn({'name': u'name2'}, dict_from_row(self.dbstore.authorization_search('type', 'type2')[0]))
+    def test_028_authorization_search(self):
+        """ test DBstore.authorization_search() by token """
+        self.assertIn('name2', dict_from_row(self.dbstore.authorization_search('type', 'type2')[0])['name'])
 
     def test_029_authorization_lookup(self):
         """ test DBstore.authorization_lookup() by name """
