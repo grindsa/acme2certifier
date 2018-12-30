@@ -2,13 +2,15 @@
 
 acme2cerfier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA service which do not support this protocol yet. It consists of two libraries:
 
-- acmesrv.py - implementing ACME server functionality based on [draft-ietf-acme-acme-16](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.1)
-- ca_client.py - (not developed yet) interface towards CA server. In this project I am connecting to Insta Certfier by using REST however the intention of this library is to be modular that an adaption to other CA servers would be straight forward
+- acme/*.py - a bunch of classes implementing ACME server functionality based on [draft-ietf-acme-acme-18](https://tools.ietf.org/html/draft-ietf-acme-acme-18)
+- ca_handler.py - interface towards CA server. In this project I am connecting to Insta Certfier by using REST however the intention of this library is to be modular that an adaption to other CA servers would be straight forward
 
 ## Disclaimer
 I am running this project as my RD guys told me it won’t be possible :-)
 
-I am not a professional developer. Keep this in mind while laughing about my code quality and don’t forget to send patches.
+so far I am using [acme.sh](https://github.com/Neilpang/acme.sh) to test the server. Other clients are on my list. In case you are bored, feel free to test other came clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new).
+
+I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
 ## Project status
 
@@ -20,13 +22,15 @@ So far, the library is far from being useful for either lab or production usage 
     - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.1)
     - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.6)
 - "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
+- "order finalization" [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
+- "certificate download" [(Section 7.4.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-18#section-7.4.2)
 - "authz" resource [(Section 7.5)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5)
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5.1)
 
 <span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each callenge to "valid" forcing an acme client to send the CSR immediately.</span> 
 
 
-Additional funitonality will be added over time. If you are badly missing certain functionality please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) and let me know.
+Additional funitonality will be added over time. If you are badly missing certain functionality please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
 # Installation
 The proxy can run either as Django project or as plain wsgi-script

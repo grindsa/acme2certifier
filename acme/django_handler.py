@@ -215,3 +215,15 @@ class DBstore(object):
             data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
+
+    def certificate_lookup(self, mkey, value):
+        """ search certificate based on "something" """
+        print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(mkey, value))
+        certificate_list = Certificate.objects.filter(**{mkey: value}).values('name', 'csr', 'cert', 'order__name')[:1]
+        if certificate_list:
+            result = certificate_list[0]
+            result['order'] = result['order__name']
+            del result['order__name']
+        else:
+            result = None
+        return result

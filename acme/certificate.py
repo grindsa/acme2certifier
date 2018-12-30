@@ -2,16 +2,18 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
-from acme.helper import b64_encode, generate_random_string, print_debug
+from acme.helper import b64_encode, b64decode_pad, generate_random_string, print_debug
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 
 class Certificate(object):
     """ CA  handler """
 
-    def __init__(self, debug=None):
+    def __init__(self, debug=None, srv_name=None):
         self.debug = debug
+        self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
+        self.path = '/acme/cert/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -35,6 +37,29 @@ class Certificate(object):
         print_debug(self.debug, 'Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
         certificate = self.enroll(csr)
         return self.store_cert(certificate_name, certificate)
+
+    def info(self, certificate_name):
+        """ get certificate from database """
+        return self.dbstore.certificate_lookup('name', certificate_name)
+
+    def new_get(self, url):
+        """ get request """
+        certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
+
+        response_dic = {}
+        # fetch certificate dictionary from DB
+        certificate_dic = self.info(certificate_name)
+
+        if 'cert' in certificate_dic:
+            response_dic['code'] = 200
+            # filter certificate and decode it
+            response_dic['data'] = b64decode_pad(self.debug, certificate_dic['cert'])
+            response_dic['header'] = {}
+            response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
+        else:
+            response_dic['code'] = 403
+            response_dic['data'] = 'NotFound'
+        return response_dic
 
     def store_cert(self, certificate_name, certificate):
         """ get key for a specific account id """

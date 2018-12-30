@@ -218,14 +218,14 @@ class DBstore(object):
 
         lookup = self.authorization_search(column, string)
         authz_list = []
-        
+
         for row in lookup:
             row_dic = dict_from_row(row)
             tmp_dic = {}
             for ele in vlist:
                 tmp_dic[ele] = row_dic[ele]
             authz_list.append(tmp_dic)
-                        
+
         return authz_list
 
     def authorization_search(self, column, string):
@@ -365,7 +365,7 @@ class DBstore(object):
         result = self.cursor.fetchone()
         self.db_close()
         return result
-        
+
     def order_update(self, data_dic):
         """ update order """
         print_debug(self.debug, 'order_update({0})'.format(data_dic))
@@ -383,4 +383,9 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
-        return result        
+        return result
+
+    def certificate_lookup(self, column, string):
+        """ search certificate based on "something" """
+        print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(column, string))
+        return dict_from_row(self.certificate_search(column, string))
