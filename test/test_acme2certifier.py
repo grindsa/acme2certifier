@@ -726,8 +726,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_uts.return_value = 1543640400
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
         self.authorization.dbstore.authorization_update.return_value = 'foo'
-        self.authorization.dbstore.authorization_lookup.return_value = {'identifier_key' : 'identifier_value'}
-        self.assertEqual({'status': 'pending', 'expires': 1543726800, 'identifier': {'identifier_key': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+        self.authorization.dbstore.authorization_lookup.return_value = [{'identifier_key' : 'identifier_value'}]
+        self.assertEqual({'status': 'pending', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'identifier_key': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
 
     def test_094_challenge_info(self):
         """ test challenge.info() """
@@ -791,7 +791,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {'challenge_foo': 'challenge_bar'}
         mock_nnonce.return_value = 'aaaaa'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'challenge_foo': 'challenge_bar', 'url': 'url'}, 'header': {'Replay-Nonce': 'aaaaa'}}, self.challenge.parse('url', message))
+        self.assertEqual({'code': 200, 'data': {'challenge_foo': 'challenge_bar', 'url': 'url'}, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'aaaaa'}}, self.challenge.parse('url', message))
 
     @patch('acme.order.Order.info')
     def test_100_order_lookup(self, mock_oinfo):

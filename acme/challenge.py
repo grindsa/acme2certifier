@@ -20,6 +20,7 @@ class Challenge(object):
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
         self.path = '/acme/chall/'
+        self.authz_path = '/acme/authz/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -133,7 +134,9 @@ class Challenge(object):
         else:
             # add nonce to header
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
-
+            # create up-link rel
+            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
+            
         # create response
         response_dic['code'] = code
         print_debug(self.debug, 'challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
