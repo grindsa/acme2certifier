@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from acme.authorization import Authorization
 from acme.account import Account
+from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
@@ -104,32 +105,60 @@ def neworders(request):
     else:
         return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 
-        
 def authz(request):
-    """ xxxx command """
-    if request.method == 'POST' or request.method == 'GET':    
+    """ new-authz command """
+    if request.method == 'POST' or request.method == 'GET':
         with Authorization(DEBUG, get_url(request.META)) as authorization:
-            print(request.body)
-            
             if request.method == 'POST':
                 response_dic = authorization.new_post(request.body)
-            else:   
-                return JsonResponse(authorization.new_get(request.build_absolute_uri()) )               
-                
+            else:
+                response_dic = authorization.new_get(request.build_absolute_uri())
             # create the response
-            # response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
-
-            # generate additional header elements
-            # for element in response_dic['header']:
-            #    response[element] = response_dic['header'][element]
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
 
             # send response
-            # return response       
-            return JsonResponse(status=403, data={'status':403, 'message':'not that far', 'detail': 'we are ot that far.'})      
-
+            return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})  
-        
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def chall(request):
+    """ challenge command """
+    with Challenge(DEBUG, get_url(request.META)) as challenge:
+        if request.method == 'POST':
+            response_dic = challenge.parse(request.build_absolute_uri(), request.body)
+            # create the response
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+            # send response
+            return response
+        elif request.method == 'GET':
+            response_dic = challenge.get(request.build_absolute_uri())
+            # create the response
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+
+            # send response
+            return response
+        else:
+            return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def order(request):
+    """ new-authz command """
+    if request.method == 'POST':
+        with Order(DEBUG, get_url(request.META)) as order:
+            response_dic = order.parse(request.body)
+            # create the response
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # send response
+            return response
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 #def blubb(request):
 #    """ xxxx command """
 #    with ACMEsrv(request.META['HTTP_HOST']) as acm:

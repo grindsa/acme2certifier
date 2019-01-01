@@ -13,6 +13,7 @@ class Nonce(models.Model):
 
 class Account(models.Model):
     """ account table """
+    name = models.CharField(max_length=15, unique=True)
     alg = models.CharField(max_length=10)
     exponent = models.CharField(max_length=10)
     kty = models.CharField(max_length=10)
@@ -22,7 +23,7 @@ class Account(models.Model):
     def __unicode__(self):
         return self.contact
 
-class Orderstatus(models.Model):
+class Status(models.Model):
     """ order status """
     name = models.CharField(max_length=15, unique=True) 
     def __unicode__(self):
@@ -35,7 +36,7 @@ class Order(models.Model):
     notbefore = models.IntegerField(default=0)
     notafter = models.IntegerField(default=0)
     identifiers = models.CharField(max_length=1048)
-    status = models.ForeignKey(Orderstatus, default=1)
+    status = models.ForeignKey(Status, default=1)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)    
     def __unicode__(self):
@@ -60,6 +61,20 @@ class Challenge(models.Model):
     type = models.CharField(max_length=10)
     token = models.CharField(max_length=64)    
     expires = models.IntegerField(default=0)    
-    created_at = models.DateTimeField(auto_now_add=True)    
+    status = models.ForeignKey(Status, default=1)    
+    created_at = models.DateTimeField(auto_now_add=True)  
+    keyauthorization = models.CharField(max_length=128, blank=True)  
     def __unicode__(self):
         return self.name          
+
+        
+class Certificate(models.Model):
+    """ order table """
+    name = models.CharField(max_length=15, unique=True)
+    order = models.ForeignKey(Order)    
+    csr = models.TextField(blank=True) 
+    cert = models.TextField(blank=True)  
+    created_at = models.DateTimeField(auto_now_add=True)  
+    def __unicode__(self):
+        return self.name         
+        

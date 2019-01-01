@@ -7,11 +7,15 @@ import base64
 import json
 import random
 import calendar
+import configparser
 import time
+import os
 from datetime import datetime
 from string import digits, ascii_letters
+from urlparse import urlparse
 import pytz
 from jwcrypto import jwk, jws
+
 
 def get_url(environ, include_path=False):
     """ get url """
@@ -21,9 +25,9 @@ def get_url(environ, include_path=False):
         proto = 'https'
     else:
         proto = 'http'
-        
+
     if include_path:
-        return '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])   
+        return '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])
     else:
         return '{0}://{1}'.format(proto, server_name)
 
@@ -36,6 +40,19 @@ def b64decode_pad(debug, string):
     except TypeError:
         b64dec = 'ERR: b64 decoding error'
     return b64dec
+
+def b64_encode(debug, string):
+    """ encode a bytestream in base64 """
+    print_debug(debug, 'b64_encode()')
+    return base64.b64encode(string)
+
+def b64_url_recode(debug, string):
+    """ recode base64_url to base64 """
+    print_debug(debug, 'b64_url_recode()')
+    padding_factor = (4 - len(string) % 4) % 4
+    string += "="*padding_factor
+    # return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))
+    return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
 
 def decode_deserialize(debug, string):
     """ decode and deserialize string """
@@ -70,6 +87,16 @@ def decode_message(debug, message):
         payload = None
         signature = None
     return(result, error, protected, payload, signature)
+
+def dump_csr(debug, name, csr):
+    """ dump CSR """
+    print_debug(debug, 'dump_csr()')
+    fobj = open('{0}.csr'.format(name), 'wb')
+    #fobj.write('-----BEGIN CERTIFICATE REQUEST-----\n')
+    #fobj.write(textwrap.fill(base64.b64encode(base64_url_decode(debug, csr)), 64))
+    #fobj.write('\n-----END CERTIFICATE REQUEST-----\n')
+    fobj.write(base64.b64encode(base64_url_decode(debug, csr)))
+    fobj.close()
 
 def generate_random_string(debug, length):
     """ generate random string to be used as name """
@@ -119,6 +146,28 @@ def signature_check(debug, message, pub_key):
     # return result
     return(result, error)
 
+def parse_url(debug, url):
+    """ split url into pieces """
+    print_debug(debug, 'parse_url({0})'.format(url))
+    url_dic = {
+        'proto' : urlparse(url).scheme,
+        'host' : urlparse(url).netloc,
+        'path' : urlparse(url).path
+    }
+    return url_dic
+
+def uts_now():
+    """ return unixtimestamp in utc """
+    return calendar.timegm(datetime.utcnow().utctimetuple())
+
+def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert unix timestamp to date format """
+    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
+
+def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
+    """ convert date to unix timestamp """
+    return int(calendar.timegm(time.strptime(date_human, tformat)))
+
 def validate_email(debug, contact_list):
     """ validate contact against RFC608"""
     print_debug(debug, 'validate_email()')
@@ -138,17 +187,29 @@ def validate_email(debug, contact_list):
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
-
     return result
 
-def uts_now():
-    """ return unixtimestamp in utc """
-    return calendar.timegm(datetime.utcnow().utctimetuple())
+def validate_csr(debug, order_dic, csr):
+    """ validate certificate signing request against order"""
+    print_debug(debug, 'validate_csr({0})'.format(order_dic))
+    return True
 
-def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
-    """ convert unix timestamp to date format """
-    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
 
-def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
-    """ convert date to unix timestamp """
-    return int(calendar.timegm(time.strptime(date_human, tformat)))
+def load_config(debug=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
+    """ small configparser wrappter to load a config file """
+    print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
+    config = configparser.ConfigParser()
+    config.read(cfg_file)
+
+    config_dic = {}
+
+    if mfilter in config:
+        for ele in config[mfilter]:
+            config_dic[ele] = config[mfilter][ele]
+    else:
+        for section in config:
+            config_dic[section] = {}
+            for ele in config[section]:
+                config_dic[section][ele] = config[section][ele]
+
+    return config_dic

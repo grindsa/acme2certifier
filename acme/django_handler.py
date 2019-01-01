@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
-from acme.models import Account, Authorization, Challenge, Nonce, Order, Status
+from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
 from acme.helper import print_debug
 
 class DBstore(object):
@@ -89,30 +89,30 @@ class DBstore(object):
         data_dic['account'] = self.account_getinstance(data_dic['account'])
 
         # replace orderstatus with an instance
-        data_dic['status'] = self.status_getinstance(data_dic['status'])
+        data_dic['status'] = self.status_getinstance(data_dic['status'], 'id')
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
         print_debug(self.debug, 'order_id({0})'.format(obj.id))
         return obj.id
 
     # django specific
-    def order_getinstance(self, oid):
-        """ get account instance """
-        print_debug(self.debug, 'DBStore.oder_getinstance({0})'.format(oid))
-        return Order.objects.get(id=oid)
+    def order_getinstance(self, value=id, mkey='id'):
+        """ get order instance """
+        print_debug(self.debug, 'DBStore.order_getinstance({0}:{1})'.format(mkey, value))
+        return Order.objects.get(**{mkey: value})
 
     # django specific
-    def status_getinstance(self, oid):
+    def status_getinstance(self, value, mkey='id'):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.orderstatus_getinstance({0})'.format(oid))
-        return Status.objects.get(id=oid)
+        print_debug(self.debug, 'DBStore.status_getinstance({0}:{1})'.format(mkey, value))
+        return Status.objects.get(**{mkey: value})
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
         print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
 
         # get order instance for DB insert
-        data_dic['order'] = self.order_getinstance(data_dic['order'])
+        data_dic['order'] = self.order_getinstance(data_dic['order'], 'id')
 
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -131,15 +131,11 @@ class DBstore(object):
         print_debug(self.debug, 'auth_id({0})'.format(obj.id))
         return obj.id
 
-    def authorization_lookup(self, mkey, value):
+    def authorization_lookup(self, mkey, value, vlist=('type', 'value')):
         """ search account for a given id """
-        print_debug(self.debug, 'authorization_lookup({0}:{1})'.format(mkey, value))
-        authz_list = Authorization.objects.filter(**{mkey: value}).values('type', 'value')[:1]
-        if authz_list:
-            result = authz_list[0]
-        else:
-            result = None
-        return result
+        print_debug(self.debug, 'authorization_lookup({0}:{1}:{2})'.format(mkey, value, vlist))
+        authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
+        return authz_list
 
     # django specific
     def authorization_getinstance(self, name):
@@ -183,3 +179,51 @@ class DBstore(object):
             data_dic['status'] = self.status_getinstance(data_dic['status'])
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
+
+    def order_lookup(self, mkey, value):
+        """ search orders for a given ordername """
+        print_debug(self.debug, 'order_lookup({0}:{1})'.format(mkey, value))
+        order_list = Order.objects.filter(**{mkey: value}).values('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')[:1]
+        if order_list:
+            result = order_list[0]
+            result['status'] = result['status__name']
+            del result['status__name']
+            result['account'] = result['account__name']
+            del result['account__name']
+        else:
+            result = None
+        return result
+
+    def certificate_add(self, data_dic):
+        """ add csr/certificate to database """
+        print_debug(self.debug, 'DBStore.certificate_add()')
+
+        # get order instance for DB insert
+        if 'order' in data_dic:
+            data_dic['order'] = self.order_getinstance(data_dic['order'], 'name')
+        # add certificate/CSR
+        obj, _created = Certificate.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+        print_debug(self.debug, 'certid({0})'.format(obj.id))
+        return obj.id
+
+    def order_update(self, data_dic):
+        """ update order """
+        print_debug(self.debug, 'order_update({0})'.format(data_dic))
+        # replace orderstatus with an instance
+        if 'status' in data_dic:
+            data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
+        obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+
+    def certificate_lookup(self, mkey, value):
+        """ search certificate based on "something" """
+        print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(mkey, value))
+        certificate_list = Certificate.objects.filter(**{mkey: value}).values('name', 'csr', 'cert', 'order__name')[:1]
+        if certificate_list:
+            result = certificate_list[0]
+            result['order'] = result['order__name']
+            del result['order__name']
+        else:
+            result = None
+        return result
