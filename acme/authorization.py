@@ -41,11 +41,13 @@ class Authorization(object):
         self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
 
         authz_info_dic = {}
-        authz_info_dic['status'] = 'pending'
         authz_info_dic['expires'] = uts_to_date_utc(expires)
-        identifier = self.dbstore.authorization_lookup('name', authz_name)
-        if len(identifier) == 1:
-            authz_info_dic['identifier'] = identifier[0]
+
+        # get authorization information from db to be inserted in message
+        auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
+        if auth_info:
+            authz_info_dic['status'] = auth_info[0]['status__name']
+            authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
         challenge = Challenge(self.debug, self.server_name, expires)
         authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
 
@@ -64,7 +66,7 @@ class Authorization(object):
         """ challenge computation based on post request """
         print_debug(self.debug, 'Authorization.new_post()')
 
-        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+        (result, error_detail, protected_decoded, _payload_decoded, _signature) = decode_message(self.debug, content)
         response_dic = {}
         response_dic['header'] = {}
 
