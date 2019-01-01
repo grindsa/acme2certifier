@@ -59,6 +59,7 @@ class Authorization(object):
         print_debug(self.debug, 'Authorization.new_get()')
         response_dic = {}
         response_dic['code'] = 200
+        response_dic['header'] = {}
         response_dic['data'] = self.authz_info(url)
         return response_dic
 
