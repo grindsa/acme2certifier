@@ -20,8 +20,8 @@ class Authorization(object):
         self.dbstore = DBstore(self.debug)
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
-        self.authz_path = 'acme/authz'
-        self.order_path = 'acme/order'
+        self.authz_path = '/acme/authz/'
+        self.order_path = '/acme/order/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -32,7 +32,8 @@ class Authorization(object):
 
     def authz_info(self, url):
         """ return authzs information """
-        authz_name = url.replace('{0}/{1}/'.format(self.server_name, self.authz_path), '')
+        print_debug(self.debug, 'Authorization.info({0})'.format(url))
+        authz_name = url.replace('{0}{1}'.format(self.server_name, self.authz_path), '')
 
         expires = uts_now() + self.expiry
         token = generate_random_string(self.debug, 22)
@@ -44,7 +45,7 @@ class Authorization(object):
         authz_info_dic['expires'] = expires
         authz_info_dic['identifier'] = self.dbstore.authorization_lookup('name', authz_name)
         challenge = Challenge(self.debug, self.server_name, expires)
-        authz_info_dic['identifier']['challenges'] = challenge.new_set(authz_name, token)
+        authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
 
         print_debug(self.debug, 'Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic

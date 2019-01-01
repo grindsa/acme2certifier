@@ -6,6 +6,10 @@ import sqlite3
 import os
 from acme.helper import print_debug
 
+def dict_from_row(row):
+    """ small helper to convert a select list into a dictionary """
+    return dict(zip(row.keys(), row))
+
 class DBstore(object):
     """ helper to do datebase operations """
 
@@ -102,22 +106,28 @@ class DBstore(object):
         self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
         print_debug(self.debug, 'create orders')
         self.cursor.execute('''
-            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer, "notafter" integer, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "acme_account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         print_debug(self.debug, 'create authorization')
         self.cursor.execute('''
-            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "acme_order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
-        print_debug(self.debug, 'create authorization')
+        print_debug(self.debug, 'create challenge')
         self.cursor.execute('''
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "acme_authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
+        print_debug(self.debug, 'create certificate')
+        self.cursor.execute('''
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+
         self.db_close()
 
     def db_open(self):
         """ opens db and sets cursor """
         print_debug(self.debug, 'DBStore.db_open()')
         self.dbs = sqlite3.connect(self.db_name)
+        self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
 
     def jwk_load(self, aname):
@@ -202,43 +212,50 @@ class DBstore(object):
         self.db_close()
         return result
 
-    def authorization_lookup(self, column, string):
+    def authorization_lookup(self, column, string, vlist=('type', 'value')):
         """ search account for a given id """
         print_debug(self.debug, 'DBStore.authorization_lookup(column:{0}, pattern:{1})'.format(column, string))
-        lookup = self.authorization_search(column, string)
 
-        if lookup:
-            result = {'type': lookup[3], 'value': lookup[4]}
-        else:
-            result = None
-        return result
+        lookup = self.authorization_search(column, string)
+        authz_list = []
+
+        for row in lookup:
+            row_dic = dict_from_row(row)
+            tmp_dic = {}
+            for ele in vlist:
+                tmp_dic[ele] = row_dic[ele]
+            authz_list.append(tmp_dic)
+
+        return authz_list
 
     def authorization_search(self, column, string):
         """ search account table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.authorization_search(column:{0}, pattern:{1})'.format(column, string))
+        if column == 'name':
+            print_debug(self.debug, 'rename name to authorization.name')
+            column = 'authorization.name'
         self.db_open()
-        pre_statement = 'SELECT * from authorization WHERE {0} LIKE ?'.format(column)
+        pre_statement = 'SELECT authorization.*, orders.id as orders__id, orders.name as order__name from authorization INNER JOIN orders on orders.id = authorization.order_id WHERE {0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
+        result = self.cursor.fetchall()
         self.db_close()
         return result
 
     def challenge_add(self, data_dic):
         """ add challenge to database """
         print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
-        authorization = self.authorization_search('name', data_dic['authorization'])
+        authorization = self.authorization_lookup('name', data_dic['authorization'], ['id'])
 
         if not "status" in data_dic:
             data_dic['status'] = 2
         if authorization:
-            data_dic['authorization'] = authorization[0]
+            data_dic['authorization'] = authorization[0]['id']
             self.db_open()
             self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type, status_id) VALUES(:name, :token, :authorization, :expires, :type, :status)''', data_dic)
             rid = self.cursor.lastrowid
             self.db_close()
         else:
             rid = None
-
         return rid
 
     def challenge_lookup(self, column, string):
@@ -274,4 +291,101 @@ class DBstore(object):
 
         self.db_open()
         self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
-        self.db_close()        
+        self.db_close()
+
+    def order_lookup(self, column, string):
+        """ search orders for a given ordername """
+        print_debug(self.debug, 'order_lookup({0}:{1})'.format(column, string))
+
+        lookup = dict_from_row(self.order_search(column, string))
+
+        # small hack (not sure db returnsblank and not 0)
+        if lookup['notafter'] == '':
+            notafter = 0
+        else:
+            notafter = lookup['notafter']
+        if lookup['notbefore'] == '':
+            notbefore = 0
+        else:
+            notbefore = lookup['notbefore']
+
+        # build dictionary
+        if lookup:
+            result = {
+                'notbefore' : notbefore,
+                'notafter' : notafter,
+                'identifiers' : lookup['identifiers'],
+                'expires' : lookup['expires'],
+                'status' : lookup['status__name'],
+                }
+        else:
+            result = None
+        return result
+
+    def order_search(self, column, string):
+        """ search order table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.order_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT orders.*, status.name as status__name, status.id as status__id from orders INNER JOIN status on status.id = orders.status_id WHERE orders.{0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
+
+    def certificate_add(self, data_dic):
+        """ add csr/certificate to database """
+        print_debug(self.debug, 'DBStore.certificate_add({0})'.format(data_dic['name']))
+        # check if we alredy have an entry for the key
+        exists = self.certificate_search('name', data_dic['name'])
+
+        if bool(exists):
+            # update
+            print_debug(self.debug, 'update existing entry for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
+            self.db_open()
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert WHERE name = :name''', data_dic)
+            self.db_close()
+            rid = dict_from_row(exists)['id']
+        else:
+            # insert
+            print_debug(self.debug, 'insert new entry for {0}'.format(data_dic['name']))
+            # change order name to id
+            data_dic['order'] = dict_from_row(self.order_search('name', data_dic['order']))['id']
+            self.db_open()
+            self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
+            self.db_close()
+            rid = self.cursor.lastrowid
+        return rid
+
+    def certificate_search(self, column, string):
+        """ search certificate table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT certificate.*, orders.id as orders__id, orders.name as orders__name from certificate INNER JOIN orders on orders.id = certificate.order_id WHERE certificate.{0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
+
+    def order_update(self, data_dic):
+        """ update order """
+        print_debug(self.debug, 'order_update({0})'.format(data_dic))
+        if 'status' in data_dic:
+            data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
+        self.db_open()
+        self.cursor.execute('''UPDATE orders SET status_id = :status WHERE name = :name''', data_dic)
+        self.db_close()
+
+    def status_search(self, column, string):
+        """ search status table for a certain key/value pair """
+        print_debug(self.debug, 'DBStore.status_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self.db_close()
+        return result
+
+    def certificate_lookup(self, column, string):
+        """ search certificate based on "something" """
+        print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(column, string))
+        return dict_from_row(self.certificate_search(column, string))

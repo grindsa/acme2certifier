@@ -21,7 +21,7 @@ class Account(object):
         self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
         self.signature = Signature(self.debug)
-        self.path = 'acme/acct'
+        self.path = '/acme/acct/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -108,7 +108,7 @@ class Account(object):
         print_debug(self.debug, 'Account.name_get()')
         if 'kid' in content:
             print_debug(self.debug, 'kid: {0}'.format(content['kid']))
-            kid = content['kid'].replace('{0}/{1}/'.format(self.server_name, self.path), '')
+            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path), '')
             if '/' in kid:
                 kid = None
         else:
@@ -157,9 +157,9 @@ class Account(object):
                 response_dic['data'] = {
                     'status': 'valid',
                     'contact': payload_decoded['contact'],
-                    'orders': '{0}/{1}/{2}/orders'.format(self.server_name, self.path, message),
+                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path, message),
                 }
-            response_dic['header']['Location'] = '{0}/{1}/{2}'.format(self.server_name, self.path, message)
+            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path, message)
         else:
             if detail:
                 if detail == 'tosfalse':

@@ -113,7 +113,10 @@ acme/__init__.py
 commands.txt
 *.bat
 *.db
+*.pem
+*.csr
 /acme2certifier_wsgi.py
 env.txt
 gna.py
 acme/db_handler.py
+/acme/acme_srv.cfg
