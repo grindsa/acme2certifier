@@ -150,12 +150,25 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.update({0})'.format(data_dic))
         self.dbstore.challenge_update(data_dic)
 
+    def update_authz(self, challenge_name):
+        """ update authorizsation based on challenge_name """
+        print_debug(self.debug, 'Challenge.update_authz({0})'.format(challenge_name))
+
+        # lookup autorization based on challenge_name
+        authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
+        self.dbstore.authorization_update({'name' : authz_name, 'status' : 'valid'})
+        print(authz_name)
+
     def validate(self, challenge_name, payload):
         """ validate challenge"""
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
         print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
-        self.update({'name' : challenge_name, 'status' : 5})
+        self.update({'name' : challenge_name, 'status' : 'valid'})
 
         if 'keyAuthorization' in payload:
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
             self.update(data_dic)
+
+        # authorization update to ready
+        self.update_authz(challenge_name)
+        # self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
