@@ -41,7 +41,6 @@ class Challenge(object):
     def info(self, challenge_name):
         """ get challenge details """
         print_debug(self.debug, 'Challenge.info({0})'.format(challenge_name))
-        # self.update({'name' : challenge_name, 'status' : 4})
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
         return challenge_dic
 
@@ -75,7 +74,7 @@ class Challenge(object):
         challenge_list = []
         challenge_list.append(self.new(authz_name, 'http-01', token))
         challenge_list.append(self.new(authz_name, 'dns-01', token))
-        print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))        
+        print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
     def parse(self, url, content):
@@ -98,6 +97,9 @@ class Challenge(object):
                     challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
                     if challenge_name:
                         challenge_dic = self.info(challenge_name)
+                        # update challenge state to 'processing' - i am not so sure about this
+                        # self.update({'name' : challenge_name, 'status' : 4})
+                        # start validation
                         self.validate(challenge_name, payload_decoded)
                         if challenge_dic:
                             response_dic['data'] = {}
@@ -136,7 +138,7 @@ class Challenge(object):
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
             # create up-link rel
             response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
-            
+
         # create response
         response_dic['code'] = code
         print_debug(self.debug, 'challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
@@ -153,7 +155,7 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
         print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
         self.update({'name' : challenge_name, 'status' : 5})
-        
+
         if 'keyAuthorization' in payload:
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
             self.update(data_dic)

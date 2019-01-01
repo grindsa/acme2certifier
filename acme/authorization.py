@@ -104,6 +104,6 @@ class Authorization(object):
 
         # create response
         response_dic['code'] = code
-        print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
+        print_debug(self.debug, 'Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic

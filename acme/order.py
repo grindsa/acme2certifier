@@ -64,6 +64,7 @@ class Order(object):
                     auth_dic[auth_name] = auth.copy()
                     auth['name'] = auth_name
                     auth['order'] = oid
+                    auth['status'] = 'pending'
                     self.dbstore.authorization_add(auth)
             else:
                 error = 'urn:ietf:params:acme:error:malformed'
