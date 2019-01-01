@@ -7,7 +7,7 @@ from acme.account import Account
 from acme.db_handler import DBstore
 from acme.challenge import Challenge
 from acme.error import Error
-from acme.helper import decode_message, generate_random_string, print_debug, uts_now
+from acme.helper import decode_message, generate_random_string, print_debug, uts_now, uts_to_date_utc
 from acme.nonce import Nonce
 from acme.signature import Signature
 
@@ -42,8 +42,10 @@ class Authorization(object):
 
         authz_info_dic = {}
         authz_info_dic['status'] = 'pending'
-        authz_info_dic['expires'] = expires
-        authz_info_dic['identifier'] = self.dbstore.authorization_lookup('name', authz_name)
+        authz_info_dic['expires'] = uts_to_date_utc(expires)
+        identifier = self.dbstore.authorization_lookup('name', authz_name)
+        if len(identifier) == 1:
+            authz_info_dic['identifier'] = identifier[0]
         challenge = Challenge(self.debug, self.server_name, expires)
         authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
 
@@ -61,6 +63,7 @@ class Authorization(object):
     def new_post(self, content):
         """ challenge computation based on post request """
         print_debug(self.debug, 'Authorization.new_post()')
+
         (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
         response_dic = {}
         response_dic['header'] = {}
@@ -74,7 +77,9 @@ class Authorization(object):
                 signature = Signature(self.debug)
                 (sig_check, error, error_detail) = signature.check(content, aname)
                 if sig_check:
-                    print(payload_decoded)
+                    code = 200
+                    # response_dic['data'] = {}
+                    response_dic['data'] = self.authz_info(protected_decoded['url'])
                 else:
                     code = 403
                     message = error
@@ -85,7 +90,7 @@ class Authorization(object):
             detail = error_detail
 
         # enrich response dictionary with error details
-        if not code == 201:
+        if not code == 200:
             if detail:
                 # some error occured get details
                 error_message = Error(self.debug)

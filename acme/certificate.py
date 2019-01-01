@@ -36,7 +36,9 @@ class Certificate(object):
         """ get key for a specific order """
         print_debug(self.debug, 'Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
         certificate = self.enroll(csr)
-        return self.store_cert(certificate_name, certificate)
+        result = self.store_cert(certificate_name, certificate)
+        error = None
+        return (result, error)
 
     def info(self, certificate_name):
         """ get certificate from database """

@@ -25,17 +25,19 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
         from acme.authorization import Authorization
+        from acme.certificate import Certificate
         from acme.challenge import Challenge
         from acme.directory import Directory
         from acme.nonce import Nonce
         from acme.error import Error
         from acme.order import Order
         from acme.signature import Signature
-        from acme.helper import b64decode_pad, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc
+        from acme.helper import b64decode_pad, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config
         self.directory = Directory(False, 'http://tester.local')
         self.account = Account(False, 'http://tester.local')
         self.authorization = Authorization(False, 'http://tester.local')
         self.challenge = Challenge(False, 'http://tester.local')
+        self.certificate = Certificate(False, 'http://tester.local')
         self.nonce = Nonce(False)
         self.error = Error(False)
         self.order = Order(False, 'http://tester.local')
@@ -44,9 +46,12 @@ class TestACMEHandler(unittest.TestCase):
         self.validate_email = validate_email
         self.signature_check = signature_check
         self.decode_deserialize = decode_deserialize
+        self.decode_message = decode_message
         self.uts_to_date_utc = uts_to_date_utc
         self.date_to_uts_utc = date_to_uts_utc
         self.generate_random_string = generate_random_string
+        self.b64_url_recode = b64_url_recode
+        self.load_config = load_config
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -527,7 +532,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_075_utstodate_utc(self):
         """ test uts_to_date_utc without format """
-        self.assertEqual('2018-12-01T05:00:00', self.uts_to_date_utc(1543640400))
+        self.assertEqual('2018-12-01T05:00:00Z', self.uts_to_date_utc(1543640400))
 
     def test_076_utstodate_utc(self):
         """ test date_to_uts_utc for a given format """
@@ -552,7 +557,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_name.return_value = 'aaaaa'
         mock_uts.return_value = 1543640400
         message = {}
-        e_result = ('urn:ietf:params:acme:error:unsupportedIdentifier', 'aaaaa', {}, '2018-12-02T05:00:00')
+        e_result = ('urn:ietf:params:acme:error:unsupportedIdentifier', 'aaaaa', {}, '2018-12-02T05:00:00Z')
         self.assertEqual(e_result, self.order.add(message, 1))
 
     @patch('acme.order.uts_now')
@@ -563,7 +568,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_uts.return_value = 1543640400
         self.signature.dbstore.order_add.return_value = False
         message = {'identifiers' : {}}
-        e_result = ('urn:ietf:params:acme:error:malformed', 'aaaaa', {}, '2018-12-02T05:00:00')
+        e_result = ('urn:ietf:params:acme:error:malformed', 'aaaaa', {}, '2018-12-02T05:00:00Z')
         self.assertEqual(e_result, self.order.add(message, 1))
 
     @patch('acme.order.uts_now')
@@ -575,7 +580,7 @@ class TestACMEHandler(unittest.TestCase):
         self.order.dbstore.order_add.return_value = 1
         self.order.dbstore.authorization_add.return_value = True
         message = {'identifiers' : [{"type": "dns", "value": "example.com"}]}
-        e_result = (None, 'aaaaa', {'aaaaa': {'type': 'dns', 'value': 'example.com'}}, '2018-12-02T05:00:00')
+        e_result = (None, 'aaaaa', {'aaaaa': {'type': 'dns', 'value': 'example.com'}}, '2018-12-02T05:00:00Z')
         self.assertEqual(e_result, self.order.add(message, 1))
 
     @patch('acme.order.uts_now')
@@ -587,7 +592,7 @@ class TestACMEHandler(unittest.TestCase):
         self.order.dbstore.order_add.return_value = 1
         self.order.dbstore.authorization_add.return_value = True
         message = {'identifiers' : [{"type": "dns", "value": "example1.com"}, {"type": "dns", "value": "example2.com"}]}
-        e_result = (None, 'order', {'identifier1': {'type': 'dns', 'value': 'example1.com'}, 'identifier2': {'type': 'dns', 'value': 'example2.com'}}, '2018-12-02T05:00:00')
+        e_result = (None, 'order', {'identifier1': {'type': 'dns', 'value': 'example1.com'}, 'identifier2': {'type': 'dns', 'value': 'example2.com'}}, '2018-12-02T05:00:00Z')
         self.assertEqual(e_result, self.order.add(message, 1))
 
     @patch('acme.order.decode_message')
@@ -828,7 +833,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -836,7 +841,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400 , 'notbefore' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -844,7 +849,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400 , 'notbefore' : 0, 'notafter' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -852,7 +857,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400 , 'notbefore' : 1543640400, 'notafter' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00', 'notAfter': '2018-12-01T05:00:00', 'notBefore': '2018-12-01T05:00:00',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -860,7 +865,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400 , 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00', 'notAfter': '2018-12-01T05:00:00', 'notBefore': '2018-12-01T05:00:00',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -868,8 +873,87 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and worng authorization"""
         self.authorization.dbstore.authorization_lookup.return_value = 'foo'
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400 , 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
-        e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00', 'notAfter': '2018-12-01T05:00:00', 'notBefore': '2018-12-01T05:00:00',}
+        e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
+
+    def test_111_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 1 char"""
+        self.assertEqual('fafafaf=', self.b64_url_recode(False, 'fafafaf'))
+
+    def test_112_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 2 char"""
+        self.assertEqual('fafafa==', self.b64_url_recode(False, 'fafafa'))
+
+    def test_113_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 3 char"""
+        self.assertEqual('fafaf===', self.b64_url_recode(False, 'fafaf'))
+
+    def test_114_base64_recode(self):
+        """ test base64url recode to base64 - no padding"""
+        self.assertEqual('fafafafa', self.b64_url_recode(False, 'fafafafa'))
+
+    def test_115_base64_recode(self):
+        """ test base64url replace - with + and pad"""
+        self.assertEqual('fafa+f==', self.b64_url_recode(False, 'fafa-f'))
+
+    def test_116_base64_recode(self):
+        """ test base64url replace _ with / and pad"""
+        self.assertEqual('fafa/f==', self.b64_url_recode(False, 'fafa_f'))
+
+    @patch('acme.order.Order.info')
+    def test_117_process_csr(self, mock_oinfo):
+        """ test order prcoess_csr with empty order_dic """
+        mock_oinfo.return_value = {}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.process_csr('order_name', 'csr'))
+
+    @patch('acme.order.validate_csr')
+    @patch('acme.order.Order.info')
+    def test_118_process_csr(self, mock_oinfo, mock_csrchk):
+        """ test order prcoess_csr with failed csr check"""
+        mock_oinfo.return_value = {'foo', 'bar'}
+        mock_csrchk.return_value = False
+        self.assertEqual((403, 'urn:ietf:params:acme:badCSR', 'CSR validation failed'), self.order.process_csr('order_name', 'csr'))
+
+    @patch('acme.certificate.Certificate.store_csr')
+    @patch('acme.order.validate_csr')
+    @patch('acme.order.Order.info')
+    def test_119_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
+        """ test order prcoess_csr with failed csr dbsave"""
+        mock_oinfo.return_value = {'foo', 'bar'}
+        mock_csrchk.return_value = True
+        mock_certname.return_value = None
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order.process_csr('order_name', 'csr'))
+
+    @patch('acme.certificate.Certificate.enroll_and_store')
+    @patch('acme.certificate.Certificate.store_csr')
+    @patch('acme.order.validate_csr')
+    @patch('acme.order.Order.info')
+    def test_120_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+        """ test order prcoess_csr with failed cert enrollment"""
+        mock_oinfo.return_value = {'foo', 'bar'}
+        mock_csrchk.return_value = True
+        mock_certname.return_value = 'foo'
+        mock_enroll.return_value = (None, 'error')
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'error'), self.order.process_csr('order_name', 'csr'))
+
+    @patch('acme.certificate.Certificate.enroll_and_store')
+    @patch('acme.certificate.Certificate.store_csr')
+    @patch('acme.order.validate_csr')
+    @patch('acme.order.Order.info')
+    def test_121_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+        """ test order prcoess_csr with successful cert enrollment"""
+        mock_oinfo.return_value = {'foo', 'bar'}
+        mock_csrchk.return_value = True
+        mock_certname.return_value = 'foo'
+        mock_enroll.return_value = ('bar', None)
+        self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
+
+    def test_122_decode_message(self):
+        """ decode message with empty payload - certbot issue"""
+        data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
+        e_result = (True, None, {u'nonce': u'26e6a46efadd477d908d7c2014e49b34', u'url': u'http://laptop.nclm-samba.local/acme/authz/PG189FFzfao1', u'alg': u'RS256', u'kid': u'http://laptop.nclm-samba.local/acme/acct/yuZ1GUJb76Zk'}, None, 'encoded_signature')
+        self.assertEqual(e_result, self.decode_message(False, data_dic))
+
 
 if __name__ == '__main__':
     unittest.main()

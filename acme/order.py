@@ -227,11 +227,23 @@ class Order(object):
                 certificate = Certificate(self.debug)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    result = certificate.enroll_and_store(certificate_name, csr)
+                    (result, error) = certificate.enroll_and_store(certificate_name, csr)
                     if result:
                         code = 200
                         message = certificate_name
                         detail = None
+                    else:
+                        code = 500
+                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        detail = error
+                else:
+                    code = 500
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'CSR processing failed'
+            else:
+                code = 403
+                message = 'urn:ietf:params:acme:badCSR'
+                detail = 'CSR validation failed'
 
         else:
             code = 400
