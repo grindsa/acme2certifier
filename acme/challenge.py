@@ -166,9 +166,10 @@ class Challenge(object):
         self.update({'name' : challenge_name, 'status' : 'valid'})
 
         if 'keyAuthorization' in payload:
+            # update challenge to ready state
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
             self.update(data_dic)
 
-        # authorization update to ready
-        self.update_authz(challenge_name)
-        # self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
+            # authorization update to ready state
+            self.update_authz(challenge_name)
+
