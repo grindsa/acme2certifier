@@ -5,6 +5,7 @@ from __future__ import print_function
 from acme.helper import b64_encode, b64decode_pad, generate_random_string, print_debug
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
+from acme.message import Message
 
 class Certificate(object):
     """ CA  handler """
@@ -13,6 +14,7 @@ class Certificate(object):
         self.debug = debug
         self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
+        self.message = Message(self.debug, self.server_name)
         self.path = '/acme/cert/'
 
     def __enter__(self):
@@ -36,14 +38,18 @@ class Certificate(object):
         """ get key for a specific order """
         print_debug(self.debug, 'Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
         certificate = self.enroll(csr)
-        return self.store_cert(certificate_name, certificate)
+        result = self.store_cert(certificate_name, certificate)
+        error = None
+        return (result, error)
 
     def info(self, certificate_name):
         """ get certificate from database """
+        print_debug(self.debug, 'Certificate.info({0})'.format(certificate_name))
         return self.dbstore.certificate_lookup('name', certificate_name)
 
     def new_get(self, url):
         """ get request """
+        print_debug(self.debug, 'Certificate.new_get({0})'.format(url))
         certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
 
         response_dic = {}
@@ -60,6 +66,23 @@ class Certificate(object):
             response_dic['code'] = 403
             response_dic['data'] = 'NotFound'
         return response_dic
+
+    def new_post(self, content):
+        """ post request """
+        print_debug(self.debug, 'Certificate.new_post({0})')
+
+        response_dic = {}
+        # check message
+        (code, message, detail, protected, _payload) = self.message.check(content)
+        if code == 200:
+            response_dic = self.new_get(protected['url'])
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        return response_dic
+
 
     def store_cert(self, certificate_name, certificate):
         """ get key for a specific account id """

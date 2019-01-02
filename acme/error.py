@@ -24,13 +24,14 @@ class Error(object):
         """ dictionary containing the implemented acme error messages """
         print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))
         error_dic = {
-            'urn:ietf:params:acme:error:accountDoesNotExist' : "",   
-            'urn:ietf:params:acme:error:badCSR' : "",           
+            'urn:ietf:params:acme:error:accountDoesNotExist' : '',
+            'urn:ietf:params:acme:error:badCSR' : '',
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:userActionRequired' : '',
             'urn:ietf:params:acme:error:malformed' : '',
-            'urn:ietf:params:acme:error:unauthorized' : "",                
+            'urn:ietf:params:acme:error:serverInternal' : '',            
+            'urn:ietf:params:acme:error:unauthorized' : '',
+            'urn:ietf:params:acme:error:userActionRequired' : '',
             'notImplementedYet' : "we are not that far. Stay tuned",
         }
         if message:
