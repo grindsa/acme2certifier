@@ -100,7 +100,7 @@ class Challenge(object):
                         # update challenge state to 'processing' - i am not so sure about this
                         # self.update({'name' : challenge_name, 'status' : 4})
                         # start validation
-                        self.validate(challenge_name, payload_decoded)
+                        validation = self.validate(challenge_name, payload_decoded)
                         if challenge_dic:
                             response_dic['data'] = {}
                             challenge_dic['url'] = url
@@ -157,7 +157,7 @@ class Challenge(object):
         # lookup autorization based on challenge_name
         authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
         self.dbstore.authorization_update({'name' : authz_name, 'status' : 'valid'})
-        print(authz_name)
+        # print(authz_name)
 
     def validate(self, challenge_name, payload):
         """ validate challenge"""
