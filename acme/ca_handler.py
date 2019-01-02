@@ -113,14 +113,14 @@ class CAhandler(object):
         """" load config from file """
         print_debug(self.debug, 'load_config()')
         config_dic = load_config(self.debug, 'CAhandler')
-        if 'api_host' in config_dic:
-            self.api_host = config_dic['api_host']
-        if 'api_user' in config_dic:
-            self.api_user = config_dic['api_user']
-        if 'api_password' in config_dic:
-            self.api_password = config_dic['api_password']
-        if 'ca_name' in config_dic:
-            self.ca_name = config_dic['ca_name']
+        if 'api_host' in config_dic['CAhandler']:
+            self.api_host = config_dic['CAhandler']['api_host']
+        if 'api_user' in config_dic['CAhandler']:
+            self.api_user = config_dic['CAhandler']['api_user']
+        if 'api_password' in config_dic['CAhandler']:
+            self.api_password = config_dic['CAhandler']['api_password']
+        if 'ca_name' in config_dic['CAhandler']:
+            self.ca_name = config_dic['CAhandler']['ca_name']
 
     def set_auth(self):
         """ set basic authentication header """

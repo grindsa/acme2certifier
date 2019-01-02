@@ -71,14 +71,16 @@ def decode_deserialize(debug, string):
 def decode_message(debug, message):
     """ decode jwstoken and return header, payload and signature """
     print_debug(debug, 'decode_message()')
-    jwstoken = jws.JWS()
-
+    jwstoken = jws.JWS()    
     result = False
     error = None
     try:
         jwstoken.deserialize(message)
         protected = json.loads(jwstoken.objects['protected'])
-        payload = json.loads(jwstoken.objects['payload'])
+        if jwstoken.objects['payload'] != "":
+            payload = json.loads(jwstoken.objects['payload'])
+        else:
+            payload = None
         signature = jwstoken.objects['signature']
         result = True
     except BaseException as err:
@@ -160,7 +162,7 @@ def uts_now():
     """ return unixtimestamp in utc """
     return calendar.timegm(datetime.utcnow().utctimetuple())
 
-def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%S'):
+def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%SZ'):
     """ convert unix timestamp to date format """
     return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
 
@@ -194,22 +196,23 @@ def validate_csr(debug, order_dic, csr):
     print_debug(debug, 'validate_csr({0})'.format(order_dic))
     return True
 
-
 def load_config(debug=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
     """ small configparser wrappter to load a config file """
     print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
     config = configparser.ConfigParser()
     config.read(cfg_file)
-
+    
     config_dic = {}
-
     if mfilter in config:
+        config_dic[mfilter] = {}
         for ele in config[mfilter]:
-            config_dic[ele] = config[mfilter][ele]
+            config_dic[mfilter][ele] = config[mfilter][ele]
     else:
         for section in config:
+            print(section)
             config_dic[section] = {}
             for ele in config[section]:
+                print(ele)
                 config_dic[section][ele] = config[section][ele]
 
     return config_dic

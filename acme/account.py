@@ -113,6 +113,7 @@ class Account(object):
                 kid = None
         else:
             kid = None
+        print_debug(self.debug, 'Account.name_get() returns: {0}'.format(kid))            
         return kid
 
     def new(self, content):

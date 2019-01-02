@@ -20,6 +20,7 @@ class Challenge(object):
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
         self.path = '/acme/chall/'
+        self.authz_path = '/acme/authz/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -40,7 +41,6 @@ class Challenge(object):
     def info(self, challenge_name):
         """ get challenge details """
         print_debug(self.debug, 'Challenge.info({0})'.format(challenge_name))
-        # self.update({'name' : challenge_name, 'status' : 4})
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
         return challenge_dic
 
@@ -74,7 +74,7 @@ class Challenge(object):
         challenge_list = []
         challenge_list.append(self.new(authz_name, 'http-01', token))
         challenge_list.append(self.new(authz_name, 'dns-01', token))
-        print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))        
+        print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
     def parse(self, url, content):
@@ -97,7 +97,10 @@ class Challenge(object):
                     challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
                     if challenge_name:
                         challenge_dic = self.info(challenge_name)
-                        self.validate(challenge_name, payload_decoded)
+                        # update challenge state to 'processing' - i am not so sure about this
+                        # self.update({'name' : challenge_name, 'status' : 4})
+                        # start validation
+                        validation = self.validate(challenge_name, payload_decoded)
                         if challenge_dic:
                             response_dic['data'] = {}
                             challenge_dic['url'] = url
@@ -133,6 +136,8 @@ class Challenge(object):
         else:
             # add nonce to header
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+            # create up-link rel
+            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
 
         # create response
         response_dic['code'] = code
@@ -145,12 +150,26 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.update({0})'.format(data_dic))
         self.dbstore.challenge_update(data_dic)
 
+    def update_authz(self, challenge_name):
+        """ update authorizsation based on challenge_name """
+        print_debug(self.debug, 'Challenge.update_authz({0})'.format(challenge_name))
+
+        # lookup autorization based on challenge_name
+        authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
+        self.dbstore.authorization_update({'name' : authz_name, 'status' : 'valid'})
+        # print(authz_name)
+
     def validate(self, challenge_name, payload):
         """ validate challenge"""
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
         print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
-        self.update({'name' : challenge_name, 'status' : 5})
-        
+        self.update({'name' : challenge_name, 'status' : 'valid'})
+
         if 'keyAuthorization' in payload:
+            # update challenge to ready state
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
             self.update(data_dic)
+
+            # authorization update to ready state
+            self.update_authz(challenge_name)
+

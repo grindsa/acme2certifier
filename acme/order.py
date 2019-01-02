@@ -64,6 +64,7 @@ class Order(object):
                     auth_dic[auth_name] = auth.copy()
                     auth['name'] = auth_name
                     auth['order'] = oid
+                    auth['status'] = 'pending'
                     self.dbstore.authorization_add(auth)
             else:
                 error = 'urn:ietf:params:acme:error:malformed'
@@ -168,20 +169,41 @@ class Order(object):
                 (sig_check, error, error_detail) = signature.check(content, aname)
                 if sig_check:
                     order_name = self.get_name(protected_decoded['url'])
-                    if 'csr' in payload_decoded:
-                        (code, message, detail) = self.process_csr(order_name, payload_decoded['csr'])
-                        if code == 200:
-                            # update order_status / set to valid
-                            self.update({'name' : order_name, 'status': 'valid'})
-                            # create response
-                            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
-                            response_dic['data'] = self.lookup(order_name)
-                            response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
-                            response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, message)
+                    if 'finalize' in protected_decoded['url']:
+                        print_debug(self.debug, 'finalize request()')
+                        print(payload_decoded)
+                        if  'csr' in payload_decoded:
+                            print_debug(self.debug, 'CSR found()')
+                            # this is a new request
+                            (code, certificate_name, detail) = self.process_csr(order_name, payload_decoded['csr'])
+                            if code == 200:
+                                # update order_status / set to valid
+                                self.update({'name' : order_name, 'status': 'valid'})
                         else:
+                            print_debug(self.debug, 'no CSR found()')
                             code = 400
                             message = 'urn:ietf:params:acme:error:badCSR'
                             detail = 'enrollment failed'
+                    else:
+                        print_debug(self.debug, 'polling request()')
+                        # this is a polling request:
+                        cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
+                        # we found a cert in the database
+                        if cert_dic:
+                            code = 200
+                            certificate_name = cert_dic['name']
+                        else:
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:serverInternal'
+                            detail = 'no certificate for order: {0} found.'.format(order_name)
+
+                    if code == 200:
+                        # create response
+                        response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
+                        response_dic['data'] = self.lookup(order_name)
+                        response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
+                        response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, certificate_name)
+
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:badCSR'
@@ -227,11 +249,23 @@ class Order(object):
                 certificate = Certificate(self.debug)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    result = certificate.enroll_and_store(certificate_name, csr)
+                    (result, error) = certificate.enroll_and_store(certificate_name, csr)
                     if result:
                         code = 200
                         message = certificate_name
                         detail = None
+                    else:
+                        code = 500
+                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        detail = error
+                else:
+                    code = 500
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'CSR processing failed'
+            else:
+                code = 403
+                message = 'urn:ietf:params:acme:badCSR'
+                detail = 'CSR validation failed'
 
         else:
             code = 400

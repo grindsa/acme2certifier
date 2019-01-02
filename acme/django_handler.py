@@ -111,8 +111,11 @@ class DBstore(object):
         """ add authorization to database """
         print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
 
-        # get order instance for DB insert
-        data_dic['order'] = self.order_getinstance(data_dic['order'], 'id')
+        # get some instance for DB insert
+        if 'order' in data_dic:
+            data_dic['order'] = self.order_getinstance(data_dic['order'], 'id')
+        if 'status' in data_dic:
+            data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
 
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -123,6 +126,10 @@ class DBstore(object):
     def authorization_update(self, data_dic):
         """ update existing authorization """
         print_debug(self.debug, 'DBStore.authorization_update({0})'.format(data_dic))
+
+        # get some instance for DB insert
+        if 'status' in data_dic:
+            data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
 
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -159,14 +166,18 @@ class DBstore(object):
         print_debug(self.debug, 'cid({0})'.format(obj.id))
         return obj.id
 
-    def challenge_lookup(self, mkey, value):
+    def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
         print_debug(self.debug, 'challenge_lookup({0}:{1})'.format(mkey, value))
-        challenge_list = Challenge.objects.filter(**{mkey: value}).values('type', 'token', 'status__name')[:1]
+        challenge_list = Challenge.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if challenge_list:
             result = challenge_list[0]
-            result['status'] = result['status__name']
-            del result['status__name']
+            if 'status__name' in result:
+                result['status'] = result['status__name']
+                del result['status__name']
+            if 'authorization__name' in result:
+                result['authorization'] = result['authorization__name']
+                del result['authorization__name']
         else:
             result = None
         return result
@@ -176,7 +187,7 @@ class DBstore(object):
         print_debug(self.debug, 'challenge_update({0})'.format(data_dic))
         # replace orderstatus with an instance
         if 'status' in data_dic:
-            data_dic['status'] = self.status_getinstance(data_dic['status'])
+            data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
