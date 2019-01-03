@@ -11,5 +11,5 @@ urlpatterns = [
     url(r'^neworders$', views.neworders, name='neworders'),
     url(r'^chall', views.chall, name='chall'),
     url(r'^order', views.order, name='order'),
-    # url(r'^new_authz$', views.new_authz, name='new_authz'),
+    url(r'^cert', views.cert, name='cert'),
 ]

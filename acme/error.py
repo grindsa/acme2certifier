@@ -29,7 +29,7 @@ class Error(object):
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
             'urn:ietf:params:acme:error:malformed' : '',
-            'urn:ietf:params:acme:error:serverInternal' : '',            
+            'urn:ietf:params:acme:error:serverInternal' : '',
             'urn:ietf:params:acme:error:unauthorized' : '',
             'urn:ietf:params:acme:error:userActionRequired' : '',
             'notImplementedYet' : "we are not that far. Stay tuned",

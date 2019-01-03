@@ -110,7 +110,7 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create authorization')
         self.cursor.execute('''
-            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         print_debug(self.debug, 'create challenge')
         self.cursor.execute('''
@@ -205,11 +205,27 @@ class DBstore(object):
     def authorization_update(self, data_dic):
         """ update existing authorization """
         print_debug(self.debug, 'DBStore.authorization_update({0})'.format(data_dic))
-        self.db_open()
-        self.cursor.execute('''UPDATE authorization SET token = :token, expires = :expires WHERE name = :name''', data_dic)
-        self.cursor.execute('''SELECT id FROM authorization WHERE name=:name''', {'name': data_dic['name']})
-        result = self.cursor.fetchone()[0]
-        self.db_close()
+
+        lookup = self.authorization_search('name', data_dic['name'])
+        if lookup:
+            lookup = dict_from_row(lookup[0])
+            if 'status' in data_dic:
+                data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
+            else:
+                data_dic['status'] = lookup['status_id']
+            if 'token' not in data_dic:
+                data_dic['token'] = lookup['token']
+            if 'expires' not in data_dic:
+                data_dic['expires'] = lookup['expires']
+
+            self.db_open()
+            self.cursor.execute('''UPDATE authorization SET status_id = :status, token = :token, expires = :expires WHERE name = :name''', data_dic)
+            self.cursor.execute('''SELECT id FROM authorization WHERE name=:name''', {'name': data_dic['name']})
+            result = self.cursor.fetchone()[0]
+            self.db_close()
+        else:
+            result = None
+
         return result
 
     def authorization_lookup(self, column, string, vlist=('type', 'value')):
@@ -235,7 +251,7 @@ class DBstore(object):
             print_debug(self.debug, 'rename name to authorization.name')
             column = 'authorization.name'
         self.db_open()
-        pre_statement = 'SELECT authorization.*, orders.id as orders__id, orders.name as order__name from authorization INNER JOIN orders on orders.id = authorization.order_id WHERE {0} LIKE ?'.format(column)
+        pre_statement = 'SELECT authorization.*, orders.id as orders__id, orders.name as order__name, status.id as status_id, status.name as status__name from authorization INNER JOIN orders on orders.id = authorization.order_id INNER JOIN status on status.id = authorization.status_id WHERE {0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchall()
         self.db_close()
@@ -258,13 +274,20 @@ class DBstore(object):
             rid = None
         return rid
 
-    def challenge_lookup(self, column, string):
+    def challenge_lookup(self, column, string, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
         print_debug(self.debug, 'challenge_lookup({0}:{1})'.format(column, string))
-        lookup = self.challenge_search(column, string)
+        lookup = dict_from_row(self.challenge_search(column, string))
 
+        result = {}
         if lookup:
-            result = {'type' : lookup[5], 'token' : lookup[2], 'status' : lookup[10]}
+            for ele in vlist:
+                if ele == 'status_name':
+                    result['status'] = lookup['status__name']
+                elif ele == 'authorization__name':
+                    result['authorization'] = lookup['authorization__name']
+                else:
+                    result[ele] = lookup[ele]
         else:
             result = None
         return result
@@ -273,7 +296,7 @@ class DBstore(object):
         """ search challenge table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
-        pre_statement = 'SELECT * from challenge INNER JOIN status on status.id = challenge.status_id WHERE challenge.{0} LIKE ?'.format(column)
+        pre_statement = 'SELECT challenge.*, status.id as status__id, status.name as status__name, authorization.id as authorization__id, authorization.name as authorization__name from challenge INNER JOIN status on status.id = challenge.status_id INNER JOIN authorization on authorization.id = challenge.authorization_id WHERE challenge.{0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
@@ -283,11 +306,15 @@ class DBstore(object):
         """ update challenge """
         print_debug(self.debug, 'challenge_update({0})'.format(data_dic))
         lookup = self.challenge_search('name', data_dic['name'])
+        lookup = dict_from_row(lookup)
 
-        if 'status' not in data_dic:
-            data_dic['status'] = lookup[7]
+        if 'status' in data_dic:
+            data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
+        else:
+            data_dic['status'] = lookup['status__id']
+
         if 'keyauthorization' not in data_dic:
-            data_dic['keyauthorization'] = lookup[6]
+            data_dic['keyauthorization'] = lookup['keyauthorization']
 
         self.db_open()
         self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
@@ -356,11 +383,16 @@ class DBstore(object):
             rid = self.cursor.lastrowid
         return rid
 
-    def certificate_search(self, column, string):
+    def certificate_search(self, column, string, _vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
-        pre_statement = 'SELECT certificate.*, orders.id as orders__id, orders.name as orders__name from certificate INNER JOIN orders on orders.id = certificate.order_id WHERE certificate.{0} LIKE ?'.format(column)
+
+        if column != 'order__name':
+            column = 'certificate.{0}'.format(column)
+            print_debug(self.debug, 'modified column to {0}'.format(column))
+
+        pre_statement = 'SELECT certificate.*, orders.id as order__id, orders.name as order__name from certificate INNER JOIN orders on orders.id = certificate.order_id WHERE {0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
@@ -385,7 +417,7 @@ class DBstore(object):
         self.db_close()
         return result
 
-    def certificate_lookup(self, column, string):
+    def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
         print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(column, string))
-        return dict_from_row(self.certificate_search(column, string))
+        return dict_from_row(self.certificate_search(column, string, vlist))

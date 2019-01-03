@@ -6,13 +6,17 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from acme.authorization import Authorization
 from acme.account import Account
+from acme.certificate import Certificate
 from acme.challenge import Challenge
 from acme.directory import Directory
+from acme.helper import get_url, load_config
 from acme.nonce import Nonce
 from acme.order import Order
-from acme.helper import get_url
 
-DEBUG = True
+
+# load config to set debug mode
+CONFIG = load_config()
+DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
 
 def pretty_request(request):
     """ print request details for debugging """
@@ -91,8 +95,8 @@ def acct(request):
 def neworders(request):
     """ new account """
     if request.method == 'POST':
-        with Order(DEBUG, get_url(request.META)) as order:
-            response_dic = order.new(request.body)
+        with Order(DEBUG, get_url(request.META)) as norder:
+            response_dic = norder.new(request.body)
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
 
@@ -115,6 +119,10 @@ def authz(request):
                 response_dic = authorization.new_get(request.build_absolute_uri())
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
 
             # send response
             return response
@@ -144,10 +152,10 @@ def chall(request):
             return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 
 def order(request):
-    """ new-authz command """
+    """ order request """
     if request.method == 'POST':
-        with Order(DEBUG, get_url(request.META)) as order:
-            response_dic = order.parse(request.body)
+        with Order(DEBUG, get_url(request.META)) as eorder:
+            response_dic = eorder.parse(request.body)
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
             # generate additional header elements
@@ -156,6 +164,30 @@ def order(request):
 
             # send response
             return response
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def cert(request):
+    """ cert request """
+    if request.method == 'POST' or request.method == 'GET':
+        with Certificate(DEBUG, get_url(request.META)) as certificate:
+            if request.method == 'POST':
+                response_dic = certificate.new_post(request.body)
+            else:
+                response_dic = certificate.new_get(request.build_absolute_uri())
+
+            # create the response
+            if response_dic['code'] == 200:
+                response = HttpResponse(response_dic['data'])
+                # generate additional header elements
+                for element in response_dic['header']:
+                    response[element] = response_dic['header'][element]
+            else:
+                response = HttpResponse(status=response_dic['code'])
+
+            # send response
+            return response
+
     else:
         return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 

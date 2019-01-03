@@ -83,7 +83,6 @@ class Certificate(object):
 
         return response_dic
 
-
     def store_cert(self, certificate_name, certificate):
         """ get key for a specific account id """
         print_debug(self.debug, 'Certificate.store_cert({0})'.format(certificate_name))

@@ -171,7 +171,6 @@ class Order(object):
                     order_name = self.get_name(protected_decoded['url'])
                     if 'finalize' in protected_decoded['url']:
                         print_debug(self.debug, 'finalize request()')
-                        print(payload_decoded)
                         if  'csr' in payload_decoded:
                             print_debug(self.debug, 'CSR found()')
                             # this is a new request
