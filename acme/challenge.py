@@ -100,7 +100,7 @@ class Challenge(object):
                         # update challenge state to 'processing' - i am not so sure about this
                         # self.update({'name' : challenge_name, 'status' : 4})
                         # start validation
-                        validation = self.validate(challenge_name, payload_decoded)
+                        _validation = self.validate(challenge_name, payload_decoded)
                         if challenge_dic:
                             response_dic['data'] = {}
                             challenge_dic['url'] = url
@@ -172,4 +172,4 @@ class Challenge(object):
 
             # authorization update to ready state
             self.update_authz(challenge_name)
-
+ 

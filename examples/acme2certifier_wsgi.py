@@ -6,13 +6,16 @@ import re
 import json
 from acme.account import Account
 from acme.authorization import Authorization
+from acme.certificate import Certificate
 from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
-from acme.helper import print_debug, get_url
+from acme.helper import print_debug, get_url, load_config
 
-DEBUG = True
+# load config to set debug mode
+CONFIG = load_config()
+DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
 
 HTTP_CODE_DIC = {
     200 : 'Created',
@@ -58,26 +61,31 @@ def acct(environ, start_response):
 
 def authz(environ, start_response):
     """ account handling """
-    authorization = Authorization(DEBUG, get_url(environ))
+    if environ['REQUEST_METHOD'] == 'POST' or environ['REQUEST_METHOD'] == 'GET':
+        authorization = Authorization(DEBUG, get_url(environ))
+        if environ['REQUEST_METHOD'] == 'POST':
+            try:
+                request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+            except ValueError:
+                request_body_size = 0
+            request_body = environ['wsgi.input'].read(request_body_size)
+            response_dic = authorization.new_post(request_body)
+        else:
+            response_dic = authorization.new_get(get_url(environ, True))
 
-    # try:
-    #    request_body_size = int(environ.get('CONTENT_LENGTH', 0))
-    # except ValueError:
-    #    request_body_size = 0
-    # request_body = environ['wsgi.input'].read(request_body_size)
-    # response_dic = authorization.authz_info(request_body)
+        # generate header and nonce
+        headers = [('Content-Type', 'application/json')]
+        # enrich header
+        if 'header' in response_dic:
+            for element, value in response_dic['header'].items():
+                print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
+                headers.append((element, value))
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        return [json.dumps(response_dic['data'])]
 
-    response_dic = authorization.new_get(get_url(environ, True))
-
-    # generate header and nonce
-    headers = [('Content-Type', 'application/json')]
-
-    # enrich header
-    #for element, value in response_dic['header'].items():
-    #    print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
-    #    headers.append((element, value))
-    start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
-    return [json.dumps(response_dic['data'])]
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
 
 def newaccount(environ, start_response):
     """ create new account """
@@ -101,6 +109,31 @@ def directory(environ, start_response):
     direct_tory = Directory(DEBUG, get_url(environ))
     start_response('200 OK', [('Content-Type', 'application/json')])
     return [json.dumps(direct_tory.directory_get())]
+
+def cert(environ, start_response):
+    """ create new account """
+    certificate = Certificate(DEBUG, get_url(environ))
+    if environ['REQUEST_METHOD'] == 'POST':
+        request_body = get_request_body(environ)
+        response_dic = certificate.new_post(request_body)
+        # create header
+        headers = create_header(response_dic)
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        return [response_dic['data']]
+
+    elif environ['REQUEST_METHOD'] == 'GET':
+
+        response_dic = certificate.new_get(get_url(environ, True))
+        # create header
+        headers = create_header(response_dic)
+        # create the response
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        # send response
+        return [response_dic['data']]
+
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
 
 def chall(environ, start_response):
     """ create new account """
@@ -145,9 +178,25 @@ def newnonce(environ, start_response):
 def neworders(environ, start_response):
     """ generate a new order """
     if environ['REQUEST_METHOD'] == 'POST':
-        order = Order(DEBUG, get_url(environ))
+        norder = Order(DEBUG, get_url(environ))
         request_body = get_request_body(environ)
-        response_dic = order.new(request_body)
+        response_dic = norder.new(request_body)
+
+        # create header
+        headers = create_header(response_dic)
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        return [json.dumps(response_dic['data'])]
+
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+
+def order(environ, start_response):
+    """ order_handler """
+    if environ['REQUEST_METHOD'] == 'POST':
+        eorder = Order(DEBUG, get_url(environ))
+        request_body = get_request_body(environ)
+        response_dic = eorder.parse(request_body)
 
         # create header
         headers = create_header(response_dic)
@@ -166,13 +215,15 @@ def not_found(_environ, start_response):
 # map urls to functions
 URLS = [
     (r'^$', directory),
-    (r'^directory?$', directory),
-    (r'^acme/newaccount$', newaccount),
-    (r'^acme/newnonce$', newnonce),
     (r'^acme/acct', acct),
     (r'^acme/authz', authz),
-    (r'^acme/neworders$', neworders),
     (r'^acme/chall', chall),
+    (r'^acme/newaccount$', newaccount),
+    (r'^acme/newnonce$', newnonce),
+    (r'^acme/neworders$', neworders),
+    (r'^acme/order', order),
+    (r'^acme/cert', cert),
+    (r'^directory?$', directory),
 ]
 
 def application(environ, start_response):

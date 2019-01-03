@@ -32,8 +32,8 @@ class Message(object):
         if result:
             # decoding successful - check nonce for anti replay protection
             (code, message, detail) = self.nonce.check(protected)
-            print('nonce_check_faked')
-            code = 200
+            # print('nonce_check_faked')
+            # code = 200
             if code == 200:
                 # nonce check successful - check signature
                 account = Account(self.debug, self.server_name)

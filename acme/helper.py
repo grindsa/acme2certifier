@@ -71,7 +71,7 @@ def decode_deserialize(debug, string):
 def decode_message(debug, message):
     """ decode jwstoken and return header, payload and signature """
     print_debug(debug, 'decode_message()')
-    jwstoken = jws.JWS()    
+    jwstoken = jws.JWS()
     result = False
     error = None
     try:
@@ -89,16 +89,6 @@ def decode_message(debug, message):
         payload = None
         signature = None
     return(result, error, protected, payload, signature)
-
-def dump_csr(debug, name, csr):
-    """ dump CSR """
-    print_debug(debug, 'dump_csr()')
-    fobj = open('{0}.csr'.format(name), 'wb')
-    #fobj.write('-----BEGIN CERTIFICATE REQUEST-----\n')
-    #fobj.write(textwrap.fill(base64.b64encode(base64_url_decode(debug, csr)), 64))
-    #fobj.write('\n-----END CERTIFICATE REQUEST-----\n')
-    fobj.write(base64.b64encode(base64_url_decode(debug, csr)))
-    fobj.close()
 
 def generate_random_string(debug, length):
     """ generate random string to be used as name """
@@ -191,28 +181,14 @@ def validate_email(debug, contact_list):
         print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
     return result
 
-def validate_csr(debug, order_dic, csr):
+def validate_csr(debug, order_dic, _csr):
     """ validate certificate signing request against order"""
     print_debug(debug, 'validate_csr({0})'.format(order_dic))
     return True
 
-def load_config(debug=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
+def load_config(debug=False, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
     """ small configparser wrappter to load a config file """
     print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
     config = configparser.ConfigParser()
     config.read(cfg_file)
-    
-    config_dic = {}
-    if mfilter in config:
-        config_dic[mfilter] = {}
-        for ele in config[mfilter]:
-            config_dic[mfilter][ele] = config[mfilter][ele]
-    else:
-        for section in config:
-            print(section)
-            config_dic[section] = {}
-            for ele in config[section]:
-                print(ele)
-                config_dic[section][ele] = config[section][ele]
-
-    return config_dic
+    return config
