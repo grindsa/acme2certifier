@@ -8,7 +8,9 @@ acme2cerfier is development project to create an ACME protocol proxy. Main inten
 ## Disclaimer
 I am running this project as my RD guys told me that it won’t be possible :-)
 
-So far I am using [acme.sh](https://github.com/Neilpang/acme.sh) to test the server. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+So far I am using [acme.sh](https://github.com/Neilpang/acme.sh) and [Certbot](https://certbot.eff.org/) to test the server. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+
+[Commandline parameters used for testing](acme-clients.md)
 
 I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
@@ -34,20 +36,6 @@ Additional funitonality will be added over time. If you are badly missing certai
 
 # Installation
 The proxy can run either as Django project or as plain wsgi-script
-
-## Installation as Django project
-
-1. create a new Django project called acme2certier
-```
-missing
-```
-2. create a new app inside your project called "acme"
-```
-missing
-```
-3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
-4. copy the content of the folder "example/django/acme" into the "acme" folder created in step 2
-
 
 ## Installation as wsgi script
 
@@ -76,6 +64,18 @@ root@rlh:~# a2ensite acme_acme.conf
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
 
+## Installation as Django project
+
+1. create a new Django project called acme2certier
+```
+missing
+```
+2. create a new app inside your project called "acme"
+```
+missing
+```
+3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
+4. copy the content of the folder "example/django/acme" into the "acme" folder created in step 2
 
 ## Contributing
 
