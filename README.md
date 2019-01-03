@@ -37,20 +37,6 @@ Additional funitonality will be added over time. If you are badly missing certai
 # Installation
 The proxy can run either as Django project or as plain wsgi-script
 
-## Installation as Django project
-
-1. create a new Django project called acme2certier
-```
-missing
-```
-2. create a new app inside your project called "acme"
-```
-missing
-```
-3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
-4. copy the content of the folder "example/django/acme" into the "acme" folder created in step 2
-
-
 ## Installation as wsgi script
 
 ### Installation on apache2
@@ -78,6 +64,18 @@ root@rlh:~# a2ensite acme_acme.conf
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
 
+## Installation as Django project
+
+1. create a new Django project called acme2certier
+```
+missing
+```
+2. create a new app inside your project called "acme"
+```
+missing
+```
+3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
+4. copy the content of the folder "example/django/acme" into the "acme" folder created in step 2
 
 ## Contributing
 
