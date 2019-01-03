@@ -8,7 +8,9 @@ acme2cerfier is development project to create an ACME protocol proxy. Main inten
 ## Disclaimer
 I am running this project as my RD guys told me that it won’t be possible :-)
 
-So far I am using [acme.sh](https://github.com/Neilpang/acme.sh) to test the server. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+So far I am using [acme.sh](https://github.com/Neilpang/acme.sh) and [Certbot](https://certbot.eff.org/) to test the server. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+
+[Commandline parameters used for testing](acme-clients.md)
 
 I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
