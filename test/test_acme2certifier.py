@@ -20,7 +20,8 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         models_mock = MagicMock()
         models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
-        models_mock.acme.cgi_handler.DBstore.return_value = FakeDBStore
+        # models_mock.acme.ca_handler.CAhandler.return_value = FakeDBStore
+        # modules = {'acme.db_handler': models_mock, 'acme.ca_handler': models_mock}
         modules = {'acme.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
@@ -956,6 +957,74 @@ class TestACMEHandler(unittest.TestCase):
         e_result = (True, None, {u'nonce': u'26e6a46efadd477d908d7c2014e49b34', u'url': u'http://laptop.nclm-samba.local/acme/authz/PG189FFzfao1', u'alg': u'RS256', u'kid': u'http://laptop.nclm-samba.local/acme/acct/yuZ1GUJb76Zk'}, None, 'encoded_signature')
         self.assertEqual(e_result, self.decode_message(False, data_dic))
 
+    @patch('acme.certificate.generate_random_string')
+    def test_123_store_csr(self, mock_name):
+        """ test Certificate.store_csr() and check if we get something back """
+        self.certificate.dbstore.certificate_add.return_value = 'foo'
+        mock_name.return_value = 'bar'
+        self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr'))
+
+    def test_124_store_cert(self):
+        """ test Certificate.store_cert() and check if we get something back """
+        self.certificate.dbstore.certificate_add.return_value = 'bar'
+        self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert'))
+
+    @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
+    @patch('acme.ca_handler.CAhandler.enroll')
+    def test_125_enroll(self, mock_enroll, mock_pem):
+        """ test Certificate.enroll() ca handler returns 'something'"""
+        self.certificate.dbstore.certificate_add.return_value = 'bar'
+        mock_enroll.return_value = 'foo'
+        mock_pem.return_value = {'foo' : 'bar'}
+        self.assertEqual({'foo' : 'bar'} , self.certificate.enroll('csr'))
+
+    @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
+    @patch('acme.ca_handler.CAhandler.enroll')
+    def test_125_enroll(self, mock_enroll, mock_pem):
+        """ test Certificate.enroll() ca handler returns nothing"""
+        self.certificate.dbstore.certificate_add.return_value = 'bar'
+        mock_enroll.return_value = None
+        mock_pem.return_value = {'foo' : 'bar'}
+        self.assertFalse(self.certificate.enroll('csr'))
+
+    @patch('acme.certificate.Certificate.store_cert')
+    @patch('acme.certificate.Certificate.enroll')
+    def test_126_enroll_and_store(self, mock_enroll, mock_store):
+        """ test Certificate.enroll() enroll returns someting"""
+        mock_enroll.return_value = {'foo', 'bar'}
+        mock_store.return_value = 1
+        self.assertEqual((1, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
+
+    @patch('acme.certificate.Certificate.store_cert')
+    @patch('acme.certificate.Certificate.enroll')
+    def test_127_enroll_and_store(self, mock_enroll, mock_store):
+        """ test Certificate.enroll() enroll returns nothing"""
+        mock_enroll.return_value = False
+        mock_store.return_value = 1
+        self.assertEqual((None, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
+
+    def test_128_info(self):
+        """ test Certificate.info() """
+        self.certificate.dbstore.certificate_lookup.return_value = 'foo'
+        self.assertEqual('foo', self.certificate.info('cert_name'))
+
+    @patch('acme.certificate.Certificate.info')
+    def test_129_new_get(self, mock_info):
+        """ test Certificate.info() with not existing cert_name"""
+        mock_info.return_value = {}
+        self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
+
+    @patch('acme.certificate.Certificate.info')
+    def test_130_new_get(self, mock_info):
+        """ test Certificate.info() with with exiting data without padding"""
+        mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ=='}
+        self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
+
+    @patch('acme.certificate.Certificate.info')
+    def test_131_new_get(self, mock_info):
+        """ test Certificate.info() with with exiting data with padding"""
+        mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ'}
+        self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
 if __name__ == '__main__':
     unittest.main()
