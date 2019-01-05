@@ -459,57 +459,46 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual((200, None, None, 'protected', 'payload'), self.message.check(message))
 
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.nonce.Nonce.check')
-    @patch('acme.account.decode_message')
-    def test_066_accout_parse(self, mock_decode, mock_nonce_check, mock_id, mock_sig):
+    @patch('acme.message.Message.check')
+    def test_153_accout_parse(self, mock_mcheck):
+        """ Account.parse() failed bcs. of failed message check """
+        mock_mcheck.return_value = (400, 'message', 'detail', None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.account.parse(message))
+
+    @patch('acme.message.Message.check')
+    def test_066_accout_parse(self, mock_mcheck):
         """ test failed account parse for request which does not has a "status" field in payload """
-        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
-        mock_nonce_check.return_value = (200, None, None)
-        mock_id.return_value = 1
-        mock_sig.return_value = (True, None, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"foo" : "bar"})
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'dont know what to do with this request'}}, self.account.parse(message))
 
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.account.decode_message')
-    def test_067_accout_parse(self, mock_decode, mock_id, mock_sig):
+    @patch('acme.message.Message.check')
+    def test_067_accout_parse(self, mock_mcheck):
         """ test failed account parse for reqeust with a "status" field other than "deactivated" """
-        mock_decode.return_value = (True, None, 'protected', {'status' : 'foo'}, 'signature')
-        mock_id.return_value = 1
-        mock_sig.return_value = (True, None, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'status attribute without sense'}}, self.account.parse(message))
 
     @patch('acme.account.Account.delete')
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.account.decode_message')
-    def test_068_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del):
+    @patch('acme.message.Message.check')
+    def test_068_accout_parse(self, mock_mcheck, mock_del):
         """ test failed account parse for reqeust with failed deletion """
-        mock_decode.return_value = (True, None, 'protected', {'status' : 'deactivated'}, 'signature')
-        mock_id.return_value = 1
-        mock_sig.return_value = (True, None, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "deactivated"})
         mock_del.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', 'deletion failed')
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': 'deletion failed'}}, self.account.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.delete')
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.account.decode_message')
-    def test_069_accout_parse(self, mock_decode, mock_id, mock_sig, mock_del, mock_nnonce):
+    @patch('acme.message.Message.check')
+    def test_069_accout_parse(self, mock_mcheck, mock_del, mock_nnonce):
         """ test succ account parse for reqeust with succ deletion """
-        mock_decode.return_value = (True, None, 'protected', {'status' : 'deactivated'}, 'signature')
-        mock_id.return_value = 1
-        mock_sig.return_value = (True, None, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "deactivated"})
         mock_del.return_value = (200, None, None)
-        mock_nnonce.return_value = 'newnonce'
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'newnonce'}}, self.account.parse(message))
+        self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
 
     def test_070_onlyreturnexisting(self):
         """ test onlyReturnExisting with False """
@@ -1073,13 +1062,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_136_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload')
-        self.assertEqual({'code': 400, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
+        self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
 
     @patch('acme.message.Message.check')
     def test_137_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload')
-        self.assertEqual({'code': 400, 'data':  {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
+        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
 
     @patch('acme.message.Message.prepare_response')
     @patch('acme.certificate.Certificate.new_get')

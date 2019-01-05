@@ -3,7 +3,6 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 from acme.helper import decode_message, print_debug
-from acme.account import Account
 from acme.error import Error
 from acme.nonce import Nonce
 from acme.signature import Signature
@@ -15,6 +14,7 @@ class Message(object):
         self.debug = debug
         self.server_name = srv_name
         self.nonce = Nonce(self.debug)
+        self.account_path = '/acme/acct/'
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -32,12 +32,11 @@ class Message(object):
         if result:
             # decoding successful - check nonce for anti replay protection
             (code, message, detail) = self.nonce.check(protected)
-            # print('nonce_check_faked')
+            # print('nonce_check_faked!!!')
             # code = 200
             if code == 200:
                 # nonce check successful - check signature
-                account = Account(self.debug, self.server_name)
-                account_name = account.name_get(protected)
+                account_name = self.name_get(protected)
                 signature = Signature(self.debug)
                 (sig_check, error, error_detail) = signature.check(content, account_name)
                 if sig_check:
@@ -56,6 +55,19 @@ class Message(object):
 
         return(code, message, detail, protected, payload)
 
+    def name_get(self, content):
+        """ get id for account """
+        print_debug(self.debug, 'Message.name_get()')
+        if 'kid' in content:
+            print_debug(self.debug, 'kid: {0}'.format(content['kid']))
+            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.account_path), '')
+            if '/' in kid:
+                kid = None
+        else:
+            kid = None
+        print_debug(self.debug, 'Message.name_get() returns: {0}'.format(kid))
+        return kid
+
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """
         print_debug(self.debug, 'Message.prepare_response()')
@@ -73,6 +85,10 @@ class Message(object):
         # create response
         response_dic['code'] = status_dic['code']
 
+        # create header if not existing
+        if 'header' not in response_dic:
+            response_dic['header'] = {}
+
         if status_dic['code'] >= 400:
             if status_dic['detail']:
                 # some error occured get details
@@ -82,10 +98,6 @@ class Message(object):
             else:
                 response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': None}
         else:
-            # create header if not existing
-            if 'header' not in response_dic:
-                response_dic['header'] = {}
-
             # add nonce to header
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 

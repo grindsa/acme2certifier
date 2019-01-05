@@ -7,6 +7,7 @@ from acme.helper import decode_message, generate_random_string, print_debug, val
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
 from acme.error import Error
+from acme.message import Message
 from acme.signature import Signature
 
 class Account(object):
@@ -20,6 +21,7 @@ class Account(object):
         self.nonce = Nonce(self.debug)
         self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
+        self.message = Message(self.debug, self.server_name)
         self.signature = Signature(self.debug)
         self.path = '/acme/acct/'
 
@@ -104,17 +106,10 @@ class Account(object):
         return(code, message, detail)
 
     def name_get(self, content):
-        """ get id for account """
+        """ get id for account depricated"""
         print_debug(self.debug, 'Account.name_get()')
-        if 'kid' in content:
-            print_debug(self.debug, 'kid: {0}'.format(content['kid']))
-            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path), '')
-            if '/' in kid:
-                kid = None
-        else:
-            kid = None
-        print_debug(self.debug, 'Account.name_get() returns: {0}'.format(kid))
-        return kid
+        deprecated = True
+        return self.message.name_get(content)
 
     def new(self, content):
         """ generate a new account """
@@ -217,55 +212,30 @@ class Account(object):
     def parse(self, content):
         """ parse message """
         print_debug(self.debug, 'Account.parse()')
-        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
-        response_dic['data'] = {}
-        response_dic['header'] = {}
-
-        if result:
-            aname = self.name_get(protected_decoded)
-            (sig_check, error, error_detail) = self.signature.check(content, aname)
-            if sig_check:
-                if 'status' in payload_decoded:
-                    if payload_decoded['status'].lower() == 'deactivated':
-                        (code, message, detail) = self.delete(aname)
-                        if code == 200:
-                            response_dic['data'] = payload_decoded
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
-                        detail = 'status attribute without sense'
+        # check message
+        (code, message, detail, protected, payload) = self.message.check(content)
+        if code == 200:
+            if 'status' in payload:
+                if payload['status'].lower() == 'deactivated':
+                    account_name = self.message.name_get(protected)
+                    (code, message, detail) = self.delete(account_name)
+                    if code == 200:
+                        response_dic['data'] = payload
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'dont know what to do with this request'
+                    detail = 'status attribute without sense'
             else:
-                code = 403
-                message = error
-                detail = error_detail
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
-            detail = error_detail
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'dont know what to do with this request'
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        # enrich response dictionary with error details
-        if not code == 200:
-            if detail:
-                # some error occured get details
-                detail = self.error.enrich_error(message, detail)
-                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
-            else:
-                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
-
-        else:
-            # add nonce to header
-            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
-
-        # create response
-        response_dic['code'] = code
         print_debug(self.debug, 'Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
-
         return response_dic
 
     def tos_check(self, content):
