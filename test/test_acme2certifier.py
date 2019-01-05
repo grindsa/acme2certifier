@@ -1199,5 +1199,32 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
         self.assertEqual(e_result, self.order.parse(message))
 
+    @patch('acme.message.Message.check')
+    def test_164_authorization_parse(self, mock_mcheck):
+        """ Authorization.new_post() failed bcs. of failed message check """
+        mock_mcheck.return_value = (400, 'message', 'detail', None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.authorization.new_post(message))
+
+    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.message.Message.check')
+    def test_164_authorization_parse(self, mock_mcheck, mock_authzinfo):
+        """ Authorization.new_post() failed bcs url is missing in protected """
+        mock_mcheck.return_value = (200, None, None, 'protected', 'payload')
+        mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.message.Message.check')
+    def test_165_authorization_parse(self, mock_mcheck, mock_authzinfo, mock_nnonce):
+        """ Authorization.new_post() failed bcs url is missing in protected """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'foo_url'}, 'payload')
+        mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
+        mock_nnonce.return_value = 'new_nonce'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authz_foo': 'authz_bar'}}, self.authorization.new_post(message))
+
 if __name__ == '__main__':
     unittest.main()
