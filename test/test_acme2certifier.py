@@ -102,11 +102,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_012_err_useractionrequired(self):
         """ test badnonce error message """
-        self.assertEqual('', self.error.acme_errormessage('urn:ietf:params:acme:error:userActionRequired'))
+        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:userActionRequired'))
 
     def test_013_err_malformed(self):
         """ test badnonce error message """
-        self.assertEqual('', self.error.acme_errormessage('urn:ietf:params:acme:error:malformed'))
+        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:malformed'))
 
     def test_014_b64decode_pad_correct(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -334,7 +334,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_tos.return_value = (200, None, None)
         mock_contact.return_value = (400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified')
         message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid no contacts specified', 'message': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
+        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'message': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
@@ -1090,7 +1090,91 @@ class TestACMEHandler(unittest.TestCase):
         mock_response.return_value = {'foo', 'bar'}
         self.assertEqual(set(['foo', 'bar']), self.certificate.new_post('content'))
 
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_138_message_prepare_response(self, mock_nnonce):
+        """ prepare_respons for code 200 and complete data """
+        data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
+        mock_nnonce.return_value = 'new_nonce'
+        config_dic = {'code' : 200, 'message' : 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'foo_data': 'bar_bar'}}, self.message.prepare_response(data_dic, config_dic))
 
+    @patch('acme.error.Error.enrich_error')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_139_message_prepare_response(self, mock_nnonce, mock_error):
+        """ prepare_respons for code 200 without header tag in response_dic """
+        data_dic = {'data' : {'foo_data' : 'bar_bar'},}
+        mock_nnonce.return_value = 'new_nonce'
+        mock_error.return_value = 'mock_error'
+        config_dic = {'code' : 200, 'message' : 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'foo_data': 'bar_bar'}}, self.message.prepare_response(data_dic, config_dic))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_140_message_prepare_response(self, mock_nnonce):
+        """ prepare_response for config_dic without code key """
+        data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
+        mock_nnonce.return_value = 'new_nonce'
+        # mock_error.return_value = 'mock_error'
+        config_dic = {'message' : 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_141_message_prepare_response(self, mock_nnonce):
+        """ prepare_response for config_dic without message key """
+        data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
+        mock_nnonce.return_value = 'new_nonce'
+        # mock_error.return_value = 'mock_error'
+        config_dic = {'code' : 400, 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_142_message_prepare_response(self, mock_nnonce):
+        """ prepare_response for config_dic without detail key """
+        data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
+        mock_nnonce.return_value = 'new_nonce'
+        config_dic = {'code' : 400, 'message': 'message'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': None, 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+
+    @patch('acme.error.Error.enrich_error')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    def test_143_message_prepare_response(self, mock_nnonce, mock_error):
+        """ prepare_response for response_dic without data key """
+        data_dic = {'header': {'foo_header' : 'bar_header'}}
+        mock_nnonce.return_value = 'new_nonce'
+        mock_error.return_value = 'mock_error'
+        config_dic = {'code' : 400, 'message': 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+
+    def test_144_acme_errormessage(self):
+        """ Error.acme_errormessage for existing value with content """
+        self.assertEqual('JWS has invalid anti-replay nonce', self.error.acme_errormessage('urn:ietf:params:acme:error:badNonce'))
+
+    def test_145_acme_errormessage(self):
+        """ Error.acme_errormessage for existing value without content """
+        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:unauthorized'))
+
+    def test_146_acme_errormessage(self):
+        """ Error.acme_errormessage for message None """
+        self.assertFalse(self.error.acme_errormessage(None))
+
+    def test_147_acme_errormessage(self):
+        """ Error.acme_errormessage for not unknown message """
+        self.assertFalse(self.error.acme_errormessage('unknown'))
+
+    def test_148_enrich_error(self):
+        """ Error.enrich_error for valid message and detail """
+        self.assertEqual('JWS has invalid anti-replay nonce: detail', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', 'detail'))
+
+    def test_149_enrich_error(self):
+        """ Error.enrich_error for valid message, detail and None in error_hash hash """
+        self.assertEqual('detail', self.error.enrich_error('urn:ietf:params:acme:error:badCSR', 'detail'))
+
+    def test_150_enrich_error(self):
+        """ Error.enrich_error for valid message, no detail and someting in error_hash hash """
+        self.assertEqual('JWS has invalid anti-replay nonce: None', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', None))
+
+    def test_151_enrich_error(self):
+        """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
+        self.assertFalse(self.error.enrich_error('urn:ietf:params:acme:error:badCSR', None))
 
 if __name__ == '__main__':
     unittest.main()

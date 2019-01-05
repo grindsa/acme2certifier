@@ -10,13 +10,15 @@ class Error(object):
     def __init__(self, debug=None):
         self.debug = debug
 
-    def enrich_error(self, message, detail):
+    def enrich_error(self, message, detail=None):
         """ put some more content into the error messgae """
         print_debug(self.debug, 'Account.enrich_error()')
-        if message and self.acme_errormessage(message):
-            detail = '{0} {1}'.format(self.acme_errormessage(message), detail)
-        else:
-            detail = '{0}{1}'.format(self.acme_errormessage(message), detail)
+        error_message = self.acme_errormessage(message)
+
+        if message and error_message:
+            detail = '{0}: {1}'.format(error_message, detail)
+        elif error_message:
+            detail = '{0}{1}'.format(error_message, detail)
 
         return detail
 
@@ -24,17 +26,17 @@ class Error(object):
         """ dictionary containing the implemented acme error messages """
         print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))
         error_dic = {
-            'urn:ietf:params:acme:error:accountDoesNotExist' : '',
-            'urn:ietf:params:acme:error:badCSR' : '',
+            'urn:ietf:params:acme:error:accountDoesNotExist' : None,
+            'urn:ietf:params:acme:error:badCSR' : None,
             'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
             'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:malformed' : '',
-            'urn:ietf:params:acme:error:serverInternal' : '',
-            'urn:ietf:params:acme:error:unauthorized' : '',
-            'urn:ietf:params:acme:error:userActionRequired' : '',
+            'urn:ietf:params:acme:error:malformed' : None,
+            'urn:ietf:params:acme:error:serverInternal' : None,
+            'urn:ietf:params:acme:error:unauthorized' : None,
+            'urn:ietf:params:acme:error:userActionRequired' : None,
             'notImplementedYet' : "we are not that far. Stay tuned",
         }
-        if message:
+        if message and message in error_dic:
             return error_dic[message]
         else:
             return None
