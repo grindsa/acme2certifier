@@ -3,14 +3,10 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, b64_url_recode, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
-from acme.account import Account
+from acme.helper import b64_url_recode, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
-from acme.error import Error
 from acme.message import Message
-from acme.nonce import Nonce
-from acme.signature import Signature
 
 class Order(object):
     """ class for order handling """
@@ -20,7 +16,6 @@ class Order(object):
         self.debug = debug
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
-        self.nonce = Nonce(self.debug)
         self.expiry = expiry
         self.authz_path = '/acme/authz/'
         self.order_path = '/acme/order/'
@@ -77,7 +72,7 @@ class Order(object):
         # print(auth_dic)
         return(error, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def get_name(self, url):
+    def name_get(self, url):
         """ get ordername """
         print_debug(self.debug, 'Order.get_name({0})'.format(url))
         url_dic = parse_url(self.debug, url)
@@ -122,88 +117,66 @@ class Order(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
+        print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def parse(self, content):
         """ new oder request """
         print_debug(self.debug, 'Order.parse()')
-        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
 
         response_dic = {}
-        response_dic['header'] = {}
-
-        if result:
-            # nonce check
-            (code, message, detail) = self.nonce.check(protected_decoded)
-            if not message:
-                account = Account(self.debug, self.server_name)
-                aname = account.name_get(protected_decoded)
-                signature = Signature(self.debug)
-                (sig_check, error, error_detail) = signature.check(content, aname)
-                if sig_check:
-                    order_name = self.get_name(protected_decoded['url'])
-                    if 'finalize' in protected_decoded['url']:
-                        print_debug(self.debug, 'finalize request()')
-                        if  'csr' in payload_decoded:
-                            print_debug(self.debug, 'CSR found()')
-                            # this is a new request
-                            (code, certificate_name, detail) = self.process_csr(order_name, payload_decoded['csr'])
-                            if code == 200:
-                                # update order_status / set to valid
-                                self.update({'name' : order_name, 'status': 'valid'})
+        # check message
+        (code, message, detail, protected, payload) = self.message.check(content)
+        if code == 200:
+            if 'url' in protected:
+                order_name = self.name_get(protected['url'])
+                if 'finalize' in protected['url']:
+                    print_debug(self.debug, 'finalize request()')
+                    if  'csr' in payload:
+                        print_debug(self.debug, 'CSR found()')
+                        # this is a new request
+                        (code, certificate_name, detail) = self.process_csr(order_name, payload['csr'])
+                        if code == 200:
+                            # update order_status / set to valid
+                            self.update({'name' : order_name, 'status': 'valid'})
                         else:
                             print_debug(self.debug, 'no CSR found()')
                             code = 400
                             message = 'urn:ietf:params:acme:error:badCSR'
                             detail = 'enrollment failed'
                     else:
-                        print_debug(self.debug, 'polling request()')
-                        # this is a polling request:
-                        cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
-                        # we found a cert in the database
-                        if cert_dic:
-                            code = 200
-                            certificate_name = cert_dic['name']
-                        else:
-                            code = 400
-                            message = 'urn:ietf:params:acme:error:serverInternal'
-                            detail = 'no certificate for order: {0} found.'.format(order_name)
-
-                    if code == 200:
-                        # create response
-                        response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
-                        response_dic['data'] = self.lookup(order_name)
-                        response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
-                        response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, certificate_name)
-
-                    else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:badCSR'
                         detail = 'csr is missing in payload'
                 else:
-                    code = 403
-                    message = error
-                    detail = error_detail
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
-            detail = error_detail
-
-        # enrich response dictionary with error details
-        if not code == 200:
-            if detail:
-                # some error occured get details
-                error_message = Error(self.debug)
-                detail = error_message.enrich_error(message, detail)
-                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+                    print_debug(self.debug, 'polling request()')
+                    # this is a polling request:
+                    cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
+                    # we found a cert in the database
+                    if cert_dic:
+                        code = 200
+                        certificate_name = cert_dic['name']
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        detail = 'no certificate for order: {0} found'.format(order_name)
             else:
-                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
-        else:
-            # add nonce to header
-            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'url is missing in protected'
 
-        # create response
-        response_dic['code'] = code
+            if code == 200:
+                # create response
+                response_dic['header'] = {}
+                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
+                response_dic['data'] = self.lookup(order_name)
+                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
+                response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, certificate_name)
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
         print_debug(self.debug, 'Order.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
