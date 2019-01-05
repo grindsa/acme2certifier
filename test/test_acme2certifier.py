@@ -1106,5 +1106,98 @@ class TestACMEHandler(unittest.TestCase):
         """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
         self.assertFalse(self.error.enrich_error('urn:ietf:params:acme:error:badCSR', None))
 
+    def test_152_name_get(self):
+        """ Order.name_get() http"""
+        self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo'))
+
+    def test_153_name_get(self):
+        """ Order.name_get() http with further path (finalize)"""
+        self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo/bar'))
+
+    def test_154_name_get(self):
+        """ Order.name_get() http with parameters"""
+        self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?bar'))
+
+    def test_155_name_get(self):
+        """ Order.name_get() http with key/value parameters"""
+        self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?key=value'))
+
+    def test_156_name_get(self):
+        """ Order.name_get() https with key/value parameters"""
+        self.assertEqual('foo', self.order.name_get('https://tester.local/acme/order/foo?key=value'))
+
+    @patch('acme.message.Message.check')
+    def test_157_order_parse(self, mock_mcheck):
+        """ Order.parse() failed bcs. of failed message check """
+        mock_mcheck.return_value = (400, 'message', 'detail', None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
+
+    @patch('acme.message.Message.check')
+    def test_158_order_parse(self, mock_mcheck):
+        """ Order.parse() failed bcs. no url key in protected """
+        mock_mcheck.return_value = (200, None, None, {'foo_protected' : 'bar_protected'}, {"foo_payload" : "bar_payload"})
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+
+    @patch('acme.order.Order.name_get')
+    @patch('acme.message.Message.check')
+    def test_159_order_parse(self, mock_mcheck, mock_oname):
+        """ Order.parse() finalized failed bcs. no csr in payload """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"})
+        mock_oname.return_value = 'order_name'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'csr is missing in payload', 'message': 'urn:ietf:params:acme:error:badCSR', 'status': 400}}, self.order.parse(message))
+
+    @patch('acme.order.Order.process_csr')
+    @patch('acme.order.Order.name_get')
+    @patch('acme.message.Message.check')
+    def test_160_order_parse(self, mock_mcheck, mock_oname, mock_csr):
+        """ Order.parse() finalized failed bcs. enrollment failure """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"})
+        mock_oname.return_value = 'order_name'
+        mock_csr.return_value = (400, 'cert_name', 'detail')
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'enrollment failed', 'message': 'urn:ietf:params:acme:error:badCSR', 'status': 400}}, self.order.parse(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order.update')
+    @patch('acme.order.Order.process_csr')
+    @patch('acme.order.Order.name_get')
+    @patch('acme.message.Message.check')
+    def test_161_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
+        """ Order.parse() finalized sucessful """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"})
+        mock_oname.return_value = 'order_name'
+        mock_csr.return_value = (200, 'cert_name', 'detail')
+        mock_update.return_value = True
+        mock_nnonce.return_value = 'new_nonce'
+        message = '{"foo" : "bar"}'
+        e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
+        self.assertEqual(e_result, self.order.parse(message))
+
+    @patch('acme.order.Order.name_get')
+    @patch('acme.message.Message.check')
+    def test_162_order_parse(self, mock_mcheck, mock_oname):
+        """ Order.parse() polling failed bcs. certificate not found """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"})
+        mock_oname.return_value = 'order_name'
+        message = '{"foo" : "bar"}'
+        self.order.dbstore.certificate_lookup.return_value = {}
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'no certificate for order: order_name found', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.order.parse(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order.name_get')
+    @patch('acme.message.Message.check')
+    def test_163_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
+        """ Order.parse() polling successful """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"})
+        mock_oname.return_value = 'order_name'
+        mock_nnonce.return_value = 'new_nonce'
+        message = '{"foo" : "bar"}'
+        self.order.dbstore.certificate_lookup.return_value = {'name' : 'cert_name'}
+        e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
+        self.assertEqual(e_result, self.order.parse(message))
+
 if __name__ == '__main__':
     unittest.main()
