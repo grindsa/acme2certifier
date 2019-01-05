@@ -119,4 +119,6 @@ commands.txt
 env.txt
 gna.py
 acme/db_handler.py
+amce/ca_handler.py
+acme/certifier_ca_handler.py
 /acme/acme_srv.cfg
