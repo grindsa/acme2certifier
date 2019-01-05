@@ -78,8 +78,12 @@ class Certificate(object):
         # check message
         (code, message, detail, protected, _payload) = self.message.check(content)
         if code == 200:
-            response_dic = self.new_get(protected['url'])
-
+            if 'url' in protected:
+                response_dic = self.new_get(protected['url'])
+            else:
+                response_dic['code'] = code = 400
+                response_dic['data'] = message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'url missing in protected header'
         # prepare/enrich response
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)

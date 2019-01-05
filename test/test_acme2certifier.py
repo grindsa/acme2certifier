@@ -29,8 +29,9 @@ class TestACMEHandler(unittest.TestCase):
         from acme.certificate import Certificate
         from acme.challenge import Challenge
         from acme.directory import Directory
+        from acme.error import Error        
         from acme.nonce import Nonce
-        from acme.error import Error
+        from acme.message import Message
         from acme.order import Order
         from acme.signature import Signature
         from acme.helper import b64decode_pad, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config
@@ -39,6 +40,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization = Authorization(False, 'http://tester.local')
         self.challenge = Challenge(False, 'http://tester.local')
         self.certificate = Certificate(False, 'http://tester.local')
+        self.message = Message(False, 'http://tester.local')
         self.nonce = Nonce(False)
         self.error = Error(False)
         self.order = Order(False, 'http://tester.local')
@@ -1004,27 +1006,50 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
     def test_128_info(self):
-        """ test Certificate.info() """
+        """ test Certificate.new_get() """
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
         self.assertEqual('foo', self.certificate.info('cert_name'))
 
     @patch('acme.certificate.Certificate.info')
     def test_129_new_get(self, mock_info):
-        """ test Certificate.info() with not existing cert_name"""
+        """ test Certificate.new_get() with not existing cert_name"""
         mock_info.return_value = {}
         self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
     def test_130_new_get(self, mock_info):
-        """ test Certificate.info() with with exiting data without padding"""
+        """ test Certificate.new_get() with with exiting data without padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ=='}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
     def test_131_new_get(self, mock_info):
-        """ test Certificate.info() with with exiting data with padding"""
+        """ test Certificate.new_get() with with exiting data with padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ'}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
+        
+    @patch('acme.message.Message.check')
+    def test_132_new_post(self, mock_mcheck):
+        """ test Certificate.new_post() message check returns an error """
+        mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload')
+        self.assertEqual({'code': 400, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))        
 
+    @patch('acme.message.Message.check')
+    def test_133_new_post(self, mock_mcheck):
+        """ test Certificate.new_post() message check returns ok but no url in protected """
+        mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload')
+        self.assertEqual({'code': 400, 'data':  {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))        
+
+    @patch('acme.message.Message.prepare_response')         
+    @patch('acme.certificate.Certificate.new_get') 
+    @patch('acme.message.Message.check')
+    def test_134_new_post(self, mock_mcheck, mock_certget, mock_response):
+        """ test Certificate.new_post() message check returns ok  """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'example.com'}, 'payload')
+        mock_certget.return_value = 'foo'
+        mock_response.return_value = {'foo', 'bar'}
+        self.assertEqual(set(['foo', 'bar']), self.certificate.new_post('content'))        
+  
+        
 if __name__ == '__main__':
     unittest.main()
