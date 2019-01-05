@@ -466,6 +466,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_066_accout_parse(self, mock_decode, mock_nonce_check, mock_id, mock_sig):
         """ test failed account parse for request which does not has a "status" field in payload """
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_nonce_check.return_value = (200, None, None)
         mock_id.return_value = 1
         mock_sig.return_value = (True, None, None)
         message = '{"foo" : "bar"}'
@@ -1018,7 +1019,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = 'foo'
         mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual({'foo' : 'bar'} , self.certificate.enroll('csr'))
+        self.assertEqual({'foo' : 'bar'}, self.certificate.enroll('csr'))
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
@@ -1091,8 +1092,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(set(['foo', 'bar']), self.certificate.new_post('content'))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_139_message_prepare_response(self, mock_nnonce):
-        """ prepare_respons for code 200 and complete data """
+    def test_139_prepare_response(self, mock_nnonce):
+        """ Message.prepare_respons for code 200 and complete data """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         config_dic = {'code' : 200, 'message' : 'message', 'detail' : 'detail'}
@@ -1100,8 +1101,8 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_140_message_prepare_response(self, mock_nnonce, mock_error):
-        """ prepare_respons for code 200 without header tag in response_dic """
+    def test_140_prepare_response(self, mock_nnonce, mock_error):
+        """ Message.prepare_respons for code 200 without header tag in response_dic """
         data_dic = {'data' : {'foo_data' : 'bar_bar'},}
         mock_nnonce.return_value = 'new_nonce'
         mock_error.return_value = 'mock_error'
@@ -1109,8 +1110,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'foo_data': 'bar_bar'}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_141_message_prepare_response(self, mock_nnonce):
-        """ prepare_response for config_dic without code key """
+    def test_141_prepare_response(self, mock_nnonce):
+        """ Message.prepare_response for config_dic without code key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
@@ -1118,8 +1119,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_142_message_prepare_response(self, mock_nnonce):
-        """ prepare_response for config_dic without message key """
+    def test_142_prepare_response(self, mock_nnonce):
+        """ Message.prepare_response for config_dic without message key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
@@ -1127,8 +1128,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_143_message_prepare_response(self, mock_nnonce):
-        """ prepare_response for config_dic without detail key """
+    def test_143_prepare_response(self, mock_nnonce):
+        """ Message.repare_response for config_dic without detail key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         config_dic = {'code' : 400, 'message': 'message'}
@@ -1136,8 +1137,8 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_144_message_prepare_response(self, mock_nnonce, mock_error):
-        """ prepare_response for response_dic without data key """
+    def test_144_prepare_response(self, mock_nnonce, mock_error):
+        """ Message.prepare_response for response_dic without data key """
         data_dic = {'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         mock_error.return_value = 'mock_error'
