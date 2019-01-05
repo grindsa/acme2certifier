@@ -95,6 +95,13 @@ def generate_random_string(debug, length):
     print_debug(debug, 'generate_random_string()')
     char_set = digits + ascii_letters
     return ''.join(random.choice(char_set) for _ in range(length))
+    
+def load_config(debug=False, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
+    """ small configparser wrappter to load a config file """
+    print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
+    config = configparser.ConfigParser()
+    config.read(cfg_file)
+    return config
 
 def print_debug(debug, text):
     """ little helper to print debug messages
@@ -186,9 +193,3 @@ def validate_csr(debug, order_dic, _csr):
     print_debug(debug, 'validate_csr({0})'.format(order_dic))
     return True
 
-def load_config(debug=False, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
-    """ small configparser wrappter to load a config file """
-    print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
-    config = configparser.ConfigParser()
-    config.read(cfg_file)
-    return config
