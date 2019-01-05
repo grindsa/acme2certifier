@@ -58,7 +58,17 @@ class Message(object):
 
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """
-        print_debug(self.debug, 'Message.prepare_response({0},{1},{2})'.format(status_dic['code'], status_dic['message'], status_dic['detail']))
+        print_debug(self.debug, 'Message.prepare_response()')
+        if 'code' not in status_dic:
+            status_dic['code'] = 400
+            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+            status_dic['detail'] = 'http status code missing'
+
+        if 'message' not in status_dic:
+            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+
+        if 'detail' not in status_dic:
+            status_dic['detail'] = None
 
         # create response
         response_dic['code'] = status_dic['code']
@@ -72,6 +82,10 @@ class Message(object):
             else:
                 response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': None}
         else:
+            # create header if not existing
+            if 'header' not in response_dic:
+                response_dic['header'] = {}
+
             # add nonce to header
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
