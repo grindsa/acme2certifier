@@ -293,123 +293,128 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.dbstore.jwk_load.return_value = 'foo'
         self.assertEqual('foo', self.signature.jwk_load(1))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    def test_050_account_new(self, mock_nonce):
-        """ failed account add bcs of incomplete json file """
-        mock_nonce.return_value = 'foo'
-        dic = '{"foo" : "bar"}'
-        e_result = {'header': {'Replay-Nonce': 'foo'}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': "Invalid JWS Object [Invalid format] {KeyError('signature',)}"}}
-        self.assertEqual(e_result, self.account.new(dic))
+    @patch('acme.message.Message.check')
+    def test_050_account_new(self, mock_mcheck):
+        """ Account.new() failed bcs. of failed message check """
+        mock_mcheck.return_value = (400, 'message', 'detail', None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.account.new(message))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.nonce.Nonce.check')
-    def test_051_account_new(self, mock_ncheck, mock_nnonce):
-        """ failed account add bcs failed nonce check """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (400, 'urn:ietf:params:acme:error:badNonce', None)
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:badNonce', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
-        self.assertEqual(e_result, self.account.new(message))
-
-    @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.tos_check')
-    @patch('acme.nonce.Nonce.check')
-    def test_052_account_new(self, mock_ncheck, mock_tos, mock_nnonce):
-        """ failed account add bcs filed tos check """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
+    @patch('acme.message.Message.check')
+    def test_051_account_new(self, mock_mcheck, mock_tos):
+        """ Account.new() failed bcs filed tos check """
+        mock_mcheck.return_value = (200, None, None, 'protected', 'payload')
         mock_tos.return_value = (403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse')
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'message': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {'Replay-Nonce': 'foo'}}
+        message = {'foo' : 'bar'}
+        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'message': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {}}
         self.assertEqual(e_result, self.account.new(message))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.contact_check')
     @patch('acme.account.Account.tos_check')
-    @patch('acme.nonce.Nonce.check')
-    def test_053_account_new(self, mock_ncheck, mock_tos, mock_contact, mock_nnonce):
-        """ failed account add bcs failed contact check """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
+    @patch('acme.message.Message.check')
+    def test_052_account_new(self, mock_mcheck, mock_tos, mock_contact):
+        """ Account.new() failed bcs failed contact check """
+        mock_mcheck.return_value = (200, None, None, 'protected', 'payload')
         mock_tos.return_value = (200, None, None)
         mock_contact.return_value = (400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified')
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'message': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
+        message = {'foo' : 'bar'}
+        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'message': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {}}
         self.assertEqual(e_result, self.account.new(message))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.add')
     @patch('acme.account.Account.contact_check')
     @patch('acme.account.Account.tos_check')
-    @patch('acme.nonce.Nonce.check')
-    def test_054_account_new(self, mock_ncheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
-        """ failed Account.add() bcs of failed add """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
+    @patch('acme.message.Message.check')
+    def test_053_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_aad):
+        """ Account.new() failed bcs of failed add """
+        mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : 'foo@bar.com'})
         mock_tos.return_value = (200, None, None)
+        mock_contact.return_value = (200, None, None)
         mock_aad.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key')
-        mock_contact.return_value = (200, None, None)
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 400, 'data': {'detail': 'incomplete JSON Web Key', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
+        message = {'foo' : 'bar'}
+        e_result = {'code': 400, 'data': {'detail': 'incomplete JSON Web Key', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.add')
     @patch('acme.account.Account.contact_check')
     @patch('acme.account.Account.tos_check')
-    @patch('acme.nonce.Nonce.check')
-    def test_055_account_new(self, mock_ncheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
-        """ successful Account.add() of new account"""
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
+    @patch('acme.message.Message.check')
+    def test_054_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
+        """ Account.new() successful for a new account"""
+        mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : [u'mailto: foo@bar.com']})
         mock_tos.return_value = (200, None, None)
+        mock_contact.return_value = (200, None, None)
         mock_aad.return_value = (201, 1, None)
-        mock_contact.return_value = (200, None, None)
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 201, 'data': {'contact': [u'mailto: joern.mewes@gmail.com'], 'orders': 'http://tester.local/acme/acct/1/orders', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'foo'}}
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 201, 'data': {'contact': [u'mailto: foo@bar.com'], 'orders': 'http://tester.local/acme/acct/1/orders', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.add')
     @patch('acme.account.Account.contact_check')
     @patch('acme.account.Account.tos_check')
-    @patch('acme.nonce.Nonce.check')
-    def test_056_account_new(self, mock_ncheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
-        """ successful Account.add() existing account"""
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
+    @patch('acme.message.Message.check')
+    def test_055_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
+        """ Account.new() successful for an existing account"""
+        mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : [u'mailto: foo@bar.com']})
         mock_tos.return_value = (200, None, None)
-        mock_aad.return_value = (200, 1, None)
         mock_contact.return_value = (200, None, None)
-        message = '{"protected": "eyJub25jZSI6ICI3NzAwZTcwMTExYmY0OThjOTA0YmUyOTgwNGUyMDNiZiIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIjJDRk1WNE1LNlVvXzJHUVdhMEtWV2x6ZmZnU0RpTHd1cjR1alNaa0NSemJBM3c1cDFBQkpncjdsX1A4NEhwUnY4UjhyR0w2N2hxbURKdVQ1Mm1HRDZmTVZBaEhQWDVwU2R0eVpsUVF1enBYb256Tm1IYkcxRGJNU2lYcnhnNWpXVlhjaEN4SHg4MndBdDlLZjEzTzVBVHhEMFdPQkI1RmZmcHFRSGg4elRmMjlqVEw0dkJkOE41N2NlMTdaZ05XbF9FY29CeWppZ3FORkpjTzBycnZyZjZ4eU5hTzluYnVuNFBBTUpUTGJmVmE2Q2lFcWpuallNWDgwVllMSDRmQ3FzQVpneElvbGlfRDJqOVA1S3E2S1paVUxfYloyUVFWNFV1d1dadmg2dGNBMzkzWVFMZU1BUm5oV0k2ZHFsWlZkY1U3NE5YaTlOaFN4Y01rTThuWlo4USJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAidGVybXNPZlNlcnZpY2VBZ3JlZWQiOiB0cnVlfQ", "signature": "RSAYnxHCJLRmEUixPN4p8yEO359XLckPllGjR4ICcg16JdmNSfjI3fL7SlgbFC-SAQaVVI1texo2kOu8aU128PrzyOoTH_IsbeGKxpc9j2gEqt2gQ2DkWhL57wTFH-nkmE0a10soO06hs_uqQPlH9wEm78InA-nzGRVKzrvw0ggO-ymrOqxkoTvlMDWGGqkiPtN2hO9zphAarIa-gACoqX1nXvyIeRDWm9yxu3Ry1ZAndAjfXA8wLmSIICK3RvwDeKqB6GBPLSCaAzGWwBWBACoPj46M9FKn0ZQchuNiJ3-4jp-OnSPWk6POE-Vzl8krjPVnInmrRpqKDyRKbAvogQ"}'
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'foo'}}
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
-    def test_057_get_id_failed(self):
+    @patch('acme.account.Account.onlyreturnexisting')
+    @patch('acme.message.Message.check')
+    def test_056_account_new(self, mock_mcheck, mock_existing):
+        """ Account.new() onlyReturnExisting for a non existing account """
+        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyReturnExisting": 'true'})
+        mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
+        message = {'foo' : 'bar'}
+        e_result = {'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account.onlyreturnexisting')
+    @patch('acme.message.Message.check')
+    def test_057_account_new(self, mock_mcheck, mock_existing, mock_nnonce):
+        """ Account.new() onlyReturnExisting for an existing account """
+        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyReturnExisting": 'true'})
+        mock_existing.return_value = (200, 100, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/100', 'Replay-Nonce': 'new_nonce'}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    def test_058_get_id_failed(self):
         """ test failed get_id bcs of wrong data """
         string = {'foo' : 'bar'}
         self.assertFalse(self.account.name_get(string))
 
-    def test_058_signature_check_failed(self):
+    def test_059_signature_check_failed(self):
         """ test Signature.check() without having a kid """
         self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', None))
 
     @patch('acme.signature.Signature.jwk_load')
-    def test_059_signature_check_failed(self, mock_jwk):
+    def test_060_signature_check_failed(self, mock_jwk):
         """ test Signature.check() while pubkey lookup failed """
         mock_jwk.return_value = {}
         self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', 1))
 
     @patch('acme.signature.signature_check')
     @patch('acme.signature.Signature.jwk_load')
-    def test_060_signature_check_failed(self, mock_jwk, mock_sig):
+    def test_061_signature_check_failed(self, mock_jwk, mock_sig):
         """ test successful Signature.check()  """
         mock_jwk.return_value = {'foo' : 'bar'}
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.check('foo', 1))
 
     @patch('acme.message.decode_message')
-    def test_061_message_check(self, mock_decode):
+    def test_062_message_check(self, mock_decode):
         """ message_check failed bcs of decoding error """
         message = '{"foo" : "bar"}'
         mock_decode.return_value = (False, 'detail', None, None, None)
@@ -417,7 +422,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
-    def test_062_message_check(self, mock_decode, mock_nonce_check):
+    def test_063_message_check(self, mock_decode, mock_nonce_check):
         """ message_check nonce check failed """
         message = '{"foo" : "bar"}'
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
@@ -426,7 +431,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
-    def test_063_message_check(self, mock_decode, mock_nonce_check):
+    def test_064_message_check(self, mock_decode, mock_nonce_check):
         """ message check failed bcs account id lookup failed """
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
         mock_nonce_check.return_value = (200, None, None)
@@ -437,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
-    def test_064_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
+    def test_065_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
         """ message check failed bcs signature_check_failed """
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
         mock_nonce_check.return_value = (200, None, None)
@@ -450,7 +455,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
-    def test_065_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
+    def test_066_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
         """ message check successful """
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
         mock_nonce_check.return_value = (200, None, None)
@@ -460,21 +465,21 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((200, None, None, 'protected', 'payload'), self.message.check(message))
 
     @patch('acme.message.Message.check')
-    def test_153_accout_parse(self, mock_mcheck):
+    def test_067_accout_parse(self, mock_mcheck):
         """ Account.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None)
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.account.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_066_accout_parse(self, mock_mcheck):
+    def test_068_accout_parse(self, mock_mcheck):
         """ test failed account parse for request which does not has a "status" field in payload """
         mock_mcheck.return_value = (200, None, None, 'protected', {"foo" : "bar"})
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'dont know what to do with this request'}}, self.account.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_067_accout_parse(self, mock_mcheck):
+    def test_069_accout_parse(self, mock_mcheck):
         """ test failed account parse for reqeust with a "status" field other than "deactivated" """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         message = '{"foo" : "bar"}'
@@ -482,7 +487,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.delete')
     @patch('acme.message.Message.check')
-    def test_068_accout_parse(self, mock_mcheck, mock_del):
+    def test_070_accout_parse(self, mock_mcheck, mock_del):
         """ test failed account parse for reqeust with failed deletion """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "deactivated"})
         mock_del.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', 'deletion failed')
@@ -492,7 +497,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.account.Account.delete')
     @patch('acme.message.Message.check')
-    def test_069_accout_parse(self, mock_mcheck, mock_del, mock_nnonce):
+    def test_071_accout_parse(self, mock_mcheck, mock_del, mock_nnonce):
         """ test succ account parse for reqeust with succ deletion """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "deactivated"})
         mock_del.return_value = (200, None, None)
@@ -500,64 +505,40 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
 
-    def test_070_onlyreturnexisting(self):
+    def test_072_onlyreturnexisting(self):
         """ test onlyReturnExisting with False """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {}
         payload = {'onlyReturnExisting' : False}
         self.assertEqual((400, 'urn:ietf:params:acme:error:userActionRequired', 'onlyReturnExisting must be true'), self.account.onlyreturnexisting(protected, payload))
 
-    def test_071_onlyreturnexisting(self):
+    def test_073_onlyreturnexisting(self):
         """ test onlyReturnExisting without jwk structure """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {}
         payload = {'onlyReturnExisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'jwk structure missing'), self.account.onlyreturnexisting(protected, payload))
 
-    def test_072_onlyreturnexisting(self):
+    def test_074_onlyreturnexisting(self):
         """ test onlyReturnExisting without jwk[n] structure """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {'jwk' : {}}
         payload = {'onlyReturnExisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'n value missing'), self.account.onlyreturnexisting(protected, payload))
 
-    def test_073_onlyreturnexisting(self):
+    def test_075_onlyreturnexisting(self):
         """ test onlyReturnExisting for existing account """
         self.signature.dbstore.account_lookup.return_value = {'name' : 'foo', 'alg' : 'RS256'}
         protected = {'jwk' : {'n' : 'foo'}}
         payload = {'onlyReturnExisting' : True}
         self.assertEqual((200, 'foo', None), self.account.onlyreturnexisting(protected, payload))
 
-    def test_074_onlyreturnexisting(self):
+    def test_076_onlyreturnexisting(self):
         """ test onlyReturnExisting for non existing account """
         self.signature.dbstore.account_lookup.return_value = False
         protected = {'jwk' : {'n' : 'foo'}}
         payload = {'onlyReturnExisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.account.onlyreturnexisting(protected, payload))
-
-    @patch('acme.account.Account.onlyreturnexisting')
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.nonce.Nonce.check')
-    def test_075_account_new(self, mock_ncheck, mock_nnonce, mock_existing):
-        """ test onlyReturnExisting for non existing account """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
-        mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
-        message = '{"protected": "eyJub25jZSI6ICIxNWVmNTczNGNjNGQ0ZDY4YWQ5ODM2ZjVlMTcwYzJhYyIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm1aZDcyNGxVWVBySXJsRjBYVnVBV3ByUWZtTm05WEdNZ2djUEN0eThhME1MTXptQ2FQWlFzdTl0aDRWWnBSRXRNY0t3aXJfZEJiRTFRRVZNSHJOREIzUWNFbkZka0RSRTFrZU4zMl9oVGowWDBXX2FadDVDeENzZ3loOURxWllRZENDNVV4NEtCSU1sVzA4MjhWTDdSazduMzU2N2VJeUotMHo2aE5hSk1MX2hvR2hhYklmNm1mZUlRai1uWHUyR2dhZzNuaXV5TFNZdTU0TVlEME9YNVU2OHV5cGptbkJzV3RVWGxYM2lLUjhZNFgtejdXM0tqRDMtYk9pSUNJcTNuYy13T2dobFI1ekJSdVhncEh2N2NoMHJSX21LWDdxYlFSS2RONEY5NE0xY3QzTnBycnQtU1ItZE1aNHR6ZzB6bXVXZl9xMDdHZUJWdERPT1o5Nkx1dyJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAib25seVJldHVybkV4aXN0aW5nIjogdHJ1ZX0", "signature": "Y8XHbZLoI3bDNa9YmHc2WINSonZmBdLCpOCFrWyClWCUD5BFbAUpo12zgzEmf4kBYNN0L8AV2NM5QwG59zC8nN5mmuPy9b3DX12J0q6n9UF4PM6Wl1WWGTAZ-lmS-G27_MHHSnTrt7kGlq-PGf4eRPjYCmIyCK8Jl-3TOht61kyGB4IP_Z3fF95oDAE57POora6zl5OYTHoL5RAl0Oic3i8UAiFDMbKa0N8o4Gc6l3y-uT-JxYTLzAHMOaPOXetrX5RUx-4Qpc1IZQ4BiLzNvEA-0vHQ9-NoCARyj2kufG7UqGi_eRQ8y6SGPZMzljO9yMJDTtfLug80Zb4GUJrEFA"}'
-        e_result = {'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {'Replay-Nonce': 'foo'}}
-        self.assertEqual(e_result, self.account.new(message))
-
-    @patch('acme.account.Account.onlyreturnexisting')
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.nonce.Nonce.check')
-    def test_076_account_new(self, mock_ncheck, mock_nnonce, mock_existing):
-        """ test onlyReturnExisting for an existing account """
-        mock_nnonce.return_value = 'foo'
-        mock_ncheck.return_value = (200, None, None)
-        mock_existing.return_value = (200, 100, None)
-        message = '{"protected": "eyJub25jZSI6ICIxNWVmNTczNGNjNGQ0ZDY4YWQ5ODM2ZjVlMTcwYzJhYyIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvbmV3YWNjb3VudCIsICJhbGciOiAiUlMyNTYiLCAiandrIjogeyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm1aZDcyNGxVWVBySXJsRjBYVnVBV3ByUWZtTm05WEdNZ2djUEN0eThhME1MTXptQ2FQWlFzdTl0aDRWWnBSRXRNY0t3aXJfZEJiRTFRRVZNSHJOREIzUWNFbkZka0RSRTFrZU4zMl9oVGowWDBXX2FadDVDeENzZ3loOURxWllRZENDNVV4NEtCSU1sVzA4MjhWTDdSazduMzU2N2VJeUotMHo2aE5hSk1MX2hvR2hhYklmNm1mZUlRai1uWHUyR2dhZzNuaXV5TFNZdTU0TVlEME9YNVU2OHV5cGptbkJzV3RVWGxYM2lLUjhZNFgtejdXM0tqRDMtYk9pSUNJcTNuYy13T2dobFI1ekJSdVhncEh2N2NoMHJSX21LWDdxYlFSS2RONEY5NE0xY3QzTnBycnQtU1ItZE1aNHR6ZzB6bXVXZl9xMDdHZUJWdERPT1o5Nkx1dyJ9fQ", "payload": "eyJjb250YWN0IjogWyJtYWlsdG86IGpvZXJuLm1ld2VzQGdtYWlsLmNvbSJdLCAib25seVJldHVybkV4aXN0aW5nIjogdHJ1ZX0", "signature": "Y8XHbZLoI3bDNa9YmHc2WINSonZmBdLCpOCFrWyClWCUD5BFbAUpo12zgzEmf4kBYNN0L8AV2NM5QwG59zC8nN5mmuPy9b3DX12J0q6n9UF4PM6Wl1WWGTAZ-lmS-G27_MHHSnTrt7kGlq-PGf4eRPjYCmIyCK8Jl-3TOht61kyGB4IP_Z3fF95oDAE57POora6zl5OYTHoL5RAl0Oic3i8UAiFDMbKa0N8o4Gc6l3y-uT-JxYTLzAHMOaPOXetrX5RUx-4Qpc1IZQ4BiLzNvEA-0vHQ9-NoCARyj2kufG7UqGi_eRQ8y6SGPZMzljO9yMJDTtfLug80Zb4GUJrEFA"}'
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/100', 'Replay-Nonce': 'foo'}}
-        self.assertEqual(e_result, self.account.new(message))
 
     def test_077_utstodate_utc(self):
         """ test uts_to_date_utc for a given format """
@@ -629,7 +610,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.add(message, 1))
 
     @patch('acme.message.Message.check')
-    def test_87_order_new(self, mock_mcheck):
+    def test_087_order_new(self, mock_mcheck):
         """ Order.new() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None)
         message = '{"foo" : "bar"}'
@@ -637,7 +618,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.add')
     @patch('acme.message.Message.check')
-    def test_090_order_new(self, mock_mcheck, mock_orderadd):
+    def test_088_order_new(self, mock_mcheck, mock_orderadd):
         """ Order.new() failed bcs of db_add failed """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         mock_orderadd.return_value = ('urn:ietf:params:acme:error:malformed', None, None, None)
@@ -647,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.add')
     @patch('acme.message.Message.check')
-    def test_091_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
+    def test_089_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
         """ test successful order with a single identifier """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth': {u'type': u'dns', u'value': u'acme.nclm-samba.local'}}, 'expires')
@@ -658,7 +639,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.add')
     @patch('acme.message.Message.check')
-    def test_092_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
+    def test_090_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
         """ test successful order with multiple identifiers """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth1': {u'type': u'dns', u'value': u'acme1.nclm-samba.local'}, 'foo_auth2': {u'type': u'dns', u'value': u'acme2.nclm-samba.local'}}, 'expires')
@@ -669,7 +650,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.add')
     @patch('acme.message.Message.check')
-    def test_093_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
+    def test_091_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
         """ test successful order without identifiers """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"})
         mock_nnonce.return_value = 'new_nonce'
@@ -678,14 +659,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
     @patch('acme.challenge.generate_random_string')
-    def test_094_challenge_new(self, mock_random):
+    def test_092_challenge_new(self, mock_random):
         """ test challenge generation """
         mock_random.return_value = 'foo'
         self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge.new('authz_name', 'mtype', 'token'))
 
     @patch('acme.challenge.Challenge.new')
-    def test_095_challenge_new_set(self, mock_challenge):
+    def test_093_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
@@ -693,7 +674,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
-    def test_096_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_094_authorization_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -702,26 +683,26 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'identifier_type', 'value' : 'identifier_value', 'status__name' : 'foo'}]
         self.assertEqual({'status': 'foo', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'type': 'identifier_type', 'value': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
 
-    def test_097_challenge_info(self):
+    def test_095_challenge_info(self):
         """ test challenge.info() """
         self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
         self.assertEqual({'status': 'pending', 'token': 'token', 'type': 'http-01'}, self.challenge.info('foo'))
 
     @patch('acme.message.Message.check')
-    def test_098_challenge_parse(self, mock_mcheck):
+    def test_096_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed bcs. message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload')
         self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.message.Message.check')
-    def test_099_challenge_parse(self, mock_mcheck):
+    def test_097_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_100_challenge_parse(self, mock_mcheck, mock_cname):
+    def test_098_challenge_parse(self, mock_mcheck, mock_cname):
         """ Challenge.parse() failed message check returns ok challenge name could not get obtained """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
         mock_cname.return_value = None
@@ -730,7 +711,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.info')
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_101_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo):
+    def test_099_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo):
         """ Challenge.parse() failed bcs of empty challenge_dic """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
         mock_cname.return_value = 'foo'
@@ -741,7 +722,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.info')
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_102_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_nnonce):
+    def test_100_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_nnonce):
         """ Challenge.parse() successful """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
         mock_cname.return_value = 'foo'
@@ -750,34 +731,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     @patch('acme.order.Order.info')
-    def test_103_order_lookup(self, mock_oinfo):
+    def test_101_order_lookup(self, mock_oinfo):
         """ test order lookup with empty hash """
         mock_oinfo.return_value = {}
         self.assertEqual({}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_104_order_lookup(self, mock_oinfo):
+    def test_102_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and wrong authorization hash"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': []}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_105_order_lookup(self, mock_oinfo):
+    def test_103_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and correct authorization hash"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_106_order_lookup(self, mock_oinfo):
+    def test_104_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and authorization hash having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_107_order_lookup(self, mock_oinfo):
+    def test_105_order_lookup(self, mock_oinfo):
         """ test order lookup status in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value'}
@@ -785,7 +766,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_108_order_lookup(self, mock_oinfo):
+    def test_106_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
@@ -793,7 +774,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_109_order_lookup(self, mock_oinfo):
+    def test_107_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0}
@@ -801,7 +782,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_110_order_lookup(self, mock_oinfo):
+    def test_108_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0, 'notafter' : 0}
@@ -809,7 +790,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_111_order_lookup(self, mock_oinfo):
+    def test_109_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400}
@@ -817,7 +798,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_112_order_lookup(self, mock_oinfo):
+    def test_110_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
@@ -825,46 +806,46 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_113_order_lookup(self, mock_oinfo):
+    def test_111_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and worng authorization"""
         self.authorization.dbstore.authorization_lookup.return_value = 'foo'
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
         e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
-    def test_114_base64_recode(self):
+    def test_112_base64_recode(self):
         """ test base64url recode to base64 - add padding for 1 char"""
         self.assertEqual('fafafaf=', self.b64_url_recode(False, 'fafafaf'))
 
-    def test_115_base64_recode(self):
+    def test_113_base64_recode(self):
         """ test base64url recode to base64 - add padding for 2 char"""
         self.assertEqual('fafafa==', self.b64_url_recode(False, 'fafafa'))
 
-    def test_116_base64_recode(self):
+    def test_114_base64_recode(self):
         """ test base64url recode to base64 - add padding for 3 char"""
         self.assertEqual('fafaf===', self.b64_url_recode(False, 'fafaf'))
 
-    def test_117_base64_recode(self):
+    def test_115_base64_recode(self):
         """ test base64url recode to base64 - no padding"""
         self.assertEqual('fafafafa', self.b64_url_recode(False, 'fafafafa'))
 
-    def test_118_base64_recode(self):
+    def test_116_base64_recode(self):
         """ test base64url replace - with + and pad"""
         self.assertEqual('fafa+f==', self.b64_url_recode(False, 'fafa-f'))
 
-    def test_119_base64_recode(self):
+    def test_117_base64_recode(self):
         """ test base64url replace _ with / and pad"""
         self.assertEqual('fafa/f==', self.b64_url_recode(False, 'fafa_f'))
 
     @patch('acme.order.Order.info')
-    def test_120_process_csr(self, mock_oinfo):
+    def test_118_process_csr(self, mock_oinfo):
         """ test order prcoess_csr with empty order_dic """
         mock_oinfo.return_value = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.process_csr('order_name', 'csr'))
 
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_121_process_csr(self, mock_oinfo, mock_csrchk):
+    def test_119_process_csr(self, mock_oinfo, mock_csrchk):
         """ test order prcoess_csr with failed csr check"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = False
@@ -873,7 +854,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_122_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
+    def test_120_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -884,7 +865,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_123_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_121_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -896,7 +877,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_124_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_122_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -904,27 +885,27 @@ class TestACMEHandler(unittest.TestCase):
         mock_enroll.return_value = ('bar', None)
         self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
 
-    def test_125_decode_message(self):
+    def test_123_decode_message(self):
         """ decode message with empty payload - certbot issue"""
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         e_result = (True, None, {u'nonce': u'26e6a46efadd477d908d7c2014e49b34', u'url': u'http://laptop.nclm-samba.local/acme/authz/PG189FFzfao1', u'alg': u'RS256', u'kid': u'http://laptop.nclm-samba.local/acme/acct/yuZ1GUJb76Zk'}, None, 'encoded_signature')
         self.assertEqual(e_result, self.decode_message(False, data_dic))
 
     @patch('acme.certificate.generate_random_string')
-    def test_126_store_csr(self, mock_name):
+    def test_124_store_csr(self, mock_name):
         """ test Certificate.store_csr() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'foo'
         mock_name.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr'))
 
-    def test_127_store_cert(self):
+    def test_125_store_cert(self):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert'))
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
-    def test_128_enroll(self, mock_enroll, mock_pem):
+    def test_126_enroll(self, mock_enroll, mock_pem):
         """ test Certificate.enroll() ca handler returns 'something'"""
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = 'foo'
@@ -933,7 +914,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
-    def test_129_enroll(self, mock_enroll, mock_pem):
+    def test_127_enroll(self, mock_enroll, mock_pem):
         """ test Certificate.enroll() ca handler returns nothing"""
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = None
@@ -942,7 +923,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
-    def test_130_enroll_and_store(self, mock_enroll, mock_store):
+    def test_128_enroll_and_store(self, mock_enroll, mock_store):
         """ test Certificate.enroll() enroll returns someting"""
         mock_enroll.return_value = {'foo', 'bar'}
         mock_store.return_value = 1
@@ -950,43 +931,43 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
-    def test_131_enroll_and_store(self, mock_enroll, mock_store):
+    def test_129_enroll_and_store(self, mock_enroll, mock_store):
         """ test Certificate.enroll() enroll returns nothing"""
         mock_enroll.return_value = False
         mock_store.return_value = 1
         self.assertEqual((None, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
-    def test_132_info(self):
+    def test_130_info(self):
         """ test Certificate.new_get() """
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
         self.assertEqual('foo', self.certificate.info('cert_name'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_133_new_get(self, mock_info):
+    def test_131_new_get(self, mock_info):
         """ test Certificate.new_get() with not existing cert_name"""
         mock_info.return_value = {}
         self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_134_new_get(self, mock_info):
+    def test_132_new_get(self, mock_info):
         """ test Certificate.new_get() with with exiting data without padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ=='}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_135_new_get(self, mock_info):
+    def test_133_new_get(self, mock_info):
         """ test Certificate.new_get() with with exiting data with padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ'}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.message.Message.check')
-    def test_136_new_post(self, mock_mcheck):
+    def test_134_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload')
         self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
 
     @patch('acme.message.Message.check')
-    def test_137_new_post(self, mock_mcheck):
+    def test_135_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
@@ -994,7 +975,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.message.Message.prepare_response')
     @patch('acme.certificate.Certificate.new_get')
     @patch('acme.message.Message.check')
-    def test_138_new_post(self, mock_mcheck, mock_certget, mock_response):
+    def test_136_new_post(self, mock_mcheck, mock_certget, mock_response):
         """ test Certificate.new_post() message check returns ok  """
         mock_mcheck.return_value = (200, None, None, {'url' : 'example.com'}, 'payload')
         mock_certget.return_value = 'foo'
@@ -1002,7 +983,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(set(['foo', 'bar']), self.certificate.new_post('content'))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_139_prepare_response(self, mock_nnonce):
+    def test_137_prepare_response(self, mock_nnonce):
         """ Message.prepare_respons for code 200 and complete data """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1011,7 +992,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_140_prepare_response(self, mock_nnonce, mock_error):
+    def test_138_prepare_response(self, mock_nnonce, mock_error):
         """ Message.prepare_respons for code 200 without header tag in response_dic """
         data_dic = {'data' : {'foo_data' : 'bar_bar'},}
         mock_nnonce.return_value = 'new_nonce'
@@ -1020,7 +1001,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'foo_data': 'bar_bar'}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_141_prepare_response(self, mock_nnonce):
+    def test_139_prepare_response(self, mock_nnonce):
         """ Message.prepare_response for config_dic without code key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1029,7 +1010,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_142_prepare_response(self, mock_nnonce):
+    def test_140_prepare_response(self, mock_nnonce):
         """ Message.prepare_response for config_dic without message key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1038,7 +1019,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_143_prepare_response(self, mock_nnonce):
+    def test_141_prepare_response(self, mock_nnonce):
         """ Message.repare_response for config_dic without detail key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1047,7 +1028,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_144_prepare_response(self, mock_nnonce, mock_error):
+    def test_142_prepare_response(self, mock_nnonce, mock_error):
         """ Message.prepare_response for response_dic without data key """
         data_dic = {'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1055,67 +1036,67 @@ class TestACMEHandler(unittest.TestCase):
         config_dic = {'code' : 400, 'message': 'message', 'detail' : 'detail'}
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
-    def test_145_acme_errormessage(self):
+    def test_143_acme_errormessage(self):
         """ Error.acme_errormessage for existing value with content """
         self.assertEqual('JWS has invalid anti-replay nonce', self.error.acme_errormessage('urn:ietf:params:acme:error:badNonce'))
 
-    def test_146_acme_errormessage(self):
+    def test_144_acme_errormessage(self):
         """ Error.acme_errormessage for existing value without content """
         self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:unauthorized'))
 
-    def test_147_acme_errormessage(self):
+    def test_145_acme_errormessage(self):
         """ Error.acme_errormessage for message None """
         self.assertFalse(self.error.acme_errormessage(None))
 
-    def test_148_acme_errormessage(self):
+    def test_146_acme_errormessage(self):
         """ Error.acme_errormessage for not unknown message """
         self.assertFalse(self.error.acme_errormessage('unknown'))
 
-    def test_149_enrich_error(self):
+    def test_147_enrich_error(self):
         """ Error.enrich_error for valid message and detail """
         self.assertEqual('JWS has invalid anti-replay nonce: detail', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', 'detail'))
 
-    def test_150_enrich_error(self):
+    def test_148_enrich_error(self):
         """ Error.enrich_error for valid message, detail and None in error_hash hash """
         self.assertEqual('detail', self.error.enrich_error('urn:ietf:params:acme:error:badCSR', 'detail'))
 
-    def test_151_enrich_error(self):
+    def test_149_enrich_error(self):
         """ Error.enrich_error for valid message, no detail and someting in error_hash hash """
         self.assertEqual('JWS has invalid anti-replay nonce: None', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', None))
 
-    def test_152_enrich_error(self):
+    def test_150_enrich_error(self):
         """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
         self.assertFalse(self.error.enrich_error('urn:ietf:params:acme:error:badCSR', None))
 
-    def test_152_name_get(self):
+    def test_151_name_get(self):
         """ Order.name_get() http"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo'))
 
-    def test_153_name_get(self):
+    def test_152_name_get(self):
         """ Order.name_get() http with further path (finalize)"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo/bar'))
 
-    def test_154_name_get(self):
+    def test_153_name_get(self):
         """ Order.name_get() http with parameters"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?bar'))
 
-    def test_155_name_get(self):
+    def test_154_name_get(self):
         """ Order.name_get() http with key/value parameters"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?key=value'))
 
-    def test_156_name_get(self):
+    def test_155_name_get(self):
         """ Order.name_get() https with key/value parameters"""
         self.assertEqual('foo', self.order.name_get('https://tester.local/acme/order/foo?key=value'))
 
     @patch('acme.message.Message.check')
-    def test_157_order_parse(self, mock_mcheck):
+    def test_156_order_parse(self, mock_mcheck):
         """ Order.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None)
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_158_order_parse(self, mock_mcheck):
+    def test_157_order_parse(self, mock_mcheck):
         """ Order.parse() failed bcs. no url key in protected """
         mock_mcheck.return_value = (200, None, None, {'foo_protected' : 'bar_protected'}, {"foo_payload" : "bar_payload"})
         message = '{"foo" : "bar"}'
@@ -1123,7 +1104,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_159_order_parse(self, mock_mcheck, mock_oname):
+    def test_158_order_parse(self, mock_mcheck, mock_oname):
         """ Order.parse() finalized failed bcs. no csr in payload """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"})
         mock_oname.return_value = 'order_name'
@@ -1133,7 +1114,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.process_csr')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_160_order_parse(self, mock_mcheck, mock_oname, mock_csr):
+    def test_159_order_parse(self, mock_mcheck, mock_oname, mock_csr):
         """ Order.parse() finalized failed bcs. enrollment failure """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"})
         mock_oname.return_value = 'order_name'
@@ -1146,7 +1127,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.process_csr')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_161_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
+    def test_160_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
         """ Order.parse() finalized sucessful """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"})
         mock_oname.return_value = 'order_name'
@@ -1159,7 +1140,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_162_order_parse(self, mock_mcheck, mock_oname):
+    def test_161_order_parse(self, mock_mcheck, mock_oname):
         """ Order.parse() polling failed bcs. certificate not found """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"})
         mock_oname.return_value = 'order_name'
@@ -1170,7 +1151,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_163_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
+    def test_162_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
         """ Order.parse() polling successful """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"})
         mock_oname.return_value = 'order_name'
@@ -1181,7 +1162,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_164_authorization_parse(self, mock_mcheck):
+    def test_163_authorization_parse(self, mock_mcheck):
         """ Authorization.new_post() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None)
         message = '{"foo" : "bar"}'
@@ -1189,7 +1170,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.authorization.Authorization.authz_info')
     @patch('acme.message.Message.check')
-    def test_163_authorization_parse(self, mock_mcheck, mock_authzinfo):
+    def test_164_authorization_parse(self, mock_mcheck, mock_authzinfo):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload')
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}

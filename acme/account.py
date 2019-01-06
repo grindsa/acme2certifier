@@ -3,26 +3,18 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, generate_random_string, print_debug, validate_email
+from acme.helper import generate_random_string, print_debug, validate_email
 from acme.db_handler import DBstore
-from acme.nonce import Nonce
-from acme.error import Error
 from acme.message import Message
-from acme.signature import Signature
 
 class Account(object):
     """ ACME server class """
 
-    server_name = None
-
     def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
         self.debug = debug
-        self.nonce = Nonce(self.debug)
-        self.error = Error(self.debug)
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
-        self.signature = Signature(self.debug)
         self.path = '/acme/acct/'
 
     def __enter__(self):
@@ -115,64 +107,43 @@ class Account(object):
         """ generate a new account """
         print_debug(self.debug, 'Account.account_new()')
 
-        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
-
         response_dic = {}
-        response_dic['header'] = {}
-
-        if result:
-
-            # nonce check
-            (code, message, detail) = self.nonce.check(protected_decoded)
-
+        # check message but skip signature check as this is a new account (True)
+        (code, message, detail, protected, payload) = self.message.check(content, True)
+        if code == 200:
             # onlyReturnExisting check
-            if code == 200 and 'onlyReturnExisting' in payload_decoded:
-                (code, message, detail) = self.onlyreturnexisting(protected_decoded, payload_decoded)
+            if 'onlyReturnExisting' in payload:
+                (code, message, detail) = self.onlyreturnexisting(protected, payload)
             else:
                 # tos check
-                if code == 200:
-                    (code, message, detail) = self.tos_check(payload_decoded)
+                (code, message, detail) = self.tos_check(payload)
 
                 # contact check
                 if code == 200:
-                    (code, message, detail) = self.contact_check(payload_decoded)
+                    (code, message, detail) = self.contact_check(payload)
 
                 # add account to database
                 if code == 200:
-                    (code, message, detail) = self.add(protected_decoded, payload_decoded['contact'])
+                    (code, message, detail) = self.add(protected, payload['contact'])
 
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
-            detail = error_detail
-
-        # enrich response dictionary with details
         if code == 200 or code == 201:
             response_dic['data'] = {}
             if code == 201:
                 response_dic['data'] = {
                     'status': 'valid',
-                    'contact': payload_decoded['contact'],
+                    'contact': payload['contact'],
                     'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path, message),
                 }
+            response_dic['header'] = {}
             response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path, message)
         else:
-            if detail:
-                if detail == 'tosfalse':
-                    detail = 'Terms of service must be accepted'
-                else:
-                    # some error occured get details
-                    detail = self.error.enrich_error(message, detail)
+            if detail == 'tosfalse':
+                detail = 'Terms of service must be accepted'
 
-                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
-            else:
-                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        # add nonce to header
-        response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
-
-        # create response
-        response_dic['code'] = code
         print_debug(self.debug, 'Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
