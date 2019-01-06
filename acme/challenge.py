@@ -3,12 +3,9 @@
 """ Signature class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, generate_random_string, print_debug
-from acme.account import Account
+from acme.helper import generate_random_string, parse_url, print_debug
 from acme.db_handler import DBstore
-from acme.error import Error
-from acme.nonce import Nonce
-from acme.signature import Signature
+from acme.message import Message
 
 class Challenge(object):
     """ Challenge handler """
@@ -17,7 +14,7 @@ class Challenge(object):
         self.debug = debug
         self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
-        self.nonce = Nonce(self.debug)
+        self.message = Message(self.debug, self.server_name)
         self.expiry = expiry
         self.path = '/acme/chall/'
         self.authz_path = '/acme/authz/'
@@ -32,7 +29,7 @@ class Challenge(object):
     def get(self, url):
         """ get challenge details based on get request """
         print_debug(self.debug, 'challenge.new_get({0})'.format(url))
-        challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
+        challenge_name = self.name_get(url)
         response_dic = {}
         response_dic['code'] = 200
         response_dic['data'] = self.info(challenge_name)
@@ -43,6 +40,15 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.info({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
         return challenge_dic
+
+    def name_get(self, url):
+        """ get challenge """
+        print_debug(self.debug, 'Challenge.get_name({0})'.format(url))
+        url_dic = parse_url(self.debug, url)
+        challenge_name = url_dic['path'].replace(self.path, '')
+        if '/' in challenge_name:
+            (challenge_name, _sinin) = challenge_name.split('/', 1)
+        return challenge_name
 
     def new(self, authz_name, mtype, token):
         """ new challenge """
@@ -77,72 +83,46 @@ class Challenge(object):
         print_debug(self.debug, 'Challenge.new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
-    def parse(self, url, content):
+    def parse(self, content):
         """ new oder request """
-        print_debug(self.debug, 'Challenge.parse({0})'.format(url))
-        (result, error_detail, protected_decoded, payload_decoded, _signature) = decode_message(self.debug, content)
+        print_debug(self.debug, 'Challenge.parse()')
 
         response_dic = {}
-        response_dic['header'] = {}
-
-        if result:
-            # nonce check
-            (code, message, detail) = self.nonce.check(protected_decoded)
-            if not message:
-                account = Account(self.debug, self.server_name)
-                aname = account.name_get(protected_decoded)
-                signature = Signature(self.debug)
-                (sig_check, error, error_detail) = signature.check(content, aname)
-                if sig_check:
-                    challenge_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
-                    if challenge_name:
-                        challenge_dic = self.info(challenge_name)
-                        # update challenge state to 'processing' - i am not so sure about this
-                        # self.update({'name' : challenge_name, 'status' : 4})
-                        # start validation
-                        _validation = self.validate(challenge_name, payload_decoded)
-                        if challenge_dic:
-                            response_dic['data'] = {}
-                            challenge_dic['url'] = url
-                            code = 200
-                            response_dic['data'] = {}
-                            response_dic['data'] = challenge_dic
-                        else:
-                            code = 400
-                            message = 'urn:ietf:params:acme:error:malformed'
-                            detail = 'invalid challenge:{0}'.format(challenge_name)
+        # check message
+        (code, message, detail, protected, payload) = self.message.check(content)
+        if code == 200:
+            if 'url' in protected:
+                challenge_name = self.name_get(protected['url'])
+                if challenge_name:
+                    challenge_dic = self.info(challenge_name)
+                    # update challenge state to 'processing' - i am not so sure about this
+                    # self.update({'name' : challenge_name, 'status' : 4})
+                    # start validation
+                    _validation = self.validate(challenge_name, payload)
+                    if challenge_dic:
+                        response_dic['data'] = {}
+                        challenge_dic['url'] = protected['url']
+                        code = 200
+                        response_dic['data'] = {}
+                        response_dic['data'] = challenge_dic
+                        response_dic['header'] = {}
+                        response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
-                        detail = None
+                        detail = 'invalid challenge: {0}'.format(challenge_name)
                 else:
-                    code = 403
-                    message = error
-                    detail = error_detail
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
-            detail = error_detail
-
-        # enrich response dictionary with error details
-        if not code == 200:
-            if detail:
-                # some error occured get details
-                error_message = Error(self.debug)
-                detail = error_message.enrich_error(message, detail)
-                response_dic['data'] = {'status':code, 'message':message, 'detail': detail}
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'could not get challenge'
             else:
-                response_dic['data'] = {'status':code, 'message':message, 'detail': None}
-        else:
-            # add nonce to header
-            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
-            # create up-link rel
-            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
-
-        # create response
-        response_dic['code'] = code
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'url missing in protected header'
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
         print_debug(self.debug, 'challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
-
         return response_dic
 
     def update(self, data_dic):
@@ -172,4 +152,3 @@ class Challenge(object):
 
             # authorization update to ready state
             self.update_authz(challenge_name)
- 
