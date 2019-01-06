@@ -707,66 +707,47 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
         self.assertEqual({'status': 'pending', 'token': 'token', 'type': 'http-01'}, self.challenge.info('foo'))
 
-    @patch('acme.challenge.decode_message')
-    def test_098_challenge_parse(self, mock_decode):
-        """ test challenge.parse() - failed message decoding """
-        mock_decode.return_value = (False, 'foo', None, None, None)
-        message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 400, 'data': {'detail': 'foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('url', message))
+    @patch('acme.message.Message.check')
+    def test_098_challenge_parse(self, mock_mcheck):
+        """ Challenge.parse() failed bcs. message check returns an error """
+        mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload')
+        self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.nonce.Nonce.check')
-    @patch('acme.challenge.decode_message')
-    def test_099_challenge_parse(self, mock_decode, mock_ncheck):
-        """ test challenge.parse() - failed nonce check """
-        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
-        mock_ncheck.return_value = (400, 'urn:ietf:params:acme:error:badNonce', None)
-        message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:badNonce', 'status': 400}, 'header': {}}, self.challenge.parse('url', message))
+    @patch('acme.message.Message.check')
+    def test_099_challenge_parse(self, mock_mcheck):
+        """ Challenge.parse() failed message check returns ok but no url in protected """
+        mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload')
+        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.account.Account.name_get')
-    @patch('acme.nonce.Nonce.check')
-    @patch('acme.challenge.decode_message')
-    def test_100_challenge_parse(self, mock_decode, mock_ncheck, mock_name):
-        """ test challenge.parse() - failed account lookup """
-        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
-        mock_ncheck.return_value = (200, None, None)
-        mock_name.return_value = None
-        message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 403, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 403}, 'header': {}}, self.challenge.parse('url', message))
+    @patch('acme.challenge.Challenge.name_get')
+    @patch('acme.message.Message.check')
+    def test_100_challenge_parse(self, mock_mcheck, mock_cname):
+        """ Challenge.parse() failed message check returns ok challenge name could not get obtained """
+        mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
+        mock_cname.return_value = None
+        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'could not get challenge', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.error.Error.enrich_error')
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.nonce.Nonce.check')
-    @patch('acme.challenge.decode_message')
-    def test_101_challenge_parse(self, mock_decode, mock_ncheck, mock_name, mock_sig, mock_err):
-        """ test challenge.parse() - failed signature check """
-        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
-        mock_ncheck.return_value = (200, None, None)
-        mock_name.return_value = 'aaa'
-        mock_sig.return_value = (False, 'message', 'detail')
-        mock_err.return_value = 'detail'
-        message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 403, 'data': {'status': 403, 'message': 'message', 'detail': 'detail'}, 'header': {}}, self.challenge.parse('url', message))
+    @patch('acme.challenge.Challenge.info')
+    @patch('acme.challenge.Challenge.name_get')
+    @patch('acme.message.Message.check')
+    def test_101_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo):
+        """ Challenge.parse() failed bcs of empty challenge_dic """
+        mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
+        mock_cname.return_value = 'foo'
+        mock_cinfo.return_value = {}
+        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'invalid challenge: foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.challenge.Challenge.validate')
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.challenge.Challenge.info')
-    @patch('acme.signature.Signature.check')
-    @patch('acme.account.Account.name_get')
-    @patch('acme.nonce.Nonce.check')
-    @patch('acme.challenge.decode_message')
-    def test_102_challenge_parse(self, mock_decode, mock_ncheck, mock_name, mock_sig, mock_info, mock_nnonce, mock_chval):
-        """ test challenge.parse() - successful """
-        mock_decode.return_value = (True, None, 'protected', {'keyAuthorization' : 'abcdefghijk'}, 'signature')
-        mock_ncheck.return_value = (200, None, None)
-        mock_name.return_value = 'aaa'
-        mock_sig.return_value = (True, None, None)
-        mock_info.return_value = {'challenge_foo': 'challenge_bar'}
-        mock_nnonce.return_value = 'aaaaa'
-        mock_chval.return_value = True
-        message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'challenge_foo': 'challenge_bar', 'url': 'url'}, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'aaaaa'}}, self.challenge.parse('url', message))
+    @patch('acme.challenge.Challenge.name_get')
+    @patch('acme.message.Message.check')
+    def test_102_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_nnonce):
+        """ Challenge.parse() successful """
+        mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload')
+        mock_cname.return_value = 'foo'
+        mock_cinfo.return_value = {'challenge_foo' : 'challenge_bar'}
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     @patch('acme.order.Order.info')
     def test_103_order_lookup(self, mock_oinfo):
@@ -1208,7 +1189,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.authorization.Authorization.authz_info')
     @patch('acme.message.Message.check')
-    def test_164_authorization_parse(self, mock_mcheck, mock_authzinfo):
+    def test_163_authorization_parse(self, mock_mcheck, mock_authzinfo):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload')
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
