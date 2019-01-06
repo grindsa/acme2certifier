@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
-from acme.helper import decode_message, print_debug
+from acme.helper import decode_message, load_config, print_debug
 from acme.error import Error
 from acme.nonce import Nonce
 from acme.signature import Signature
@@ -15,6 +15,8 @@ class Message(object):
         self.server_name = srv_name
         self.nonce = Nonce(self.debug)
         self.account_path = '/acme/acct/'
+        self.nonce_check_disable = False
+        self.load_config()
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -32,8 +34,10 @@ class Message(object):
         if result:
             # decoding successful - check nonce for anti replay protection
             (code, message, detail) = self.nonce.check(protected)
-            # print('nonce_check_faked!!!')
-            # code = 200
+            if self.nonce_check_disable:
+                print('**** NONCE CHECK DISABLED!!! Security issue ****')
+                code = 200
+
             if code == 200:
                 # nonce check successful - check signature
                 account_name = self.name_get(protected)
@@ -54,6 +58,13 @@ class Message(object):
             detail = error_detail
 
         return(code, message, detail, protected, payload)
+
+    def load_config(self):
+        """" load config from file """
+        print_debug(self.debug, 'load_config()')
+        config_dic = load_config()
+        if 'Nonce' in config_dic:
+            self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable')
 
     def name_get(self, content):
         """ get id for account """
