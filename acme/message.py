@@ -25,7 +25,7 @@ class Message(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def check(self, content):
+    def check(self, content, skip_signature_check=False):
         """ validate message """
         print_debug(self.debug, 'Message.check()')
 
@@ -37,8 +37,10 @@ class Message(object):
             if self.nonce_check_disable:
                 print('**** NONCE CHECK DISABLED!!! Security issue ****')
                 code = 200
+                message = None
+                detail = None
 
-            if code == 200:
+            if code == 200 and not skip_signature_check:
                 # nonce check successful - check signature
                 account_name = self.name_get(protected)
                 signature = Signature(self.debug)
