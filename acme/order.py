@@ -194,8 +194,8 @@ class Order(object):
                 certificate = Certificate(self.debug)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    (result, error) = certificate.enroll_and_store(certificate_name, csr)
-                    if result:
+                    (_result, error) = certificate.enroll_and_store(certificate_name, csr)
+                    if not error:
                         code = 200
                         message = certificate_name
                         detail = None
@@ -217,6 +217,7 @@ class Order(object):
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'order: {0} not found'.format(order_name)
 
+        print_debug(self.debug, 'Order.process_csr() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return(code, message, detail)
 
     def update(self, data_dic):

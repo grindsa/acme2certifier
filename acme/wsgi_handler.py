@@ -118,7 +118,7 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
 
         self.db_close()
@@ -282,7 +282,7 @@ class DBstore(object):
         result = {}
         if lookup:
             for ele in vlist:
-                if ele == 'status_name':
+                if ele == 'status__name':
                     result['status'] = lookup['status__name']
                 elif ele == 'authorization__name':
                     result['authorization'] = lookup['authorization__name']
@@ -369,16 +369,28 @@ class DBstore(object):
             # update
             print_debug(self.debug, 'update existing entry for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
             self.db_open()
-            self.cursor.execute('''UPDATE Certificate SET cert = :cert WHERE name = :name''', data_dic)
+            if 'error' in data_dic:
+                self.cursor.execute('''UPDATE Certificate SET error = :error WHERE name = :name''', data_dic)
+            else:
+                self.cursor.execute('''UPDATE Certificate SET cert = :cert WHERE name = :name''', data_dic)
             self.db_close()
             rid = dict_from_row(exists)['id']
         else:
             # insert
             print_debug(self.debug, 'insert new entry for {0}'.format(data_dic['name']))
-            # change order name to id
-            data_dic['order'] = dict_from_row(self.order_search('name', data_dic['order']))['id']
+            # change order name to id but tackle cases where we cannot do this
+            try:
+                data_dic['order'] = dict_from_row(self.order_search('name', data_dic['order']))['id']
+            except BaseException:
+                data_dic['order'] = 0
+
             self.db_open()
-            self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
+            if not 'csr' in data_dic:
+                data_dic['csr'] = ''
+            if 'error' in data_dic:
+                self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr) VALUES(:name, :error, :order, :csr)''', data_dic)
+            else:
+                self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
             self.db_close()
             rid = self.cursor.lastrowid
         return rid

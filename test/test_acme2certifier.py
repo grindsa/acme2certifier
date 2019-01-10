@@ -906,11 +906,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
     def test_126_enroll(self, mock_enroll, mock_pem):
-        """ test Certificate.enroll() ca handler returns 'something'"""
+        """ test Certificate.enroll() ca handler returns 'something' which is not a certificate"""
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = 'foo'
         mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual({'foo' : 'bar'}, self.certificate.enroll('csr'))
+        self.assertEqual(('no certificate information found', None), self.certificate.enroll('csr'))
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
@@ -919,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = None
         mock_pem.return_value = {'foo' : 'bar'}
-        self.assertFalse(self.certificate.enroll('csr'))
+        self.assertEqual(('internal error', None), self.certificate.enroll('csr'))
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
@@ -927,15 +927,15 @@ class TestACMEHandler(unittest.TestCase):
         """ test Certificate.enroll() enroll returns someting"""
         mock_enroll.return_value = {'foo', 'bar'}
         mock_store.return_value = 1
-        self.assertEqual((1, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
+        self.assertEqual((1, 'foo'), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
     def test_129_enroll_and_store(self, mock_enroll, mock_store):
         """ test Certificate.enroll() enroll returns nothing"""
-        mock_enroll.return_value = False
+        mock_enroll.return_value = (False, False)
         mock_store.return_value = 1
-        self.assertEqual((None, None), self.certificate.enroll_and_store('certificate_name', 'csr'))
+        self.assertEqual((None, False), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
     def test_130_info(self):
         """ test Certificate.new_get() """
