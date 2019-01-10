@@ -28,21 +28,35 @@ class Certificate(object):
         """ get key for a specific order """
         print_debug(self.debug, 'Certificate.enroll()')
         cert_bundle = None
+        error = None
         with CAhandler(self.debug) as ca_handler:
             cert_dic = ca_handler.enroll(csr)
             if cert_dic:
-                cert_bundle = ca_handler.generate_pem_cert_chain(cert_dic)
-        return cert_bundle
+                if 'status' in cert_dic:
+                    # this is an error
+                    error = cert_dic['message']
+                elif 'certificateBase64' in cert_dic:
+                    # this is a valid cert generate the bundle
+                    cert_bundle = ca_handler.generate_pem_cert_chain(cert_dic)
+                else:
+                    error = 'no certificate information found'
+            else:
+                error = 'internal error'
+        print_debug(self.debug, 'Certificate.enroll() ended')
+        return(error, cert_bundle)
 
     def enroll_and_store(self, certificate_name, csr):
         """ get key for a specific order """
         print_debug(self.debug, 'Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
-        certificate = self.enroll(csr)
+        (error, certificate) = self.enroll(csr)
         if certificate:
             result = self.store_cert(certificate_name, certificate)
         else:
             result = None
-        error = None
+            # store error message for later analysis
+            self.store_cert_error(certificate_name, error)
+
+        print_debug(self.debug, 'Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error)
 
     def info(self, certificate_name):
@@ -68,6 +82,7 @@ class Certificate(object):
         else:
             response_dic['code'] = 403
             response_dic['data'] = 'NotFound'
+        print_debug(self.debug, 'Certificate.new_get({0}) ended'.format(response_dic))
         return response_dic
 
     def new_post(self, content):
@@ -88,6 +103,7 @@ class Certificate(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
+        print_debug(self.debug, 'Certificate.new_post() ended with: {0}'.format(response_dic))
         return response_dic
 
     def store_cert(self, certificate_name, certificate):
@@ -95,6 +111,15 @@ class Certificate(object):
         print_debug(self.debug, 'Certificate.store_cert({0})'.format(certificate_name))
         data_dic = {'cert' : b64_encode(self.debug, certificate), 'name': certificate_name}
         cert_id = self.dbstore.certificate_add(data_dic)
+        print_debug(self.debug, 'Certificate.store_cert({0}) ended'.format(cert_id))
+        return cert_id
+
+    def store_cert_error(self, certificate_name, error):
+        """ get key for a specific account id """
+        print_debug(self.debug, 'Certificate.store_error({0})'.format(certificate_name))
+        data_dic = {'error' : error, 'name': certificate_name}
+        cert_id = self.dbstore.certificate_add(data_dic)
+        print_debug(self.debug, 'Certificate.store_error({0}) ended'.format(cert_id))
         return cert_id
 
     def store_csr(self, order_name, csr):
@@ -103,4 +128,5 @@ class Certificate(object):
         certificate_name = generate_random_string(self.debug, 12)
         data_dic = {'order' : order_name, 'csr' : csr, 'name': certificate_name}
         self.dbstore.certificate_add(data_dic)
+        print_debug(self.debug, 'Certificate.store_csr() ended')
         return certificate_name

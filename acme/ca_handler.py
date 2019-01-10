@@ -37,42 +37,61 @@ class CAhandler(object):
         returns:
             result of the post command
         """
-        api_response = requests.post(url=url, json=data, auth=self.auth, verify=False)
-        if api_response.ok:
-            json_dic = api_response.json()
-            return json_dic
-        else:
-            print(api_response.raise_for_status())
-            return None
+        try:
+            api_response = requests.post(url=url, json=data, auth=self.auth, verify=False).json()
+        except BaseException as err:
+            api_response = err
+
+        return api_response
 
     def enroll(self, csr):
         """ get key for a specific account id """
         print_debug(self.debug, 'CAhandler.enroll({0})'.format(csr))
         ca_dic = self.get_ca_properties('name', self.ca_name)
         cert_dic = {}
+
         if 'href' in ca_dic:
+            # data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
             data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
             cert_dic = self.api_post(self.api_host + '/v1/requests', data)
+
+        if not cert_dic:
+            cert_dic = ca_dic
+
+        print_debug(self.debug, 'CAhandler.enroll() ended with: {0}'.format(cert_dic))
         return cert_dic
 
     def get_ca(self, filter_key=None, filter_value=None):
         """ get list of CAs"""
         print_debug(self.debug, 'get_ca({0}:{1})'.format(filter_key, filter_value))
         params = {}
+
         if filter_key:
             params['q'] = '{0}:{1}'.format(filter_key, filter_value)
-        return requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, verify=False).json()
+        try:
+            api_response = requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, verify=False).json()
+        except BaseException as err:
+            api_response = {'status': 500, 'message': str(err), 'statusMessage': 'Internal Server Error'}
+
+        print_debug(self.debug, 'CAhandler.get_ca() ended with: {0}'.format(api_response))
+        return api_response
 
     def get_ca_properties(self, filter_key, filter_value):
         """ get properties for a single CAs"""
         print_debug(self.debug, 'get_ca_properties({0}:{1})'.format(filter_key, filter_value))
         ca_list = self.get_ca(filter_key, filter_value)
         ca_dic = {}
-        if 'cas' in ca_list:
+        if 'status' in ca_list and 'message' in ca_list:
+            # we got an error from get_ca()
+            ca_dic = ca_list
+        elif 'cas' in ca_list:
             for cas in ca_list['cas']:
                 if cas[filter_key] == filter_value:
                     ca_dic = cas
                     break
+        if not ca_dic:
+            ca_dic = {'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}
+        print_debug(self.debug, 'CAhandler.get_ca_properties() ended with: {0}'.format(ca_dic))
         return ca_dic
 
     def generate_pem_cert_chain(self, cert_dic):
@@ -107,6 +126,7 @@ class CAhandler(object):
         for cert in pem_list:
             pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
 
+        print_debug(self.debug, 'CAhandler.generate_pem_cert_chain() ended')
         return pem_file
 
     def load_config(self):
@@ -121,8 +141,10 @@ class CAhandler(object):
             self.api_password = config_dic['CAhandler']['api_password']
         if 'ca_name' in config_dic['CAhandler']:
             self.ca_name = config_dic['CAhandler']['ca_name']
+        print_debug(self.debug, 'CAhandler.load_config() ended')
 
     def set_auth(self):
         """ set basic authentication header """
         print_debug(self.debug, 'set_auth()')
         self.auth = HTTPBasicAuth(self.api_user, self.api_password)
+        print_debug(self.debug, 'CAhandler.set_auth() ended')
