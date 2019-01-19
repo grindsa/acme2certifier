@@ -5,7 +5,7 @@ from __future__ import print_function
 import textwrap
 import requests
 from requests.auth import HTTPBasicAuth
-from acme.helper import load_config, print_debug
+from acme.helper import load_config, print_debug, cert_serial_get
 
 class CAhandler(object):
     """ CA  handler """
@@ -143,8 +143,14 @@ class CAhandler(object):
             self.ca_name = config_dic['CAhandler']['ca_name']
         print_debug(self.debug, 'CAhandler.load_config() ended')
 
+    def revoke(self, cert):
+        """ revoke certificate """
+        print_debug(self.debug, 'CAhandler.revoke()')
+        ca_dic = self.get_ca_properties('name', self.ca_name)
+        serial = cert_serial_get(self.debug, cert)
+
     def set_auth(self):
         """ set basic authentication header """
-        print_debug(self.debug, 'set_auth()')
+        print_debug(self.debug, 'CAhandler.set_auth()')
         self.auth = HTTPBasicAuth(self.api_user, self.api_password)
         print_debug(self.debug, 'CAhandler.set_auth() ended')

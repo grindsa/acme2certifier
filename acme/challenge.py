@@ -89,7 +89,7 @@ class Challenge(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload) = self.message.check(content)
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
         if code == 200:
             if 'url' in protected:
                 challenge_name = self.name_get(protected['url'])

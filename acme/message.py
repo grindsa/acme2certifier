@@ -31,6 +31,7 @@ class Message(object):
 
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.debug, content)
+        account_name = None
         if result:
             # decoding successful - check nonce for anti replay protection
             (code, message, detail) = self.nonce.check(protected)
@@ -59,7 +60,7 @@ class Message(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = error_detail
 
-        return(code, message, detail, protected, payload)
+        return(code, message, detail, protected, payload, account_name)
 
     def load_config(self):
         """" load config from file """
