@@ -26,6 +26,7 @@ class Directory(object):
             'newNonce': self.server_name + '/acme/newnonce',
             'newAccount': self.server_name + '/acme/newaccount',
             "newOrder": self.server_name + '/acme/neworders',
+            'revokeCert' : self.server_name + '/acme/revokecert',
             'meta' : {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',

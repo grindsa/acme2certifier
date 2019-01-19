@@ -92,9 +92,8 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload) = self.message.check(content)
+        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
         if code == 200:
-            account_name = self.message.name_get(protected)
             (error, order_name, auth_dic, expires) = self.add(payload, account_name)
             if not error:
                 code = 201
@@ -126,7 +125,7 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload) = self.message.check(content)
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
         if code == 200:
             if 'url' in protected:
                 order_name = self.name_get(protected['url'])

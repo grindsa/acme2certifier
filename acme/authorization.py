@@ -68,7 +68,7 @@ class Authorization(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, _payload) = self.message.check(content)
+        (code, message, detail, protected, _payload, _account_name) = self.message.check(content)
         if code == 200:
             if 'url' in protected:
                 response_dic['data'] = self.authz_info(protected['url'])

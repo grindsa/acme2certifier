@@ -109,7 +109,7 @@ class Account(object):
 
         response_dic = {}
         # check message but skip signature check as this is a new account (True)
-        (code, message, detail, protected, payload) = self.message.check(content, True)
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
         if code == 200:
             # onlyReturnExisting check
             if 'onlyReturnExisting' in payload:
@@ -186,11 +186,11 @@ class Account(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload) = self.message.check(content)
+        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
         if code == 200:
             if 'status' in payload:
                 if payload['status'].lower() == 'deactivated':
-                    account_name = self.message.name_get(protected)
+                    # account_name = self.message.name_get(protected)
                     (code, message, detail) = self.delete(account_name)
                     if code == 200:
                         response_dic['data'] = payload
