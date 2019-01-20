@@ -3,12 +3,12 @@
 acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme/*.py - a bunch of classes implementing ACME server functionality based on [draft-ietf-acme-acme-18](https://tools.ietf.org/html/draft-ietf-acme-acme-18)
-- ca_handler.py - interface towards CA server. In this project I am connecting to Insta Certifier by using REST. However, the intention of this library is to be modular that an adaption to other CA servers would be straight forward
+- ca_handler.py - interface towards CA server. I am connecting to  Insta Certifier by using REST to test the implementation. However, the intention of this library is to be modular that an adaption to other CA servers is straight forward
 
 ## Disclaimer
-I am running this project as my RD guys told me that it won’t be possible :-)
+I am running this project as my RnD guys told me that it won’t be possible :-)
 
-So far I am using [acme.sh](https://github.com/Neilpang/acme.sh) and [Certbot](https://certbot.eff.org/) to test the server. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+I am using [acme.sh](https://github.com/Neilpang/acme.sh) and [Certbot](https://certbot.eff.org/) to test the server functionality. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
 [Command-line parameters used for testing](acme-clients.md)
 
@@ -31,7 +31,6 @@ So far, the library is far from being useful for either lab or production usage 
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.6)
 
 <span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately. </span>
-
 
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
