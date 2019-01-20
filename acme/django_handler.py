@@ -191,16 +191,18 @@ class DBstore(object):
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def order_lookup(self, mkey, value):
+    def order_lookup(self, mkey, value, vlist=('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')):
         """ search orders for a given ordername """
         print_debug(self.debug, 'order_lookup({0}:{1})'.format(mkey, value))
-        order_list = Order.objects.filter(**{mkey: value}).values('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')[:1]
+        order_list = Order.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if order_list:
             result = order_list[0]
-            result['status'] = result['status__name']
-            del result['status__name']
-            result['account'] = result['account__name']
-            del result['account__name']
+            if 'status__name' in result:
+                result['status'] = result['status__name']
+                del result['status__name']
+            if 'account_name' in result:
+                result['account'] = result['account__name']
+                del result['account__name']
         else:
             result = None
         return result
@@ -215,7 +217,7 @@ class DBstore(object):
         # add certificate/CSR
         obj, _created = Certificate.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
-        print_debug(self.debug, 'certid({0})'.format(obj.id))
+        print_debug(self.debug, 'DBStore.certificate_add() ended with :{0}'.format(obj.id))
         return obj.id
 
     def order_update(self, data_dic):
@@ -229,7 +231,7 @@ class DBstore(object):
 
     def certificate_lookup(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
-        print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(mkey, value))
+        print_debug(self.debug, 'DBStore.certificate_lookup({0}:{1})'.format(mkey, value))
         certificate_list = Certificate.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if certificate_list:
             result = certificate_list[0]
@@ -238,4 +240,19 @@ class DBstore(object):
                 del result['order__name']
         else:
             result = None
+        print_debug(self.debug, 'certificate_lookup() ended with: {0}'.format(result))
+        return result
+
+    def certificate_account_check(self, account_name, certificate):
+        """ check issuer against certificate """
+        print_debug(self.debug, 'DBStore.certificate_account_check({0})'.format(account_name))
+
+        result = None
+        certificate_list = self.certificate_lookup('cert_raw', certificate, ['name', 'order__name', 'order__account__name'])
+
+        if certificate_list:
+            if account_name == certificate_list['order__account__name']:
+                result = certificate_list['order']
+
+        print_debug(self.debug, 'certificate_account_check() ended with: {0}'.format(result))
         return result
