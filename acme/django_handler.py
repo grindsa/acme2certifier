@@ -240,7 +240,7 @@ class DBstore(object):
                 del result['order__name']
         else:
             result = None
-        print_debug(self.debug, 'certificate_lookup() ended with: {0}'.format(result))
+        print_debug(self.debug, 'DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
     def certificate_account_check(self, account_name, certificate):
@@ -254,5 +254,5 @@ class DBstore(object):
             if account_name == certificate_list['order__account__name']:
                 result = certificate_list['order']
 
-        print_debug(self.debug, 'certificate_account_check() ended with: {0}'.format(result))
+        print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result

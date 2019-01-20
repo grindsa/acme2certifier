@@ -118,7 +118,7 @@ class DBstore(object):
         ''')
         print_debug(self.debug, 'create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
 
         self.db_close()
@@ -320,7 +320,7 @@ class DBstore(object):
         self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
         self.db_close()
 
-    def order_lookup(self, column, string):
+    def order_lookup(self, column, string, vlist=('notbefore', 'notafter', 'identifiers', 'expires', 'status__name')):
         """ search orders for a given ordername """
         print_debug(self.debug, 'order_lookup({0}:{1})'.format(column, string))
 
@@ -328,32 +328,27 @@ class DBstore(object):
 
         # small hack (not sure db returnsblank and not 0)
         if lookup['notafter'] == '':
-            notafter = 0
-        else:
-            notafter = lookup['notafter']
+            lookup['notafter'] = 0
         if lookup['notbefore'] == '':
-            notbefore = 0
-        else:
-            notbefore = lookup['notbefore']
+            lookup['notbefore'] = 0
 
-        # build dictionary
+        result = {}
         if lookup:
-            result = {
-                'notbefore' : notbefore,
-                'notafter' : notafter,
-                'identifiers' : lookup['identifiers'],
-                'expires' : lookup['expires'],
-                'status' : lookup['status__name'],
-                }
+            for ele in vlist:
+                if ele == 'status__name':
+                    result['status'] = lookup['status__name']
+                else:
+                    result[ele] = lookup[ele]
         else:
             result = None
+
         return result
 
     def order_search(self, column, string):
         """ search order table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.order_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
-        pre_statement = 'SELECT orders.*, status.name as status__name, status.id as status__id from orders INNER JOIN status on status.id = orders.status_id WHERE orders.{0} LIKE ?'.format(column)
+        pre_statement = 'SELECT orders.*, status.name as status__name, status.id as status__id, account.name as account__name, account.id as account_id from orders INNER JOIN status on status.id = orders.status_id INNER JOIN account on account.id = orders.account_id WHERE orders.{0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
@@ -372,7 +367,7 @@ class DBstore(object):
             if 'error' in data_dic:
                 self.cursor.execute('''UPDATE Certificate SET error = :error WHERE name = :name''', data_dic)
             else:
-                self.cursor.execute('''UPDATE Certificate SET cert = :cert WHERE name = :name''', data_dic)
+                self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw WHERE name = :name''', data_dic)
             self.db_close()
             rid = dict_from_row(exists)['id']
         else:
@@ -395,9 +390,9 @@ class DBstore(object):
             rid = self.cursor.lastrowid
         return rid
 
-    def certificate_search(self, column, string, _vlist=('name', 'csr', 'cert', 'order__name')):
+    def certificate_search(self, column, string):
         """ search certificate table for a certain key/value pair """
-        print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
+        print_debug(self.debug, 'DBStore.certificate_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
 
         if column != 'order__name':
@@ -432,4 +427,34 @@ class DBstore(object):
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
         print_debug(self.debug, 'certificate_lookup({0}:{1})'.format(column, string))
-        return dict_from_row(self.certificate_search(column, string, vlist))
+
+        lookup = dict_from_row(self.certificate_search(column, string))
+        result = {}
+        if lookup:
+            for ele in vlist:
+                result[ele] = lookup[ele]
+        else:
+            result = None
+            
+        print_debug(self.debug, 'DBStore.certificate_lookup() ended with: {0}'.format(result))
+        return result
+
+    def certificate_account_check(self, account_name, certificate):
+        """ check issuer against certificate """
+        print_debug(self.debug, 'DBStore.certificate_account_check({0})'.format(account_name))
+
+        # search certificate table to get the order-id
+        certificate_dic = self.certificate_lookup('cert_raw', certificate, ['name', 'order__name'])
+
+        result = None
+
+        # search order table to get the account-name based on the order-id
+        if 'order__name' in certificate_dic:
+            order_dic = self.order_lookup('name', certificate_dic['order__name'], ['name', 'account__name'])
+            if order_dic:
+                if 'account__name' in order_dic:
+                    if order_dic['account__name'] == account_name:
+                        result = certificate_dic['order__name']
+                        
+        print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
+        return result
