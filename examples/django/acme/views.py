@@ -197,7 +197,11 @@ def revokecert(request):
         with Certificate(DEBUG, get_url(request.META)) as certificate:
             response_dic = certificate.revoke(request.body)
             # create the response
-            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            if 'data' in response_dic:
+                response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            else:
+                response = HttpResponse(status=response_dic['code'])
+
             # generate additional header elements
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
