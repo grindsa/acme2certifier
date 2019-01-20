@@ -74,6 +74,8 @@ class Certificate(models.Model):
     order = models.ForeignKey(Order)    
     csr = models.TextField(blank=True) 
     cert = models.TextField(blank=True)  
+    cert_raw = models.TextField(blank=True)      
+    error = models.TextField(blank=True)      
     created_at = models.DateTimeField(auto_now_add=True)  
     def __unicode__(self):
         return self.name         
