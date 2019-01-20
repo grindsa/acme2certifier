@@ -5,7 +5,7 @@ from __future__ import print_function
 import textwrap
 import requests
 from requests.auth import HTTPBasicAuth
-from acme.helper import load_config, print_debug, cert_serial_get
+from acme.helper import load_config, print_debug, cert_serial_get, uts_now, uts_to_date_utc
 
 class CAhandler(object):
     """ CA  handler """
@@ -94,6 +94,19 @@ class CAhandler(object):
         print_debug(self.debug, 'CAhandler.get_ca_properties() ended with: {0}'.format(ca_dic))
         return ca_dic
 
+    def get_cert_properties(self, serial, ca_link):
+        """ get properties for a single cert """
+        print_debug(self.debug, 'get_cert_properties({0}: {1})'.format(serial, ca_link))
+
+        params = {'q' : 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
+        try:
+            api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=False).json()
+        except BaseException as err:
+            api_response = {'status': 500, 'message': str(err), 'statusMessage': 'Internal Server Error'}
+
+        print_debug(self.debug, 'CAhandler.get_cert_properties() ended')
+        return api_response
+
     def generate_pem_cert_chain(self, cert_dic):
         """ build certificate chain based """
         pem_list = []
@@ -143,11 +156,49 @@ class CAhandler(object):
             self.ca_name = config_dic['CAhandler']['ca_name']
         print_debug(self.debug, 'CAhandler.load_config() ended')
 
-    def revoke(self, cert):
+    def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
-        print_debug(self.debug, 'CAhandler.revoke()')
+        print_debug(self.debug, 'CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        # lookup REST-PATH of issuing CA
         ca_dic = self.get_ca_properties('name', self.ca_name)
-        serial = cert_serial_get(self.debug, cert)
+        if 'href' in ca_dic:
+            # get serial from pem file
+            serial = cert_serial_get(self.debug, cert)
+            if serial:
+                # get certificate information via rest by search for ca+ serial
+                cert_dic = self.get_cert_properties(serial, ca_dic['href'])
+                if 'certificates' in cert_dic:
+                    if 'href' in cert_dic['certificates'][0]:
+                        # revoke the cert
+                        data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
+                        cert_dic = self.api_post(cert_dic['certificates'][0]['href'] + '/status', data)
+                        if 'status' in cert_dic:
+                            # code = cert_dic['status']
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                            detail = cert_dic['message']
+                        else:
+                            code = 200
+                            message = None
+                            detail = None
+                    else:
+                        code = 404
+                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        detail = 'Cert path could not be found'
+                else:
+                    code = 404
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'Cert could not be found'
+            else:
+                code = 404
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = 'CA could not be found'
+        else:
+            code = 404
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'CA could not be found'
+
+        return(code, message, detail)
 
     def set_auth(self):
         """ set basic authentication header """
