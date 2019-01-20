@@ -28,8 +28,9 @@ So far, the library is far from being useful for either lab or production usage 
 - "certificate download" [(Section 7.4.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-18#section-7.4.2)
 - "authz" resource [(Section 7.5)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5)
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5.1)
+- "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.6)
 
-<span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately. </span> 
+<span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately. </span>
 
 
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
