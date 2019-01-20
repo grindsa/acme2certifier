@@ -196,17 +196,17 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_038_challenge_update(self):
         """ test DBstore.challenge_update() method  with keyauth only"""
-        data_dic = {'name' : 'challenge1', 'status' : 5, 'keyauthorization' : 'auth'}
+        data_dic = {'name' : 'challenge1', 'status' : 'valid', 'keyauthorization' : 'auth'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
     def test_039_challenge_update(self):
         """ test DBstore.challenge_update() method  with status only"""
-        data_dic = {'name' : 'challenge1', 'status' : 5}
+        data_dic = {'name' : 'challenge1', 'status' : 'valid'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
     def test_040_challenge_update(self):
         """ test DBstore.challenge_update() method  with both"""
-        data_dic = {'name' : 'challenge2', 'status' : 5, 'keyauthorization' : 'auth2'}
+        data_dic = {'name' : 'challenge2', 'status' : 'valid', 'keyauthorization' : 'auth2'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
         
     def test_041_order_search(self):
