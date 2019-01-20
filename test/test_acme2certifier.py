@@ -901,7 +901,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_125_store_cert(self):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'bar'
-        self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert'))
+        self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert', 'raw'))
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
@@ -910,7 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = 'foo'
         mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual(('no certificate information found', None), self.certificate.enroll('csr'))
+        self.assertEqual(('no certificate information found', None, None), self.certificate.enroll('csr'))
 
     @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
     @patch('acme.ca_handler.CAhandler.enroll')
@@ -919,21 +919,21 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_enroll.return_value = None
         mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual(('internal error', None), self.certificate.enroll('csr'))
+        self.assertEqual(('internal error', None, None), self.certificate.enroll('csr'))
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
     def test_128_enroll_and_store(self, mock_enroll, mock_store):
         """ test Certificate.enroll() enroll returns someting"""
-        mock_enroll.return_value = {'foo', 'bar'}
+        mock_enroll.return_value = {'foo', 'bar', 'raw'}
         mock_store.return_value = 1
-        self.assertEqual((1, 'foo'), self.certificate.enroll_and_store('certificate_name', 'csr'))
+        self.assertEqual((1, 'raw'), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
     @patch('acme.certificate.Certificate.store_cert')
     @patch('acme.certificate.Certificate.enroll')
     def test_129_enroll_and_store(self, mock_enroll, mock_store):
         """ test Certificate.enroll() enroll returns nothing"""
-        mock_enroll.return_value = (False, False)
+        mock_enroll.return_value = (False, False, False)
         mock_store.return_value = 1
         self.assertEqual((None, False), self.certificate.enroll_and_store('certificate_name', 'csr'))
 
