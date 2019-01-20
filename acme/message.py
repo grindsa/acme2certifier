@@ -4,6 +4,7 @@
 from __future__ import print_function
 from acme.helper import decode_message, load_config, print_debug
 from acme.error import Error
+from acme.db_handler import DBstore
 from acme.nonce import Nonce
 from acme.signature import Signature
 
@@ -15,6 +16,7 @@ class Message(object):
         self.server_name = srv_name
         self.nonce = Nonce(self.debug)
         self.account_path = '/acme/acct/'
+        self.revocation_path = '/acme/revokecert'
         self.nonce_check_disable = False
         self.load_config()
 
@@ -72,10 +74,22 @@ class Message(object):
     def name_get(self, content):
         """ get id for account """
         print_debug(self.debug, 'Message.name_get()')
+
         if 'kid' in content:
             print_debug(self.debug, 'kid: {0}'.format(content['kid']))
             kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.account_path), '')
             if '/' in kid:
+                kid = None
+        elif 'jwk' in content and content['url'] == '{0}{1}'.format(self.server_name, self.revocation_path):
+            # this is needed for cases where we get a revocation message signed with account key but account name is missing)
+            if 'n' in content['jwk']:
+                dbstore = DBstore(self.debug)
+                account_list = dbstore.account_lookup('modulus', content['jwk']['n'])
+                if account_list:
+                    kid = account_list['name']
+                else:
+                    kid = None
+            else:
                 kid = None
         else:
             kid = None

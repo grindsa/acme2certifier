@@ -141,7 +141,7 @@ def chall(environ, start_response):
     if environ['REQUEST_METHOD'] == 'POST':
 
         request_body = get_request_body(environ)
-        response_dic = challenge.parse(get_url(environ, True), request_body)
+        response_dic = challenge.parse(request_body)
 
         # create header
         headers = create_header(response_dic)
@@ -173,7 +173,6 @@ def newnonce(environ, start_response):
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'})]
-
 
 def neworders(environ, start_response):
     """ generate a new order """
@@ -207,6 +206,24 @@ def order(environ, start_response):
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
 
+def revokecert(environ, start_response):
+    """ revocation_handler """
+    if environ['REQUEST_METHOD'] == 'POST':
+        certificate = Certificate(DEBUG, get_url(environ))
+        request_body = get_request_body(environ)
+        response_dic = certificate.revoke(request_body)
+
+        # create header
+        headers = create_header(response_dic)
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        if 'data' in response_dic:
+            return [json.dumps(response_dic['data'])]
+        else:
+            return []
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
@@ -217,12 +234,13 @@ URLS = [
     (r'^$', directory),
     (r'^acme/acct', acct),
     (r'^acme/authz', authz),
+    (r'^acme/cert', cert),
     (r'^acme/chall', chall),
     (r'^acme/newaccount$', newaccount),
     (r'^acme/newnonce$', newnonce),
     (r'^acme/neworders$', neworders),
     (r'^acme/order', order),
-    (r'^acme/cert', cert),
+    (r'^acme/revokecert', revokecert),
     (r'^directory?$', directory),
 ]
 

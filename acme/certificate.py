@@ -113,7 +113,7 @@ class Certificate(object):
 
     def revoke(self, content):
         """ revoke request """
-        print_debug(self.debug, 'Certificate.revoke({0})')
+        print_debug(self.debug, 'Certificate.revoke()')
 
         response_dic = {}
         # check message
@@ -124,7 +124,7 @@ class Certificate(object):
                 (code, error) = self.revocation_request_validate(account_name, payload)
                 if code == 200:
                     # revocation starts here
-                    response_dic['data'] = {}                    
+                    # response_dic['data'] = ''
                     # revocation reason is stored in error variable
                     rev_date = uts_to_date_utc(uts_now())
                     with CAhandler(self.debug) as ca_handler:
@@ -176,24 +176,27 @@ class Certificate(object):
         code = 400
         error = None
         if 'reason' in payload:
+            # check revocatoin reason if we get one
             rev_reason = self.revocation_reason_check(payload['reason'])
             # successful
-            if rev_reason:
-                # check if the account issued the certificate and return the order name
-                order_name = self.account_check(account_name, payload['certificate'])
-                error = rev_reason
-                if order_name:
-                    # check if the account holds the authorization for the identifiers
-                    auth_chk = self.authorization_check(order_name, payload['certificate'])
-                    if auth_chk:
-                        # all good set code to 200
-                        code = 200
-                    else:
-                        error = 'urn:ietf:params:acme:error:unauthorized'
-            else:
+            if not rev_reason:
                 error = 'urn:ietf:params:acme:error:badRevocationReason'
         else:
-            error = 'urn:ietf:params:acme:error:badRevocationReason'
+            # set revocation reason to unspecified
+            rev_reason = 'unspecified'
+
+        if rev_reason:
+            # check if the account issued the certificate and return the order name
+            order_name = self.account_check(account_name, payload['certificate'])
+            error = rev_reason
+            if order_name:
+                # check if the account holds the authorization for the identifiers
+                auth_chk = self.authorization_check(order_name, payload['certificate'])
+                if auth_chk:
+                    # all good set code to 200
+                    code = 200
+                else:
+                    error = 'urn:ietf:params:acme:error:unauthorized'
 
         print_debug(self.debug, 'Certificate.revocation_request_validate() ended with: {0}, {1}'.format(code, error))
         return (code, error)

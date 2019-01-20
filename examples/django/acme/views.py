@@ -133,7 +133,7 @@ def chall(request):
     """ challenge command """
     with Challenge(DEBUG, get_url(request.META)) as challenge:
         if request.method == 'POST':
-            response_dic = challenge.parse(request.build_absolute_uri(), request.body)
+            response_dic = challenge.parse(request.body)
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
             # generate additional header elements
@@ -188,6 +188,22 @@ def cert(request):
             # send response
             return response
 
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def revokecert(request):
+    """ cert revocation """
+    if request.method == 'POST':
+        with Certificate(DEBUG, get_url(request.META)) as certificate:
+            response_dic = certificate.revoke(request.body)
+            # create the response
+            response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # send response
+            return response
     else:
         return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 
