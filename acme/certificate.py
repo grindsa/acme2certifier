@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, print_debug, cert_san_get
+from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, print_debug, cert_san_get, uts_now, uts_to_date_utc
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -117,14 +117,18 @@ class Certificate(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload, account_name) = self.message.check(content)
+        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
 
         if code == 200:
             if 'certificate' in payload:
                 (code, error) = self.revocation_request_validate(account_name, payload)
                 if code == 200:
                     # revocation starts here
-                    print('REVOKATIOn')
+                    response_dic['data'] = {}                    
+                    # revocation reason is stored in error variable
+                    rev_date = uts_to_date_utc(uts_now())
+                    with CAhandler(self.debug) as ca_handler:
+                        (code, message, detail) = ca_handler.revoke(payload['certificate'], error, rev_date)
 
             else:
                 # message could not get decoded
@@ -133,8 +137,8 @@ class Certificate(object):
                 detail = 'certificate not found'
 
         # prepare/enrich response
-        # status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        # response_dic = self.message.prepare_response(response_dic, status_dic)
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
 
         print_debug(self.debug, 'Certificate.revoke() ended with: {0}'.format(response_dic))
         return response_dic
@@ -172,11 +176,12 @@ class Certificate(object):
         code = 400
         error = None
         if 'reason' in payload:
-            rev_reson_chk = self.revocation_reason_check(payload['reason'])
+            rev_reason = self.revocation_reason_check(payload['reason'])
             # successful
-            if rev_reson_chk:
+            if rev_reason:
                 # check if the account issued the certificate and return the order name
                 order_name = self.account_check(account_name, payload['certificate'])
+                error = rev_reason
                 if order_name:
                     # check if the account holds the authorization for the identifiers
                     auth_chk = self.authorization_check(order_name, payload['certificate'])
@@ -211,9 +216,9 @@ class Certificate(object):
             # 10 : 'aACompromise'
         }
 
-        result = False
+        result = None
         if reason in allowed_reasons:
-            result = True
+            result = allowed_reasons[reason]
         print_debug(self.debug, 'Certificate.store_csr() ended with {0}'.format(result))
         return result
 
