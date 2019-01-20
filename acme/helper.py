@@ -67,7 +67,11 @@ def cert_san_get(debug, certificate):
     for i in range(0, ext_count):
         ext = cert.get_extension(i)
         if 'subjectAltName' in str(ext.get_short_name()):
-            san.append(ext.__str__())
+            san_list = ext.__str__().split(',')
+            for san_name in san_list:
+                san_name = san_name.rstrip()
+                san_name = san_name.lstrip()
+                san.append(san_name)
 
     print_debug(debug, 'cert_san_get() ended')
     return san
