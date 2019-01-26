@@ -129,6 +129,9 @@ class Certificate(object):
                     rev_date = uts_to_date_utc(uts_now())
                     with CAhandler(self.debug) as ca_handler:
                         (code, message, detail) = ca_handler.revoke(payload['certificate'], error, rev_date)
+                else:
+                    message = error
+                    detail = None
 
             else:
                 # message could not get decoded
@@ -191,7 +194,7 @@ class Certificate(object):
                 order_name = self.account_check(account_name, payload['certificate'])
             else:
                 order_name = None
-                
+
             error = rev_reason
             if order_name:
                 # check if the account holds the authorization for the identifiers
