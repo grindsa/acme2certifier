@@ -251,7 +251,12 @@ class DBstore(object):
         certificate_list = self.certificate_lookup('cert_raw', certificate, ['name', 'order__name', 'order__account__name'])
 
         if certificate_list:
-            if account_name == certificate_list['order__account__name']:
+            if account_name:
+                # if there is an acoount name validate it against the account_name from db-query
+                if account_name == certificate_list['order__account__name']:
+                    result = certificate_list['order']
+            else:
+                # no account name given (message signed with domain key)
                 result = certificate_list['order']
 
         print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
