@@ -1360,6 +1360,47 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
         mock_san.return_value = ['san1.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+               
+    def test_183_revocation_request_validate(self):
+        """ test Certificate.revocation_request_validate empty payload"""
+        payload = {}
+        self.assertEqual((400, 'unspecified'), self.certificate.revocation_request_validate('account_name', payload))    
 
+    @patch('acme.certificate.Certificate.revocation_reason_check')        
+    def test_184_revocation_request_validate(self, mock_revrcheck):
+        """ test Certificate.revocation_request_validate reason_check returns None"""
+        payload = {'reason' : 0}
+        mock_revrcheck.return_value = False
+        self.assertEqual((400, 'urn:ietf:params:acme:error:badRevocationReason'), self.certificate.revocation_request_validate('account_name', payload))  
+
+    @patch('acme.certificate.Certificate.revocation_reason_check')        
+    def test_185_revocation_request_validate(self, mock_revrcheck):
+        """ test Certificate.revocation_request_validate reason_check returns a reason"""
+        payload = {'reason' : 0}
+        mock_revrcheck.return_value = 'revrcheck'
+        self.assertEqual((400, 'revrcheck'), self.certificate.revocation_request_validate('account_name', payload))         
+ 
+    @patch('acme.certificate.Certificate.authorization_check')  
+    @patch('acme.certificate.Certificate.account_check')      
+    @patch('acme.certificate.Certificate.revocation_reason_check')        
+    def test_186_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
+        """ test Certificate.revocation_request_validate authz_check failed"""
+        payload = {'reason' : 0, 'certificate': 'certificate'}
+        mock_revrcheck.return_value = 'revrcheck'
+        mock_account.return_value = 'account_name'
+        mock_authz.return_value = False
+        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized'), self.certificate.revocation_request_validate('account_name', payload))                
+
+    @patch('acme.certificate.Certificate.authorization_check')  
+    @patch('acme.certificate.Certificate.account_check')      
+    @patch('acme.certificate.Certificate.revocation_reason_check')        
+    def test_187_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
+        """ test Certificate.revocation_request_validate authz_check succeed"""
+        payload = {'reason' : 0, 'certificate': 'certificate'}
+        mock_revrcheck.return_value = 'revrcheck'
+        mock_account.return_value = 'account_name'
+        mock_authz.return_value = True
+        self.assertEqual((200, 'revrcheck'), self.certificate.revocation_request_validate('account_name', payload))          
+        
 if __name__ == '__main__':
     unittest.main()

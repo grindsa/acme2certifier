@@ -187,7 +187,11 @@ class Certificate(object):
 
         if rev_reason:
             # check if the account issued the certificate and return the order name
-            order_name = self.account_check(account_name, payload['certificate'])
+            if 'certificate' in payload:
+                order_name = self.account_check(account_name, payload['certificate'])
+            else:
+                order_name = None
+                
             error = rev_reason
             if order_name:
                 # check if the account holds the authorization for the identifiers
