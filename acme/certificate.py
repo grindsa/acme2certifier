@@ -241,14 +241,24 @@ class Certificate(object):
         # get identifiers for order
         identifier_dic = self.dbstore.order_lookup('name', order_name, ['identifiers'])
         if identifier_dic and 'identifiers' in identifier_dic:
-            identifiers = json.loads(identifier_dic['identifiers'])
+            try:
+                identifiers = json.loads(identifier_dic['identifiers'].lower())
+            except BaseException:
+                identifiers = []
+
             for san in san_list:
                 san_is_in = False
-                (cert_type, cert_value) = san.lower().split(':')
-                for identifier in identifiers:
-                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                        san_is_in = True
-                        break
+                try:
+                    (cert_type, cert_value) = san.lower().split(':')
+                except BaseException:
+                    cert_type = None
+                    cert_value = None
+
+                if cert_type and cert_value:
+                    for identifier in identifiers:
+                        if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                            san_is_in = True
+                            break
                 print_debug(self.debug, 'SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
                 identifier_status.append(san_is_in)
 

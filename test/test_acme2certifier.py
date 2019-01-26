@@ -34,7 +34,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.message import Message
         from acme.order import Order
         from acme.signature import Signature
-        from acme.helper import b64decode_pad, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config
+        from acme.helper import b64decode_pad, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get
         self.directory = Directory(False, 'http://tester.local')
         self.account = Account(False, 'http://tester.local')
         self.authorization = Authorization(False, 'http://tester.local')
@@ -55,6 +55,8 @@ class TestACMEHandler(unittest.TestCase):
         self.generate_random_string = generate_random_string
         self.b64_url_recode = b64_url_recode
         self.load_config = load_config
+        self.cert_serial_get = cert_serial_get
+        self.cert_san_get = cert_san_get
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -1187,6 +1189,177 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authz_foo': 'authz_bar'}}, self.authorization.new_post(message))
+
+    def test_166_cert_serial_get(self):
+        """ test cert_serial_get """
+        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
+                ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
+                FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+                ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
+                HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
+                7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
+                dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
+                1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
+                FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
+                zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
+                LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
+                AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
+                5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
+                TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
+                bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
+                fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
+                t+eRUDECE+0UnjyeCjTn3EU="""
+        self.assertEqual(10, self.cert_serial_get(False, cert))
+
+    def test_167_cert_san_get(self):
+        """ test cert_san_get for a single SAN """
+        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
+                ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
+                FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+                ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
+                HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
+                7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
+                dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
+                1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
+                FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
+                zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
+                LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
+                AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
+                5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
+                TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
+                bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
+                fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
+                t+eRUDECE+0UnjyeCjTn3EU="""
+        self.assertEqual(['DNS:foo.example.com'], self.cert_san_get(False, cert))
+
+    def test_168_cert_san_get(self):
+        """ test cert_san_get for a multiple SAN of type DNS"""
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        self.assertEqual(['DNS:foo-2.example.com', 'DNS:foo-1.example.com'], self.cert_san_get(False, cert))
+
+    def test_169_cert_serial_get(self):
+        """ test cert_serial for a multiple SAN of different types"""
+        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
+                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
+                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
+                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
+                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
+                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
+                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
+                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
+                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
+                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
+                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
+                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
+                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
+                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
+                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
+                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
+        self.assertEqual(1432, self.cert_serial_get(False, cert))
+
+    def test_170_revocation_reason_check(self):
+        """ test Certificate.revocation_reason_check with allowed reason"""
+        rev_reason = 0
+        self.assertEqual('unspecified', self.certificate.revocation_reason_check(rev_reason))
+
+    def test_171_revocation_reason_check(self):
+        """ test Certificate.revocation_reason_check with non-allowed reason"""
+        rev_reason = 8
+        self.assertFalse(self.certificate.revocation_reason_check(rev_reason))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_172_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check  with some sans but failed order lookup"""
+        self.account.dbstore.order_lookup.return_value = {}
+        mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_173_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check  with some sans and order returning wrong values (no 'identifiers' key) """
+        mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
+        mock_san.return_value = ['san1.example.com', 'san2.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_174_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check  with some sans and order lookup returning identifiers without json structure) """
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_175_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check  with wrong sans) """
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        mock_san.return_value = ['san1.example.com', 'san2.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_176_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with SAN entry which is not in the identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
+        mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_177_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with single SAN entry and correct entry in identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
+        mock_san.return_value = ['DNS:san1.example.com']
+        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_178_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with multiple SAN entries and correct entries in identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
+        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_179_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with one SAN entry and multiple entries in identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        mock_san.return_value = ['DNS:san1.example.com']
+        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_180_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with uppercase SAN entries and lowercase entries in identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        mock_san.return_value = ['DNS:SAN1.EXAMPLE.COM', 'DNS:SAN2.EXAMPLE.COM']
+        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_181_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with lowercase SAN entries and uppercase entries in identifier list"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
+        mock_san.return_value = ['dns:san1.example.com', 'dns:san2.example.com']
+        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    def test_182_authorization_check(self, mock_san):
+        """ test Certificate.authorization_check with lSAN entries (return none) and entries in identifier containing None"""
+        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
+        mock_san.return_value = ['san1.example.com']
+        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
 if __name__ == '__main__':
     unittest.main()
