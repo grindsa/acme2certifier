@@ -251,7 +251,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test failed get_id bcs of wrong path """
         string = {'kid' : 'http://tester.local/acct/foo'}
         self.assertFalse(self.account.name_get(string))
-
+        
     def test_045_validate_sig_succ(self):
         """ successful validation of singature """
         mkey = {
@@ -1434,6 +1434,58 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         self.assertEqual({'code': 200, 'header': {'Replay-Nonce': 'new_nonce'}}, self.certificate.revoke('content'))
 
+    def test_191_name_get(self):
+        """ test Message.name_get() with empty content"""
+        protected = {}
+        self.assertFalse(self.message.name_get(protected))       
 
+    def test_192_name_get(self):
+        """ test Message.name_get() with kid with nonsens in content"""
+        protected = {'kid' : 'foo'}
+        self.assertEqual('foo', self.message.name_get(protected))           
+
+    def test_193_name_get(self):
+        """ test Message.name_get() with wrong kid in content"""
+        protected = {'kid' : 'http://tester.local/acme/account/account_name'}
+        self.assertEqual(None, self.message.name_get(protected))         
+        
+    def test_194_name_get(self):
+        """ test Message.name_get() with correct kid in content"""
+        protected = {'kid' : 'http://tester.local/acme/acct/account_name'}
+        self.assertEqual('account_name', self.message.name_get(protected))         
+        
+    def test_195_name_get(self):
+        """ test Message.name_get() with 'jwk' in content but without URL"""
+        protected = {'jwk' : 'jwk'}
+        self.assertEqual(None, self.message.name_get(protected))      
+
+    def test_196_name_get(self):
+        """ test Message.name_get() with 'jwk' and 'url' in content but url is wrong"""
+        protected = {'jwk' : 'jwk', 'url' : 'url'}
+        self.assertEqual(None, self.message.name_get(protected))  
+
+    def test_197_name_get(self):
+        """ test Message.name_get() with 'jwk' and correct 'url' in content but no 'n' in jwk """
+        protected = {'jwk' : 'jwk', 'url' : 'http://tester.local/acme/revokecert'}
+        self.assertEqual(None, self.message.name_get(protected))       
+
+    def test_198_name_get(self):
+        """ test Message.name_get() with 'jwk' and correct 'url' but account lookup failed """
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
+        self.message.dbstore.account_lookup.return_value = {}
+        self.assertEqual(None, self.message.name_get(protected))          
+
+    def test_198_name_get(self):
+        """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
+        self.message.dbstore.account_lookup.return_value = {'bar' : 'foo'}
+        self.assertEqual(None, self.message.name_get(protected))           
+        
+    def test_199_name_get(self):
+        """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
+        self.message.dbstore.account_lookup.return_value = {'name' : 'foo'}
+        self.assertEqual('foo', self.message.name_get(protected))           
+        
 if __name__ == '__main__':
     unittest.main()

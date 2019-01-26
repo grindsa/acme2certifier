@@ -18,6 +18,7 @@ class Message(object):
         self.account_path = '/acme/acct/'
         self.revocation_path = '/acme/revokecert'
         self.nonce_check_disable = False
+        self.dbstore = DBstore(self.debug)
         self.load_config()
 
     def __enter__(self):
@@ -72,7 +73,7 @@ class Message(object):
             self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable')
 
     def name_get(self, content):
-        """ get id for account """
+        """ get name for account """
         print_debug(self.debug, 'Message.name_get()')
 
         if 'kid' in content:
@@ -80,13 +81,18 @@ class Message(object):
             kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.account_path), '')
             if '/' in kid:
                 kid = None
-        elif 'jwk' in content and content['url'] == '{0}{1}'.format(self.server_name, self.revocation_path):
-            # this is needed for cases where we get a revocation message signed with account key but account name is missing)
-            if 'n' in content['jwk']:
-                dbstore = DBstore(self.debug)
-                account_list = dbstore.account_lookup('modulus', content['jwk']['n'])
-                if account_list:
-                    kid = account_list['name']
+        elif 'jwk' in content and 'url' in content:
+            if content['url'] == '{0}{1}'.format(self.server_name, self.revocation_path):
+                # this is needed for cases where we get a revocation message signed with account key but account name is missing)
+                if 'n' in content['jwk']:
+                    account_list = self.dbstore.account_lookup('modulus', content['jwk']['n'])
+                    if account_list:
+                        if 'name' in account_list:
+                            kid = account_list['name']
+                        else:
+                            kid = None
+                    else:
+                        kid = None
                 else:
                     kid = None
             else:
