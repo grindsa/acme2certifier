@@ -124,7 +124,6 @@ class Certificate(object):
                 (code, error) = self.revocation_request_validate(account_name, payload)
                 if code == 200:
                     # revocation starts here
-                    # response_dic['data'] = ''
                     # revocation reason is stored in error variable
                     rev_date = uts_to_date_utc(uts_now())
                     with CAhandler(self.debug) as ca_handler:

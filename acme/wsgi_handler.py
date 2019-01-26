@@ -154,7 +154,12 @@ class DBstore(object):
             order_dic = self.order_lookup('name', certificate_dic['order__name'], ['name', 'account__name'])
             if order_dic:
                 if 'account__name' in order_dic:
-                    if order_dic['account__name'] == account_name:
+                    if account_name:
+                        # if there is an acoount name validate it against the account_name from db-query
+                        if order_dic['account__name'] == account_name:
+                            result = certificate_dic['order__name']
+                    else:
+                        # no account name given (message signed with domain key)
                         result = certificate_dic['order__name']
 
         print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
@@ -458,4 +463,3 @@ class DBstore(object):
         result = self.cursor.fetchone()
         self.db_close()
         return result
-        

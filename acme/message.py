@@ -47,8 +47,9 @@ class Message(object):
             if code == 200 and not skip_signature_check:
                 # nonce check successful - check signature
                 account_name = self.name_get(protected)
-                signature = Signature(self.debug)
-                (sig_check, error, error_detail) = signature.check(content, account_name)
+                signature = Signature(self.debug, self.server_name)
+                # we need the decoded protected header to grab a key to verify signature
+                (sig_check, error, error_detail) = signature.check(content, account_name, protected)
                 if sig_check:
                     code = 200
                     message = None
