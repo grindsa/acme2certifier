@@ -15,9 +15,9 @@ class Challenge(object):
         self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
+        self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
         self.expiry = expiry
-        self.path = '/acme/chall/'
-        self.authz_path = '/acme/authz/'
+        self.challenge_validation_disable = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -45,7 +45,7 @@ class Challenge(object):
         """ get challenge """
         print_debug(self.debug, 'Challenge.get_name({0})'.format(url))
         url_dic = parse_url(self.debug, url)
-        challenge_name = url_dic['path'].replace(self.path, '')
+        challenge_name = url_dic['path'].replace(self.path_dic['chall_path'], '')
         if '/' in challenge_name:
             (challenge_name, _sinin) = challenge_name.split('/', 1)
         return challenge_name
@@ -69,7 +69,7 @@ class Challenge(object):
         challenge_dic = {}
         if chid:
             challenge_dic['type'] = mtype
-            challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path, challenge_name)
+            challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge_name)
             challenge_dic['token'] = token
 
         return challenge_dic
@@ -106,7 +106,7 @@ class Challenge(object):
                         response_dic['data'] = {}
                         response_dic['data'] = challenge_dic
                         response_dic['header'] = {}
-                        response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.authz_path)
+                        response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
@@ -143,7 +143,9 @@ class Challenge(object):
         """ validate challenge"""
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
         print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
-        self.update({'name' : challenge_name, 'status' : 'valid'})
+
+        # print(challenge_name, payload)
+        # self.update({'name' : challenge_name, 'status' : 'valid'})
 
         if 'keyAuthorization' in payload:
             # update challenge to ready state

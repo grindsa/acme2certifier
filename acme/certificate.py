@@ -17,8 +17,7 @@ class Certificate(object):
         self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
-        self.path = '/acme/cert/'
-        self.acct_path = '/acme/acct'
+        self.path_dic = {'cert_path' : '/acme/cert/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -72,7 +71,7 @@ class Certificate(object):
     def new_get(self, url):
         """ get request """
         print_debug(self.debug, 'Certificate.new_get({0})'.format(url))
-        certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path), '')
+        certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
 
         response_dic = {}
         # fetch certificate dictionary from DB

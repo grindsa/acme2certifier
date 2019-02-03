@@ -15,7 +15,7 @@ class Account(object):
         self.debug = debug
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
-        self.path = '/acme/acct/'
+        self.path_dic = {'acct_path' : '/acme/acct/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -132,10 +132,10 @@ class Account(object):
                 response_dic['data'] = {
                     'status': 'valid',
                     'contact': payload['contact'],
-                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path, message),
+                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path_dic['acct_path'], message),
                 }
             response_dic['header'] = {}
-            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path, message)
+            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
         else:
             if detail == 'tosfalse':
                 detail = 'Terms of service must be accepted'
