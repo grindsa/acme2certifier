@@ -3,7 +3,7 @@
 """ Signature class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, print_debug
+from acme.helper import generate_random_string, parse_url, print_debug, load_config
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -21,6 +21,7 @@ class Challenge(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self.load_config()
         return self
 
     def __exit__(self, *args):
@@ -142,10 +143,15 @@ class Challenge(object):
     def validate(self, challenge_name, payload):
         """ validate challenge"""
         print_debug(self.debug, 'Challenge.validate({0}: {1})'.format(challenge_name, payload))
-        print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
 
-        # print(challenge_name, payload)
-        # self.update({'name' : challenge_name, 'status' : 'valid'})
+        if self.challenge_validation_disable:
+            print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
+            challenge_check = True
+        else:
+            challenge_check = False
+
+        if challenge_check:
+            self.update({'name' : challenge_name, 'status' : 'valid'})
 
         if 'keyAuthorization' in payload:
             # update challenge to ready state
@@ -154,3 +160,10 @@ class Challenge(object):
 
             # authorization update to ready state
             self.update_authz(challenge_name)
+
+    def load_config(self):
+        """" load config from file """
+        print_debug(self.debug, 'load_config()')
+        config_dic = load_config()
+        if 'Challenge' in config_dic:
+            self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
