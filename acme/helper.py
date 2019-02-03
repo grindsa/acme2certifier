@@ -167,6 +167,22 @@ def print_debug(debug, text):
     if debug:
         print('{0}: {1}'.format(datetime.now(), text))
 
+def jwk_thumbprint_get(debug, pub_key):
+    """ get thumbprint """
+    print_debug(debug, 'jwk_thumbprint_get()')
+    if pub_key:
+        try:
+            jwkey = jwk.JWK(**pub_key)
+            thumbprint = jwkey.thumbprint()
+        except BaseException:
+            jwkey = None
+            thumbprint = None
+    else:
+        thumbprint = None
+
+    print_debug(debug, 'jwk_thumbprint_get() ended with: {0}'.format(thumbprint))
+    return thumbprint
+
 def signature_check(debug, message, pub_key):
     """ check JWS """
     print_debug(debug, 'signature_check()')

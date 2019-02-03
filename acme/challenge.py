@@ -3,7 +3,7 @@
 """ Signature class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, print_debug, load_config
+from acme.helper import generate_random_string, parse_url, print_debug, load_config, jwk_thumbprint_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -148,7 +148,7 @@ class Challenge(object):
             print_debug(self.debug, 'CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
             challenge_check = True
         else:
-            challenge_check = False
+            challenge_check = self.check(challenge_name, payload)
 
         if challenge_check:
             self.update({'name' : challenge_name, 'status' : 'valid'})
@@ -156,14 +156,40 @@ class Challenge(object):
         if 'keyAuthorization' in payload:
             # update challenge to ready state
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
-            self.update(data_dic)
+            # self.update(data_dic)
 
             # authorization update to ready state
-            self.update_authz(challenge_name)
+            # self.update_authz(challenge_name)
+        print_debug(self.debug, 'Challenge.validate() ended')
 
     def load_config(self):
         """" load config from file """
-        print_debug(self.debug, 'load_config()')
+        print_debug(self.debug, 'Challenge.load_config()')
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
+        print_debug(self.debug, 'Challenge.load_config() ended.')
+
+    def validate_http_challenge(self, fqdn, authorization):
+        """ validate http challenge """
+        print_debug(self.debug, 'Challenge.load_config()')
+        print(fqdn, authorization)
+
+    def check(self, challenge_name, payload):
+        """ challene check """
+        print_debug(self.debug, 'challenge.check({0})'.format(challenge_name))
+        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
+
+        if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
+            pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
+            if  pub_key:
+                jwk_thumbprint = jwk_thumbprint_get(self.debug, pub_key)
+                if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
+                    result = self.validate_http_challenge(challenge_dic['authorization__value'], '{0}.{1}'.format(challenge_dic['token'], jwk_thumbprint))
+                else:
+                    result = False
+            else:
+                result = False
+        else:
+            result = False
+        print_debug(self.debug, 'challenge.check() ended with: {0}'.format(result))
