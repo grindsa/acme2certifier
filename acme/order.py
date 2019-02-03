@@ -17,9 +17,7 @@ class Order(object):
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
         self.expiry = expiry
-        self.authz_path = '/acme/authz/'
-        self.order_path = '/acme/order/'
-        self.cert_path = '/acme/cert/'
+        self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -76,7 +74,7 @@ class Order(object):
         """ get ordername """
         print_debug(self.debug, 'Order.get_name({0})'.format(url))
         url_dic = parse_url(self.debug, url)
-        order_name = url_dic['path'].replace(self.order_path, '')
+        order_name = url_dic['path'].replace(self.path_dic['order_path'], '')
         if '/' in order_name:
             (order_name, _sinin) = order_name.split('/', 1)
         return order_name
@@ -98,15 +96,15 @@ class Order(object):
             if not error:
                 code = 201
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
+                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
                 response_dic['data'] = {}
                 response_dic['data']['identifiers'] = []
                 response_dic['data']['authorizations'] = []
                 response_dic['data']['status'] = 'pending'
                 response_dic['data']['expires'] = expires
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
+                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
                 for auth_name in auth_dic:
-                    response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.authz_path, auth_name))
+                    response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], auth_name))
                     response_dic['data']['identifiers'].append(auth_dic[auth_name])
             else:
                 code = 400
@@ -167,10 +165,10 @@ class Order(object):
             if code == 200:
                 # create response
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.order_path, order_name)
+                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
                 response_dic['data'] = self.lookup(order_name)
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.order_path, order_name)
-                response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.cert_path, certificate_name)
+                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
 
         # prepare/enrich response
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
@@ -249,6 +247,6 @@ class Order(object):
                 order_dic["authorizations"] = []
                 for authz in authz_list:
                     if 'name' in authz:
-                        order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.authz_path, authz['name']))
+                        order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
 
         return order_dic

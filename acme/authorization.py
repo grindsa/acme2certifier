@@ -19,8 +19,7 @@ class Authorization(object):
         self.message = Message(self.debug, self.server_name)
         self.nonce = Nonce(self.debug)
         self.expiry = expiry
-        self.authz_path = '/acme/authz/'
-        # self.order_path = '/acme/order/'
+        self.path_dic = {'authz_path' : '/acme/authz/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -32,7 +31,7 @@ class Authorization(object):
     def authz_info(self, url):
         """ return authzs information """
         print_debug(self.debug, 'Authorization.info({0})'.format(url))
-        authz_name = url.replace('{0}{1}'.format(self.server_name, self.authz_path), '')
+        authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
 
         expires = uts_now() + self.expiry
         token = generate_random_string(self.debug, 22)

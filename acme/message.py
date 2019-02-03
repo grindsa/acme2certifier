@@ -15,8 +15,7 @@ class Message(object):
         self.debug = debug
         self.server_name = srv_name
         self.nonce = Nonce(self.debug)
-        self.account_path = '/acme/acct/'
-        self.revocation_path = '/acme/revokecert'
+        self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
         self.nonce_check_disable = False
         self.dbstore = DBstore(self.debug)
         self.load_config()
@@ -79,11 +78,11 @@ class Message(object):
 
         if 'kid' in content:
             print_debug(self.debug, 'kid: {0}'.format(content['kid']))
-            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.account_path), '')
+            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path_dic['acct_path']), '')
             if '/' in kid:
                 kid = None
         elif 'jwk' in content and 'url' in content:
-            if content['url'] == '{0}{1}'.format(self.server_name, self.revocation_path):
+            if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing)
                 if 'n' in content['jwk']:
                     account_list = self.dbstore.account_lookup('modulus', content['jwk']['n'])
