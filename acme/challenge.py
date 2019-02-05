@@ -3,7 +3,7 @@
 """ Signature class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, print_debug, load_config, jwk_thumbprint_get
+from acme.helper import generate_random_string, parse_url, print_debug, load_config, jwk_thumbprint_get, url_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -170,10 +170,16 @@ class Challenge(object):
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
         print_debug(self.debug, 'Challenge.load_config() ended.')
 
-    def validate_http_challenge(self, fqdn, authorization):
+    def validate_http_challenge(self, fqdn, token, challenge):
         """ validate http challenge """
-        print_debug(self.debug, 'Challenge.load_config()')
-        print(fqdn, authorization)
+        print_debug(self.debug, 'Challenge.validate_http_challenge()')
+        req = url_get(self.debug, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
+        if req == '{0}.{1}'.format(token, challenge):
+            result = True
+        else:
+            result = False
+        print_debug(self.debug, 'Challenge.validate_http_challenge() ended with: {0}'.format(result))
+        return result
 
     def check(self, challenge_name, payload):
         """ challene check """
@@ -185,7 +191,7 @@ class Challenge(object):
             if  pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.debug, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                    result = self.validate_http_challenge(challenge_dic['authorization__value'], '{0}.{1}'.format(challenge_dic['token'], jwk_thumbprint))
+                    result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 else:
                     result = False
             else:

@@ -17,7 +17,7 @@ from urlparse import urlparse
 import OpenSSL
 import pytz
 from jwcrypto import jwk, jws
-
+import requests
 
 def b64decode_pad(debug, string):
     """ b64 decoding and padding of missing "=" """
@@ -213,6 +213,17 @@ def signature_check(debug, message, pub_key):
 
     # return result
     return(result, error)
+
+def url_get(debug, url):
+    """ http get """
+    print_debug(debug, 'url_get({0})'.format(url))
+    try:
+        req = requests.get(url)
+        result = req.text
+    except BaseException as err:
+        result = err
+    print_debug(debug, 'url_get() ended with: {0}'.format(result))
+    return result
 
 def uts_now():
     """ return unixtimestamp in utc """
