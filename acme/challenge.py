@@ -152,14 +152,15 @@ class Challenge(object):
 
         if challenge_check:
             self.update({'name' : challenge_name, 'status' : 'valid'})
+            # authorization update to ready state
+            self.update_authz(challenge_name)
 
         if 'keyAuthorization' in payload:
             # update challenge to ready state
             data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
-            # self.update(data_dic)
+            self.update(data_dic)
 
-            # authorization update to ready state
-            # self.update_authz(challenge_name)
+
         print_debug(self.debug, 'Challenge.validate() ended')
 
     def load_config(self):
@@ -173,11 +174,17 @@ class Challenge(object):
     def validate_http_challenge(self, fqdn, token, challenge):
         """ validate http challenge """
         print_debug(self.debug, 'Challenge.validate_http_challenge()')
+
         req = url_get(self.debug, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
-        if req == '{0}.{1}'.format(token, challenge):
-            result = True
+
+        if req:
+            if req.splitlines()[0] == '{0}.{1}'.format(token, challenge):
+                result = True
+            else:
+                result = False
         else:
             result = False
+
         print_debug(self.debug, 'Challenge.validate_http_challenge() ended with: {0}'.format(result))
         return result
 
@@ -199,3 +206,4 @@ class Challenge(object):
         else:
             result = False
         print_debug(self.debug, 'challenge.check() ended with: {0}'.format(result))
+        return result

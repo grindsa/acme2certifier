@@ -220,8 +220,8 @@ def url_get(debug, url):
     try:
         req = requests.get(url)
         result = req.text
-    except BaseException as err:
-        result = err
+    except BaseException:
+        result = None
     print_debug(debug, 'url_get() ended with: {0}'.format(result))
     return result
 
