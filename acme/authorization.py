@@ -34,7 +34,7 @@ class Authorization(object):
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
 
         expires = uts_now() + self.expiry
-        token = generate_random_string(self.debug, 22)
+        token = generate_random_string(self.debug, 32)
         # update authorization with expiry date and token (just to be sure)
         self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
 

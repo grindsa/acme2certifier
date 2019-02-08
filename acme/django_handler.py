@@ -256,7 +256,7 @@ class DBstore(object):
                 if account_name == certificate_list['order__account__name']:
                     result = certificate_list['order']
             else:
-                # no account name given (message signed with domain key)
+                # no account name given (message signed with domain key
                 result = certificate_list['order']
 
         print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
