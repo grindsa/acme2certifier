@@ -3,7 +3,7 @@
 """ Signature class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, print_debug, load_config, jwk_thumbprint_get, url_get
+from acme.helper import generate_random_string, parse_url, print_debug, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -171,14 +171,33 @@ class Challenge(object):
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
         print_debug(self.debug, 'Challenge.load_config() ended.')
 
-    def validate_http_challenge(self, fqdn, token, challenge):
+    def validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
+        """ validate dns challenge """
+        print_debug(self.debug, 'Challenge.validate_dns_challenge()')
+
+        # rewrite fqdn
+        fqdn = '_acme-challenge.{0}'.format(fqdn)
+
+        # compute sha256 hash
+        _hash = b64_url_encode(self.debug, sha256_hash(self.debug, '{0}.{1}'.format(token, jwk_thumbprint)))
+        # query dns
+        txt = txt_get(self.debug, fqdn)
+
+        # compare computed hash with result from DNS query
+        if _hash == txt:
+            result = True
+        else:
+            result = False
+        print_debug(self.debug, 'Challenge.validate_dns_challenge() ended with: {0}'.format(result))
+        return result
+
+    def validate_http_challenge(self, fqdn, token, jwk_thumbprint):
         """ validate http challenge """
         print_debug(self.debug, 'Challenge.validate_http_challenge()')
 
         req = url_get(self.debug, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
-
         if req:
-            if req.splitlines()[0] == '{0}.{1}'.format(token, challenge):
+            if req.splitlines()[0] == '{0}.{1}'.format(token, jwk_thumbprint):
                 result = True
             else:
                 result = False
@@ -192,13 +211,14 @@ class Challenge(object):
         """ challene check """
         print_debug(self.debug, 'challenge.check({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
-
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
             pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
             if  pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.debug, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
                     result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+                    result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 else:
                     result = False
             else:

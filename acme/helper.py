@@ -18,6 +18,8 @@ import OpenSSL
 import pytz
 from jwcrypto import jwk, jws
 import requests
+import hashlib
+import dns.resolver
 
 def b64decode_pad(debug, string):
     """ b64 decoding and padding of missing "=" """
@@ -34,6 +36,12 @@ def b64_encode(debug, string):
     print_debug(debug, 'b64_encode()')
     return base64.b64encode(string)
 
+def b64_url_encode(debug, string):
+    """ encode a bytestream in base64 url and remove padding """
+    print_debug(debug, 'b64_url_encode()')    
+    encoded = base64.urlsafe_b64encode(string)
+    return encoded.rstrip("=")
+
 def b64_url_recode(debug, string):
     """ recode base64_url to base64 """
     print_debug(debug, 'b64_url_recode()')
@@ -41,7 +49,7 @@ def b64_url_recode(debug, string):
     string += "="*padding_factor
     # return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))
     return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
-
+    
 def build_pem_file(debug, existing, certificate, wrap):
     """ construct pem_file """
     print_debug(debug, 'build_pem_file()')
@@ -182,6 +190,15 @@ def jwk_thumbprint_get(debug, pub_key):
 
     print_debug(debug, 'jwk_thumbprint_get() ended with: {0}'.format(thumbprint))
     return thumbprint
+    
+def sha256_hash(debug, string):
+    """ hash string """
+    print_debug(debug, 'sha256_hash()')    
+    
+    result =  hashlib.sha256(string.encode('utf-8')).digest()
+    
+    print_debug(debug, 'sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(debug, result)))
+    return result
 
 def signature_check(debug, message, pub_key):
     """ check JWS """
@@ -223,6 +240,16 @@ def url_get(debug, url):
     except BaseException:
         result = None
     print_debug(debug, 'url_get() ended with: {0}'.format(result))
+    return result
+    
+def txt_get(debug, fqdn):
+    """ dns query to get the TXt record """
+    print_debug(debug, 'txt_get({0})'.format(fqdn)) 
+    try:
+        result = dns.resolver.query(fqdn,'TXT').response.answer[0][-1].strings[0]
+    except BaseException:
+        result = None
+    print_debug(debug, 'txt_get() ended with: {0}'.format(result))
     return result
 
 def uts_now():
