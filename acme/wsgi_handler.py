@@ -44,6 +44,7 @@ class DBstore(object):
             created = True
 
         self.db_close()
+        print_debug(self.debug, 'DBStore.account_add() ended')
         return(aname, created)
 
     def account_delete(self, aname):
@@ -54,6 +55,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [aname])
         result = bool(self.cursor.rowcount)
         self.db_close()
+        print_debug(self.debug, 'DBStore.account_delete() ended')
         return result
 
     def account_lookup(self, column, string):
@@ -64,6 +66,7 @@ class DBstore(object):
             result = {'id' : lookup[0], 'name' : lookup[1]}
         else:
             result = None
+        print_debug(self.debug, 'DBStore.account_lookup() ended')
         return result
 
     def account_search(self, column, string):
@@ -74,6 +77,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
+        print_debug(self.debug, 'DBStore.account_search() ended')
         return result
 
     def authorization_add(self, data_dic):
@@ -83,6 +87,7 @@ class DBstore(object):
         self.cursor.execute('''INSERT INTO authorization(name, order_id, type, value) VALUES(:name, :order, :type, :value)''', data_dic)
         rid = self.cursor.lastrowid
         self.db_close()
+        print_debug(self.debug, 'DBStore.authorization_add() ended with: {0}'.format(rid))
         return rid
 
     def authorization_lookup(self, column, string, vlist=('type', 'value')):
@@ -98,7 +103,7 @@ class DBstore(object):
             for ele in vlist:
                 tmp_dic[ele] = row_dic[ele]
             authz_list.append(tmp_dic)
-
+        print_debug(self.debug, 'DBStore.authorization_lookup() ended')
         return authz_list
 
     def authorization_search(self, column, string):
@@ -112,6 +117,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchall()
         self.db_close()
+        print_debug(self.debug, 'DBStore.authorization_search() ended')
         return result
 
     def authorization_update(self, data_dic):
@@ -137,7 +143,7 @@ class DBstore(object):
             self.db_close()
         else:
             result = None
-
+        print_debug(self.debug, 'DBStore.authorization_update() ended')
         return result
 
     def certificate_account_check(self, account_name, certificate):
@@ -199,6 +205,7 @@ class DBstore(object):
                 self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
             self.db_close()
             rid = self.cursor.lastrowid
+        print_debug(self.debug, 'DBStore.certificate_add() ended with: {0}'.format(rid))
         return rid
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
@@ -229,6 +236,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
+        print_debug(self.debug, 'DBStore.certificate_search() ended')
         return result
 
     def challenge_add(self, data_dic):
@@ -246,6 +254,7 @@ class DBstore(object):
             self.db_close()
         else:
             rid = None
+        print_debug(self.debug, 'DBStore.challenge_add() ended')
         return rid
 
     def challenge_lookup(self, column, string, vlist=('type', 'token', 'status__name')):
@@ -264,16 +273,34 @@ class DBstore(object):
                     result[ele] = lookup[ele]
         else:
             result = None
+        print_debug(self.debug, 'DBStore.challenge_lookup() ended with:{0}'.format(result))
         return result
 
     def challenge_search(self, column, string):
         """ search challenge table for a certain key/value pair """
         print_debug(self.debug, 'DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
-        pre_statement = 'SELECT challenge.*, status.id as status__id, status.name as status__name, authorization.id as authorization__id, authorization.name as authorization__name from challenge INNER JOIN status on status.id = challenge.status_id INNER JOIN authorization on authorization.id = challenge.authorization_id WHERE challenge.{0} LIKE ?'.format(column)
+        pre_statement = '''
+            SELECT
+                challenge.*,
+                status.id as status__id,
+                status.name as status__name,
+                authorization.id as authorization__id,
+                authorization.name as authorization__name,
+                authorization.type as authorization__type,
+                authorization.value as authorization__value,
+                authorization.token as authorization__token,
+                account.name as authorization__order__account__name
+            from challenge
+            INNER JOIN status on status.id = challenge.status_id
+            INNER JOIN authorization on authorization.id = challenge.authorization_id
+            INNER JOIN orders on orders.id = authorization.order_id
+            INNER JOIN account on account.id = orders.account_id
+            WHERE challenge.{0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
+        print_debug(self.debug, 'DBStore.challenge_search() ended')
         return result
 
     def challenge_update(self, data_dic):
@@ -293,12 +320,14 @@ class DBstore(object):
         self.db_open()
         self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
         self.db_close()
+        print_debug(self.debug, 'DBStore.challenge_update() ended')
 
     def db_close(self):
         """ commit and close """
         print_debug(self.debug, 'DBStore.db_close()')
         self.dbs.commit()
         self.dbs.close()
+        print_debug(self.debug, 'DBStore.db_close() ended')
 
     def db_create(self):
         """ create the database if dos not exist """
@@ -340,6 +369,7 @@ class DBstore(object):
         ''')
 
         self.db_close()
+        print_debug(self.debug, 'DBStore.db_create() ended')
 
     def db_open(self):
         """ opens db and sets cursor """
@@ -347,6 +377,7 @@ class DBstore(object):
         self.dbs = sqlite3.connect(self.db_name)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
+        print_debug(self.debug, 'DBStore.db_open() ended')
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
@@ -359,6 +390,7 @@ class DBstore(object):
             jwk_dict['e'] = account_list[3]
             jwk_dict['kty'] = account_list[4]
             jwk_dict['n'] = account_list[5]
+        print_debug(self.debug, 'DBStore.jwk_load() ended')
         return jwk_dict
 
     def nonce_add(self, nonce):
@@ -370,6 +402,7 @@ class DBstore(object):
         self.cursor.execute('''INSERT INTO nonce(nonce) VALUES(:nonce)''', {'nonce': nonce})
         rid = self.cursor.lastrowid
         self.db_close()
+        print_debug(self.debug, 'DBStore.nonce_add() ended')
         return rid
 
     def nonce_check(self, nonce):
@@ -381,6 +414,7 @@ class DBstore(object):
         self.cursor.execute('''SELECT nonce FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         result = bool(self.cursor.fetchone())
         self.db_close()
+        print_debug(self.debug, 'DBStore.nonce_check() ended')
         return result
 
     def nonce_delete(self, nonce):
@@ -390,6 +424,7 @@ class DBstore(object):
         self.db_open()
         self.cursor.execute('''DELETE FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         self.db_close()
+        print_debug(self.debug, 'DBStore.nonce_delete() ended')
 
     def order_add(self, data_dic):
         """ add order to database """
@@ -409,6 +444,7 @@ class DBstore(object):
             self.db_close()
         else:
             rid = None
+        print_debug(self.debug, 'DBStore.order_add() ended')
         return rid
 
     def order_lookup(self, column, string, vlist=('notbefore', 'notafter', 'identifiers', 'expires', 'status__name')):
@@ -432,7 +468,7 @@ class DBstore(object):
                     result[ele] = lookup[ele]
         else:
             result = None
-
+        print_debug(self.debug, 'DBStore.order_lookup() ended')
         return result
 
     def order_search(self, column, string):
@@ -443,6 +479,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
+        print_debug(self.debug, 'DBStore.order_search() ended')
         return result
 
     def order_update(self, data_dic):
@@ -453,6 +490,7 @@ class DBstore(object):
         self.db_open()
         self.cursor.execute('''UPDATE orders SET status_id = :status WHERE name = :name''', data_dic)
         self.db_close()
+        print_debug(self.debug, 'DBStore.order_update() ended')
 
     def status_search(self, column, string):
         """ search status table for a certain key/value pair """
@@ -462,4 +500,5 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
+        print_debug(self.debug, 'DBStore.status_search() ended')
         return result
