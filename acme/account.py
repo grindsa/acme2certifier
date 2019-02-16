@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, print_debug, validate_email
+from acme.helper import generate_random_string, validate_email, logger_setup
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -12,9 +12,9 @@ class Account(object):
 
     def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
-        self.debug = debug
-        self.dbstore = DBstore(self.debug)
-        self.message = Message(self.debug, self.server_name)
+        self.logger = logger_setup(debug)
+        self.dbstore = DBstore(debug)
+        self.message = Message(debug, self.server_name)
         self.path_dic = {'acct_path' : '/acme/acct/'}
 
     def __enter__(self):
@@ -26,8 +26,8 @@ class Account(object):
 
     def add(self, content, contact):
         """ prepare db insert and call DBstore helper """
-        print_debug(self.debug, 'Account.account_add()')
-        account_name = generate_random_string(self.debug, 12)
+        self.logger.debug('Account.account_add()')
+        account_name = generate_random_string(self.logger, 12)
 
         # check request
         if 'alg' in content and 'jwk' in content and contact:
@@ -42,7 +42,7 @@ class Account(object):
                     'contact' : json.dumps(contact),
                 }
                 (db_name, new) = self.dbstore.account_add(data_dic)
-                print_debug(self.debug, 'god account_name:{0} new:{1}'.format(db_name, new))
+                self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
                 if new:
                     code = 201
                     message = account_name
@@ -59,16 +59,17 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'incomplete protectedpayload'
 
+        self.logger.debug('Account.account_add() ended with:{0}'.format(code))
         return(code, message, detail)
 
     def contact_check(self, content):
         """ check contact information from payload"""
-        print_debug(self.debug, 'Account.contact_check()')
+        self.logger.debug('Account.contact_check()')
         code = 200
         message = None
         detail = None
         if 'contact' in content:
-            contact_check = validate_email(self.debug, content['contact'])
+            contact_check = validate_email(self.logger, content['contact'])
             if not contact_check:
                 # invalidcontact message
                 code = 400
@@ -79,11 +80,12 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:invalidContact'
             detail = 'no contacts specified'
 
+        self.logger.debug('Account.contact_check() ended with:{0}'.format(code))
         return(code, message, detail)
 
     def delete(self, aname):
         """ delete account """
-        print_debug(self.debug, 'Account.delete({0})'.format(aname))
+        self.logger.debug('Account.delete({0})'.format(aname))
         result = self.dbstore.account_delete(aname)
 
         if result:
@@ -95,17 +97,18 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:accountDoesNotExist'
             detail = 'deletion failed'
 
+        self.logger.debug('Account.delete() ended with:{0}'.format(code))
         return(code, message, detail)
 
     def name_get(self, content):
         """ get id for account depricated"""
-        print_debug(self.debug, 'Account.name_get()')
+        self.logger.debug('Account.name_get()')
         deprecated = True
         return self.message.name_get(content)
 
     def new(self, content):
         """ generate a new account """
-        print_debug(self.debug, 'Account.account_new()')
+        self.logger.debug('Account.account_new()')
 
         response_dic = {}
         # check message but skip signature check as this is a new account (True)
@@ -144,7 +147,7 @@ class Account(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def onlyreturnexisting(self, protected, payload):
@@ -178,11 +181,12 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:userActionRequired'
             detail = 'onlyReturnExisting must be true'
 
+        self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
         return(code, message, detail)
 
     def parse(self, content):
         """ parse message """
-        print_debug(self.debug, 'Account.parse()')
+        self.logger.debug('Account.parse()')
 
         response_dic = {}
         # check message
@@ -206,14 +210,14 @@ class Account(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def tos_check(self, content):
         """ check terms of service """
-        print_debug(self.debug, 'Account.tos_check()')
+        self.logger.debug('Account.tos_check()')
         if 'termsOfServiceAgreed' in content:
-            print_debug(self.debug, 'tos:{0}'.format(content['termsOfServiceAgreed']))
+            self.logger.debug('tos:{0}'.format(content['termsOfServiceAgreed']))
             if content['termsOfServiceAgreed']:
                 code = 200
                 message = None
@@ -223,9 +227,10 @@ class Account(object):
                 message = 'urn:ietf:params:acme:error:userActionRequired'
                 detail = 'tosfalse'
         else:
-            print_debug(self.debug, 'no tos statement found.')
+            self.logger.debug('no tos statement found.')
             code = 403
             message = 'urn:ietf:params:acme:error:userActionRequired'
             detail = 'tosfalse'
 
+        self.logger.debug('Account.tos_check() ended with:{0}'.format(code))
         return(code, message, detail)

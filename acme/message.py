@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
-from acme.helper import decode_message, load_config, print_debug
+from acme.helper import decode_message, load_config, logger_setup
 from acme.error import Error
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
@@ -13,11 +13,12 @@ class Message(object):
 
     def __init__(self, debug=None, srv_name=None):
         self.debug = debug
-        self.server_name = srv_name
+        self.logger = logger_setup(self.debug)
         self.nonce = Nonce(self.debug)
+        self.dbstore = DBstore(self.debug)
+        self.server_name = srv_name
         self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
         self.nonce_check_disable = False
-        self.dbstore = DBstore(self.debug)
         self.load_config()
 
     def __enter__(self):
@@ -29,10 +30,10 @@ class Message(object):
 
     def check(self, content, skip_signature_check=False):
         """ validate message """
-        print_debug(self.debug, 'Message.check()')
+        self.logger.debug('Message.check()')
 
         # decode message
-        (result, error_detail, protected, payload, _signature) = decode_message(self.debug, content)
+        (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
         account_name = None
         if result:
             # decoding successful - check nonce for anti replay protection
@@ -63,21 +64,22 @@ class Message(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = error_detail
 
+        self.logger.debug('Message.check() ended with:{0}'.format(code))
         return(code, message, detail, protected, payload, account_name)
 
     def load_config(self):
         """" load config from file """
-        print_debug(self.debug, 'load_config()')
+        self.logger.debug('load_config()')
         config_dic = load_config()
         if 'Nonce' in config_dic:
             self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable')
 
     def name_get(self, content):
         """ get name for account """
-        print_debug(self.debug, 'Message.name_get()')
+        self.logger.debug('Message.name_get()')
 
         if 'kid' in content:
-            print_debug(self.debug, 'kid: {0}'.format(content['kid']))
+            self.logger.debug('kid: {0}'.format(content['kid']))
             kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path_dic['acct_path']), '')
             if '/' in kid:
                 kid = None
@@ -99,12 +101,12 @@ class Message(object):
                 kid = None
         else:
             kid = None
-        print_debug(self.debug, 'Message.name_get() returns: {0}'.format(kid))
+        self.logger.debug('Message.name_get() returns: {0}'.format(kid))
         return kid
 
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """
-        print_debug(self.debug, 'Message.prepare_response()')
+        self.logger.debug('Message.prepare_response()')
         if 'code' not in status_dic:
             status_dic['code'] = 400
             status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'

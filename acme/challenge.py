@@ -203,7 +203,6 @@ class Challenge(object):
                 result = False
         else:
             result = False
-
         print_debug(self.debug, 'Challenge.validate_http_challenge() ended with: {0}'.format(result))
         return result
 

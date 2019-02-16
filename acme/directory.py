@@ -3,14 +3,14 @@
 """ Directory class """
 from __future__ import print_function
 import uuid
-from acme.helper import print_debug
+from acme.helper import logger_setup
 
 class Directory(object):
     """ class for directory handling """
 
     def __init__(self, debug=None, srv_name=None):
         self.server_name = srv_name
-        self.debug = debug
+        self.logger = logger_setup(debug)
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -21,7 +21,7 @@ class Directory(object):
 
     def directory_get(self):
         """ return response to ACME directory call """
-        print_debug(self.debug, 'Directory.directory_get()')
+        self.logger.debug('Directory.directory_get()')
         d_dic = {
             'newNonce': self.server_name + '/acme/newnonce',
             'newAccount': self.server_name + '/acme/newaccount',
@@ -39,5 +39,5 @@ class Directory(object):
 
     def servername_get(self):
         """ dumb function to return servername """
-        print_debug(self.debug, 'Directory.servername_get()')
+        self.logger.debug('Directory.servername_get()')
         return self.server_name

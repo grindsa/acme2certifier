@@ -14,16 +14,17 @@ import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
 from urlparse import urlparse
-import OpenSSL
-import pytz
+import logging
+import hashlib
 from jwcrypto import jwk, jws
 import requests
-import hashlib
+import pytz
 import dns.resolver
+import OpenSSL
 
-def b64decode_pad(debug, string):
+def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
-    print_debug(debug, 'b64decode_pad()')
+    logger.debug('b64decode_pad()')
     string += '=' * (-len(string) % 4)  # restore stripped '='s
     try:
         b64dec = base64.b64decode(string)
@@ -31,28 +32,28 @@ def b64decode_pad(debug, string):
         b64dec = 'ERR: b64 decoding error'
     return b64dec
 
-def b64_encode(debug, string):
+def b64_encode(logger, string):
     """ encode a bytestream in base64 """
-    print_debug(debug, 'b64_encode()')
+    logger.debug('b64_encode()')
     return base64.b64encode(string)
 
-def b64_url_encode(debug, string):
+def b64_url_encode(logger, string):
     """ encode a bytestream in base64 url and remove padding """
-    print_debug(debug, 'b64_url_encode()')    
+    logger.debug('b64_url_encode()')
     encoded = base64.urlsafe_b64encode(string)
     return encoded.rstrip("=")
 
-def b64_url_recode(debug, string):
+def b64_url_recode(logger, string):
     """ recode base64_url to base64 """
-    print_debug(debug, 'b64_url_recode()')
+    logger.debug('b64_url_recode()')
     padding_factor = (4 - len(string) % 4) % 4
     string += "="*padding_factor
     # return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))
     return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
-    
-def build_pem_file(debug, existing, certificate, wrap):
+
+def build_pem_file(logger, existing, certificate, wrap):
     """ construct pem_file """
-    print_debug(debug, 'build_pem_file()')
+    logger.debug('build_pem_file()')
     if existing:
         if wrap:
             pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, textwrap.fill(certificate, 64))
@@ -65,10 +66,10 @@ def build_pem_file(debug, existing, certificate, wrap):
             pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(certificate)
     return pem_file
 
-def cert_san_get(debug, certificate):
+def cert_san_get(logger, certificate):
     """ get subject alternate names from certificate """
-    print_debug(debug, 'cert_san_get()')
-    pem_file = build_pem_file(debug, None, b64_url_recode(debug, certificate), True)
+    logger.debug('cert_san_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     san = []
     ext_count = cert.get_extension_count()
@@ -81,21 +82,21 @@ def cert_san_get(debug, certificate):
                 san_name = san_name.lstrip()
                 san.append(san_name)
 
-    print_debug(debug, 'cert_san_get() ended')
+    logger.debug('cert_san_get() ended')
     return san
 
-def cert_serial_get(debug, certificate):
+def cert_serial_get(logger, certificate):
     """ get serial number form certificate """
-    print_debug(debug, 'cert_serial_get()')
-    pem_file = build_pem_file(debug, None, b64_url_recode(debug, certificate), True)
+    logger.debug('cert_serial_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     return cert.get_serial_number()
 
-def decode_deserialize(debug, string):
+def decode_deserialize(logger, string):
     """ decode and deserialize string """
-    print_debug(debug, 'decode_deserialize()')
+    logger.debug('decode_deserialize()')
     # b64 decode
-    string_decode = b64decode_pad(debug, string)
+    string_decode = b64decode_pad(logger, string)
     # deserialize if b64 decoding was successful
     if string_decode and string_decode != 'ERR: b64 decoding error':
         try:
@@ -105,9 +106,9 @@ def decode_deserialize(debug, string):
 
     return string_decode
 
-def decode_message(debug, message):
+def decode_message(logger, message):
     """ decode jwstoken and return header, payload and signature """
-    print_debug(debug, 'decode_message()')
+    logger.debug('decode_message()')
     jwstoken = jws.JWS()
     result = False
     error = None
@@ -127,9 +128,9 @@ def decode_message(debug, message):
         signature = None
     return(result, error, protected, payload, signature)
 
-def generate_random_string(debug, length):
+def generate_random_string(logger, length):
     """ generate random string to be used as name """
-    print_debug(debug, 'generate_random_string()')
+    logger.debug('generate_random_string()')
     char_set = digits + ascii_letters
     return ''.join(random.choice(char_set) for _ in range(length))
 
@@ -147,22 +148,39 @@ def get_url(environ, include_path=False):
     else:
         return '{0}://{1}'.format(proto, server_name)
 
-def load_config(debug=False, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
+def load_config(logger=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
     """ small configparser wrappter to load a config file """
-    print_debug(debug, 'load_config({1}:{0})'.format(mfilter, cfg_file))
+    if logger:
+        logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
     config = configparser.ConfigParser()
     config.read(cfg_file)
     return config
 
-def parse_url(debug, url):
+def parse_url(logger, url):
     """ split url into pieces """
-    print_debug(debug, 'parse_url({0})'.format(url))
+    logger.debug('parse_url({0})'.format(url))
     url_dic = {
         'proto' : urlparse(url).scheme,
         'host' : urlparse(url).netloc,
         'path' : urlparse(url).path
     }
     return url_dic
+
+def logger_setup(debug):
+    """ setup logger """
+    if debug:
+        log_mode = logging.DEBUG
+    else:
+        log_mode = logging.INFO
+
+    logging.basicConfig(
+        format='%(asctime)s:{0}[{1}]:%(levelname)s: %(message)s'
+        .format('acme2certifier', os.getpid()),
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=log_mode)
+    logger = logging.getLogger('acme2certifier')
+    return logger
+
 
 def print_debug(debug, text):
     """ little helper to print debug messages
@@ -175,9 +193,9 @@ def print_debug(debug, text):
     if debug:
         print('{0}: {1}'.format(datetime.now(), text))
 
-def jwk_thumbprint_get(debug, pub_key):
+def jwk_thumbprint_get(logger, pub_key):
     """ get thumbprint """
-    print_debug(debug, 'jwk_thumbprint_get()')
+    logger.debug('jwk_thumbprint_get()')
     if pub_key:
         try:
             jwkey = jwk.JWK(**pub_key)
@@ -188,21 +206,21 @@ def jwk_thumbprint_get(debug, pub_key):
     else:
         thumbprint = None
 
-    print_debug(debug, 'jwk_thumbprint_get() ended with: {0}'.format(thumbprint))
+    logger.debug('jwk_thumbprint_get() ended with: {0}'.format(thumbprint))
     return thumbprint
-    
-def sha256_hash(debug, string):
+
+def sha256_hash(logger, string):
     """ hash string """
-    print_debug(debug, 'sha256_hash()')    
-    
-    result =  hashlib.sha256(string.encode('utf-8')).digest()
-    
-    print_debug(debug, 'sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(debug, result)))
+    logger.debug('sha256_hash()')
+
+    result = hashlib.sha256(string.encode('utf-8')).digest()
+
+    logger.debug('sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(logger, result)))
     return result
 
-def signature_check(debug, message, pub_key):
+def signature_check(logger, message, pub_key):
     """ check JWS """
-    print_debug(debug, 'signature_check()')
+    logger.debug('signature_check()')
 
     result = False
     error = None
@@ -231,25 +249,25 @@ def signature_check(debug, message, pub_key):
     # return result
     return(result, error)
 
-def url_get(debug, url):
+def url_get(logger, url):
     """ http get """
-    print_debug(debug, 'url_get({0})'.format(url))
+    logger.debug('url_get({0})'.format(url))
     try:
         req = requests.get(url)
         result = req.text
     except BaseException:
         result = None
-    print_debug(debug, 'url_get() ended with: {0}'.format(result))
+    logger.debug('url_get() ended with: {0}'.format(result))
     return result
-    
-def txt_get(debug, fqdn):
+
+def txt_get(logger, fqdn):
     """ dns query to get the TXt record """
-    print_debug(debug, 'txt_get({0})'.format(fqdn)) 
+    logger.debug('txt_get({0})'.format(fqdn))
     try:
-        result = dns.resolver.query(fqdn,'TXT').response.answer[0][-1].strings[0]
+        result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
     except BaseException:
         result = None
-    print_debug(debug, 'txt_get() ended with: {0}'.format(result))
+    logger.debug('txt_get() ended with: {0}'.format(result))
     return result
 
 def uts_now():
@@ -264,14 +282,14 @@ def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
     return int(calendar.timegm(time.strptime(date_human, tformat)))
 
-def validate_csr(debug, order_dic, _csr):
+def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
-    print_debug(debug, 'validate_csr({0})'.format(order_dic))
+    logger.debug('validate_csr({0})'.format(order_dic))
     return True
 
-def validate_email(debug, contact_list):
+def validate_email(logger, contact_list):
     """ validate contact against RFC608"""
-    print_debug(debug, 'validate_email()')
+    logger.debug('validate_email()')
     result = True
     pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
     # check if we got a list or single address
@@ -280,12 +298,12 @@ def validate_email(debug, contact_list):
             contact = contact.replace('mailto:', '')
             contact = contact.lstrip()
             tmp_result = bool(re.search(pattern, contact))
-            print_debug(debug, '# validate: {0} result: {1}'.format(contact, tmp_result))
+            logger.debug('# validate: {0} result: {1}'.format(contact, tmp_result))
             if not tmp_result:
                 result = tmp_result
     else:
         contact_list = contact_list.replace('mailto:', '')
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
-        print_debug(debug, '# validate: {0} result: {1}'.format(contact_list, result))
+        logger.debug('# validate: {0} result: {1}'.format(contact_list, result))
     return result
