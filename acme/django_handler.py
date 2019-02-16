@@ -3,18 +3,18 @@
 """ django handler for acmesrv.py """
 from __future__ import print_function
 from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
-from acme.helper import print_debug
+from acme.helper import logger_setup
 
 class DBstore(object):
     """ helper to do datebase operations """
 
     def __init__(self, debug=False):
         """ init """
-        self.debug = debug
+        self.logger = logger_setup(debug)
 
     def account_add(self, data_dic):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.account_add({0})'.format(data_dic))
         account_list = self.account_lookup('modulus', data_dic['modulus'])
         if account_list:
             created = False
@@ -28,12 +28,12 @@ class DBstore(object):
     # django specific
     def account_getinstance(self, aname):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.account_getinstance({0})'.format(aname))
+        self.logger.debug('DBStore.account_getinstance({0})'.format(aname))
         return Account.objects.get(name=aname)
 
     def account_lookup(self, mkey, value):
         """ search account for a given id """
-        print_debug(self.debug, 'DBStore.account_lookup({0}:{1})'.format(mkey, value))
+        self.logger.debug('DBStore.account_lookup({0}:{1})'.format(mkey, value))
         account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus', 'name')[:1]
         if account_dict:
             result = account_dict[0]
@@ -43,13 +43,13 @@ class DBstore(object):
 
     def account_delete(self, aname):
         """ add account in database """
-        print_debug(self.debug, 'DBStore.account_delete({0})'.format(aname))
+        self.logger.debug('DBStore.account_delete({0})'.format(aname))
         result = Account.objects.filter(name=aname).delete()
         return result
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
-        print_debug(self.debug, 'DBStore.jwk_load({0})'.format(aname))
+        self.logger.debug('DBStore.jwk_load({0})'.format(aname))
         account_dict = Account.objects.filter(name=aname).values('alg', 'exponent', 'kty', 'modulus')[:1]
         jwk_dict = {}
         if account_dict:
@@ -63,7 +63,7 @@ class DBstore(object):
         """ check if nonce is in datbase
         in: nonce
         return: rowid """
-        print_debug(self.debug, 'DBStore.nonce_add({0})'.format(nonce))
+        self.logger.debug('DBStore.nonce_add({0})'.format(nonce))
         obj = Nonce(nonce=nonce)
         obj.save()
         return obj.id
@@ -72,19 +72,19 @@ class DBstore(object):
         """ ceck if nonce is in datbase
         in: nonce
         return: true in case nonce exit, otherwise false """
-        print_debug(self.debug, 'DBStore.nonce_check({0})'.format(nonce))
+        self.logger.debug('DBStore.nonce_check({0})'.format(nonce))
         nonce_list = Nonce.objects.filter(nonce=nonce).values('nonce')[:1]
         return bool(nonce_list)
 
     def nonce_delete(self, nonce):
         """ delete nonce from datbase
         in: nonce """
-        print_debug(self.debug, 'DBStore.nonce_delete({0})'.format(nonce))
+        self.logger.debug('DBStore.nonce_delete({0})'.format(nonce))
         Nonce.objects.filter(nonce=nonce).delete()
 
     def order_add(self, data_dic):
         """ add order to database """
-        print_debug(self.debug, 'DBStore.order_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.order_add({0})'.format(data_dic))
         # replace accountid with instance
         data_dic['account'] = self.account_getinstance(data_dic['account'])
 
@@ -92,24 +92,24 @@ class DBstore(object):
         data_dic['status'] = self.status_getinstance(data_dic['status'], 'id')
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
-        print_debug(self.debug, 'order_id({0})'.format(obj.id))
+        self.logger.debug('order_id({0})'.format(obj.id))
         return obj.id
 
     # django specific
     def order_getinstance(self, value=id, mkey='id'):
         """ get order instance """
-        print_debug(self.debug, 'DBStore.order_getinstance({0}:{1})'.format(mkey, value))
+        self.logger.debug('DBStore.order_getinstance({0}:{1})'.format(mkey, value))
         return Order.objects.get(**{mkey: value})
 
     # django specific
     def status_getinstance(self, value, mkey='id'):
         """ get account instance """
-        print_debug(self.debug, 'DBStore.status_getinstance({0}:{1})'.format(mkey, value))
+        self.logger.debug('DBStore.status_getinstance({0}:{1})'.format(mkey, value))
         return Status.objects.get(**{mkey: value})
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
-        print_debug(self.debug, 'DBStore.authorization_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
 
         # get some instance for DB insert
         if 'order' in data_dic:
@@ -120,12 +120,12 @@ class DBstore(object):
         # add authorization
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
-        print_debug(self.debug, 'auth_id({0})'.format(obj.id))
+        self.logger.debug('auth_id({0})'.format(obj.id))
         return obj.id
 
     def authorization_update(self, data_dic):
         """ update existing authorization """
-        print_debug(self.debug, 'DBStore.authorization_update({0})'.format(data_dic))
+        self.logger.debug('DBStore.authorization_update({0})'.format(data_dic))
 
         # get some instance for DB insert
         if 'status' in data_dic:
@@ -135,24 +135,24 @@ class DBstore(object):
         obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-        print_debug(self.debug, 'auth_id({0})'.format(obj.id))
+        self.logger.debug('auth_id({0})'.format(obj.id))
         return obj.id
 
     def authorization_lookup(self, mkey, value, vlist=('type', 'value')):
         """ search account for a given id """
-        print_debug(self.debug, 'authorization_lookup({0}:{1}:{2})'.format(mkey, value, vlist))
+        self.logger.debug('authorization_lookup({0}:{1}:{2})'.format(mkey, value, vlist))
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
         return authz_list
 
     # django specific
     def authorization_getinstance(self, name):
         """ get authorization instance """
-        print_debug(self.debug, 'DBStore.authorization_getinstance({0})'.format(name))
+        self.logger.debug('DBStore.authorization_getinstance({0})'.format(name))
         return Authorization.objects.get(name=name)
 
     def challenge_add(self, data_dic):
         """ add challenge to database """
-        print_debug(self.debug, 'DBStore.challenge_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.challenge_add({0})'.format(data_dic))
 
         # get order instance for DB insert
         data_dic['authorization'] = self.authorization_getinstance(data_dic['authorization'])
@@ -163,12 +163,12 @@ class DBstore(object):
         # add authorization
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
-        print_debug(self.debug, 'cid({0})'.format(obj.id))
+        self.logger.debug('cid({0})'.format(obj.id))
         return obj.id
 
     def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
-        print_debug(self.debug, 'challenge_lookup({0}:{1})'.format(mkey, value))
+        self.logger.debug('challenge_lookup({0}:{1})'.format(mkey, value))
         challenge_list = Challenge.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if challenge_list:
             result = challenge_list[0]
@@ -184,7 +184,7 @@ class DBstore(object):
 
     def challenge_update(self, data_dic):
         """ update challenge """
-        print_debug(self.debug, 'challenge_update({0})'.format(data_dic))
+        self.logger.debug('challenge_update({0})'.format(data_dic))
         # replace orderstatus with an instance
         if 'status' in data_dic:
             data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
@@ -193,7 +193,7 @@ class DBstore(object):
 
     def order_lookup(self, mkey, value, vlist=('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')):
         """ search orders for a given ordername """
-        print_debug(self.debug, 'order_lookup({0}:{1})'.format(mkey, value))
+        self.logger.debug('order_lookup({0}:{1})'.format(mkey, value))
         order_list = Order.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if order_list:
             result = order_list[0]
@@ -209,7 +209,7 @@ class DBstore(object):
 
     def certificate_add(self, data_dic):
         """ add csr/certificate to database """
-        print_debug(self.debug, 'DBStore.certificate_add()')
+        self.logger.debug('DBStore.certificate_add()')
 
         # get order instance for DB insert
         if 'order' in data_dic:
@@ -217,12 +217,12 @@ class DBstore(object):
         # add certificate/CSR
         obj, _created = Certificate.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
-        print_debug(self.debug, 'DBStore.certificate_add() ended with :{0}'.format(obj.id))
+        self.logger.debug('DBStore.certificate_add() ended with :{0}'.format(obj.id))
         return obj.id
 
     def order_update(self, data_dic):
         """ update order """
-        print_debug(self.debug, 'order_update({0})'.format(data_dic))
+        self.logger.debug('order_update({0})'.format(data_dic))
         # replace orderstatus with an instance
         if 'status' in data_dic:
             data_dic['status'] = self.status_getinstance(data_dic['status'], 'name')
@@ -231,7 +231,7 @@ class DBstore(object):
 
     def certificate_lookup(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
-        print_debug(self.debug, 'DBStore.certificate_lookup({0}:{1})'.format(mkey, value))
+        self.logger.debug('DBStore.certificate_lookup({0}:{1})'.format(mkey, value))
         certificate_list = Certificate.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if certificate_list:
             result = certificate_list[0]
@@ -240,12 +240,12 @@ class DBstore(object):
                 del result['order__name']
         else:
             result = None
-        print_debug(self.debug, 'DBStore.certificate_lookup() ended with: {0}'.format(result))
+        self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
     def certificate_account_check(self, account_name, certificate):
         """ check issuer against certificate """
-        print_debug(self.debug, 'DBStore.certificate_account_check({0})'.format(account_name))
+        self.logger.debug('DBStore.certificate_account_check({0})'.format(account_name))
 
         result = None
         certificate_list = self.certificate_lookup('cert_raw', certificate, ['name', 'order__name', 'order__account__name'])
@@ -259,5 +259,5 @@ class DBstore(object):
                 # no account name given (message signed with domain key
                 result = certificate_list['order']
 
-        print_debug(self.debug, 'DBStore.certificate_account_check() ended with: {0}'.format(result))
+        self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
