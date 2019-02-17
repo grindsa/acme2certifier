@@ -3,14 +3,13 @@
 """ django handler for acmesrv.py """
 from __future__ import print_function
 from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
-from acme.helper import logger_setup
 
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, logger=None):
         """ init """
-        self.logger = logger_setup(debug)
+        self.logger = logger
 
     def account_add(self, data_dic):
         """ add account in database """
