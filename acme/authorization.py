@@ -5,20 +5,20 @@ from __future__ import print_function
 import json
 from acme.db_handler import DBstore
 from acme.challenge import Challenge
-from acme.helper import generate_random_string, uts_now, uts_to_date_utc, logger_setup
+from acme.helper import generate_random_string, uts_now, uts_to_date_utc
 from acme.message import Message
 from acme.nonce import Nonce
 
 class Authorization(object):
     """ class for order handling """
 
-    def __init__(self, debug=None, srv_name=None, expiry=86400):
+    def __init__(self, debug=None, srv_name=None, logger=None, expiry=86400):
         self.server_name = srv_name
         self.debug = debug
-        self.dbstore = DBstore(self.debug)
-        self.message = Message(self.debug, self.server_name)
-        self.nonce = Nonce(self.debug)
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
+        self.nonce = Nonce(debug, self.logger)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/'}
 
@@ -47,7 +47,7 @@ class Authorization(object):
         if auth_info:
             authz_info_dic['status'] = auth_info[0]['status__name']
             authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
-        challenge = Challenge(self.logger, self.server_name, expires)
+        challenge = Challenge(self.debug, self.server_name, self.logger, expires)
         authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
 
         self.logger.debug('Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))

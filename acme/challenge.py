@@ -3,19 +3,19 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get, logger_setup
+from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
 class Challenge(object):
     """ Challenge handler """
 
-    def __init__(self, debug=None, srv_name=None, expiry=3600):
-        self.debug = debug
+    def __init__(self, debug=None, srv_name=None, logger=None, expiry=3600):
+        # self.debug = debug
         self.server_name = srv_name
-        self.dbstore = DBstore(self.debug)
-        self.message = Message(self.debug, self.server_name)
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False

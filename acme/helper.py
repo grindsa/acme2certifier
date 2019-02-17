@@ -175,8 +175,8 @@ def logger_setup(debug):
         log_mode = logging.INFO
 
     logging.basicConfig(
-        # format='%(asctime)s:{0}[{1}]:%(levelname)s: %(message)s'.format('acme2certifier', os.getpid()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
         datefmt="%Y-%m-%d %H:%M:%S",
         level=log_mode)
     logger = logging.getLogger('acme2certifier')
@@ -310,13 +310,11 @@ def validate_email(logger, contact_list):
     return result
 
 def handle_exception(exc_type, exc_value, exc_traceback):
+    """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     # logger.error("Uncaught exception")
-
-# logger = logger_setup(False)
-
-
+    
