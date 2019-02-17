@@ -2,17 +2,18 @@
 # -*- coding: utf-8 -*-
 """ Error class """
 from __future__ import print_function
-from acme.helper import print_debug
+from acme.helper import logger_setup
 
 class Error(object):
     """ error messages """
 
     def __init__(self, debug=None):
         self.debug = debug
+        self.logger = logger_setup(self.debug)
 
     def enrich_error(self, message, detail=None):
         """ put some more content into the error messgae """
-        print_debug(self.debug, 'Account.enrich_error()')
+        self.logger.debug('Account.enrich_error()')
         error_message = self.acme_errormessage(message)
 
         if message and error_message:
@@ -24,7 +25,7 @@ class Error(object):
 
     def acme_errormessage(self, message):
         """ dictionary containing the implemented acme error messages """
-        print_debug(self.debug, 'Error.acme_errormessage({0})'.format(message))
+        self.logger.debug('Error.acme_errormessage({0})'.format(message))
         error_dic = {
             'urn:ietf:params:acme:error:accountDoesNotExist' : None,
             'urn:ietf:params:acme:error:badCSR' : None,

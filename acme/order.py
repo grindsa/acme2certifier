@@ -3,7 +3,7 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, parse_url, print_debug, uts_to_date_utc, uts_now, validate_csr
+from acme.helper import b64_url_recode, generate_random_string, parse_url, uts_to_date_utc, uts_now, validate_csr, logger_setup
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -16,6 +16,7 @@ class Order(object):
         self.debug = debug
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
+        self.logger = logger_setup(self.debug)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
 
@@ -28,10 +29,10 @@ class Order(object):
 
     def add(self, payload, aname):
         """ add order request to database """
-        print_debug(self.debug, 'Order.add({0})'.format(aname))
+        self.logger.debug('Order.add({0})'.format(aname))
         error = None
         auth_dic = {}
-        order_name = generate_random_string(self.debug, 12)
+        order_name = generate_random_string(self.logger, 12)
         expires = uts_now() + self.expiry
 
         if 'identifiers' in payload:
@@ -53,7 +54,7 @@ class Order(object):
                 error = None
                 for auth in payload['identifiers']:
                     # generate name
-                    auth_name = generate_random_string(self.debug, 12)
+                    auth_name = generate_random_string(self.logger, 12)
                     # print(auth_name, auth)
                     # store to return to upper func
                     auth_dic[auth_name] = auth.copy()
@@ -72,8 +73,8 @@ class Order(object):
 
     def name_get(self, url):
         """ get ordername """
-        print_debug(self.debug, 'Order.get_name({0})'.format(url))
-        url_dic = parse_url(self.debug, url)
+        self.logger.debug('Order.get_name({0})'.format(url))
+        url_dic = parse_url(self.logger, url)
         order_name = url_dic['path'].replace(self.path_dic['order_path'], '')
         if '/' in order_name:
             (order_name, _sinin) = order_name.split('/', 1)
@@ -81,12 +82,12 @@ class Order(object):
 
     def info(self, order_name):
         """ list details of an order """
-        print_debug(self.debug, 'Order.info({0})'.format(order_name))
+        self.logger.debug('Order.info({0})'.format(order_name))
         return self.dbstore.order_lookup('name', order_name)
 
     def new(self, content):
         """ new oder request """
-        print_debug(self.debug, 'Order.new()')
+        self.logger.debug('Order.new()')
 
         response_dic = {}
         # check message
@@ -114,12 +115,12 @@ class Order(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Order.new() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def parse(self, content):
         """ new oder request """
-        print_debug(self.debug, 'Order.parse()')
+        self.logger.debug('Order.parse()')
 
         response_dic = {}
         # check message
@@ -128,16 +129,16 @@ class Order(object):
             if 'url' in protected:
                 order_name = self.name_get(protected['url'])
                 if 'finalize' in protected['url']:
-                    print_debug(self.debug, 'finalize request()')
+                    self.logger.debug('finalize request()')
                     if  'csr' in payload:
-                        print_debug(self.debug, 'CSR found()')
+                        self.logger.debug('CSR found()')
                         # this is a new request
                         (code, certificate_name, detail) = self.process_csr(order_name, payload['csr'])
                         if code == 200:
                             # update order_status / set to valid
                             self.update({'name' : order_name, 'status': 'valid'})
                         else:
-                            print_debug(self.debug, 'no CSR found()')
+                            self.logger.debug('no CSR found()')
                             code = 400
                             message = 'urn:ietf:params:acme:error:badCSR'
                             detail = 'enrollment failed'
@@ -146,7 +147,7 @@ class Order(object):
                         message = 'urn:ietf:params:acme:error:badCSR'
                         detail = 'csr is missing in payload'
                 else:
-                    print_debug(self.debug, 'polling request()')
+                    self.logger.debug('polling request()')
                     # this is a polling request:
                     cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
                     # we found a cert in the database
@@ -174,21 +175,21 @@ class Order(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def process_csr(self, order_name, csr):
         """ process certificate signing request """
-        print_debug(self.debug, 'Order.process_csr({0})'.format(order_name))
+        self.logger.debug('Order.process_csr({0})'.format(order_name))
 
         order_dic = self.info(order_name)
 
         if order_dic:
             # change decoding from b64url to b64
-            csr = b64_url_recode(self.debug, csr)
-            csr_check = validate_csr(self.debug, order_dic, csr)
+            csr = b64_url_recode(self.logger, csr)
+            csr_check = validate_csr(self.logger, order_dic, csr)
             if csr_check:
-                certificate = Certificate(self.debug)
+                certificate = Certificate(self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
                     (_result, error) = certificate.enroll_and_store(certificate_name, csr)
@@ -214,17 +215,17 @@ class Order(object):
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'order: {0} not found'.format(order_name)
 
-        print_debug(self.debug, 'Order.process_csr() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        self.logger.debug('Order.process_csr() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return(code, message, detail)
 
     def update(self, data_dic):
         """ update order based on ordername """
-        print_debug(self.debug, 'Order.update({0})'.format(data_dic))
+        self.logger.debug('Order.update({0})'.format(data_dic))
         return self.dbstore.order_update(data_dic)
 
     def lookup(self, order_name):
         """ sohw order details based on ordername """
-        print_debug(self.debug, 'Order.show({0})'.format(order_name))
+        self.logger.debug('Order.show({0})'.format(order_name))
         order_dic = {}
 
         tmp_dic = self.info(order_name)
