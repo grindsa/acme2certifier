@@ -5,7 +5,7 @@ from __future__ import print_function
 import json
 from acme.db_handler import DBstore
 from acme.challenge import Challenge
-from acme.helper import generate_random_string, print_debug, uts_now, uts_to_date_utc
+from acme.helper import generate_random_string, uts_now, uts_to_date_utc, logger_setup
 from acme.message import Message
 from acme.nonce import Nonce
 
@@ -18,6 +18,7 @@ class Authorization(object):
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
         self.nonce = Nonce(self.debug)
+        self.logger = logger_setup(self.debug)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/'}
 
@@ -30,11 +31,11 @@ class Authorization(object):
 
     def authz_info(self, url):
         """ return authzs information """
-        print_debug(self.debug, 'Authorization.info({0})'.format(url))
+        self.logger.debug('Authorization.info({0})'.format(url))
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
 
         expires = uts_now() + self.expiry
-        token = generate_random_string(self.debug, 32)
+        token = generate_random_string(self.logger, 32)
         # update authorization with expiry date and token (just to be sure)
         self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
 
@@ -46,15 +47,15 @@ class Authorization(object):
         if auth_info:
             authz_info_dic['status'] = auth_info[0]['status__name']
             authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
-        challenge = Challenge(self.debug, self.server_name, expires)
+        challenge = Challenge(self.logger, self.server_name, expires)
         authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
 
-        print_debug(self.debug, 'Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
+        self.logger.debug('Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
 
     def new_get(self, url):
         """ challenge computation based on get request """
-        print_debug(self.debug, 'Authorization.new_get()')
+        self.logger.debug('Authorization.new_get()')
         response_dic = {}
         response_dic['code'] = 200
         response_dic['header'] = {}
@@ -63,7 +64,7 @@ class Authorization(object):
 
     def new_post(self, content):
         """ challenge computation based on post request """
-        print_debug(self.debug, 'Authorization.new_post()')
+        self.logger.debug('Authorization.new_post()')
 
         response_dic = {}
         # check message
@@ -80,6 +81,6 @@ class Authorization(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
 
         return response_dic

@@ -10,6 +10,7 @@ import calendar
 import configparser
 import time
 import os
+import sys
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
@@ -174,8 +175,8 @@ def logger_setup(debug):
         log_mode = logging.INFO
 
     logging.basicConfig(
-        format='%(asctime)s:{0}[{1}]:%(levelname)s: %(message)s'
-        .format('acme2certifier', os.getpid()),
+        # format='%(asctime)s:{0}[{1}]:%(levelname)s: %(message)s'.format('acme2certifier', os.getpid()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt="%Y-%m-%d %H:%M:%S",
         level=log_mode)
     logger = logging.getLogger('acme2certifier')
@@ -307,3 +308,15 @@ def validate_email(logger, contact_list):
         result = bool(re.search(pattern, contact_list))
         logger.debug('# validate: {0} result: {1}'.format(contact_list, result))
     return result
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    # logger.error("Uncaught exception")
+
+# logger = logger_setup(False)
+
+

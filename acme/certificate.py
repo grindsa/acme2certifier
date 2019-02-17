@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, print_debug, cert_san_get, uts_now, uts_to_date_utc
+from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc, logger_setup
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -17,6 +17,7 @@ class Certificate(object):
         self.server_name = srv_name
         self.dbstore = DBstore(self.debug)
         self.message = Message(self.debug, self.server_name)
+        self.logger = logger_setup(self.debug)
         self.path_dic = {'cert_path' : '/acme/cert/'}
 
     def __enter__(self):
@@ -28,7 +29,7 @@ class Certificate(object):
 
     def enroll(self, csr):
         """ get key for a specific order """
-        print_debug(self.debug, 'Certificate.enroll()')
+        self.logger.debug('Certificate.enroll()')
         cert_bundle = None
         error = None
         cert_raw = None
@@ -46,12 +47,12 @@ class Certificate(object):
                     error = 'no certificate information found'
             else:
                 error = 'internal error'
-        print_debug(self.debug, 'Certificate.enroll() ended')
+        self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw)
 
     def enroll_and_store(self, certificate_name, csr):
         """ get key for a specific order """
-        print_debug(self.debug, 'Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
+        self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
         (error, certificate, cetificate_raw) = self.enroll(csr)
         if certificate:
             result = self.store_cert(certificate_name, certificate, cetificate_raw)
@@ -60,17 +61,17 @@ class Certificate(object):
             # store error message for later analysis
             self.store_cert_error(certificate_name, error)
 
-        print_debug(self.debug, 'Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
+        self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error)
 
     def info(self, certificate_name):
         """ get certificate from database """
-        print_debug(self.debug, 'Certificate.info({0})'.format(certificate_name))
+        self.logger.debug('Certificate.info({0})'.format(certificate_name))
         return self.dbstore.certificate_lookup('name', certificate_name)
 
     def new_get(self, url):
         """ get request """
-        print_debug(self.debug, 'Certificate.new_get({0})'.format(url))
+        self.logger.debug('Certificate.new_get({0})'.format(url))
         certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
 
         response_dic = {}
@@ -80,18 +81,18 @@ class Certificate(object):
         if 'cert' in certificate_dic:
             response_dic['code'] = 200
             # filter certificate and decode it
-            response_dic['data'] = b64decode_pad(self.debug, certificate_dic['cert'])
+            response_dic['data'] = b64decode_pad(self.logger, certificate_dic['cert'])
             response_dic['header'] = {}
             response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
         else:
             response_dic['code'] = 403
             response_dic['data'] = 'NotFound'
-        print_debug(self.debug, 'Certificate.new_get({0}) ended'.format(response_dic))
+        self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic))
         return response_dic
 
     def new_post(self, content):
         """ post request """
-        print_debug(self.debug, 'Certificate.new_post({0})')
+        self.logger.debug('Certificate.new_post({0})')
 
         response_dic = {}
         # check message
@@ -107,12 +108,12 @@ class Certificate(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Certificate.new_post() ended with: {0}'.format(response_dic))
+        self.logger.debug('Certificate.new_post() ended with: {0}'.format(response_dic))
         return response_dic
 
     def revoke(self, content):
         """ revoke request """
-        print_debug(self.debug, 'Certificate.revoke()')
+        self.logger.debug('Certificate.revoke()')
 
         response_dic = {}
         # check message
@@ -141,37 +142,37 @@ class Certificate(object):
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        print_debug(self.debug, 'Certificate.revoke() ended with: {0}'.format(response_dic))
+        self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))
         return response_dic
 
     def store_cert(self, certificate_name, certificate, raw):
         """ get key for a specific account id """
-        print_debug(self.debug, 'Certificate.store_cert({0})'.format(certificate_name))
-        data_dic = {'cert' : b64_encode(self.debug, certificate), 'name': certificate_name, 'cert_raw' : raw}
+        self.logger.debug('Certificate.store_cert({0})'.format(certificate_name))
+        data_dic = {'cert' : b64_encode(self.logger, certificate), 'name': certificate_name, 'cert_raw' : raw}
         cert_id = self.dbstore.certificate_add(data_dic)
-        print_debug(self.debug, 'Certificate.store_cert({0}) ended'.format(cert_id))
+        self.logger.debug('Certificate.store_cert({0}) ended'.format(cert_id))
         return cert_id
 
     def store_cert_error(self, certificate_name, error):
         """ get key for a specific account id """
-        print_debug(self.debug, 'Certificate.store_error({0})'.format(certificate_name))
+        self.logger.debug('Certificate.store_error({0})'.format(certificate_name))
         data_dic = {'error' : error, 'name': certificate_name}
         cert_id = self.dbstore.certificate_add(data_dic)
-        print_debug(self.debug, 'Certificate.store_error({0}) ended'.format(cert_id))
+        self.logger.debug('Certificate.store_error({0}) ended'.format(cert_id))
         return cert_id
 
     def store_csr(self, order_name, csr):
         """ get key for a specific account id """
-        print_debug(self.debug, 'Certificate.store_csr({0})'.format(order_name))
-        certificate_name = generate_random_string(self.debug, 12)
+        self.logger.debug('Certificate.store_csr({0})'.format(order_name))
+        certificate_name = generate_random_string(self.logger, 12)
         data_dic = {'order' : order_name, 'csr' : csr, 'name': certificate_name}
         self.dbstore.certificate_add(data_dic)
-        print_debug(self.debug, 'Certificate.store_csr() ended')
+        self.logger.debug('Certificate.store_csr() ended')
         return certificate_name
 
     def revocation_request_validate(self, account_name, payload):
         """ chec CSR """
-        print_debug(self.debug, 'Certificate.validate_revocation_request({0})'.format(account_name))
+        self.logger.debug('Certificate.validate_revocation_request({0})'.format(account_name))
 
         # set a value to avoid that we are returning none by accident
         code = 400
@@ -203,12 +204,12 @@ class Certificate(object):
                 else:
                     error = 'urn:ietf:params:acme:error:unauthorized'
 
-        print_debug(self.debug, 'Certificate.revocation_request_validate() ended with: {0}, {1}'.format(code, error))
+        self.logger.debug('Certificate.revocation_request_validate() ended with: {0}, {1}'.format(code, error))
         return (code, error)
 
     def revocation_reason_check(self, reason):
         """ check reason """
-        print_debug(self.debug, 'Certificate.check_revocation_reason({0})'.format(reason))
+        self.logger.debug('Certificate.check_revocation_reason({0})'.format(reason))
 
         # taken from https://tools.ietf.org/html/rfc5280#section-5.3.1
         allowed_reasons = {
@@ -227,22 +228,22 @@ class Certificate(object):
         result = None
         if reason in allowed_reasons:
             result = allowed_reasons[reason]
-        print_debug(self.debug, 'Certificate.store_csr() ended with {0}'.format(result))
+        self.logger.debug('Certificate.store_csr() ended with {0}'.format(result))
         return result
 
     def account_check(self, account_name, certificate):
         """ check account """
-        print_debug(self.debug, 'Certificate.issuer_check()')
-        return self.dbstore.certificate_account_check(account_name, b64_url_recode(self.debug, certificate))
+        self.logger.debug('Certificate.issuer_check()')
+        return self.dbstore.certificate_account_check(account_name, b64_url_recode(self.logger, certificate))
 
     def authorization_check(self, order_name, certificate):
         """ check if an acount holds authorization for all identifiers = SANs in the certificate """
-        print_debug(self.debug, 'Certificate.authorization_check()')
+        self.logger.debug('Certificate.authorization_check()')
 
         # empty list of statuses
         identifier_status = []
         # get sans
-        san_list = cert_san_get(self.debug, certificate)
+        san_list = cert_san_get(self.logger, certificate)
         # get identifiers for order
         identifier_dic = self.dbstore.order_lookup('name', order_name, ['identifiers'])
         if identifier_dic and 'identifiers' in identifier_dic:
@@ -264,12 +265,12 @@ class Certificate(object):
                         if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
                             san_is_in = True
                             break
-                print_debug(self.debug, 'SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
+                self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
                 identifier_status.append(san_is_in)
 
         result = False
         if identifier_status and False not in identifier_status:
             result = True
 
-        print_debug(self.debug, 'Certificate.authorization_check() ended with {0}'.format(result))
+        self.logger.debug('Certificate.authorization_check() ended with {0}'.format(result))
         return result
