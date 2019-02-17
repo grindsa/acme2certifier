@@ -3,16 +3,15 @@
 """ Nonce class """
 from __future__ import print_function
 import uuid
-from acme.helper import logger_setup
 from acme.db_handler import DBstore
 
 class Nonce(object):
     """ Nonce handler """
 
-    def __init__(self, debug=None):
+    def __init__(self, debug=None, logger=None):
         self.debug = debug
-        self.logger = logger_setup(self.debug)
-        self.dbstore = DBstore(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(self.debug, self.logger)
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
-from acme.helper import decode_message, load_config, logger_setup
+from acme.helper import decode_message, load_config
 from acme.error import Error
 from acme.db_handler import DBstore
 from acme.nonce import Nonce
@@ -11,11 +11,11 @@ from acme.signature import Signature
 class Message(object):
     """ Message  handler """
 
-    def __init__(self, debug=None, srv_name=None):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.debug = debug
-        self.logger = logger_setup(self.debug)
-        self.nonce = Nonce(self.debug)
-        self.dbstore = DBstore(self.debug)
+        self.logger = logger
+        self.nonce = Nonce(self.debug, self.logger)
+        self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
         self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
         self.nonce_check_disable = False
@@ -47,7 +47,7 @@ class Message(object):
             if code == 200 and not skip_signature_check:
                 # nonce check successful - check signature
                 account_name = self.name_get(protected)
-                signature = Signature(self.debug, self.server_name)
+                signature = Signature(self.debug, self.server_name, self.logger)
                 # we need the decoded protected header to grab a key to verify signature
                 (sig_check, error, error_detail) = signature.check(content, account_name, protected)
                 if sig_check:
@@ -128,7 +128,7 @@ class Message(object):
         if status_dic['code'] >= 400:
             if status_dic['detail']:
                 # some error occured get details
-                error_message = Error(self.debug)
+                error_message = Error(self.debug, self.logger)
                 status_dic['detail'] = error_message.enrich_error(status_dic['message'], status_dic['detail'])
                 response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': status_dic['detail']}
             else:
