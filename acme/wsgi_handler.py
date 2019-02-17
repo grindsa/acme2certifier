@@ -4,7 +4,6 @@
 from __future__ import print_function
 import sqlite3
 import os
-from acme.helper import logger_setup
 
 def dict_from_row(row):
     """ small helper to convert a select list into a dictionary """
@@ -13,11 +12,11 @@ def dict_from_row(row):
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, debug=False, db_name=os.path.dirname(__file__)+'/'+'acme_srv.db'):
+    def __init__(self, debug=False, logger=None, db_name=os.path.dirname(__file__)+'/'+'acme_srv.db'):
         """ init """
         self.db_name = db_name
         self.debug = debug
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
         self.dbs = None
         self.cursor = None
 

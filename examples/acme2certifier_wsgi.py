@@ -11,11 +11,15 @@ from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
-from acme.helper import print_debug, get_url, load_config
+from acme.helper import get_url, load_config, logger_setup
 
 # load config to set debug mode
 CONFIG = load_config()
 DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
+
+# initialize logger
+LOGGER = logger_setup(DEBUG)
+
 
 HTTP_CODE_DIC = {
     200 : 'Created',
@@ -34,7 +38,6 @@ def create_header(response_dic):
 
     # enrich header
     for element, value in response_dic['header'].items():
-        print_debug(DEBUG, 'acct header {0}: {1}'.format(element, value))
         headers.append((element, value))
     return headers
 
@@ -49,7 +52,7 @@ def get_request_body(environ):
 
 def acct(environ, start_response):
     """ account handling """
-    account = Account(DEBUG, get_url(environ))
+    account = Account(DEBUG, get_url(environ), LOGGER)
     request_body = get_request_body(environ)
     response_dic = account.parse(request_body)
 
@@ -62,7 +65,7 @@ def acct(environ, start_response):
 def authz(environ, start_response):
     """ account handling """
     if environ['REQUEST_METHOD'] == 'POST' or environ['REQUEST_METHOD'] == 'GET':
-        authorization = Authorization(DEBUG, get_url(environ))
+        authorization = Authorization(DEBUG, get_url(environ), LOGGER)
         if environ['REQUEST_METHOD'] == 'POST':
             try:
                 request_body_size = int(environ.get('CONTENT_LENGTH', 0))
@@ -78,7 +81,6 @@ def authz(environ, start_response):
         # enrich header
         if 'header' in response_dic:
             for element, value in response_dic['header'].items():
-                print_debug(DEBUG, 'newaccount header {0}: {1}'.format(element, value))
                 headers.append((element, value))
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
         return [json.dumps(response_dic['data'])]
@@ -91,7 +93,7 @@ def newaccount(environ, start_response):
     """ create new account """
     if environ['REQUEST_METHOD'] == 'POST':
 
-        account = Account(DEBUG, get_url(environ))
+        account = Account(DEBUG, get_url(environ), LOGGER)
         request_body = get_request_body(environ)
         response_dic = account.new(request_body)
 
@@ -106,13 +108,13 @@ def newaccount(environ, start_response):
 
 def directory(environ, start_response):
     """ directory listing """
-    direct_tory = Directory(DEBUG, get_url(environ))
+    direct_tory = Directory(DEBUG, get_url(environ), LOGGER)
     start_response('200 OK', [('Content-Type', 'application/json')])
     return [json.dumps(direct_tory.directory_get())]
 
 def cert(environ, start_response):
     """ create new account """
-    certificate = Certificate(DEBUG, get_url(environ))
+    certificate = Certificate(DEBUG, get_url(environ), LOGGER)
     if environ['REQUEST_METHOD'] == 'POST':
         request_body = get_request_body(environ)
         response_dic = certificate.new_post(request_body)
@@ -137,36 +139,36 @@ def cert(environ, start_response):
 
 def chall(environ, start_response):
     """ create new account """
-    challenge = Challenge(DEBUG, get_url(environ))
-    if environ['REQUEST_METHOD'] == 'POST':
+    with Challenge(DEBUG, get_url(environ), LOGGER) as challenge:
+        if environ['REQUEST_METHOD'] == 'POST':
 
-        request_body = get_request_body(environ)
-        response_dic = challenge.parse(request_body)
+            request_body = get_request_body(environ)
+            response_dic = challenge.parse(request_body)
 
-        # create header
-        headers = create_header(response_dic)
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
-        return [json.dumps(response_dic['data'])]
+            # create header
+            headers = create_header(response_dic)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            return [json.dumps(response_dic['data'])]
 
-    elif environ['REQUEST_METHOD'] == 'GET':
+        elif environ['REQUEST_METHOD'] == 'GET':
 
-        response_dic = challenge.get(get_url(environ, True))
+            response_dic = challenge.get(get_url(environ, True))
 
-        # generate header
-        headers = [('Content-Type', 'application/json')]
-        # create the response
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
-        # send response
-        return [json.dumps(response_dic['data'])]
+            # generate header
+            headers = [('Content-Type', 'application/json')]
+            # create the response
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            # send response
+            return [json.dumps(response_dic['data'])]
 
-    else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        else:
+            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
 
 def newnonce(environ, start_response):
     """ generate a new nonce """
     if environ['REQUEST_METHOD'] == 'HEAD':
-        nonce = Nonce(DEBUG)
+        nonce = Nonce(DEBUG, LOGGER)
         headers = [('Content-Type', 'text/plain'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
         start_response('200 OK', headers)
         return []
@@ -177,7 +179,7 @@ def newnonce(environ, start_response):
 def neworders(environ, start_response):
     """ generate a new order """
     if environ['REQUEST_METHOD'] == 'POST':
-        norder = Order(DEBUG, get_url(environ))
+        norder = Order(DEBUG, get_url(environ), LOGGER)
         request_body = get_request_body(environ)
         response_dic = norder.new(request_body)
 
@@ -193,7 +195,7 @@ def neworders(environ, start_response):
 def order(environ, start_response):
     """ order_handler """
     if environ['REQUEST_METHOD'] == 'POST':
-        eorder = Order(DEBUG, get_url(environ))
+        eorder = Order(DEBUG, get_url(environ), LOGGER)
         request_body = get_request_body(environ)
         response_dic = eorder.parse(request_body)
 
@@ -209,7 +211,7 @@ def order(environ, start_response):
 def revokecert(environ, start_response):
     """ revocation_handler """
     if environ['REQUEST_METHOD'] == 'POST':
-        certificate = Certificate(DEBUG, get_url(environ))
+        certificate = Certificate(DEBUG, get_url(environ), LOGGER)
         request_body = get_request_body(environ)
         response_dic = certificate.revoke(request_body)
 
