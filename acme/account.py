@@ -3,18 +3,18 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, validate_email, logger_setup
+from acme.helper import generate_random_string, validate_email
 from acme.db_handler import DBstore
 from acme.message import Message
 
 class Account(object):
     """ ACME server class """
 
-    def __init__(self, debug=None, srv_name=None):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
-        self.logger = logger_setup(debug)
-        self.dbstore = DBstore(debug)
-        self.message = Message(debug, self.server_name)
+        self.logger = logger
+        self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path' : '/acme/acct/'}
 
     def __enter__(self):

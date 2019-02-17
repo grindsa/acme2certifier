@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 """ Error class """
 from __future__ import print_function
-from acme.helper import logger_setup
 
 class Error(object):
     """ error messages """
 
-    def __init__(self, debug=None):
+    def __init__(self, debug=None, logger=None):
         self.debug = debug
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
 
     def enrich_error(self, message, detail=None):
         """ put some more content into the error messgae """

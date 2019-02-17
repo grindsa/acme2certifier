@@ -3,14 +3,13 @@
 """ Directory class """
 from __future__ import print_function
 import uuid
-from acme.helper import logger_setup
 
 class Directory(object):
     """ class for directory handling """
 
-    def __init__(self, debug=None, srv_name=None):
+    def __init__(self, _debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
-        self.logger = logger_setup(debug)
+        self.logger = logger
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """

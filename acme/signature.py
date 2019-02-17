@@ -2,16 +2,16 @@
 # -*- coding: utf-8 -*-
 """ Signature class """
 from __future__ import print_function
-from acme.helper import logger_setup, signature_check
+from acme.helper import signature_check
 from acme.db_handler import DBstore
 
 class Signature(object):
     """ Signature handler """
 
-    def __init__(self, debug=None, srv_name=None):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.debug = debug
-        self.logger = logger_setup(self.debug)
-        self.dbstore = DBstore(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
         self.revocation_path = '/acme/revokecert'
 
