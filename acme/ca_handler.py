@@ -5,14 +5,14 @@ from __future__ import print_function
 import textwrap
 import requests
 from requests.auth import HTTPBasicAuth
-from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, logger_setup
+from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc
 
 class CAhandler(object):
     """ CA  handler """
 
-    def __init__(self, debug=None):
+    def __init__(self, debug=None, logger=None):
         self.debug = debug
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
         self.api_host = None
         self.api_user = None
         self.api_password = None

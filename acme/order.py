@@ -3,7 +3,7 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, parse_url, uts_to_date_utc, uts_now, validate_csr, logger_setup
+from acme.helper import b64_url_recode, generate_random_string, parse_url, uts_to_date_utc, uts_now, validate_csr
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -11,12 +11,12 @@ from acme.message import Message
 class Order(object):
     """ class for order handling """
 
-    def __init__(self, debug=None, srv_name=None, expiry=86400):
+    def __init__(self, debug=None, srv_name=None, logger=None, expiry=86400):
         self.server_name = srv_name
         self.debug = debug
-        self.dbstore = DBstore(self.debug)
-        self.message = Message(self.debug, self.server_name)
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(self.debug, self.logger)
+        self.message = Message(self.debug, self.server_name, self.logger)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
 
@@ -189,7 +189,7 @@ class Order(object):
             csr = b64_url_recode(self.logger, csr)
             csr_check = validate_csr(self.logger, order_dic, csr)
             if csr_check:
-                certificate = Certificate(self.logger)
+                certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
                     (_result, error) = certificate.enroll_and_store(certificate_name, csr)

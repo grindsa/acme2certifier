@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc, logger_setup
+from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -12,12 +12,12 @@ from acme.message import Message
 class Certificate(object):
     """ CA  handler """
 
-    def __init__(self, debug=None, srv_name=None):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.debug = debug
         self.server_name = srv_name
-        self.dbstore = DBstore(self.debug)
-        self.message = Message(self.debug, self.server_name)
-        self.logger = logger_setup(self.debug)
+        self.logger = logger
+        self.dbstore = DBstore(self.debug, self.logger)
+        self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path' : '/acme/cert/'}
 
     def __enter__(self):
@@ -33,7 +33,7 @@ class Certificate(object):
         cert_bundle = None
         error = None
         cert_raw = None
-        with CAhandler(self.debug) as ca_handler:
+        with CAhandler(self.debug, self.logger) as ca_handler:
             cert_dic = ca_handler.enroll(csr)
             if cert_dic:
                 if 'status' in cert_dic:
@@ -126,7 +126,7 @@ class Certificate(object):
                     # revocation starts here
                     # revocation reason is stored in error variable
                     rev_date = uts_to_date_utc(uts_now())
-                    with CAhandler(self.debug) as ca_handler:
+                    with CAhandler(self.debug, self.logger) as ca_handler:
                         (code, message, detail) = ca_handler.revoke(payload['certificate'], error, rev_date)
                 else:
                     message = error
