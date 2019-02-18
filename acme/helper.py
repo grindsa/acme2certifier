@@ -167,6 +167,30 @@ def parse_url(logger, url):
     }
     return url_dic
 
+def logger_info(logger, addr, url, data_dic):
+    """ log responses """
+
+    if 'header' in data_dic:
+        if 'Replay-Nonce' in data_dic['header']:
+            data_dic['header']['Replay-Nonce'] = '- modified -'
+
+    if 'data' in data_dic:
+        # remove cert from log entry
+        if url.startswith('/acme/cert'):
+            data_dic['data'] = ' - certificate - '
+        
+        # remove token from challenge
+        if 'token' in data_dic['data']:
+            data_dic['data']['token'] = '- modified -'
+        
+        # remove tokens
+        #if 'challenges' in data_dic['data']:
+        #    for challenge in data_dic['challenges']:
+        #        if 'token' in challenge:
+        #            data_dic['data'][challenge]
+
+    logger.info('{0} {1} {2}'.format(addr, url, str(data_dic)))
+
 def logger_setup(debug):
     """ setup logger """
     if debug:
@@ -317,4 +341,3 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
     # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     # logger.error("Uncaught exception")
-    
