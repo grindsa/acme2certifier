@@ -178,17 +178,16 @@ def logger_info(logger, addr, url, data_dic):
         # remove cert from log entry
         if url.startswith('/acme/cert'):
             data_dic['data'] = ' - certificate - '
-        
+
         # remove token from challenge
         if 'token' in data_dic['data']:
             data_dic['data']['token'] = '- modified -'
-        
-        # remove tokens
-        #if 'challenges' in data_dic['data']:
-        #    for challenge in data_dic['challenges']:
-        #        if 'token' in challenge:
-        #            data_dic['data'][challenge]
 
+        # remove tokens
+        if 'challenges' in data_dic['data']:
+            for challenge in data_dic['data']['challenges']:
+                if 'token' in challenge:
+                    challenge.update((k, "- modified - ") for k, v in challenge.iteritems() if k == "token")
     logger.info('{0} {1} {2}'.format(addr, url, str(data_dic)))
 
 def logger_setup(debug):
