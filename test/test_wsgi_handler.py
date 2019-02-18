@@ -15,7 +15,14 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         from acme.wsgi_handler import DBstore
-        self.dbstore = DBstore(False, 'acme_test.db')
+        import logging
+        logging.basicConfig(
+            # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
+            datefmt="%Y-%m-%d %H:%M:%S",
+            level=logging.INFO)
+        self.logger = logging.getLogger('test_acme2certifier')        
+        self.dbstore = DBstore(False, self.logger, 'acme_test.db')
 
     def test_001_nonce_add(self):
         """ test DBstore.nonce_add() method """
