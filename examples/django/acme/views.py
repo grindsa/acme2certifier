@@ -9,7 +9,7 @@ from acme.account import Account
 from acme.certificate import Certificate
 from acme.challenge import Challenge
 from acme.directory import Directory
-from acme.helper import get_url, load_config, logger_setup
+from acme.helper import get_url, load_config, logger_setup, logger_info
 from acme.nonce import Nonce
 from acme.order import Order
 import sys
@@ -20,6 +20,13 @@ DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """ exception handler """
+    print 'My Error Information'
+    print 'Type:', exctype
+    print 'Value:', value
+    print 'Traceback:', tb
 
 # examption handling via logger
 # sys.excepthook = handle_exception
@@ -63,6 +70,8 @@ def newaccount(request):
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
     else:
@@ -75,6 +84,10 @@ def newnonce(request):
             response = HttpResponse('')
             # generate nonce
             response['Replay-Nonce'] = nonce.generate_and_add()
+
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce' : response['Replay-Nonce']}})
+            # send response
             return response
     else:
         return JsonResponse(status=400, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD.'})
@@ -95,6 +108,8 @@ def acct(request):
         for element in response_dic['header']:
             response[element] = response_dic['header'][element]
 
+        # logging
+        logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
         # send response
         return response
 
@@ -110,6 +125,8 @@ def neworders(request):
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce' : response['Replay-Nonce']}})
             # send response
             return response
     else:
@@ -130,6 +147,8 @@ def authz(request):
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
     else:
@@ -145,6 +164,9 @@ def chall(request):
             # generate additional header elements
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
+
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
         elif request.method == 'GET':
@@ -152,6 +174,8 @@ def chall(request):
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
         else:
@@ -168,6 +192,8 @@ def order(request):
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
     else:
@@ -191,6 +217,8 @@ def cert(request):
             else:
                 response = HttpResponse(status=response_dic['code'])
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
 
@@ -212,6 +240,8 @@ def revokecert(request):
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
 
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
     else:

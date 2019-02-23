@@ -7,6 +7,7 @@ import base64
 import json
 import random
 import calendar
+import copy
 import configparser
 import time
 import os
@@ -167,8 +168,11 @@ def parse_url(logger, url):
     }
     return url_dic
 
-def logger_info(logger, addr, url, data_dic):
+def logger_info(logger, addr, url, dat_dic):
     """ log responses """
+
+    # create a copy of the dictionary
+    data_dic = copy.deepcopy(dat_dic)
 
     if 'header' in data_dic:
         if 'Replay-Nonce' in data_dic['header']:
@@ -188,6 +192,7 @@ def logger_info(logger, addr, url, data_dic):
             for challenge in data_dic['data']['challenges']:
                 if 'token' in challenge:
                     challenge.update((k, "- modified - ") for k, v in challenge.iteritems() if k == "token")
+
     logger.info('{0} {1} {2}'.format(addr, url, str(data_dic)))
 
 def logger_setup(debug):
@@ -339,4 +344,4 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         return
 
     # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-    # logger.error("Uncaught exception")
+    logging.error("Uncaught exception")

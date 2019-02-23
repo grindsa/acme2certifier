@@ -4,6 +4,7 @@
 from __future__ import print_function
 import re
 import json
+import sys
 from acme.account import Account
 from acme.authorization import Authorization
 from acme.certificate import Certificate
@@ -11,15 +12,27 @@ from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
-from acme.helper import get_url, load_config, logger_setup
+from acme.helper import get_url, load_config, logger_setup, logger_info
+
 
 # load config to set debug mode
 CONFIG = load_config()
 DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
 
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """ exception handler """
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    # LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    LOGGER.error("Uncaught exception")
+
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 
+# examption handling via logger
+sys.excepthook = handle_exception
 
 HTTP_CODE_DIC = {
     200 : 'Created',
@@ -83,6 +96,9 @@ def authz(environ, start_response):
             for element, value in response_dic['header'].items():
                 headers.append((element, value))
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         return [json.dumps(response_dic['data'])]
 
     else:
@@ -100,6 +116,9 @@ def newaccount(environ, start_response):
         # create header
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         return [json.dumps(response_dic['data'])]
 
     else:
@@ -110,6 +129,9 @@ def directory(environ, start_response):
     """ directory listing """
     direct_tory = Directory(DEBUG, get_url(environ), LOGGER)
     start_response('200 OK', [('Content-Type', 'application/json')])
+
+    # logging
+    logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
     return [json.dumps(direct_tory.directory_get())]
 
 def cert(environ, start_response):
@@ -121,6 +143,9 @@ def cert(environ, start_response):
         # create header
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         return [response_dic['data']]
 
     elif environ['REQUEST_METHOD'] == 'GET':
@@ -130,6 +155,9 @@ def cert(environ, start_response):
         headers = create_header(response_dic)
         # create the response
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         # send response
         return [response_dic['data']]
 
@@ -148,6 +176,9 @@ def chall(environ, start_response):
             # create header
             headers = create_header(response_dic)
             start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
             return [json.dumps(response_dic['data'])]
 
         elif environ['REQUEST_METHOD'] == 'GET':
@@ -158,6 +189,9 @@ def chall(environ, start_response):
             headers = [('Content-Type', 'application/json')]
             # create the response
             start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
             # send response
             return [json.dumps(response_dic['data'])]
 
@@ -186,6 +220,9 @@ def neworders(environ, start_response):
         # create header
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         return [json.dumps(response_dic['data'])]
 
     else:
@@ -202,6 +239,9 @@ def order(environ, start_response):
         # create header
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         return [json.dumps(response_dic['data'])]
 
     else:
@@ -218,6 +258,9 @@ def revokecert(environ, start_response):
         # create header
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         if 'data' in response_dic:
             return [json.dumps(response_dic['data'])]
         else:
@@ -257,6 +300,7 @@ def application(environ, start_response):
     return not_found(environ, start_response)
 
 if __name__ == '__main__':
+
     from wsgiref.simple_server import make_server
     SRV = make_server('0.0.0.0', 80, application)
     SRV.serve_forever()
