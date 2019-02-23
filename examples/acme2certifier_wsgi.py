@@ -72,7 +72,7 @@ def acct(environ, start_response):
     # create header
     headers = create_header(response_dic)
     start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
-    return [json.dumps(response_dic['data'])]
+    return [json.dumps(response_dic['data']).encode('utf-8')]
 
 
 def authz(environ, start_response):
@@ -99,11 +99,11 @@ def authz(environ, start_response):
 
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data'])]
+        return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def newaccount(environ, start_response):
     """ create new account """
@@ -119,11 +119,11 @@ def newaccount(environ, start_response):
 
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data'])]
+        return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def directory(environ, start_response):
     """ directory listing """
@@ -132,7 +132,7 @@ def directory(environ, start_response):
 
     # logging
     logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
-    return [json.dumps(direct_tory.directory_get())]
+    return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
 
 def cert(environ, start_response):
     """ create new account """
@@ -146,7 +146,7 @@ def cert(environ, start_response):
 
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [response_dic['data']]
+        return [response_dic['data'].encode('utf-8')]
 
     elif environ['REQUEST_METHOD'] == 'GET':
 
@@ -163,7 +163,7 @@ def cert(environ, start_response):
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def chall(environ, start_response):
     """ create new account """
@@ -179,7 +179,7 @@ def chall(environ, start_response):
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-            return [json.dumps(response_dic['data'])]
+            return [json.dumps(response_dic['data']).encode('utf-8')]
 
         elif environ['REQUEST_METHOD'] == 'GET':
 
@@ -193,11 +193,11 @@ def chall(environ, start_response):
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
             # send response
-            return [json.dumps(response_dic['data'])]
+            return [json.dumps(response_dic['data']).encode('utf-8')]
 
         else:
             start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def newnonce(environ, start_response):
     """ generate a new nonce """
@@ -208,7 +208,7 @@ def newnonce(environ, start_response):
         return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'}).encode('utf-8')]
 
 def neworders(environ, start_response):
     """ generate a new order """
@@ -223,11 +223,11 @@ def neworders(environ, start_response):
 
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data'])]
+        return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def order(environ, start_response):
     """ order_handler """
@@ -242,11 +242,11 @@ def order(environ, start_response):
 
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data'])]
+        return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def revokecert(environ, start_response):
     """ revocation_handler """
@@ -262,17 +262,17 @@ def revokecert(environ, start_response):
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
         if 'data' in response_dic:
-            return [json.dumps(response_dic['data'])]
+            return [json.dumps(response_dic['data']).encode('utf-8')]
         else:
             return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'})]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
-    return [json.dumps({'status':404, 'message':HTTP_CODE_DIC[404], 'detail': 'Not Found'})]
+    return [json.dumps({'status':404, 'message':HTTP_CODE_DIC[404], 'detail': 'Not Found'}).encode('utf-8')]
 
 # map urls to functions
 URLS = [
@@ -298,6 +298,13 @@ def application(environ, start_response):
             environ['myapp.url_args'] = match.groups()
             return callback(environ, start_response)
     return not_found(environ, start_response)
+
+
+
+# def application(environ, start_response):
+#    start_response('200 OK', [('Content-Type', 'text/html')])
+#    return [b'Hello, world!']
+
 
 if __name__ == '__main__':
 

@@ -15,7 +15,10 @@ import sys
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
-from urlparse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 import logging
 import hashlib
 from jwcrypto import jwk, jws
@@ -24,10 +27,17 @@ import pytz
 import dns.resolver
 import OpenSSL
 
+
+
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
     logger.debug('b64decode_pad()')
-    string += '=' * (-len(string) % 4)  # restore stripped '='s
+
+    # differ between py2 and py3
+    if sys.version_info[0] >= 3:
+        string += b'=' * (-len(string) % 4)  # restore stripped '='s
+    else:
+        string += '=' * (-len(string) % 4)  # restore stripped '='s
     try:
         b64dec = base64.b64decode(string)
     except TypeError:
@@ -37,7 +47,7 @@ def b64decode_pad(logger, string):
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
     logger.debug('b64_encode()')
-    return base64.b64encode(string)
+    return base64.b64encode(string.encode('utf-8'))
 
 def b64_url_encode(logger, string):
     """ encode a bytestream in base64 url and remove padding """
@@ -50,8 +60,11 @@ def b64_url_recode(logger, string):
     logger.debug('b64_url_recode()')
     padding_factor = (4 - len(string) % 4) % 4
     string += "="*padding_factor
-    # return base64.b64decode(unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/'))))
-    return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+    # differ between py2 and py3
+    if sys.version_info[0] >= 3:
+        return str(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+    else:
+        return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
 
 def build_pem_file(logger, existing, certificate, wrap):
     """ construct pem_file """
@@ -191,7 +204,12 @@ def logger_info(logger, addr, url, dat_dic):
         if 'challenges' in data_dic['data']:
             for challenge in data_dic['data']['challenges']:
                 if 'token' in challenge:
-                    challenge.update((k, "- modified - ") for k, v in challenge.iteritems() if k == "token")
+                    try:
+                        # python2
+                        challenge.update((k, "- modified - ") for k, v in challenge.iteritems() if k == "token")
+                    except AttributeError:
+                        # python3
+                        challenge.update((k, "- modified - ") for k, v in challenge.items() if k == "token")
 
     logger.info('{0} {1} {2}'.format(addr, url, str(data_dic)))
 
