@@ -50,24 +50,32 @@ root@rlh:~#
 if the wsgi_module is not enabled please check the internet how to do this.
 
 2. download the archive and unpack it.
-3. copy the file "example/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
-4. activate the virtual server
+3. install the missing modules via pip
+```
+root@rlh:~# pip3 install -r requirements.txt
+```
+4. copy the file "example/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
+5. activate the virtual server
 ```
 root@rlh:~# a2ensite acme_acme.conf
 ```
-5. create a directory /var/www/acme
-6. copy the file acme2certifier_wsgi.py to /var/www/acme
-7. create a directory /var/www/acme/acme
-8. copy the content of the acme -directory to /var/www/acme/acme
-9. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
-10. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
-11. activate the wsgi database handler
+6. create a directory /var/www/acme
+7. copy the file acme2certifier_wsgi.py to /var/www/acme
+8. create a directory /var/www/acme/acme
+9. copy the content of the acme -directory to /var/www/acme/acme
+10. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
+11. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+12. activate the wsgi database handler
 ```
 root@rlh:~# cp /var/www/acme/acme/wsgi_handler.py /var/www/acme/acme/db_handler.py
 ```
-12. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
+13. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
 ```
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
+```
+14. set correct permissions to acme subdirectory
+```
+root@rlh:~# chmod a+x /var/www/acme/acme
 ```
 
 ## Installation as Django project

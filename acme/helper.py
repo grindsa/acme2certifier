@@ -167,7 +167,7 @@ def load_config(logger=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/
     """ small configparser wrappter to load a config file """
     if logger:
         logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
     config.read(cfg_file)
     return config
 
@@ -220,9 +220,15 @@ def logger_setup(debug):
     else:
         log_mode = logging.INFO
 
+    config_dic = load_config()
+    if 'log_format' in config_dic['Helper']:
+        log_format = config_dic['Helper']['log_format']
+    else:
+        log_format = '%(asctime)s - acme2certifier - %(levelname)s - %(message)s'
+
     logging.basicConfig(
         # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
+        format=log_format,
         datefmt="%Y-%m-%d %H:%M:%S",
         level=log_mode)
     logger = logging.getLogger('acme2certifier')
