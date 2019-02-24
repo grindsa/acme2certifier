@@ -113,15 +113,16 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 
 3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the example directory
 
-4. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
+4. modify the [configuration file](acme_srv.md) according to you needs
 
-5. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+5. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
 
-6. activate the wsgi database handler
+6. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+
+7. activate the wsgi database handler
 ```
 root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
-
-7. modify the [configuration file](acme_srv.md) according to you needs
+```
 
 8. set the correct permmissions to the acme-subdirectory
 ```
