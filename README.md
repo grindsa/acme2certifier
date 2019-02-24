@@ -113,66 +113,74 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 
 3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the example directory
 
-4. modify the [configuration file](acme_srv.md) according to you needs
+4. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
 
-5. set the correct permmissions to the acme-subdirectory
+5. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+
+6. activate the wsgi database handler
+```
+root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
+
+7. modify the [configuration file](acme_srv.md) according to you needs
+
+8. set the correct permmissions to the acme-subdirectory
 ```
 [root@srv ~]# chmod a+x /opt/acme2certifier/acme
 ```
 
-6. set the onwership of the acme subdirectory to the user running nginx
+9. set the onwership of the acme subdirectory to the user running nginx
 ```
 [root@srv ~]# chown -R nginx /opt/acme2certifier/acme
 ```
 
-7. install the missing python modules
+10. install the missing python modules
 ```
 [root@srv ~]# pip install -r requirements.txt
 ```
 
-8. Install uswgi by using pip
+11. Install uswgi by using pip
 ```
 [root@srv ~]# pip install uwsgi
 ```
 
-9. Test acme2certifier by starting the application
+12. Test acme2certifier by starting the application
 ```
 [root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
 ```
 
-10. Check access to the directory ressource to verify that everything works so far
+13. Check access to the directory ressource to verify that everything works so far
 ```
 [root@srv ~]# curl http://127.0.0.1:8000/directory
 {"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
 ```
 
-11. create an uWSGI config file or use the one stored in excample/nginx directory
+14. create an uWSGI config file or use the one stored in excample/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier 
 ```
 
-12. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
+15. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/uwsgi.service/etc/systemd/system/
 [root@srv ~]# systemctl enable uwsgi.service
 ```
 
-13. start uWSGI as service
+16. start uWSGI as service
 ```
 [root@srv ~]# systemctl start uwsgi
 ```
 
-14. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
+17. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
 ```
 [root@srv ~]# cp example/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 ```
 
-15. restart nginx
+18. restart nginx
 ```
 [root@srv ~]# systemctl restart nginx
 ```
 
-17. test the server by accessing the directory ressource
+19. test the server by accessing the directory ressource
 ```
 [root@srv ~]# curl http://<your server name>/directory
 you should get your ressource overview now
