@@ -39,7 +39,7 @@ The proxy can run either as Django project or as plain wsgi-script
 
 ## Installation as wsgi script
 
-### Installation on apache2
+### Installation on apache2 running on Ubuntu 18.04
 
 1. check of the wsgi module is running on your apache2
 ```
@@ -78,6 +78,80 @@ root@rlh:~# chown -R www-data.www-data /var/www/acme/
 16. set correct permissions to acme subdirectory
 ```
 root@rlh:~# chmod a+x /var/www/acme/acme
+```
+
+17. Check access to the directory ressource to verify that everything works so far
+```
+[root@srv ~]# curl http://127.0.0.1/directory
+{"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
+```
+
+
+## Installation on NGIX runnig on CentOS 7
+
+I barely know NGIX. If you see room for improvement let me know. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). uWSGI will server acme2certifier while NGIX will act as reverse proxy to provide better connection handling.
+
+1. setup your project directory
+```
+[root@srv ~]# mkdir /opt/acme2certifier
+```
+
+2. download the archive and unpack it.
+
+3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the example directory
+
+4. set the correct permmissions to the acme-subdirectory
+```
+[root@srv ~]# chmod a+x /opt/acme2certifier/acme
+```
+
+5. set the onwership of the acme subdirectory to the user running nginx-on-centos-7/
+```
+[root@srv ~]# chown -R nginx /opt/acme2certifier/acme
+```
+
+6. install the missing python modules
+```
+[root@srv ~]# pip install -r requirements.txt
+```
+
+7. Install uswgi by using pip
+```
+[root@srv ~]# pip install uwsgi
+```
+
+8. Test acme2certifier by starting the application
+```
+[root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
+```
+
+9. Check access to the directory ressource to verify that everything works so far
+```
+[root@srv ~]# curl http://127.0.0.1:8000/directory
+{"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
+```
+
+10. create an uWSGI config file or use the one stored in excample/nginx directory
+```
+[root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier 
+```
+
+11. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
+[root@srv ~]# cp examples/nginx/uwsgi.service/etc/systemd/system/
+
+12. start uWSGI as service
+[root@srv ~]# systemctl start uwsgi
+
+13. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
+[root@srv ~]# cp example/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+
+14. restart nginx
+[root@srv ~]# systemctl restart nginx
+
+15. test the server by accessing the directory ressource
+```
+[root@srv ~]# curl http://<your server name>/directory
+you should get your ressource overview now
 ```
 
 ## Installation as Django project

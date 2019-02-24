@@ -2,3 +2,4 @@ jwcrypto
 pyOpenssl
 dnspython
 pytz
+configparser

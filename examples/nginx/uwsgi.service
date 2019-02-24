@@ -1,0 +1,12 @@
+[Unit]
+Description=uWSGI instance to serve acme2certifier
+
+[Service]
+ExecStartPre=-/usr/bin/bash -c 'mkdir -p /run/uwsgi; chown nginx /run/uwsgi'
+ExecStart=/usr/bin/bash -c 'cd /opt/acme2certifier; uwsgi --ini acme2certifier.ini'
+Restart=always
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
