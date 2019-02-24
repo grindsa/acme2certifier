@@ -50,31 +50,43 @@ root@rlh:~#
 if the wsgi_module is not enabled please check the internet how to do this.
 
 2. download the archive and unpack it.
+
 3. install the missing modules via pip
 ```
 root@rlh:~# pip3 install -r requirements.txt
 ```
 4. copy the file "example/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
+
 5. activate the virtual server
 ```
 root@rlh:~# a2ensite acme_acme.conf
 ```
 6. create a directory /var/www/acme
+
 7. copy the file acme2certifier_wsgi.py to /var/www/acme
+
 8. create a directory /var/www/acme/acme
+
 9. copy the content of the acme -directory to /var/www/acme/acme
+
 10. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
+
 11. modify the [configuration file](acme_srv.md) according to you needs
+
 12. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
+
 13. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+
 14. activate the wsgi database handler
 ```
 root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
 ```
+
 15. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver (www-data is just an example!)
 ```
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
+
 16. set correct permissions to acme subdirectory
 ```
 root@rlh:~# chmod a+x /var/www/acme/acme
@@ -85,7 +97,6 @@ root@rlh:~# chmod a+x /var/www/acme/acme
 [root@srv ~]# curl http://127.0.0.1/directory
 {"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
 ```
-
 
 ## Installation on NGIX runnig on CentOS 7
 
@@ -145,13 +156,18 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 ```
 
 12. start uWSGI as service
+```
 [root@srv ~]# systemctl start uwsgi
+```
 
 13. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
+```
 [root@srv ~]# cp example/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
-
+```
 14. restart nginx
+```
 [root@srv ~]# systemctl restart nginx
+```
 
 15. test the server by accessing the directory ressource
 ```
