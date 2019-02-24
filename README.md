@@ -71,7 +71,7 @@ root@rlh:~# a2ensite acme_acme.conf
 ```
 root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
 ```
-15. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
+15. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver (www-data is just an example!)
 ```
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
