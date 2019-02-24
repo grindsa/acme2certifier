@@ -107,7 +107,7 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 [root@srv ~]# chmod a+x /opt/acme2certifier/acme
 ```
 
-5. set the onwership of the acme subdirectory to the user running nginx-on-centos-7/
+5. set the onwership of the acme subdirectory to the user running nginx
 ```
 [root@srv ~]# chown -R nginx /opt/acme2certifier/acme
 ```
@@ -139,7 +139,9 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 ```
 
 11. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
+```
 [root@srv ~]# cp examples/nginx/uwsgi.service/etc/systemd/system/
+```
 
 12. start uWSGI as service
 [root@srv ~]# systemctl start uwsgi
