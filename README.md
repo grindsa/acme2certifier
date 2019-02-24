@@ -89,7 +89,9 @@ root@rlh:~# chmod a+x /var/www/acme/acme
 
 ## Installation on NGIX runnig on CentOS 7
 
-I barely know NGIX. If you see room for improvement let me know. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). uWSGI will server acme2certifier while NGIX will act as reverse proxy to provide better connection handling.
+I barely know NGIX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.  
+
+Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act as reverse proxy to provide better connection handling.
 
 1. setup your project directory
 ```
