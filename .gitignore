@@ -121,4 +121,6 @@ gna.py
 acme/db_handler.py
 amce/ca_handler.py
 acme/certifier_ca_handler.py
-/acme/acme_srv.cfg
+acme/acme_srv.cfg
+acme/wsgi_handler.py
+acme/django_handler.py
