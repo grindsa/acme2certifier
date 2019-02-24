@@ -64,16 +64,18 @@ root@rlh:~# a2ensite acme_acme.conf
 8. create a directory /var/www/acme/acme
 9. copy the content of the acme -directory to /var/www/acme/acme
 10. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
-11. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
-12. activate the wsgi database handler
+11. modify the [configuration file](acme_srv.md) according to you needs
+12. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
+13. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+14. activate the wsgi database handler
 ```
-root@rlh:~# cp /var/www/acme/acme/wsgi_handler.py /var/www/acme/acme/db_handler.py
+root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
 ```
-13. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
+15. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver
 ```
 root@rlh:~# chown -R www-data.www-data /var/www/acme/
 ```
-14. set correct permissions to acme subdirectory
+16. set correct permissions to acme subdirectory
 ```
 root@rlh:~# chmod a+x /var/www/acme/acme
 ```
