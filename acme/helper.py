@@ -221,19 +221,19 @@ def logger_setup(debug):
         log_mode = logging.INFO
 
     config_dic = load_config()
-    if 'log_format' in config_dic['Helper']:
-        log_format = config_dic['Helper']['log_format']
-    else:
-        log_format = '%(asctime)s - acme2certifier - %(levelname)s - %(message)s'
+
+    # define standard log format
+    log_format = '%(message)s'
+    if 'Helper' in config_dic:
+        if 'log_format' in config_dic['Helper']:
+            log_format = config_dic['Helper']['log_format']
 
     logging.basicConfig(
-        # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         format=log_format,
         datefmt="%Y-%m-%d %H:%M:%S",
         level=log_mode)
     logger = logging.getLogger('acme2certifier')
     return logger
-
 
 def print_debug(debug, text):
     """ little helper to print debug messages
