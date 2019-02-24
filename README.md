@@ -141,6 +141,7 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 11. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/uwsgi.service/etc/systemd/system/
+[root@srv ~]# systemctl enable uwsgi.service
 ```
 
 12. start uWSGI as service
