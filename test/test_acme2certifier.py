@@ -948,40 +948,6 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert', 'raw'))
 
-    @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
-    @patch('acme.ca_handler.CAhandler.enroll')
-    def test_130_enroll(self, mock_enroll, mock_pem):
-        """ test Certificate.enroll() ca handler returns 'something' which is not a certificate"""
-        self.certificate.dbstore.certificate_add.return_value = 'bar'
-        mock_enroll.return_value = 'foo'
-        mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual(('no certificate information found', None, None), self.certificate.enroll('csr'))
-
-    @patch('acme.ca_handler.CAhandler.generate_pem_cert_chain')
-    @patch('acme.ca_handler.CAhandler.enroll')
-    def test_131_enroll(self, mock_enroll, mock_pem):
-        """ test Certificate.enroll() ca handler returns nothing"""
-        self.certificate.dbstore.certificate_add.return_value = 'bar'
-        mock_enroll.return_value = None
-        mock_pem.return_value = {'foo' : 'bar'}
-        self.assertEqual(('internal error', None, None), self.certificate.enroll('csr'))
-
-    @patch('acme.certificate.Certificate.store_cert')
-    @patch('acme.certificate.Certificate.enroll')
-    def test_132_enroll_and_store(self, mock_enroll, mock_store):
-        """ test Certificate.enroll() enroll returns someting"""
-        mock_enroll.return_value = {'foo', 'bar', 'raw'}
-        mock_store.return_value = 1
-        self.assertEqual((1, 'raw'), self.certificate.enroll_and_store('certificate_name', 'csr'))
-
-    @patch('acme.certificate.Certificate.store_cert')
-    @patch('acme.certificate.Certificate.enroll')
-    def test_133_enroll_and_store(self, mock_enroll, mock_store):
-        """ test Certificate.enroll() enroll returns nothing"""
-        mock_enroll.return_value = (False, False, False)
-        mock_store.return_value = 1
-        self.assertEqual((None, False), self.certificate.enroll_and_store('certificate_name', 'csr'))
-
     def test_134_info(self):
         """ test Certificate.new_get() """
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
