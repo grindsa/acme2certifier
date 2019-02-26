@@ -221,7 +221,8 @@ class CAhandler(object):
             code = 404
             message = 'urn:ietf:params:acme:error:serverInternal'
             detail = 'CA could not be found'
-
+            
+        self.logger.debug('Certificate.enroll() ended with: {0}, {1}, {2}'.format(code, message, detail))
         return(code, message, detail)
 
     def set_auth(self):
