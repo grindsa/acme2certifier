@@ -27,39 +27,17 @@ class Certificate(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def enroll(self, csr):
-        """ get key for a specific order """
-        self.logger.debug('Certificate.enroll()')
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        with CAhandler(self.debug, self.logger) as ca_handler:
-            cert_dic = ca_handler.enroll(csr)
-            if cert_dic:
-                if 'status' in cert_dic:
-                    # this is an error
-                    error = cert_dic['message']
-                elif 'certificateBase64' in cert_dic:
-                    # this is a valid cert generate the bundle
-                    cert_bundle = ca_handler.generate_pem_cert_chain(cert_dic)
-                    cert_raw = cert_dic['certificateBase64']
-                else:
-                    error = 'no certificate information found'
-            else:
-                error = 'internal error'
-        self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
-
     def enroll_and_store(self, certificate_name, csr):
-        """ get key for a specific order """
+        """ cenroll and store certificater """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
-        (error, certificate, cetificate_raw) = self.enroll(csr)
-        if certificate:
-            result = self.store_cert(certificate_name, certificate, cetificate_raw)
-        else:
-            result = None
-            # store error message for later analysis
-            self.store_cert_error(certificate_name, error)
+        with CAhandler(self.debug, self.logger) as ca_handler:
+            (error, certificate, certificate_raw) = ca_handler.enroll(csr)
+            if certificate:
+                result = self.store_cert(certificate_name, certificate, certificate_raw)
+            else:
+                result = None
+                # store error message for later analysis
+                self.store_cert_error(certificate_name, error)
 
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error)
