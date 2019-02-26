@@ -46,8 +46,31 @@ class CAhandler(object):
         return api_response
 
     def enroll(self, csr):
-        """ get key for a specific account id """
-        self.logger.debug('CAhandler.enroll({0})'.format(csr))
+        """ enroll certificate """
+        self.logger.debug('Certificate.enroll()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        cert_dic = self.get_cert(csr)
+        if cert_dic:
+            if 'status' in cert_dic:
+                # this is an error
+                error = cert_dic['message']
+            elif 'certificateBase64' in cert_dic:
+                # this is a valid cert generate the bundle
+                cert_bundle = self.generate_pem_cert_chain(cert_dic)
+                cert_raw = cert_dic['certificateBase64']
+            else:
+                error = 'no certificate information found'
+        else:
+            error = 'internal error'
+        self.logger.debug('Certificate.enroll() ended')
+        return(error, cert_bundle, cert_raw)
+
+    def get_cert(self, csr):
+        """ get certificate from CA """
+        self.logger.debug('CAhandler.get_cert({0})'.format(csr))
         ca_dic = self.get_ca_properties('name', self.ca_name)
         cert_dic = {}
 
