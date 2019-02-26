@@ -64,19 +64,22 @@ def b64_url_recode(logger, string):
     else:
         return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
 
-def build_pem_file(logger, existing, certificate, wrap):
+def build_pem_file(logger, existing, certificate, wrap, csr=False):
     """ construct pem_file """
     logger.debug('build_pem_file()')
-    if existing:
-        if wrap:
-            pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, textwrap.fill(certificate, 64))
-        else:
-            pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, certificate)
+    if csr:
+        pem_file = '-----BEGIN CERTIFICATE REQUEST----- \n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(certificate, 64))
     else:
-        if wrap:
-            pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(certificate, 64))
+        if existing:
+            if wrap:
+                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, textwrap.fill(certificate, 64))
+            else:
+                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, certificate)
         else:
-            pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(certificate)
+            if wrap:
+                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(certificate, 64))
+            else:
+                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(certificate)
     return pem_file
 
 def cert_san_get(logger, certificate):
@@ -104,6 +107,19 @@ def cert_serial_get(logger, certificate):
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     return cert.get_serial_number()
+
+def csr_cn_get(logger, csr):
+    """ get cn from certificate request """
+    logger.debug('CAhandler.csr_cn_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    subject = req.get_subject()
+    components = dict(subject.get_components())
+    result = None
+    if 'CN' in components:
+        result = components['CN']
+    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
+    return result
 
 def decode_deserialize(logger, string):
     """ decode and deserialize string """
