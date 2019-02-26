@@ -10,7 +10,7 @@ I am running this project as my RnD guys told me that it won’t be possible :-)
 
 I am using [acme.sh](https://github.com/Neilpang/acme.sh) and [Certbot](https://certbot.eff.org/) to test the server functionality. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
-[Command-line parameters used for testing](acme-clients.md)
+[Command-line parameters used for testing](docs/acme-clients.md)
 
 I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
@@ -71,11 +71,11 @@ root@rlh:~# a2ensite acme_acme.conf
 
 10. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
 
-11. modify the [configuration file](acme_srv.md) according to you needs
+11. modify the [configuration file](docs/acme_srv.md) according to you needs
 
 12. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
 
-13. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+13. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
 
 14. activate the wsgi database handler
 ```
@@ -113,11 +113,11 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 
 3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the example directory
 
-4. modify the [configuration file](acme_srv.md) according to you needs
+4. modify the [configuration file](docs/acme_srv.md) according to you needs
 
 5. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
 
-6. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+6. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
 
 7. activate the wsgi database handler
 ```
@@ -202,7 +202,7 @@ missing
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://github.com/grindsa/acme2certifier/blob/master/CONTRIBUTING.md) for details on my code of conduct, and the process for submitting pull requests.
+Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of conduct, and the process for submitting pull requests.
 Please note that I have a life besides programming. Thus, expect a delay in answering.
 
 ## Versioning
@@ -211,4 +211,4 @@ I use [SemVer](http://semver.org/) for versioning. For the versions available, s
 
 ## License
 
-This project is licensed under the MIT license - see the [LICENSE.md](https://github.com/grindsa/acme2certifier/blob/master/LICENSE) file for details
+This project is licensed under the MIT license - see the [LICENSE](LICENSE) file for details
