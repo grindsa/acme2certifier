@@ -28,6 +28,27 @@ class Challenge(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
+    def check(self, challenge_name, _payload):
+        """ challene check """
+        self.logger.debug('challenge.check({0})'.format(challenge_name))
+        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
+        if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
+            pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
+            if  pub_key:
+                jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+                if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
+                    result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+                    result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                else:
+                    result = False
+            else:
+                result = False
+        else:
+            result = False
+        self.logger.debug('challenge.check() ended with: {0}'.format(result))
+        return result
+
     def get(self, url):
         """ get challenge details based on get request """
         self.logger.debug('challenge.new_get({0})'.format(url))
@@ -42,6 +63,14 @@ class Challenge(object):
         self.logger.debug('Challenge.info({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
         return challenge_dic
+
+    def load_config(self):
+        """" load config from file """
+        self.logger.debug('Challenge.load_config()')
+        config_dic = load_config()
+        if 'Challenge' in config_dic:
+            self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
+        self.logger.debug('Challenge.load_config() ended.')
 
     def name_get(self, url):
         """ get challenge """
@@ -162,14 +191,6 @@ class Challenge(object):
 
         self.logger.debug('Challenge.validate() ended with:{0}'.format(challenge_check))
 
-    def load_config(self):
-        """" load config from file """
-        self.logger.debug('Challenge.load_config()')
-        config_dic = load_config()
-        if 'Challenge' in config_dic:
-            self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
-        self.logger.debug('Challenge.load_config() ended.')
-
     def validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
         self.logger.debug('Challenge.validate_dns_challenge()')
@@ -203,25 +224,4 @@ class Challenge(object):
         else:
             result = False
         self.logger.debug('Challenge.validate_http_challenge() ended with: {0}'.format(result))
-        return result
-
-    def check(self, challenge_name, _payload):
-        """ challene check """
-        self.logger.debug('challenge.check({0})'.format(challenge_name))
-        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
-        if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
-            pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
-            if  pub_key:
-                jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-                if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                    result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                    result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                else:
-                    result = False
-            else:
-                result = False
-        else:
-            result = False
-        self.logger.debug('challenge.check() ended with: {0}'.format(result))
         return result

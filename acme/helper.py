@@ -27,8 +27,6 @@ import pytz
 import dns.resolver
 import OpenSSL
 
-
-
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
     logger.debug('b64decode_pad()')
