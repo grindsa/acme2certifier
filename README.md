@@ -3,7 +3,7 @@
 acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme/*.py - a bunch of classes implementing ACME server functionality based on [draft-ietf-acme-acme-18](https://tools.ietf.org/html/draft-ietf-acme-acme-18)
-- ca_handler.py - interface towards CA server. I am connecting to  Insta Certifier by using REST to test the implementation. However, the intention of this library is to be modular that an adaption to other CA servers is straight forward
+- ca_handler.py - interface towards CA server. I am connecting to  Insta Certifier by using REST to test the implementation. However, the intention of this library is to be modular that an [adaption to other CA servers](ca_handler.md) is straight forward.
 
 ## Disclaimer
 I am running this project as my RnD guys told me that it won’t be possible :-)
@@ -30,7 +30,7 @@ So far, the library is far from being useful for either lab or production usage 
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5.1)
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.6)
 
-<span style="color:red;">IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately. </span>
+~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
 
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
