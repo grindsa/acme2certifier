@@ -127,7 +127,7 @@ class CAhandler(object):
 
     def cert_bundle_build(self, cert_id):
         """ download cert and create bundle """
-        self.logger.debug('CAhandler.cert_download()')
+        self.logger.debug('CAhandler.cert_bundle_build()')
         cert_bundle = None
         error = None
         cert_raw = None
@@ -143,6 +143,7 @@ class CAhandler(object):
             error = 'no certificate returned for id: {0}'.format(cert_id)
             self.logger.error('no certificate returned for id: {0}'.format(cert_id))
 
+        self.logger.debug('CAhandler.cert_bundle_build() ended')
         return(error, cert_bundle, cert_raw)
 
     def enroll(self, csr):
@@ -184,6 +185,7 @@ class CAhandler(object):
         else:
             error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
 
+        self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw)
 
     def login(self):
@@ -245,7 +247,6 @@ class CAhandler(object):
     def san_compare(self, csr_san, cert_san):
         """ compare sans from csr with san in cert """
         self.logger.debug('CAhandler.san_compare({0}, {1})'.format(csr_san, cert_san))
-
         # convert csr_sans to lower case
         csr_san_lower = []
         for ele in csr_san:
