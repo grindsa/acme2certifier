@@ -121,6 +121,18 @@ def csr_cn_get(logger, csr):
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
 
+def csr_san_get(logger, csr):
+    """ get subject alternate names from certificate """
+    logger.debug('cert_san_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    san = []
+    for ext in req.get_extensions():
+        if ext.get_short_name() == 'subjectAltName':
+            san.append(ext.__str__())
+    logger.debug('cert_san_get() ended with: {0}'.format(str(san)))
+    return san
+
 def decode_deserialize(logger, string):
     """ decode and deserialize string """
     logger.debug('decode_deserialize()')
