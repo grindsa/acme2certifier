@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import time
 import requests
-from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get
+from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get
 
 class CAhandler(object):
     """ CA  handler """
@@ -281,3 +281,22 @@ class CAhandler(object):
         else:
             self.logger.error('tsg_id_lookup() no target-system-groups found for filter: {0}....'.format(self.tsg_info_dic['name']))
         self.logger.debug('CAhandler.tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
+
+    def revoke(self, cert, rev_reason, rev_date):
+        """ revoke certificate """
+        self.logger.debug('CAhandler.tsg_id_lookup()')
+        # get serial from pem file and convert to formated hex
+        serial = '0{:x}'.format(cert_serial_get(self.logger, cert))
+        hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
+
+        # search for certificate
+        cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=False).json()
+        from pprint import pprint
+        pprint(cert_list)
+
+        # print(hex_serial)
+        # print(cert)
+        # print(rev_reason)
+        # print(rev_date)
+
+        return(None, None, None)
