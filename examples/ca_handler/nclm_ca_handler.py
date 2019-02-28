@@ -291,12 +291,21 @@ class CAhandler(object):
 
         # search for certificate
         cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=False).json()
-        from pprint import pprint
-        pprint(cert_list)
 
-        # print(hex_serial)
-        # print(cert)
-        # print(rev_reason)
-        # print(rev_date)
+        if 'certificates' in cert_list:
+            try:
+                cert_id = cert_list['certificates'][0]['certificateId']
+                data_dic = {'reason': rev_reason, 'time': rev_date}
+                detail = self.api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
+                code = 200
+                message = None
+            except IndexError:
+                code = 404
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = 'CertificateID could not be found'
+        else:
+            code = 404
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'Cert could not be found'
 
-        return(None, None, None)
+        return(code, message, detail)
