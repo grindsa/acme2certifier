@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import time
 import requests
-from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get
+from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now
 
 class CAhandler(object):
     """ CA  handler """
@@ -93,34 +93,44 @@ class CAhandler(object):
         self.logger.debug('CAhandler.cert_id_lookup() ended with: {0}'.format(cert_id))
         return cert_id
 
-    def csr_id_lookup(self, csr_cn):
+    def csr_id_lookup(self, csr_cn, csr_san_list):
         """ lookup CSR based on CN """
         self.logger.debug('CAhandler.csr_id_lookup()')
 
+        uts_n = uts_now()
+
         # get unused requests from NCLM
         request_list = self.unusedrequests_get()
+
         req_id = None
         # check every CSR
         for req in request_list:
             req_cn = None
-            if 'subjectName' in req:
-                # split the subject and filter CN
-                subject_list = req['subjectName'].split(',')
-                for field in subject_list:
-                    field = field.strip()
-                    if field.startswith('CN='):
-                        req_cn = field.lower().replace('cn=', '')
-                        break
+            # check the import date and consider only csr which are less then 5min old
+            csr_uts = date_to_uts_utc(req['addedAt'][:25], '%Y-%m-%dT%H:%M:%S.%f')
+            if uts_n - csr_uts < 300:
+                if 'subjectName' in req:
+                    # split the subject and filter CN
+                    subject_list = req['subjectName'].split(',')
+                    for field in subject_list:
+                        field = field.strip()
+                        if field.startswith('CN='):
+                            req_cn = field.lower().replace('cn=', '')
+                            break
 
-            # compare csr cn with request cn
-            if csr_cn:
-                if req_cn == csr_cn.lower():
-                    req_id = req['requestID']
-                    break
-            else:
-                # special certbot scenario (no CN in CSR). No better idea how to handle this
-                if not req_cn:
-                    req_id = req['requestID']
+                # compare csr cn with request cn
+                if csr_cn:
+                    if req_cn == csr_cn.lower():
+                        req_id = req['requestID']
+                        break
+                elif not req_cn:
+                    # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
+                    req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=False).json()
+                    for _req in reversed(req_all):
+                        req_san_list = csr_san_get(self.logger, _req['pkcs10'])
+                        if sorted(csr_san_list) == sorted(req_san_list):
+                            req_id = _req['requestID']
+                            break
 
         self.logger.debug('CAhandler.csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
@@ -166,8 +176,8 @@ class CAhandler(object):
             # import csr to NCLM
             self.request_import(csr)
             # lookup csr id
-            csr_id = self.csr_id_lookup(csr_cn)
-            # csr_id = 1
+            csr_id = self.csr_id_lookup(csr_cn, csr_san_list)
+
             if ca_id and csr_id and self.tsg_info_dic['id']:
                 data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
                 self.api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)

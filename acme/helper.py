@@ -22,6 +22,7 @@ except ImportError:
 import logging
 import hashlib
 from jwcrypto import jwk, jws
+from dateutil.parser import parse
 import requests
 import pytz
 import dns.resolver
@@ -359,7 +360,8 @@ def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%SZ'):
 
 def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
-    return int(calendar.timegm(time.strptime(date_human, tformat)))
+    return int(time.mktime(parse(date_human).timetuple()))    
+    # return int(calendar.timegm(parse(date_human).timetuple()))
 
 def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
