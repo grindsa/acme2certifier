@@ -160,13 +160,21 @@ class DBstore(object):
             order_dic = self.order_lookup('name', certificate_dic['order__name'], ['name', 'account__name'])
             if order_dic:
                 if 'account__name' in order_dic:
+
                     if account_name:
                         # if there is an acoount name validate it against the account_name from db-query
                         if order_dic['account__name'] == account_name:
                             result = certificate_dic['order__name']
+                            self.logger.info('message signed with account key')
+                        print(account_name, order_dic['account__name'])
                     else:
                         # no account name given (message signed with domain key)
                         result = certificate_dic['order__name']
+                        self.logger.info('message signed with domain key')
+                else:
+                    self.logger.error('account_name missing in order_dic')
+            else:
+                self.logger.error('order_dic empty')
 
         self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
@@ -468,7 +476,7 @@ class DBstore(object):
                     result[ele] = lookup[ele]
         else:
             result = None
-        self.logger.debug('DBStore.order_lookup() ended')
+        self.logger.debug('DBStore.order_lookup() ended with: {0}'.format(result))
         return result
 
     def order_search(self, column, string):
