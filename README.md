@@ -6,7 +6,7 @@
 acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme/*.py - a bunch of classes implementing ACME server functionality based on [draft-ietf-acme-acme-18](https://tools.ietf.org/html/draft-ietf-acme-acme-18)
-- ca_handler.py - interface towards CA server. I am connecting to  Insta Certifier by using REST to test the implementation. However, the intention of this library is to be modular that an [adaption to other CA servers](docs/ca_handler.md) is straight forward.
+- ca_handler.py - interface towards CA server. I am connecting to [Insta Certifier by using REST](certifier.md) to test the implementation. However, the intention of this library is to be modular that an [adaption to other CA servers](docs/ca_handler.md) is straight forward.
 
 ## Disclaimer
 I am running this project as my RnD guys told me that it won’t be possible :-)
