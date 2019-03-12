@@ -22,6 +22,7 @@ class Directory(object):
         """ return response to ACME directory call """
         self.logger.debug('Directory.directory_get()')
         d_dic = {
+            'newAuthz' : self.server_name + '/acme/new-authz',
             'newNonce': self.server_name + '/acme/newnonce',
             'newAccount': self.server_name + '/acme/newaccount',
             "newOrder": self.server_name + '/acme/neworders',
