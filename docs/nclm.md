@@ -1,9 +1,9 @@
-# Configuration of the connection to NetGuard Certificate Lifecycle Manager
+# Connecting to NetGuard Certificate Lifecycle Manager
 
 ## Prerequisites
  - NCLM 19.0.5 or higher needs to be up and running
  - you have a user and password to access NCLM via REST-Service
- - there is a container in NCLM whihc can be used to store the the certificates
+ - there is a container created in NCLM which can be used to store the certificates
  
 ## Configuration
  - copy the ca_handler into the acme directory
