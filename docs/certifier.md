@@ -1,4 +1,4 @@
-# Configuration of the connection to Insta Certifier
+# Connecting to Insta Certifier
 
 ## Prerequisites
  - the Certifier needs to have the REST-service activated
