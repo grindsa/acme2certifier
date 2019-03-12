@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca hanlder for Insta Certifier via REST-API class """
+""" ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class """
 from __future__ import print_function
+import json
 import sys
 import time
 import requests
@@ -17,7 +18,7 @@ class CAhandler(object):
         self.tsg_info_dic = {'name' : None, 'id' : None}
         self.headers = None
         self.ca_name = None
-        self.ca_id_list = [41, 40]
+        self.ca_id_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -237,9 +238,11 @@ class CAhandler(object):
             self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
         if 'ca_name' in config_dic['CAhandler']:
             self.ca_name = config_dic['CAhandler']['ca_name']
-
         if 'tsg_name' in config_dic['CAhandler']:
             self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
+        if 'ca_id_list' in config_dic['CAhandler']:
+            self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
+
         self.logger.debug('CAhandler.load_config() ended')
 
     def request_import(self, csr):

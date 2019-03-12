@@ -11,3 +11,9 @@
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please do only for testing/debugging purposes | True/False | False|
 
+The options for the `CAHandler` section depend on the CA handler.
+
+Instructions for [Insta Certifier](certifier.md)
+
+Instructions for [NetGuard Certificate Lifecycle Manager](nclm.md)
+
