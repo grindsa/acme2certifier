@@ -16,7 +16,7 @@ import sys
 
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
+DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)

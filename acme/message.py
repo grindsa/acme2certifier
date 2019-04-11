@@ -72,7 +72,7 @@ class Message(object):
         self.logger.debug('load_config()')
         config_dic = load_config()
         if 'Nonce' in config_dic:
-            self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable')
+            self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
 
     def name_get(self, content):
         """ get name for account """
