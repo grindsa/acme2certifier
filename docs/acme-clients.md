@@ -24,7 +24,7 @@ acme.sh --server http://<server address> --revoke -d acme-1.example.com -d acme-
 
 ## register account
 ```
-root@rlh:~# certbot-auto register --agree-tos -m <email address>  --serverhttp://<server address> --no-eff-email
+root@rlh:~# certbot-auto register --agree-tos -m <email address>  --server http://<server address> --no-eff-email
 ```
 
 ## delete account
