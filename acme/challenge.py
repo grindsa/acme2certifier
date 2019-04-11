@@ -184,10 +184,11 @@ class Challenge(object):
             # authorization update to ready state
             self.update_authz(challenge_name)
 
-        if 'keyAuthorization' in payload:
-            # update challenge to ready state
-            data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
-            self.update(data_dic)
+        if payload:
+            if 'keyAuthorization' in payload:
+                # update challenge to ready state
+                data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
+                self.update(data_dic)
 
         self.logger.debug('Challenge.validate() ended with:{0}'.format(challenge_check))
 

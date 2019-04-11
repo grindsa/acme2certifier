@@ -124,7 +124,7 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 
 7. activate the wsgi database handler
 ```
-root@rlh:~# cp /opt/acme2certifier/acme/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py
+root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py
 ```
 
 8. set the correct permmissions to the acme-subdirectory
@@ -165,7 +165,7 @@ root@rlh:~# cp /opt/acme2certifier/acme/examples/db_handler/wsgi_handler.py /opt
 
 15. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
 ```
-[root@srv ~]# cp examples/nginx/uwsgi.service/etc/systemd/system/
+[root@srv ~]# cp examples/nginx/uwsgi.service /etc/systemd/system/
 [root@srv ~]# systemctl enable uwsgi.service
 ```
 
@@ -176,7 +176,7 @@ root@rlh:~# cp /opt/acme2certifier/acme/examples/db_handler/wsgi_handler.py /opt
 
 17. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
 ```
-[root@srv ~]# cp example/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+[root@srv ~]# cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 ```
 
 18. restart nginx
