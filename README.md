@@ -112,9 +112,9 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 [root@srv ~]# mkdir /opt/acme2certifier
 ```
 
-2. download the archive and unpack it.
+2. download the archive and unpack it into /opt/acme2certifier.
 
-3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the example directory
+3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the examples directory
 
 4. modify the [configuration file](docs/acme_srv.md) according to you needs
 
@@ -127,64 +127,69 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act 
 root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py
 ```
 
-8. set the correct permmissions to the acme-subdirectory
+8. copy the application file "acme2certifer_wsgi.py" from examples directory
+```
+root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
+```
+
+9. set the correct permmissions to the acme-subdirectory
 ```
 [root@srv ~]# chmod a+x /opt/acme2certifier/acme
 ```
 
-9. set the onwership of the acme subdirectory to the user running nginx
+10. set the onwership of the acme subdirectory to the user running nginx
 ```
 [root@srv ~]# chown -R nginx /opt/acme2certifier/acme
 ```
 
-10. install the missing python modules
+11. install the missing python modules
 ```
 [root@srv ~]# pip install -r requirements.txt
 ```
 
-11. Install uswgi by using pip
+12. Install uswgi by using pip
 ```
 [root@srv ~]# pip install uwsgi
 ```
 
-12. Test acme2certifier by starting the application
+13. Test acme2certifier by starting the application
 ```
 [root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
 ```
 
-13. Check access to the directory ressource to verify that everything works so far
+14. Check access to directory ressource in a parallel session to verify that everything works so far
 ```
 [root@srv ~]# curl http://127.0.0.1:8000/directory
 {"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
 ```
 
-14. create an uWSGI config file or use the one stored in excample/nginx directory
+15. create an uWSGI config file or use the one stored in excample/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier 
 ```
 
-15. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
+16. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/uwsgi.service /etc/systemd/system/
 [root@srv ~]# systemctl enable uwsgi.service
 ```
 
-16. start uWSGI as service
+17. start uWSGI as service
 ```
 [root@srv ~]# systemctl start uwsgi
 ```
 
-17. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
+18. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
 ```
 [root@srv ~]# cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 ```
 
-18. restart nginx
+19. restart nginx
 ```
 [root@srv ~]# systemctl restart nginx
 ```
 
-19. test the server by accessing the directory ressource
+20. test the server by accessing the directory ressource
 ```
 [root@srv ~]# curl http://<your server name>/directory
 you should get your ressource overview now
