@@ -109,7 +109,7 @@ acme/models.py
 acme/tests.py
 acme/urls.py
 acme/views.py
-acme/__init__.py
+# acme/__init__.py
 commands.txt
 *.bat
 *.db
