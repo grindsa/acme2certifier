@@ -69,7 +69,7 @@ class Challenge(object):
         self.logger.debug('Challenge.load_config()')
         config_dic = load_config()
         if 'Challenge' in config_dic:
-            self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable')
+            self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
         self.logger.debug('Challenge.load_config() ended.')
 
     def name_get(self, url):

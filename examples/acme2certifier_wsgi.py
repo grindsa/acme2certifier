@@ -17,7 +17,7 @@ from acme.helper import get_url, load_config, logger_setup, logger_info
 
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
+DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
