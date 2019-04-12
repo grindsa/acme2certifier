@@ -17,7 +17,7 @@ from acme.helper import get_url, load_config, logger_setup, logger_info
 
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
+DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
@@ -25,8 +25,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    # LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-    LOGGER.error("Uncaught exception")
+    LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    # LOGGER.error("Uncaught exception")
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
@@ -298,13 +298,6 @@ def application(environ, start_response):
             environ['myapp.url_args'] = match.groups()
             return callback(environ, start_response)
     return not_found(environ, start_response)
-
-
-
-# def application(environ, start_response):
-#    start_response('200 OK', [('Content-Type', 'text/html')])
-#    return [b'Hello, world!']
-
 
 if __name__ == '__main__':
 
