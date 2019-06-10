@@ -44,10 +44,13 @@ HTTP_CODE_DIC = {
     405 : 'Method Not Allowed'
 }
 
-def create_header(response_dic):
+def create_header(response_dic, add_json_header=True):
     """ create header """
     # generate header and nonce
-    headers = [('Content-Type', 'application/json')]
+    if add_json_header:
+        headers = [('Content-Type', 'application/json')]
+    else:
+        headers = []
 
     # enrich header
     for element, value in response_dic['header'].items():
@@ -141,7 +144,7 @@ def cert(environ, start_response):
         request_body = get_request_body(environ)
         response_dic = certificate.new_post(request_body)
         # create header
-        headers = create_header(response_dic)
+        headers = create_header(response_dic, False)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
         # logging
