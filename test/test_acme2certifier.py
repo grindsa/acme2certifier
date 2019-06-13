@@ -711,12 +711,31 @@ class TestACMEHandler(unittest.TestCase):
         self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge.new('authz_name', 'mtype', 'token'))
 
+    @patch('acme.challenge.generate_random_string')
+    def test_196_challenge_new(self, mock_random):
+        """ test challenge generation for tnauthlist challenge """
+        mock_random.return_value = 'foo'
+        self.order.dbstore.challenge_new.return_value = 1
+        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge.new('authz_name', 'tkauth-01', 'token'))
+
     @patch('acme.challenge.Challenge.new')
     def test_097_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
+        
+    @patch('acme.challenge.Challenge.new')
+    def test_197_challenge_new_set(self, mock_challenge):
+        """ test generation of a challenge set with tnauth true """
+        mock_challenge.return_value = {'foo' : 'bar'}
+        self.assertEqual([{'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', True))
 
+    @patch('acme.challenge.Challenge.new')
+    def test_198_challenge_new_set(self, mock_challenge):
+        """ test generation of a challenge set """
+        mock_challenge.return_value = {'foo' : 'bar'}
+        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
+        
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
