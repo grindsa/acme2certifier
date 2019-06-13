@@ -85,5 +85,4 @@ class Authorization(object):
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
-
         return response_dic
