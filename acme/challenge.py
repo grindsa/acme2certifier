@@ -106,7 +106,7 @@ class Challenge(object):
                 challenge_dic['tkauth-type'] = 'atc'
         return challenge_dic
 
-    def new_set(self, authz_name, token, tnauth=None):
+    def new_set(self, authz_name, token, tnauth=False):
         """ net challenge set """
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
         challenge_list = []
