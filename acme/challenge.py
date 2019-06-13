@@ -102,15 +102,19 @@ class Challenge(object):
             challenge_dic['type'] = mtype
             challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge_name)
             challenge_dic['token'] = token
-
+            if mtype == 'tkauth-01':
+                challenge_dic['tkauth-type'] = 'atc'
         return challenge_dic
 
-    def new_set(self, authz_name, token):
+    def new_set(self, authz_name, token, tnauth=None):
         """ net challenge set """
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
         challenge_list = []
-        challenge_list.append(self.new(authz_name, 'http-01', token))
-        challenge_list.append(self.new(authz_name, 'dns-01', token))
+        if not tnauth:
+            challenge_list.append(self.new(authz_name, 'http-01', token))
+            challenge_list.append(self.new(authz_name, 'dns-01', token))
+        else:
+            challenge_list.append(self.new(authz_name, 'tkauth-01', token))            
         self.logger.debug('Challenge.new_set returned ({0})'.format(challenge_list))
         return challenge_list
 

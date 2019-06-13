@@ -43,12 +43,15 @@ class Authorization(object):
         authz_info_dic['expires'] = uts_to_date_utc(expires)
 
         # get authorization information from db to be inserted in message
+        tnauth = None
         auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
         if auth_info:
             authz_info_dic['status'] = auth_info[0]['status__name']
             authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
+            if auth_info[0]['type'] == 'TNAuthList':
+                tnauth = True
         challenge = Challenge(self.debug, self.server_name, self.logger, expires)
-        authz_info_dic['challenges'] = challenge.new_set(authz_name, token)
+        authz_info_dic['challenges'] = challenge.new_set(authz_name, token, tnauth)
 
         self.logger.debug('Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
