@@ -12,7 +12,6 @@ from acme.directory import Directory
 from acme.helper import get_url, load_config, logger_setup, logger_info
 from acme.nonce import Nonce
 from acme.order import Order
-import sys
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -24,9 +23,9 @@ LOGGER = logger_setup(DEBUG)
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
     print 'My Error Information'
-    print 'Type:', exctype
-    print 'Value:', value
-    print 'Traceback:', tb
+    print 'Type:', exc_type
+    print 'Value:', exc_value
+    print 'Traceback:', exc_traceback
 
 # examption handling via logger
 # sys.excepthook = handle_exception
@@ -124,6 +123,9 @@ def neworders(request):
             # generate additional header elements
             for element in response_dic['header']:
                 response[element] = response_dic['header'][element]
+
+            if 'Replay-Nonce' not in response:
+                response['Replay-Nonce'] = ''
 
             # logging
             logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce' : response['Replay-Nonce']}})
