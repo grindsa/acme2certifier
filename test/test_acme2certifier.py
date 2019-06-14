@@ -712,26 +712,26 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge.new('authz_name', 'mtype', 'token'))
 
     @patch('acme.challenge.generate_random_string')
-    def test_196_challenge_new(self, mock_random):
+    def test_097_challenge_new(self, mock_random):
         """ test challenge generation for tnauthlist challenge """
         mock_random.return_value = 'foo'
         self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge.new('authz_name', 'tkauth-01', 'token'))
 
     @patch('acme.challenge.Challenge.new')
-    def test_097_challenge_new_set(self, mock_challenge):
+    def test_098_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
         
     @patch('acme.challenge.Challenge.new')
-    def test_197_challenge_new_set(self, mock_challenge):
+    def test_099_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set with tnauth true """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', True))
 
     @patch('acme.challenge.Challenge.new')
-    def test_198_challenge_new_set(self, mock_challenge):
+    def test_100_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
@@ -739,7 +739,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
-    def test_098_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_101_authorization_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -748,26 +748,26 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'identifier_type', 'value' : 'identifier_value', 'status__name' : 'foo'}]
         self.assertEqual({'status': 'foo', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'type': 'identifier_type', 'value': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
 
-    def test_099_challenge_info(self):
+    def test_102_challenge_info(self):
         """ test challenge.info() """
         self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
         self.assertEqual({'status': 'pending', 'token': 'token', 'type': 'http-01'}, self.challenge.info('foo'))
 
     @patch('acme.message.Message.check')
-    def test_100_challenge_parse(self, mock_mcheck):
+    def test_103_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed bcs. message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.message.Message.check')
-    def test_101_challenge_parse(self, mock_mcheck):
+    def test_104_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_102_challenge_parse(self, mock_mcheck, mock_cname):
+    def test_105_challenge_parse(self, mock_mcheck, mock_cname):
         """ Challenge.parse() failed message check returns ok challenge name could not get obtained """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload', 'account_name')
         mock_cname.return_value = None
@@ -776,7 +776,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.info')
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_103_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo):
+    def test_106_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo):
         """ Challenge.parse() failed bcs of empty challenge_dic """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload', 'account_name')
         mock_cname.return_value = 'foo'
@@ -787,7 +787,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.info')
     @patch('acme.challenge.Challenge.name_get')
     @patch('acme.message.Message.check')
-    def test_104_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_nnonce):
+    def test_107_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_nnonce):
         """ Challenge.parse() successful """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'url' : 'bar'}, 'payload', 'account_name')
         mock_cname.return_value = 'foo'
@@ -796,34 +796,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     @patch('acme.order.Order.info')
-    def test_105_order_lookup(self, mock_oinfo):
+    def test_108_order_lookup(self, mock_oinfo):
         """ test order lookup with empty hash """
         mock_oinfo.return_value = {}
         self.assertEqual({}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_106_order_lookup(self, mock_oinfo):
+    def test_109_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and wrong authorization hash"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': []}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_107_order_lookup(self, mock_oinfo):
+    def test_110_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and correct authorization hash"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_108_order_lookup(self, mock_oinfo):
+    def test_111_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and authorization hash having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_109_order_lookup(self, mock_oinfo):
+    def test_112_order_lookup(self, mock_oinfo):
         """ test order lookup status in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value'}
@@ -831,7 +831,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_110_order_lookup(self, mock_oinfo):
+    def test_113_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
@@ -839,7 +839,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_111_order_lookup(self, mock_oinfo):
+    def test_114_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0}
@@ -847,7 +847,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_112_order_lookup(self, mock_oinfo):
+    def test_115_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0, 'notafter' : 0}
@@ -855,7 +855,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_113_order_lookup(self, mock_oinfo):
+    def test_116_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400}
@@ -863,7 +863,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_114_order_lookup(self, mock_oinfo):
+    def test_117_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
@@ -871,46 +871,46 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
-    def test_115_order_lookup(self, mock_oinfo):
+    def test_118_order_lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and worng authorization"""
         self.authorization.dbstore.authorization_lookup.return_value = 'foo'
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
         e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
-    def test_116_base64_recode(self):
+    def test_119_base64_recode(self):
         """ test base64url recode to base64 - add padding for 1 char"""
         self.assertEqual('fafafaf=', self.b64_url_recode(self.logger, 'fafafaf'))
 
-    def test_117_base64_recode(self):
+    def test_120_base64_recode(self):
         """ test base64url recode to base64 - add padding for 2 char"""
         self.assertEqual('fafafa==', self.b64_url_recode(self.logger, 'fafafa'))
 
-    def test_118_base64_recode(self):
+    def test_121_base64_recode(self):
         """ test base64url recode to base64 - add padding for 3 char"""
         self.assertEqual('fafaf===', self.b64_url_recode(self.logger, 'fafaf'))
 
-    def test_119_base64_recode(self):
+    def test_122_base64_recode(self):
         """ test base64url recode to base64 - no padding"""
         self.assertEqual('fafafafa', self.b64_url_recode(self.logger, 'fafafafa'))
 
-    def test_120_base64_recode(self):
+    def test_123_base64_recode(self):
         """ test base64url replace - with + and pad"""
         self.assertEqual('fafa+f==', self.b64_url_recode(self.logger, 'fafa-f'))
 
-    def test_121_base64_recode(self):
+    def test_124_base64_recode(self):
         """ test base64url replace _ with / and pad"""
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, 'fafa_f'))
 
     @patch('acme.order.Order.info')
-    def test_122_process_csr(self, mock_oinfo):
+    def test_125_process_csr(self, mock_oinfo):
         """ test order prcoess_csr with empty order_dic """
         mock_oinfo.return_value = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.process_csr('order_name', 'csr'))
 
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_123_process_csr(self, mock_oinfo, mock_csrchk):
+    def test_126_process_csr(self, mock_oinfo, mock_csrchk):
         """ test order prcoess_csr with failed csr check"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = False
@@ -919,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_124_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
+    def test_127_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -930,7 +930,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_125_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_128_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -942,7 +942,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_126_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_129_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
@@ -950,55 +950,55 @@ class TestACMEHandler(unittest.TestCase):
         mock_enroll.return_value = ('bar', None)
         self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
 
-    def test_127_decode_message(self):
+    def test_130_decode_message(self):
         """ decode message with empty payload - certbot issue"""
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         e_result = (True, None, {u'nonce': u'26e6a46efadd477d908d7c2014e49b34', u'url': u'http://laptop.nclm-samba.local/acme/authz/PG189FFzfao1', u'alg': u'RS256', u'kid': u'http://laptop.nclm-samba.local/acme/acct/yuZ1GUJb76Zk'}, None, 'encoded_signature')
         self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
 
     @patch('acme.certificate.generate_random_string')
-    def test_128_store_csr(self, mock_name):
+    def test_131_store_csr(self, mock_name):
         """ test Certificate.store_csr() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'foo'
         mock_name.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr'))
 
-    def test_129_store_cert(self):
+    def test_132_store_cert(self):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert', 'raw'))
 
-    def test_130_info(self):
+    def test_133_info(self):
         """ test Certificate.new_get() """
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
         self.assertEqual('foo', self.certificate.info('cert_name'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_131_new_get(self, mock_info):
+    def test_134_new_get(self, mock_info):
         """ test Certificate.new_get() with not existing cert_name"""
         mock_info.return_value = {}
         self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_132_new_get(self, mock_info):
+    def test_135_new_get(self, mock_info):
         """ test Certificate.new_get() with with exiting data without padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ=='}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
-    def test_133_new_get(self, mock_info):
+    def test_136_new_get(self, mock_info):
         """ test Certificate.new_get() with with exiting data with padding"""
         mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ'}
         self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.message.Message.check')
-    def test_134_new_post(self, mock_mcheck):
+    def test_137_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
 
     @patch('acme.message.Message.check')
-    def test_135_new_post(self, mock_mcheck):
+    def test_138_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.certificate.new_post('content'))
@@ -1006,7 +1006,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.message.Message.prepare_response')
     @patch('acme.certificate.Certificate.new_get')
     @patch('acme.message.Message.check')
-    def test_136_new_post(self, mock_mcheck, mock_certget, mock_response):
+    def test_139_new_post(self, mock_mcheck, mock_certget, mock_response):
         """ test Certificate.new_post() message check returns ok  """
         mock_mcheck.return_value = (200, None, None, {'url' : 'example.com'}, 'payload', 'account_name')
         mock_certget.return_value = 'foo'
@@ -1014,7 +1014,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(set(['foo', 'bar']), self.certificate.new_post('content'))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_137_prepare_response(self, mock_nnonce):
+    def test_140_prepare_response(self, mock_nnonce):
         """ Message.prepare_respons for code 200 and complete data """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1023,7 +1023,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_138_prepare_response(self, mock_nnonce, mock_error):
+    def test_141_prepare_response(self, mock_nnonce, mock_error):
         """ Message.prepare_respons for code 200 without header tag in response_dic """
         data_dic = {'data' : {'foo_data' : 'bar_bar'},}
         mock_nnonce.return_value = 'new_nonce'
@@ -1032,7 +1032,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'foo_data': 'bar_bar'}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_139_prepare_response(self, mock_nnonce):
+    def test_142_prepare_response(self, mock_nnonce):
         """ Message.prepare_response for config_dic without code key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1041,7 +1041,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_140_prepare_response(self, mock_nnonce):
+    def test_143_prepare_response(self, mock_nnonce):
         """ Message.prepare_response for config_dic without message key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1050,7 +1050,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_141_prepare_response(self, mock_nnonce):
+    def test_144_prepare_response(self, mock_nnonce):
         """ Message.repare_response for config_dic without detail key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1059,7 +1059,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.error.Error.enrich_error')
     @patch('acme.nonce.Nonce.generate_and_add')
-    def test_142_prepare_response(self, mock_nnonce, mock_error):
+    def test_145_prepare_response(self, mock_nnonce, mock_error):
         """ Message.prepare_response for response_dic without data key """
         data_dic = {'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
@@ -1067,67 +1067,67 @@ class TestACMEHandler(unittest.TestCase):
         config_dic = {'code' : 400, 'message': 'message', 'detail' : 'detail'}
         self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
-    def test_143_acme_errormessage(self):
+    def test_146_acme_errormessage(self):
         """ Error.acme_errormessage for existing value with content """
         self.assertEqual('JWS has invalid anti-replay nonce', self.error.acme_errormessage('urn:ietf:params:acme:error:badNonce'))
 
-    def test_144_acme_errormessage(self):
+    def test_147_acme_errormessage(self):
         """ Error.acme_errormessage for existing value without content """
         self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:unauthorized'))
 
-    def test_145_acme_errormessage(self):
+    def test_148_acme_errormessage(self):
         """ Error.acme_errormessage for message None """
         self.assertFalse(self.error.acme_errormessage(None))
 
-    def test_146_acme_errormessage(self):
+    def test_149_acme_errormessage(self):
         """ Error.acme_errormessage for not unknown message """
         self.assertFalse(self.error.acme_errormessage('unknown'))
 
-    def test_147_enrich_error(self):
+    def test_150_enrich_error(self):
         """ Error.enrich_error for valid message and detail """
         self.assertEqual('JWS has invalid anti-replay nonce: detail', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', 'detail'))
 
-    def test_148_enrich_error(self):
+    def test_151_enrich_error(self):
         """ Error.enrich_error for valid message, detail and None in error_hash hash """
         self.assertEqual('detail', self.error.enrich_error('urn:ietf:params:acme:error:badCSR', 'detail'))
 
-    def test_149_enrich_error(self):
+    def test_152_enrich_error(self):
         """ Error.enrich_error for valid message, no detail and someting in error_hash hash """
         self.assertEqual('JWS has invalid anti-replay nonce: None', self.error.enrich_error('urn:ietf:params:acme:error:badNonce', None))
 
-    def test_150_enrich_error(self):
+    def test_153_enrich_error(self):
         """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
         self.assertFalse(self.error.enrich_error('urn:ietf:params:acme:error:badCSR', None))
 
-    def test_151_name_get(self):
+    def test_154_name_get(self):
         """ Order.name_get() http"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo'))
 
-    def test_152_name_get(self):
+    def test_155_name_get(self):
         """ Order.name_get() http with further path (finalize)"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo/bar'))
 
-    def test_153_name_get(self):
+    def test_156_name_get(self):
         """ Order.name_get() http with parameters"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?bar'))
 
-    def test_154_name_get(self):
+    def test_157_name_get(self):
         """ Order.name_get() http with key/value parameters"""
         self.assertEqual('foo', self.order.name_get('http://tester.local/acme/order/foo?key=value'))
 
-    def test_155_name_get(self):
+    def test_158_name_get(self):
         """ Order.name_get() https with key/value parameters"""
         self.assertEqual('foo', self.order.name_get('https://tester.local/acme/order/foo?key=value'))
 
     @patch('acme.message.Message.check')
-    def test_156_order_parse(self, mock_mcheck):
+    def test_159_order_parse(self, mock_mcheck):
         """ Order.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_157_order_parse(self, mock_mcheck):
+    def test_160_order_parse(self, mock_mcheck):
         """ Order.parse() failed bcs. no url key in protected """
         mock_mcheck.return_value = (200, None, None, {'foo_protected' : 'bar_protected'}, {"foo_payload" : "bar_payload"}, 'account_name')
         message = '{"foo" : "bar"}'
@@ -1135,7 +1135,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_158_order_parse(self, mock_mcheck, mock_oname):
+    def test_161_order_parse(self, mock_mcheck, mock_oname):
         """ Order.parse() finalized failed bcs. no csr in payload """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
@@ -1145,7 +1145,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.process_csr')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_159_order_parse(self, mock_mcheck, mock_oname, mock_csr):
+    def test_162_order_parse(self, mock_mcheck, mock_oname, mock_csr):
         """ Order.parse() finalized failed bcs. enrollment failure """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
@@ -1158,7 +1158,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.process_csr')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_160_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
+    def test_163_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
         """ Order.parse() finalized sucessful """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
@@ -1171,7 +1171,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_161_order_parse(self, mock_mcheck, mock_oname):
+    def test_164_order_parse(self, mock_mcheck, mock_oname):
         """ Order.parse() polling failed bcs. certificate not found """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
@@ -1182,7 +1182,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_162_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
+    def test_165_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
         """ Order.parse() polling successful """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
@@ -1193,7 +1193,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(e_result, self.order.parse(message))
 
     @patch('acme.message.Message.check')
-    def test_163_authorization_post(self, mock_mcheck):
+    def test_166_authorization_post(self, mock_mcheck):
         """ Authorization.new_post() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
@@ -1201,7 +1201,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.authorization.Authorization.authz_info')
     @patch('acme.message.Message.check')
-    def test_164_authorization_post(self, mock_mcheck, mock_authzinfo):
+    def test_167_authorization_post(self, mock_mcheck, mock_authzinfo):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', 'account_name')
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
@@ -1211,7 +1211,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.authorization.Authorization.authz_info')
     @patch('acme.message.Message.check')
-    def test_165_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
+    def test_168_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, {'url' : 'foo_url'}, 'payload', 'account_name')
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
@@ -1219,7 +1219,7 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authz_foo': 'authz_bar'}}, self.authorization.new_post(message))
 
-    def test_166_cert_serial_get(self):
+    def test_169_cert_serial_get(self):
         """ test cert_serial_get """
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -1240,7 +1240,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual(10, self.cert_serial_get(self.logger, cert))
 
-    def test_167_cert_san_get(self):
+    def test_170_cert_san_get(self):
         """ test cert_san_get for a single SAN """
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -1261,7 +1261,7 @@ class TestACMEHandler(unittest.TestCase):
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual(['DNS:foo.example.com'], self.cert_san_get(self.logger, cert))
 
-    def test_168_cert_san_get(self):
+    def test_171_cert_san_get(self):
         """ test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -1282,7 +1282,7 @@ class TestACMEHandler(unittest.TestCase):
                 NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
         self.assertEqual(['DNS:foo-2.example.com', 'DNS:foo-1.example.com'], self.cert_san_get(self.logger, cert))
 
-    def test_169_cert_serial_get(self):
+    def test_172_cert_serial_get(self):
         """ test cert_serial for a multiple SAN of different types"""
         cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
                 LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
@@ -1303,107 +1303,107 @@ class TestACMEHandler(unittest.TestCase):
                 NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
         self.assertEqual(1432, self.cert_serial_get(self.logger, cert))
 
-    def test_170_revocation_reason_check(self):
+    def test_173_revocation_reason_check(self):
         """ test Certificate.revocation_reason_check with allowed reason"""
         rev_reason = 0
         self.assertEqual('unspecified', self.certificate.revocation_reason_check(rev_reason))
 
-    def test_171_revocation_reason_check(self):
+    def test_174_revocation_reason_check(self):
         """ test Certificate.revocation_reason_check with non-allowed reason"""
         rev_reason = 8
         self.assertFalse(self.certificate.revocation_reason_check(rev_reason))
 
     @patch('acme.certificate.cert_san_get')
-    def test_172_authorization_check(self, mock_san):
+    def test_175_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans but failed order lookup"""
         self.account.dbstore.order_lookup.return_value = {}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_173_authorization_check(self, mock_san):
+    def test_176_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order returning wrong values (no 'identifiers' key) """
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_174_authorization_check(self, mock_san):
+    def test_177_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order lookup returning identifiers without json structure) """
         self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_175_authorization_check(self, mock_san):
+    def test_178_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with wrong sans) """
         self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_176_authorization_check(self, mock_san):
+    def test_179_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with SAN entry which is not in the identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_177_authorization_check(self, mock_san):
+    def test_180_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with single SAN entry and correct entry in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_178_authorization_check(self, mock_san):
+    def test_181_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with multiple SAN entries and correct entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_179_authorization_check(self, mock_san):
+    def test_182_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with one SAN entry and multiple entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_180_authorization_check(self, mock_san):
+    def test_183_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with uppercase SAN entries and lowercase entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:SAN1.EXAMPLE.COM', 'DNS:SAN2.EXAMPLE.COM']
         self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_181_authorization_check(self, mock_san):
+    def test_184_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lowercase SAN entries and uppercase entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
         mock_san.return_value = ['dns:san1.example.com', 'dns:san2.example.com']
         self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
-    def test_182_authorization_check(self, mock_san):
+    def test_185_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lSAN entries (return none) and entries in identifier containing None"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
         mock_san.return_value = ['san1.example.com']
         self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
 
-    def test_183_revocation_request_validate(self):
+    def test_186_revocation_request_validate(self):
         """ test Certificate.revocation_request_validate empty payload"""
         payload = {}
         self.assertEqual((400, 'unspecified'), self.certificate.revocation_request_validate('account_name', payload))
 
     @patch('acme.certificate.Certificate.revocation_reason_check')
-    def test_184_revocation_request_validate(self, mock_revrcheck):
+    def test_187_revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns None"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = False
         self.assertEqual((400, 'urn:ietf:params:acme:error:badRevocationReason'), self.certificate.revocation_request_validate('account_name', payload))
 
     @patch('acme.certificate.Certificate.revocation_reason_check')
-    def test_185_revocation_request_validate(self, mock_revrcheck):
+    def test_188_revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns a reason"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = 'revrcheck'
@@ -1412,7 +1412,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.authorization_check')
     @patch('acme.certificate.Certificate.account_check')
     @patch('acme.certificate.Certificate.revocation_reason_check')
-    def test_186_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
+    def test_189_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check failed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
         mock_revrcheck.return_value = 'revrcheck'
@@ -1423,7 +1423,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.Certificate.authorization_check')
     @patch('acme.certificate.Certificate.account_check')
     @patch('acme.certificate.Certificate.revocation_reason_check')
-    def test_187_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
+    def test_190_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check succeed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
         mock_revrcheck.return_value = 'revrcheck'
@@ -1432,20 +1432,20 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((200, 'revrcheck'), self.certificate.revocation_request_validate('account_name', payload))
 
     @patch('acme.message.Message.check')
-    def test_188_revoke(self, mock_mcheck):
+    def test_191_revoke(self, mock_mcheck):
         """ test Certificate.revoke with failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'message', 'detail': 'detail'}}, self.certificate.revoke('content'))
 
     @patch('acme.message.Message.check')
-    def test_189_revoke(self, mock_mcheck):
+    def test_192_revoke(self, mock_mcheck):
         """ test Certificate.revoke with incorrect payload """
         mock_mcheck.return_value = (200, 'message', 'detail', None, {}, 'account_name')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'certificate not found'}}, self.certificate.revoke('content'))
 
     @patch('acme.certificate.Certificate.revocation_request_validate')
     @patch('acme.message.Message.check')
-    def test_190_revoke(self, mock_mcheck, mock_validate):
+    def test_193_revoke(self, mock_mcheck, mock_validate):
         """ test Certificate.revoke with failed request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (400, 'error')
@@ -1455,7 +1455,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.ca_handler.CAhandler.revoke')
     @patch('acme.certificate.Certificate.revocation_request_validate')
     @patch('acme.message.Message.check')
-    def test_191_revoke(self, mock_mcheck, mock_validate, mock_ca_handler, mock_nnonce):
+    def test_194_revoke(self, mock_mcheck, mock_validate, mock_ca_handler, mock_nnonce):
         """ test Certificate.revoke with sucessful request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (200, 'reason')
@@ -1463,105 +1463,105 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         self.assertEqual({'code': 200, 'header': {'Replay-Nonce': 'new_nonce'}}, self.certificate.revoke('content'))
 
-    def test_192_name_get(self):
+    def test_195_name_get(self):
         """ test Message.name_get() with empty content"""
         protected = {}
         self.assertFalse(self.message.name_get(protected))
 
-    def test_193_name_get(self):
+    def test_196_name_get(self):
         """ test Message.name_get() with kid with nonsens in content"""
         protected = {'kid' : 'foo'}
         self.assertEqual('foo', self.message.name_get(protected))
 
-    def test_194_name_get(self):
+    def test_197_name_get(self):
         """ test Message.name_get() with wrong kid in content"""
         protected = {'kid' : 'http://tester.local/acme/account/account_name'}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_195_name_get(self):
+    def test_198_name_get(self):
         """ test Message.name_get() with correct kid in content"""
         protected = {'kid' : 'http://tester.local/acme/acct/account_name'}
         self.assertEqual('account_name', self.message.name_get(protected))
 
-    def test_196_name_get(self):
+    def test_199_name_get(self):
         """ test Message.name_get() with 'jwk' in content but without URL"""
         protected = {'jwk' : 'jwk'}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_197_name_get(self):
+    def test_200_name_get(self):
         """ test Message.name_get() with 'jwk' and 'url' in content but url is wrong"""
         protected = {'jwk' : 'jwk', 'url' : 'url'}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_198_name_get(self):
+    def test_201_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' in content but no 'n' in jwk """
         protected = {'jwk' : 'jwk', 'url' : 'http://tester.local/acme/revokecert'}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_199_name_get(self):
+    def test_202_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' but account lookup failed """
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_200_name_get(self):
+    def test_203_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'bar' : 'foo'}
         self.assertEqual(None, self.message.name_get(protected))
 
-    def test_201_name_get(self):
+    def test_204_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'name' : 'foo'}
         self.assertEqual('foo', self.message.name_get(protected))
 
-    def test_202_revocation_reason_check(self):
+    def test_205_revocation_reason_check(self):
         """ test Certicate.revocation_reason_check() with a valid revocation reason"""
         self.assertEqual('unspecified', self.certificate.revocation_reason_check(0))
 
-    def test_203_revocation_reason_check(self):
+    def test_206_revocation_reason_check(self):
         """ test Certicate.revocation_reason_check() with an invalid revocation reason"""
         self.assertFalse(self.certificate.revocation_reason_check(2))
 
-    def test_204_build_pem_file(self):
+    def test_207_build_pem_file(self):
         """ test build_pem_file without exsting content """
         existing = None
         cert = 'cert'
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----\n', self.build_pem_file(self.logger, existing, cert, True))
 
-    def test_205_build_pem_file(self):
+    def test_208_build_pem_file(self):
         """ test build_pem_file with exsting content """
         existing = 'existing'
         cert = 'cert'
         self.assertEqual('existing-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----\n', self.build_pem_file(self.logger, existing, cert, True))
 
-    def test_206_build_pem_file(self):
+    def test_209_build_pem_file(self):
         """ test build_pem_file with long cert (to test wrap) """
         existing = None
         cert = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         self.assertEqual('-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaa\n-----END CERTIFICATE-----\n', self.build_pem_file(self.logger, existing, cert, True))
 
-    def test_207_build_pem_file(self):
+    def test_210_build_pem_file(self):
         """ test build_pem_file with long cert (to test wrap) """
         existing = None
         cert = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         self.assertEqual('-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n-----END CERTIFICATE-----\n', self.build_pem_file(self.logger, existing, cert, False))
 
     @patch('acme.challenge.url_get')
-    def test_208_validate_http_challenge(self, mock_url):
+    def test_211_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
         mock_url.return_value = 'foo'
         self.assertFalse(self.challenge.validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.url_get')
-    def test_209_validate_http_challenge(self, mock_url):
+    def test_212_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() with a correct challenge """
         mock_url.return_value = 'token.jwk_thumbprint'
         self.assertTrue(self.challenge.validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.url_get')
-    def test_210_validate_http_challenge(self, mock_url):
+    def test_213_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() without response """
         mock_url.return_value = None
         self.assertFalse(self.challenge.validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
@@ -1569,7 +1569,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
-    def test_211_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
+    def test_214_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
         """ test Chalölenge.validate_dns_challenge() with incorrect response """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'bar'
@@ -1579,17 +1579,100 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
-    def test_212_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
+    def test_215_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
         """ test Chalölenge.validate_dns_challenge() with correct response """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         self.assertTrue(self.challenge.validate_dns_challenge('fqdn', 'token', 'jwk_thumbprint'))
 
-    def test_213_validate_tkauth_challenge(self):
+    def test_216_validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
         self.assertTrue(self.challenge.validate_tkauth_challenge('fqdn', 'token', 'jwk_thumbprint', 'payload'))
 
+    def test_217_challenge_check(self):
+        """ challenge check with incorrect challenge-dictionary """
+        # self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
+        self.challenge.dbstore.challenge_lookup.return_value = {}
+        self.assertFalse(self.challenge.check('name', 'payload'))   
+        
+    def test_218_challenge_check(self):
+        """ challenge check with without jwk return """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'type', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = None
+        self.assertFalse(self.challenge.check('name', 'payload'))          
 
+    @patch('acme.challenge.Challenge.validate_http_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_219_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with failed http challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = False        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertFalse(self.challenge.check('name', 'payload'))   
+ 
+    @patch('acme.challenge.Challenge.validate_http_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_220_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with succ http challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = True        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertTrue(self.challenge.check('name', 'payload'))   
+        
+    @patch('acme.challenge.Challenge.validate_dns_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_221_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with failed dns challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = False        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertFalse(self.challenge.check('name', 'payload'))         
+        
+    @patch('acme.challenge.Challenge.validate_dns_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_222_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with succ http challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = True        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertTrue(self.challenge.check('name', 'payload')) 
+        
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_223_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with failed tkauth challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = False        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertFalse(self.challenge.check('name', 'payload'))       
+
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_224_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with succ tkauth challenge and challenge_tnauthlist_support unset """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        self.challenge.challenge_tnauthlist_support = False
+        mock_chall.return_value = True        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertFalse(self.challenge.check('name', 'payload'))     
+
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
+    @patch('acme.challenge.jwk_thumbprint_get') 
+    def test_225_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with succ tkauth challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        self.challenge.challenge_tnauthlist_support = True
+        mock_chall.return_value = True        
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertTrue(self.challenge.check('name', 'payload'))         
+        
 if __name__ == '__main__':
     unittest.main()
