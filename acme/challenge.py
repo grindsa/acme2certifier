@@ -28,7 +28,7 @@ class Challenge(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
-    def check(self, challenge_name, _payload):
+    def check(self, challenge_name, payload):
         """ challene check """
         self.logger.debug('challenge.check({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
@@ -40,6 +40,8 @@ class Challenge(object):
                     result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
                     result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint:
+                    result = self.validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
                     result = False
             else:
@@ -114,7 +116,7 @@ class Challenge(object):
             challenge_list.append(self.new(authz_name, 'http-01', token))
             challenge_list.append(self.new(authz_name, 'dns-01', token))
         else:
-            challenge_list.append(self.new(authz_name, 'tkauth-01', token))            
+            challenge_list.append(self.new(authz_name, 'tkauth-01', token))
         self.logger.debug('Challenge.new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
@@ -229,4 +231,12 @@ class Challenge(object):
         else:
             result = False
         self.logger.debug('Challenge.validate_http_challenge() ended with: {0}'.format(result))
+        return result
+
+    def validate_tkauth_challenge(self, tnauthlist, token, jwk_thumbprint, payload):
+        """ validate tkauth challenge """
+        self.logger.debug('Challenge.validate_tkauth_challenge({0}:{1})'.format(tnauthlist, payload))
+
+        result = True
+        self.logger.debug('Challenge.validate_tkauth_challenge() ended with: {0}'.format(result))
         return result
