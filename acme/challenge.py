@@ -44,7 +44,7 @@ class Challenge(object):
                 elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.challenge_tnauthlist_support:
                     result = self.validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
-                    self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))                
+                    self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                     result = False
             else:
                 result = False
@@ -74,7 +74,7 @@ class Challenge(object):
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
-            self.challenge_tnauthlist_support = config_dic.getboolean('Challenge', 'challenge_tnauthlist_support', fallback=False)            
+            self.challenge_tnauthlist_support = config_dic.getboolean('Challenge', 'challenge_tnauthlist_support', fallback=False)
         self.logger.debug('Challenge.load_config() ended.')
 
     def name_get(self, url):
@@ -236,7 +236,7 @@ class Challenge(object):
         self.logger.debug('Challenge.validate_http_challenge() ended with: {0}'.format(result))
         return result
 
-    def validate_tkauth_challenge(self, tnauthlist, token, jwk_thumbprint, payload):
+    def validate_tkauth_challenge(self, tnauthlist, _token, _jwk_thumbprint, payload):
         """ validate tkauth challenge """
         self.logger.debug('Challenge.validate_tkauth_challenge({0}:{1})'.format(tnauthlist, payload))
 
