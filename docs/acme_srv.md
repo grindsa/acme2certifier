@@ -10,6 +10,7 @@
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURTIY ISSUE as it exposes the API for replay attackes! Please do only for testing/debugging purposes | True/False | False|
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please do only for testing/debugging purposes | True/False | False|
+| `Challenge` | `challenge_tnauthlist_support` | accept challenges containg [tkauth-01 type](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) | True/False | False|
 
 The options for the `CAHandler` section depend on the CA handler.
 
