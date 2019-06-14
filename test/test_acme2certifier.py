@@ -1586,6 +1586,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_hash.return_value = 'hash'
         self.assertTrue(self.challenge.validate_dns_challenge('fqdn', 'token', 'jwk_thumbprint'))
 
+    def test_213_validate_tkauth_challenge(self):
+        """ test Chalölenge.validate_tkauth_challenge() """
+        self.assertTrue(self.challenge.validate_tkauth_challenge('fqdn', 'token', 'jwk_thumbprint', 'payload'))
+
 
 if __name__ == '__main__':
     unittest.main()
