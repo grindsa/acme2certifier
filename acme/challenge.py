@@ -44,6 +44,7 @@ class Challenge(object):
                 elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.challenge_tnauthlist_support:
                     result = self.validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
+                    self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))                
                     result = False
             else:
                 result = False
