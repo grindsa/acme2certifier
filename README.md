@@ -21,17 +21,17 @@ I am not a professional developer. Keep this in mind while laughing about my cod
 
 So far, the library is far from being useful for either lab or production usage as only the below ACME functions are supported
 
-- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.1.1)
-- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.2)
-- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3)
-    - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.1)
-    - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.3.6)
-- "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
-- "order finalization" [(Section 7.4)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.4)
+- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/rfc8555#section-7.1.1)
+- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/rfc8555#section-7.2)
+- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/rfc8555#section-7.3)
+    - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/rfc8555#section-7.3.1)
+    - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/rfc8555#section-7.3.6)
+- "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
+- "order finalization" [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
 - "certificate download" [(Section 7.4.2)](https://tools.ietf.org/html/draft-ietf-acme-acme-18#section-7.4.2)
-- "authz" resource [(Section 7.5)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5)
-- "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.5.1)
-- "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/draft-ietf-acme-acme-16#section-7.6)
+- "authz" resource [(Section 7.5)](https://tools.ietf.org/html/rfc8555#section-7.5)
+- "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
+- "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
 
 ~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
 
