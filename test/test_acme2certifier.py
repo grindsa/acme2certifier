@@ -723,7 +723,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
-        
+
     @patch('acme.challenge.Challenge.new')
     def test_099_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set with tnauth true """
@@ -735,7 +735,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
-        
+
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
@@ -1594,89 +1594,139 @@ class TestACMEHandler(unittest.TestCase):
         """ challenge check with incorrect challenge-dictionary """
         # self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
         self.challenge.dbstore.challenge_lookup.return_value = {}
-        self.assertFalse(self.challenge.check('name', 'payload'))   
-        
+        self.assertFalse(self.challenge.check('name', 'payload'))
+
     def test_218_challenge_check(self):
         """ challenge check with without jwk return """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'type', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = None
-        self.assertFalse(self.challenge.check('name', 'payload'))          
+        self.assertFalse(self.challenge.check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge.validate_http_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+    @patch('acme.challenge.Challenge.validate_http_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_219_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with failed http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False        
+        mock_chall.return_value = False
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge.check('name', 'payload'))   
- 
-    @patch('acme.challenge.Challenge.validate_http_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+        self.assertFalse(self.challenge.check('name', 'payload'))
+
+    @patch('acme.challenge.Challenge.validate_http_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_220_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = True        
+        mock_chall.return_value = True
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge.check('name', 'payload'))   
-        
-    @patch('acme.challenge.Challenge.validate_dns_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+        self.assertTrue(self.challenge.check('name', 'payload'))
+
+    @patch('acme.challenge.Challenge.validate_dns_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_221_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with failed dns challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False        
+        mock_chall.return_value = False
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge.check('name', 'payload'))         
-        
-    @patch('acme.challenge.Challenge.validate_dns_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+        self.assertFalse(self.challenge.check('name', 'payload'))
+
+    @patch('acme.challenge.Challenge.validate_dns_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_222_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = True        
+        mock_chall.return_value = True
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge.check('name', 'payload')) 
-        
-    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+        self.assertTrue(self.challenge.check('name', 'payload'))
+
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_223_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False        
+        mock_chall.return_value = False
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge.check('name', 'payload'))       
+        self.assertFalse(self.challenge.check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_224_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist_support unset """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = False
-        mock_chall.return_value = True        
+        mock_chall.return_value = True
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge.check('name', 'payload'))     
+        self.assertFalse(self.challenge.check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
-    @patch('acme.challenge.jwk_thumbprint_get') 
+    @patch('acme.challenge.Challenge.validate_tkauth_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
     def test_225_challenge_check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist support set """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
-        mock_chall.return_value = True        
+        mock_chall.return_value = True
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge.check('name', 'payload'))     
+        self.assertTrue(self.challenge.check('name', 'payload'))
 
     def test_226_order_identifier_check(self):
         """ order identifers check with empty identifer list"""
-        self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([]))       
-        
+        self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([]))
+
+    def test_227_order_identifier_check(self):
+        """ order identifers check with wrong identifer in list"""
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}]))
+
+    def test_228_order_identifier_check(self):
+        """ order identifers check with correct identifer in list"""
+        self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
+
+    def test_229_order_identifier_check(self):
+        """ order identifers check with two identifers in list (one wrong) """
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'foo', 'value': 'value'}]))
+
+    def test_230_order_identifier_check(self):
+        """ order identifers check with two identifers in list (one wrong) """
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+
+    def test_231_order_identifier_check(self):
+        """ order identifers check with two identifers in list (one wrong) """
+        self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+
+    def test_232_order_identifier_check(self):
+        """ order identifers check with tnauthlist identifier and support false """
+        self.order.tnauthlist_support = False
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+
+    def test_233_order_identifier_check(self):
+        """ order identifers check with tnauthlist identifier and support True """
+        self.order.tnauthlist_support = True
+        self.assertEqual(None, self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+
+    def test_234_order_identifier_check(self):
+        """ order identifers check with tnauthlist identifier and support True """
+        self.order.tnauthlist_support = True
+        self.assertEqual(None, self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}]))
+
+    def test_235_order_identifier_check(self):
+        """ order identifers check with tnauthlist identifier a wrong identifer and support True """
+        self.order.tnauthlist_support = True
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'type', 'value': 'value'}]))
+
+    def test_236_order_identifier_check(self):
+        """ order identifers check with wrong identifer in list and tnauthsupport true"""
+        self.order.tnauthlist_support = True
+        self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}]))
+
+    def test_237_order_identifier_check(self):
+        """ order identifers check with correct identifer in list and tnauthsupport true"""
+        self.order.tnauthlist_support = True
+        self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
+
 if __name__ == '__main__':
     unittest.main()
