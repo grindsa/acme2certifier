@@ -2,13 +2,13 @@
 
 The support of TNAuthList identifers and tkauth-01 challenges is rather experimental. Main reason is that neither identifer nor challenge type are fully standardized.
 
-The current implementation follows the follows:
+The current implementation follows:
 
 - [draft-ietf-acme-authority-token-tnauthlist-03](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03)
 - [draft-ietf-acme-authority-token-03](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03)
 - [ATIS-1000080e](https://www.atis.org/sti-ga/resources/docs/ATIS-1000080.pdf) (link points to an older document as ATIS-1000080e is not publicly avaialbe)
 
-TNAuthList support is disabled by default and needs to be enabled in [acme_srv.cfg](acme_srv.md) by adding the parameter `tnauthlist_support: True` to the `Order` section of the configuration file.
+TNAuthList support is disabled by default and needs to be enabled in [acme_srv.cfg](acme_srv.md) by adding the parameter `tnauthlist_support: True` into the `Order` section of the configuration file.
 
 There is currently no acme-client avaialable suporting the TNAuthList extension. For testing purposes I added the needed support to [acme.sh](https://github.com/grindsa/acme.sh) 
 but the changes are not yet incorporated into the main code. So feel free to use it at your own risk and dont forget to provide feedback.
