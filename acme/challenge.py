@@ -19,7 +19,7 @@ class Challenge(object):
         self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False
-        self.challenge_tnauthlist_support = False
+        self.tnauthlist_support = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -41,7 +41,7 @@ class Challenge(object):
                     result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
                     result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.challenge_tnauthlist_support:
+                elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
                     result = self.validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
                     self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
@@ -74,7 +74,8 @@ class Challenge(object):
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
-            self.challenge_tnauthlist_support = config_dic.getboolean('Challenge', 'challenge_tnauthlist_support', fallback=False)
+        if 'Order' in config_dic:            
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
         self.logger.debug('Challenge.load_config() ended.')
 
     def name_get(self, url):
