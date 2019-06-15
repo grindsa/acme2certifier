@@ -1655,10 +1655,10 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
     @patch('acme.challenge.jwk_thumbprint_get') 
     def test_224_challenge_check(self, mock_jwk, mock_chall):
-        """ challenge check with with succ tkauth challenge and challenge_tnauthlist_support unset """
+        """ challenge check with with succ tkauth challenge and tnauthlist_support unset """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        self.challenge.challenge_tnauthlist_support = False
+        self.challenge.tnauthlist_support = False
         mock_chall.return_value = True        
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertFalse(self.challenge.check('name', 'payload'))     
@@ -1666,10 +1666,10 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.Challenge.validate_tkauth_challenge')  
     @patch('acme.challenge.jwk_thumbprint_get') 
     def test_225_challenge_check(self, mock_jwk, mock_chall):
-        """ challenge check with with succ tkauth challenge """
+        """ challenge check with with succ tkauth challenge and tnauthlist support set """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        self.challenge.challenge_tnauthlist_support = True
+        self.challenge.tnauthlist_support = True
         mock_chall.return_value = True        
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertTrue(self.challenge.check('name', 'payload'))         
