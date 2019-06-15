@@ -1,64 +1,18 @@
-# How to create your own CA-Handler
+# TNAuthList support
 
-Creating your own CA-handler should be pretty easy.  All you need to do is to create your own ca_handler.py with a "CAhandler" class containing the following methods required by acme2certifier:
+The support of TNAuthList identifers and tkauth-01 challenges is rather experimental. Main reason is that neither identifer nor challenge type are fully standardized.
 
-- __enroll__: to enroll a new certificate
-- __revoke__: to revoke an existing certificate
+The current implementation follows the follows:
 
-The below skeleton describes the different input parameters given by acme2certifier as well as the expected return values.
+- [draft-ietf-acme-authority-token-tnauthlist-03](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03)
+- [draft-ietf-acme-authority-token-03](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03)
+- [ATIS-1000080e](https://www.atis.org/sti-ga/resources/docs/ATIS-1000080.pdf) (link points to an older document as ATIS-1000080e is not publicly avaialbe)
 
-```
-class CAhandler(object):
-    """ CA handler """
-    
-    def __init__(self, debug=None, logger=None):
-        """ 
-        input:
-            debug - debug mode (True/False)
-            logger - log handler
-        """
-        self.debug = debug
-        self.logger = logger
+TNAuthList support is disabled by default and needs to be enabled in [acme_srv.cfg](acme_srv.md) by adding the parameter `tnauthlist_support: True` to the `Order` section of the configuration file.
 
-    def __enter__(self):
-        """ Makes CAhandler a context manager """
-        return self
+There is currently no acme-client avaialable suporting the TNAuthList extension. For testing purposes I added the needed support to [acme.sh](https://github.com/grindsa/acme.sh) 
+but the changes are not yet incorporated into the main code. So feel free to use it at your own risk and dont forget to provide feedback.
 
-    def __exit__(self, *args):
-        """ cose the connection at the end of the context """
+Below the command to be used enroll the certificate having a TNAuthList certificate extension
 
-    def enroll(self, csr):
-        """ enroll certificate
-        input: 
-            csr - csr in pkcs10 format
-
-        output:
-            error - error message during cert enrollment (None in case no error occured)
-            cert_bundle - certificate chain in pem format
-            cert_raw - certificate in PEM format """
-            
-        self.logger.debug('Certificate.enroll()')
-        ...
-        self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
-
-    def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
-        """ revoke certificate
-        input:
-            cert - certificate in pem format
-            reason - revocation reason
-            rev_date - revocation date
-
-        output:
-            code - http status code to be give back to the client
-            message - urn:ietf:params:acme:error:serverInternal in case of an error, None in case of no errors
-            detail - error details to be added to the client response """
-            
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
-        ...
-        self.logger.debug('Certificate.enroll() ended with: {0}, {1}, {2}'.format(code, message, detail))
-        return(code, message, detail)
-```
-
-You can add additional methods according to your needs. You can also add configuration options to acme_srv.cfg allowing you to configure the ca_handler according to your needs.
-Check the `certifier_ca_handler.py` especially the `load_config()` method for further input.
+`root@rlh:~# acme.sh --server http://<server-name> --issue -d <fqdn> --tnauth <TN Authorization List> --spctoken <service provider code token> --standalone -w /tmp --debug 2 --output-insecure --force --log acme.log'`
