@@ -100,11 +100,14 @@ class Order(object):
         if self.tnauthlist_support:
             allowed_identifers.append('tnauthlist')
 
-        for identifier in identifiers_list:
-            if identifier['type'].lower() not in allowed_identifers:
-                error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
-                break
-
+        if identifiers_list:
+            for identifier in identifiers_list:
+                if identifier['type'].lower() not in allowed_identifers:
+                    error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
+                    break
+        else:
+            error = 'urn:ietf:params:acme:error:malformed'
+            
         self.logger.debug('Order.identifiers_check() done with {0}:'.format(error))
         return error
 
