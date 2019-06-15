@@ -83,6 +83,24 @@ class Order(object):
             (order_name, _sinin) = order_name.split('/', 1)
         return order_name
 
+    def identifiers_check(self, identifiers_list):
+        """ check validity of identifers in order """
+        self.logger.debug('Order.identifiers_check({0})'.format(identifiers_list))
+        error = None
+        allowed_identifers = ['dns']
+
+        # add tnauthlist to list of supported identfiers if configured to do so
+        if self.tnauthlist_support:
+            allowed_identifers.append('tnauthlist')
+
+        for identifier in identifiers_list:
+            if identifier['type'].lower() not in allowed_identifers:
+                error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
+                break
+
+        self.logger.debug('Order.identifiers_check() done with {0}:'.format(error))
+        return error
+
     def info(self, order_name):
         """ list details of an order """
         self.logger.debug('Order.info({0})'.format(order_name))
