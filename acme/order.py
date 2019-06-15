@@ -53,8 +53,15 @@ class Order(object):
 
             # check identifiers
             error = self.identifiers_check(payload['identifiers'])
+            
+            # change order status if needed
+            if error:
+                data_dic['status'] = 1
+                
+            # add order to db    
+            oid = self.dbstore.order_add(data_dic)  
+            
             if not error:
-                oid = self.dbstore.order_add(data_dic)
                 if oid:
                     error = None
                     for auth in payload['identifiers']:
