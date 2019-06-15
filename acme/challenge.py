@@ -74,7 +74,7 @@ class Challenge(object):
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
-        if 'Order' in config_dic:            
+        if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
         self.logger.debug('Challenge.load_config() ended.')
 
@@ -131,6 +131,21 @@ class Challenge(object):
         response_dic = {}
         # check message
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+
+        # check if we got an SPC token
+        if self.tnauthlist_support and code == 200:
+            # check if we havegot an atc claim in the challenge request
+            if 'atc' in payload:
+                # check if we got a SPC token in the challenge request
+                if not bool(payload['atc']):
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'SPC token is missing'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'atc claim is missing'
+
         if code == 200:
             if 'url' in protected:
                 challenge_name = self.name_get(protected['url'])
