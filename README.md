@@ -1,5 +1,5 @@
 # acme2certifier
-![GitHub release](https://img.shields.io/github/release/grindsa/acme2certifier.svg) 
+![GitHub release](https://img.shields.io/github/release/grindsa/acme2certifier.svg)
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/master.svg?label=last%20commit%20into%20master)
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/devel.svg?label=last%20commit%20into%20devel)
 
@@ -32,6 +32,8 @@ So far, the library is far from being useful for either lab or production usage 
 - "authz" resource [(Section 7.5)](https://tools.ietf.org/html/rfc8555#section-7.5)
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
+
+acme2certifer includes experimental support for [TNAuthList identifers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
 ~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
 
@@ -103,7 +105,7 @@ root@rlh:~# chmod a+x /var/www/acme/acme
 
 ## Installation on NGIX runnig on CentOS 7
 
-I barely know NGIX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.  
+I barely know NGIX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
 
 Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act as reverse proxy to provide better connection handling.
 
@@ -165,7 +167,7 @@ root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2cer
 
 15. create an uWSGI config file or use the one stored in excample/nginx directory
 ```
-[root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier 
+[root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier
 ```
 
 16. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
