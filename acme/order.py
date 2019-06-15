@@ -3,7 +3,7 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, parse_url, uts_to_date_utc, uts_now, validate_csr
+from acme.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, validate_csr
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -19,9 +19,11 @@ class Order(object):
         self.message = Message(self.debug, self.server_name, self.logger)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
+        self.tnauthlist_support = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self.load_config()
         return self
 
     def __exit__(self, *args):
@@ -49,22 +51,23 @@ class Order(object):
             #if 'notAfter' in payload:
             #    data_dic['notafter'] = payload['notAfter']
 
-            oid = self.dbstore.order_add(data_dic)
-            if oid:
-                error = None
-                for auth in payload['identifiers']:
-                    # generate name
-                    auth_name = generate_random_string(self.logger, 12)
-                    # print(auth_name, auth)
-                    # store to return to upper func
-                    auth_dic[auth_name] = auth.copy()
-                    auth['name'] = auth_name
-                    auth['order'] = oid
-                    auth['status'] = 'pending'
-                    self.dbstore.authorization_add(auth)
-            else:
-                error = 'urn:ietf:params:acme:error:malformed'
-
+            # check identifiers
+            error = self.identifiers_check(payload['identifiers'])
+            if not error:
+                oid = self.dbstore.order_add(data_dic)
+                if oid:
+                    error = None
+                    for auth in payload['identifiers']:
+                        # generate name
+                        auth_name = generate_random_string(self.logger, 12)
+                        # store to return to upper func
+                        auth_dic[auth_name] = auth.copy()
+                        auth['name'] = auth_name
+                        auth['order'] = oid
+                        auth['status'] = 'pending'
+                        self.dbstore.authorization_add(auth)
+                else:
+                    error = 'urn:ietf:params:acme:error:malformed'
         else:
             error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
 
@@ -251,3 +254,11 @@ class Order(object):
                         order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
 
         return order_dic
+
+    def load_config(self):
+        """" load config from file """
+        self.logger.debug('Oder.load_config()')
+        config_dic = load_config()
+        if 'Order' in config_dic:
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        self.logger.debug('Order.load_config() ended.')
