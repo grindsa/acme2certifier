@@ -1672,7 +1672,11 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.tnauthlist_support = True
         mock_chall.return_value = True        
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge.check('name', 'payload'))         
+        self.assertTrue(self.challenge.check('name', 'payload'))     
+
+    def test_226_order_identifier_check(self):
+        """ order identifers check with empty identifer list"""
+        self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([]))       
         
 if __name__ == '__main__':
     unittest.main()
