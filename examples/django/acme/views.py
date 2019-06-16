@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ acme app main view """
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 
 from django.http import HttpResponse
 from django.http import JsonResponse
@@ -22,10 +22,10 @@ LOGGER = logger_setup(DEBUG)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
-    print 'My Error Information'
-    print 'Type:', exc_type
-    print 'Value:', exc_value
-    print 'Traceback:', exc_traceback
+    print('My Error Information')
+    print('Type:', exc_type)
+    print('Value:', exc_value)
+    print('Traceback:', exc_traceback)
 
 # examption handling via logger
 # sys.excepthook = handle_exception
