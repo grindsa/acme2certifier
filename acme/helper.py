@@ -353,7 +353,7 @@ def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%SZ'):
     """ convert unix timestamp to date format """
     return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
 
-def date_to_uts_utc(date_human, tformat='%Y-%m-%dT%H:%M:%S'):
+def date_to_uts_utc(date_human, _tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
     return int(time.mktime(parse(date_human).timetuple()))
     # return int(calendar.timegm(parse(date_human).timetuple()))
