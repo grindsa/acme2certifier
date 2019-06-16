@@ -1009,15 +1009,15 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.certificate.Certificate.info')
     def test_138_new_get(self, mock_info):
-        """ test Certificate.new_get() with with exiting data without padding"""
-        mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ=='}
-        self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
+        """ test Certificate.new_get() with with exiting data """
+        mock_info.return_value = {'cert' : 'certificate'}
+        self.assertEqual({'code': 200, 'data': 'certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate.info')
     def test_139_new_get(self, mock_info):
-        """ test Certificate.new_get() with with exiting data with padding"""
-        mock_info.return_value = {'cert' : 'ZGVjb2RlZF9jZXJ0aWZpY2F0ZQ'}
-        self.assertEqual({'code': 200, 'data': 'decoded_certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
+        """ test Certificate.new_get() with with exiting """
+        mock_info.return_value = {'cert' : 'certificate'}
+        self.assertEqual({'code': 200, 'data': 'certificate', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
     @patch('acme.message.Message.check')
     def test_140_new_post(self, mock_mcheck):
