@@ -152,7 +152,7 @@ def decode_message(logger, message):
     try:
         jwstoken.deserialize(message)
         protected = json.loads(jwstoken.objects['protected'])
-        if jwstoken.objects['payload'] != "":
+        if bool(jwstoken.objects['payload']):
             payload = json.loads(jwstoken.objects['payload'])
         else:
             payload = None
