@@ -131,7 +131,7 @@ class Challenge(object):
         response_dic = {}
         # check message
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
-        
+
         if self.tnauthlist_support and code == 200:
             # check if we havegot an atc claim in the challenge request
             if 'atc' in payload:
