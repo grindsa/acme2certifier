@@ -133,20 +133,20 @@ class Challenge(object):
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
 
         # check if we got an SPC token
-        if self.tnauthlist_support and code == 200:
-            # check if we havegot an atc claim in the challenge request
-            if payload and 'atc' in payload:
-                # check if we got a SPC token in the challenge request
-                if not bool(payload['atc']):
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'SPC token is missing'
-            # else:
-            #    code = 400
-            #    message = 'urn:ietf:params:acme:error:malformed'
-            #    detail = 'atc claim is missing'
-
         if code == 200:
+            if self.tnauthlist_support:
+                # check if we havegot an atc claim in the challenge request
+                if 'atc' in payload:
+                    # check if we got a SPC token in the challenge request
+                    if not bool(payload['atc']):
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'SPC token is missing'
+                # else:
+                #    code = 400
+                #    message = 'urn:ietf:params:acme:error:malformed'
+                #    detail = 'atc claim is missing'
+
             if 'url' in protected:
                 challenge_name = self.name_get(protected['url'])
                 if challenge_name:

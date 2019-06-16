@@ -154,13 +154,13 @@ def decode_message(logger, message):
         if bool(jwstoken.objects['payload']):
             payload = json.loads(jwstoken.objects['payload'])
         else:
-            payload = None
+            payload = {}
         signature = jwstoken.objects['signature']
         result = True
     except BaseException as err:
         error = str(err)
-        protected = None
-        payload = None
+        protected = {}
+        payload = {}
         signature = None
     return(result, error, protected, payload, signature)
 
