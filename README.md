@@ -19,7 +19,7 @@ I am not a professional developer. Keep this in mind while laughing about my cod
 
 ## Project status
 
-So far, the library is far from being useful for either lab or production usage as only the below ACME functions are supported
+As of today acme2certifier supports the below ACME functions only:
 
 - "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/rfc8555#section-7.1.1)
 - "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/rfc8555#section-7.2)
@@ -33,7 +33,7 @@ So far, the library is far from being useful for either lab or production usage 
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
 
-acme2certifer includes experimental support for [TNAuthList identifers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
+Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
 ~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
 
