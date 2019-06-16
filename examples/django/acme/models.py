@@ -32,11 +32,11 @@ class Status(models.Model):
 class Order(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
-    account = models.ForeignKey(Account)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
     notbefore = models.IntegerField(default=0)
     notafter = models.IntegerField(default=0)
     identifiers = models.CharField(max_length=1048)
-    status = models.ForeignKey(Status, default=2)
+    status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     def __unicode__(self):
@@ -45,12 +45,12 @@ class Order(models.Model):
 class Authorization(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
-    order = models.ForeignKey(Order)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
     type = models.CharField(max_length=5)
     value = models.CharField(max_length=64)
     token = models.CharField(max_length=64, blank=True)
     expires = models.IntegerField(default=0)
-    status = models.ForeignKey(Status, default=1)
+    status = models.ForeignKey(Status, default=1, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     def __unicode__(self):
         return self.name
@@ -58,11 +58,11 @@ class Authorization(models.Model):
 class Challenge(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
-    authorization = models.ForeignKey(Authorization)
+    authorization = models.ForeignKey(Authorization, on_delete=models.CASCADE)
     type = models.CharField(max_length=10)
     token = models.CharField(max_length=64)
     expires = models.IntegerField(default=0)
-    status = models.ForeignKey(Status, default=2)
+    status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     keyauthorization = models.CharField(max_length=128, blank=True)
     def __unicode__(self):
@@ -71,7 +71,7 @@ class Challenge(models.Model):
 class Certificate(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
-    order = models.ForeignKey(Order)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
     csr = models.TextField(blank=True)
     cert = models.TextField(blank=True)
     cert_raw = models.TextField(blank=True)
