@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_encode, b64decode_pad, b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -59,7 +59,7 @@ class Certificate(object):
         if 'cert' in certificate_dic:
             response_dic['code'] = 200
             # filter certificate and decode it
-            response_dic['data'] = b64decode_pad(self.logger, certificate_dic['cert'])
+            response_dic['data'] = certificate_dic['cert']
             response_dic['header'] = {}
             response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
         else:
@@ -126,7 +126,7 @@ class Certificate(object):
     def store_cert(self, certificate_name, certificate, raw):
         """ get key for a specific account id """
         self.logger.debug('Certificate.store_cert({0})'.format(certificate_name))
-        data_dic = {'cert' : b64_encode(self.logger, certificate), 'name': certificate_name, 'cert_raw' : raw}
+        data_dic = {'cert' : certificate, 'name': certificate_name, 'cert_raw' : raw}
         cert_id = self.dbstore.certificate_add(data_dic)
         self.logger.debug('Certificate.store_cert({0}) ended'.format(cert_id))
         return cert_id
