@@ -147,7 +147,7 @@ class Challenge(object):
                 #    message = 'urn:ietf:params:acme:error:malformed'
                 #    detail = 'atc claim is missing'
 
-            if 'url' in protected:
+            if 'url' in protected and code == 200:
                 challenge_name = self.name_get(protected['url'])
                 if challenge_name:
                     challenge_dic = self.info(challenge_name)
