@@ -31,12 +31,17 @@ import OpenSSL
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
     logger.debug('b64decode_pad()')
-
+   
+    # differ between py2 and py3
+    if sys.version_info[0] >= 3:
+        string += b'=' * (-len(string) % 4)  # restore stripped '='s
+    else:
+        string += '=' * (-len(string) % 4)  # restore stripped '='s
     try:
-        b64dec = base64.urlsafe_b64decode(string + '=' * (4 - len(string) % 4))
-    except BaseException:
-        b64dec = b'ERR: b64 decoding error'
-    return b64dec.decode('utf-8')
+        b64dec = base64.b64decode(string)
+    except TypeError:
+        b64dec = 'ERR: b64 decoding error'
+    return b64dec
 
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
