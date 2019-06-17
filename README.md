@@ -33,7 +33,7 @@ As of today acme2certifier supports the below ACME functions only:
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
 
-Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
+Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
 ~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
 
@@ -97,7 +97,7 @@ root@rlh:~# chown -R www-data.www-data /var/www/acme/
 root@rlh:~# chmod a+x /var/www/acme/acme
 ```
 
-17. Check access to the directory ressource to verify that everything works so far
+17. Check access to the directory resource to verify that everything works so far
 ```
 [root@srv ~]# curl http://127.0.0.1/directory
 {"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
@@ -134,12 +134,12 @@ root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme
 root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
 ```
 
-9. set the correct permmissions to the acme-subdirectory
+9. set the correct permissions to the acme-subdirectory
 ```
 [root@srv ~]# chmod a+x /opt/acme2certifier/acme
 ```
 
-10. set the onwership of the acme subdirectory to the user running nginx
+10. set the ownership of the acme subdirectory to the user running nginx
 ```
 [root@srv ~]# chown -R nginx /opt/acme2certifier/acme
 ```
@@ -159,13 +159,13 @@ root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2cer
 [root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
 ```
 
-14. Check access to directory ressource in a parallel session to verify that everything works so far
+14. Check access to directory resource in a parallel session to verify that everything works so far
 ```
 [root@srv ~]# curl http://127.0.0.1:8000/directory
 {"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
 ```
 
-15. create an uWSGI config file or use the one stored in excample/nginx directory
+15. create an uWSGI config file or use the one stored in example/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier
 ```
@@ -191,10 +191,10 @@ root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2cer
 [root@srv ~]# systemctl restart nginx
 ```
 
-20. test the server by accessing the directory ressource
+20. test the server by accessing the directory resource
 ```
 [root@srv ~]# curl http://<your server name>/directory
-you should get your ressource overview now
+you should get your resource overview now
 ```
 
 ## Installation as Django project
