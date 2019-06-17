@@ -174,28 +174,6 @@ class Challenge(object):
         self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
-    def validate_tnauthlist_payload(self, payload, challenge_dic):
-        """ check payload in cae tnauthlist option has been set """
-        self.logger.debug('Challenge.validate_tnauthlist_payload({0}:{1})'.format(payload, challenge_dic))
-
-        # check if we havegot an atc claim in the challenge request
-        if 'atc' in payload:
-            # check if we got a SPC token in the challenge request
-            if not bool(payload['atc']):
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'SPC token is missing'
-
-            # check if we got an SPC token
-
-            # else:
-            #    code = 400
-            #    message = 'urn:ietf:params:acme:error:malformed'
-            #    detail = 'atc claim is missing'
-
-        self.logger.debug('Challenge.validate_tnauthlist_payload() ended')
-        return(code, message, detail)
-
     def update(self, data_dic):
         """ update challenge """
         self.logger.debug('Challenge.update({0})'.format(data_dic))
@@ -274,3 +252,32 @@ class Challenge(object):
         result = True
         self.logger.debug('Challenge.validate_tkauth_challenge() ended with: {0}'.format(result))
         return result
+
+    def validate_tnauthlist_payload(self, payload, challenge_dic):
+        """ check payload in cae tnauthlist option has been set """
+        self.logger.debug('Challenge.validate_tnauthlist_payload({0}:{1})'.format(payload, challenge_dic))
+
+        code = 400
+        message = None
+        detail = None
+
+        if challenge_dic['type'] == 'tkauth-01':
+            self.logger.debug('tkauth identifier found')
+            # check if we havegot an atc claim in the challenge request
+            if 'atc' in payload:
+                # check if we got a SPC token in the challenge request
+                if not bool(payload['atc']):
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'SPC token is missing'
+                else:
+                    code = 200
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'atc claim is missing'
+        else:
+            code = 200
+
+        self.logger.debug('Challenge.validate_tnauthlist_payload() ended')
+        return(code, message, detail)
