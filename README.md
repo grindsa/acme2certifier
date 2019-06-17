@@ -60,7 +60,7 @@ if the wsgi_module is not enabled please check the internet how to do this.
 ```
 root@rlh:~# pip3 install -r requirements.txt
 ```
-4. copy the file "example/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
+4. copy the file "examples/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
 
 5. activate the virtual server
 ```
@@ -165,7 +165,7 @@ root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2cer
 {"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
 ```
 
-15. create an uWSGI config file or use the one stored in example/nginx directory
+15. create an uWSGI config file or use the one stored in examples/nginx directory
 ```
 [root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier
 ```
@@ -181,7 +181,7 @@ root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2cer
 [root@srv ~]# systemctl start uwsgi
 ```
 
-18. configure NGINX as reverse proxy or use example stored in example/nginx directory and modify it according to your needs
+18. configure NGINX as reverse proxy or use example stored in examples/nginx directory and modify it according to your needs
 ```
 [root@srv ~]# cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 ```
@@ -208,7 +208,7 @@ missing
 missing
 ```
 3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
-4. copy the content of the folder "example/django/acme" into the "acme" folder created in step 2
+4. copy the content of the folder "examples/django/acme" into the "acme" folder created in step 2
 
 ## Contributing
 
