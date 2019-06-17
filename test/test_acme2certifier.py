@@ -779,12 +779,12 @@ class TestACMEHandler(unittest.TestCase):
     #    mock_mcheck.return_value = (200, 'message', 'detail', {'foo' : 'bar'}, {}, 'account_name')
     #    self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'atc claim is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.message.Message.check')
-    def test_106_challenge_parse(self, mock_mcheck):
-        """ Challenge.parse() message check returns ok with tnauhlist enabled but empty atc claim """
-        self.challenge.tnauthlist_support = True
-        mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {'atc' : ''}, 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'SPC token is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+    # @patch('acme.message.Message.check')
+    # def test_106_challenge_parse(self, mock_mcheck):
+    #    """ Challenge.parse() message check returns ok with tnauhlist enabled but empty atc claim """
+    #    self.challenge.tnauthlist_support = True
+    #    mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {'atc' : ''}, 'account_name')
+    #    self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'SPC token is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.message.Message.check')
     def test_107_challenge_parse(self, mock_mcheck):
