@@ -600,11 +600,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_083_utstodate_utc(self):
         """ test date_to_uts_utc for a given format """
-        self.assertEqual(1543618800, self.date_to_uts_utc('2018-12-01', '%Y-%m-%d'))
+        self.assertEqual(1543644000, self.date_to_uts_utc('2018-12-01', '%Y-%m-%d'))
 
     def test_084_utstodate_utc(self):
         """ test date_to_uts_utc without format """
-        self.assertEqual(1543636800, self.date_to_uts_utc('2018-12-01T05:00:00'))
+        self.assertEqual(1543662000, self.date_to_uts_utc('2018-12-01T05:00:00'))
 
     def test_085_generaterandomstring(self):
         """ test date_to_uts_utc without format """
@@ -783,7 +783,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_106_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() message check returns ok with tnauhlist enabled but empty atc claim """
         self.challenge.tnauthlist_support = True
-        mock_mcheck.return_value = (200, 'message', 'detail', {'foo' : 'bar'}, {'atc' : ''}, 'account_name')
+        mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {'atc' : ''}, 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'SPC token is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme.message.Message.check')

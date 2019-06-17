@@ -132,41 +132,40 @@ class Challenge(object):
         # check message
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
 
-        if self.tnauthlist_support and code == 200:
-            # check if we havegot an atc claim in the challenge request
-            if 'atc' in payload:
-                # check if we got a SPC token in the challenge request
-                if not bool(payload['atc']):
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'SPC token is missing'
-            # else:
-            #    code = 400
-            #    message = 'urn:ietf:params:acme:error:malformed'
-            #    detail = 'atc claim is missing'
-
-        # check if we got an SPC token
         if code == 200:
-            if 'url' in protected and code == 200:
+            if 'url' in protected:
                 challenge_name = self.name_get(protected['url'])
                 if challenge_name:
                     challenge_dic = self.info(challenge_name)
-                    # update challenge state to 'processing' - i am not so sure about this
-                    # self.update({'name' : challenge_name, 'status' : 4})
-                    # start validation
-                    _validation = self.validate(challenge_name, payload)
-                    if challenge_dic:
-                        response_dic['data'] = {}
-                        challenge_dic['url'] = protected['url']
-                        code = 200
-                        response_dic['data'] = {}
-                        response_dic['data'] = challenge_dic
-                        response_dic['header'] = {}
-                        response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
-                        detail = 'invalid challenge: {0}'.format(challenge_name)
+
+                    if self.tnauthlist_support:
+                        # check if we havegot an atc claim in the challenge request
+                        if 'atc' in payload:
+                            # check if we got a SPC token in the challenge request
+                            if not bool(payload['atc']):
+                                code = 400
+                                message = 'urn:ietf:params:acme:error:malformed'
+                                detail = 'SPC token is missing'
+
+                            # check if we got an SPC token
+
+                    if code == 200:
+                        # update challenge state to 'processing' - i am not so sure about this
+                        # self.update({'name' : challenge_name, 'status' : 4})
+                        # start validation
+                        _validation = self.validate(challenge_name, payload)
+                        if challenge_dic:
+                            response_dic['data'] = {}
+                            challenge_dic['url'] = protected['url']
+                            code = 200
+                            response_dic['data'] = {}
+                            response_dic['data'] = challenge_dic
+                            response_dic['header'] = {}
+                            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
+                        else:
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:malformed'
+                            detail = 'invalid challenge: {0}'.format(challenge_name)
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
@@ -175,6 +174,20 @@ class Challenge(object):
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
+
+
+
+
+
+            # else:
+            #    code = 400
+            #    message = 'urn:ietf:params:acme:error:malformed'
+            #    detail = 'atc claim is missing'
+
+
+
+
+
         # prepare/enrich response
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
