@@ -138,16 +138,9 @@ class Challenge(object):
                 if challenge_name:
                     challenge_dic = self.info(challenge_name)
 
+                    # check tnauthlist payload
                     if self.tnauthlist_support:
-                        # check if we havegot an atc claim in the challenge request
-                        if 'atc' in payload:
-                            # check if we got a SPC token in the challenge request
-                            if not bool(payload['atc']):
-                                code = 400
-                                message = 'urn:ietf:params:acme:error:malformed'
-                                detail = 'SPC token is missing'
-
-                            # check if we got an SPC token
+                        (code, message, detail) = self.validate_tnauthlist_payload(payload, challenge_dic)
 
                     if code == 200:
                         # update challenge state to 'processing' - i am not so sure about this
@@ -175,24 +168,33 @@ class Challenge(object):
                 message = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
 
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+        self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
 
+    def validate_tnauthlist_payload(self, payload, challenge_dic):
+        """ check payload in cae tnauthlist option has been set """
+        self.logger.debug('Challenge.validate_tnauthlist_payload({0}:{1})'.format(payload, challenge_dic))
 
+        # check if we havegot an atc claim in the challenge request
+        if 'atc' in payload:
+            # check if we got a SPC token in the challenge request
+            if not bool(payload['atc']):
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'SPC token is missing'
 
+            # check if we got an SPC token
 
             # else:
             #    code = 400
             #    message = 'urn:ietf:params:acme:error:malformed'
             #    detail = 'atc claim is missing'
 
-
-
-
-
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-        self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
+        self.logger.debug('Challenge.validate_tnauthlist_payload() ended')
+        return(code, message, detail)
 
     def update(self, data_dic):
         """ update challenge """
