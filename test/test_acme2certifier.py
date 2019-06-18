@@ -295,7 +295,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((False, 'Unknown type "None", valid types are: [\'RSA\', \'EC\', \'oct\']'), self.signature_check(self.logger, message, mkey))
         else:
             self.assertEqual((False, 'Unknown type "None", valid types are: [\'EC\', \'RSA\', \'oct\']'), self.signature_check(self.logger, message, mkey))
-            
+
     def test_048_validate_sig_fail(self):
         """ failed validatio of singature  no key"""
         mkey = {}
@@ -699,7 +699,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme2.nclm-samba.local'}, {'type': 'dns', 'value': 'acme1.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth2', 'http://tester.local/acme/authz/foo_auth1'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
         else:
             self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme1.nclm-samba.local'}, {'type': 'dns', 'value': 'acme2.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth1', 'http://tester.local/acme/authz/foo_auth2'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
-             
+
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.add')
     @patch('acme.message.Message.check')
@@ -772,19 +772,61 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    # @patch('acme.message.Message.check')
-    # def test_105_challenge_parse(self, mock_mcheck):
-    #    """ Challenge.parse() message check returns ok with tnauhlist enabled but no atc claim """
-    #    self.challenge.tnauthlist_support = True
-    #    mock_mcheck.return_value = (200, 'message', 'detail', {'foo' : 'bar'}, {}, 'account_name')
-    #    self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'atc claim is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+    def test_104_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload with empty challenge_dic """
+        payload = {'foo': 'bar'}
+        challenge_dic = {}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'invalid challenge: {}'), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
 
-    # @patch('acme.message.Message.check')
-    # def test_106_challenge_parse(self, mock_mcheck):
-    #    """ Challenge.parse() message check returns ok with tnauhlist enabled but empty atc claim """
-    #    self.challenge.tnauthlist_support = True
-    #    mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {'atc' : ''}, 'account_name')
-    #    self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'SPC token is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+    def test_105_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload with empty challenge_dic """
+        payload = {}
+        challenge_dic = {'type': 'foo'}
+        self.assertEqual((200, None, None), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
+
+    def test_106_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload without atc claim """
+        payload = {}
+        challenge_dic = {'type': 'tkauth-01'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'atc claim is missing'), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
+
+    def test_107_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload with empty atc claim """
+        payload = {'atc' : None}
+        challenge_dic = {'type': 'tkauth-01'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'SPC token is missing'), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
+
+    def test_108_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload with '' atc claim """
+        payload = {'atc' : ''}
+        challenge_dic = {'type': 'tkauth-01'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'SPC token is missing'), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
+
+    def test_109_challenge_validate_tnauthlist_payload(self):
+        """ Challenge.validate_tnauthlist_payload with spc token in atc claim """
+        payload = {'atc' : 'a'}
+        challenge_dic = {'type': 'tkauth-01'}
+        self.assertEqual((200, None, None), self.challenge.validate_tnauthlist_payload(payload, challenge_dic))
+
+    @patch('acme.challenge.Challenge.validate_tnauthlist_payload')
+    @patch('acme.message.Message.check')
+    def test_105_challenge_parse(self, mock_mcheck, mock_tnauth):
+        """ Challenge.parse() message check returns ok with tnauhlist enabled failed tnauth check """
+        self.challenge.tnauthlist_support = True
+        mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
+        mock_tnauth.return_value = (400, 'foo', 'bar')
+        self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'message': 'foo', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+
+    @patch('acme.challenge.Challenge.info')
+    @patch('acme.challenge.Challenge.validate_tnauthlist_payload')
+    @patch('acme.message.Message.check')
+    def test_106_challenge_parse(self, mock_mcheck, mock_tnauth, mock_info):
+        """ Challenge.parse() message check returns ok with tnauhlist enabled failed tnauth check """
+        self.challenge.tnauthlist_support = True
+        mock_info.return_value = {}
+        mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
+        mock_tnauth.return_value = (200, None, None)
+        self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
     @patch('acme.message.Message.check')
     def test_107_challenge_parse(self, mock_mcheck):
