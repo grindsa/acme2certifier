@@ -283,5 +283,5 @@ class Challenge(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'invalid challenge: {0}'.format(challenge_dic)               
 
-        self.logger.debug('Challenge.validate_tnauthlist_payload() ended')
+        self.logger.debug('Challenge.validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
