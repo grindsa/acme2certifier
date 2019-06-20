@@ -50,14 +50,13 @@ class CAhandler(object):
 
         cert_bundle = None
         cert_raw = None
-        
+
         error = self.check_config()
 
         if not error:
             try:
                 # prepare the CSR
                 csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-                print(csr)
                 if 'passphrase' in self.issuer_dict:
                     self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
                 # open key and cert
@@ -74,6 +73,11 @@ class CAhandler(object):
                 cert.set_subject(req.get_subject())
                 cert.set_pubkey(req.get_pubkey())
                 cert.set_serial_number(uts_now())
+                cert.add_extensions(req.get_extensions())
+                cert.add_extensions([
+                    crypto.X509Extension("authorityKeyIdentifier", False, "keyid:always", issuer=ca_cert),
+                    crypto.X509Extension("extendedKeyUsage", False, "clientAuth"),
+                ])
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
                 # save cert if needed
