@@ -177,12 +177,12 @@ class CAhandler(object):
                         # existing CRL
                         with open(self.issuer_dict['crl'], 'r') as fso:
                             crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
+                        # check CRL already contains serial
+                        sn_match = self.check_serial_against_crl(crl, serial)
                     else:
                         # new CRL
                         crl = crypto.CRL()
-
-                    # check CRL already contains serial
-                    sn_match = self.check_serial_against_crl(crl, serial)
+                        sn_match = None
 
                     # this is the revocation operation
                     if not sn_match:
