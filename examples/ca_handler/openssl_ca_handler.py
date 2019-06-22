@@ -40,9 +40,6 @@ class CAhandler(object):
             error = 'signing key {0} does not exist'.format(self.issuer_dict['ca_key'])
         if not os.path.exists(self.issuer_dict['cert']):
             error = 'signing cert {0} does not exist'.format(self.issuer_dict['ca_cert'])
-        if not os.path.exists(self.cert_save_path):
-            error = 'cert save path {0} does not exist'.format(self.cert_save_path)
-        self.logger.debug('CAhandler.check_config() ended with: {0}'.format(error))
         return error
 
     def check_serial_against_crl(self, crl, serial):
@@ -91,7 +88,12 @@ class CAhandler(object):
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
                 # save cert if needed
-                if self.cert_save_path:
+                if self.cert_save_path and self.cert_save_path != None:
+                    # create cert-store dir if not existing
+                    if not os.path.isdir(self.cert_save_path):
+                        self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
+                        os.mkdir(self.cert_save_path)
+
                     with open('{0}/{1}.pem'.format(self.cert_save_path, str(serial)), 'wb') as fso:
                         fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
                 # create bundle and raw cert
@@ -215,18 +217,23 @@ class CAhandler(object):
         self.logger.debug('CAhandler.verify_certificate_chain()')
 
         pem_file = build_pem_file(self.logger, None, b64_url_recode(self.logger, cert), True)
-        try:
-            cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-            #Create a certificate store and add ca cert(s)
-            store = crypto.X509Store()
-            store.add_cert(ca_cert)
+        # try:
+        cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+        #Create a certificate store and add ca cert(s)
+        store = crypto.X509Store()
+        store.add_cert(ca_cert)
 
-            # Create a certificate context using the store and the downloaded certificate
-            store_ctx = crypto.X509StoreContext(store, cert)
-            # Verify the certificate, returns None if it can validate the certificate
-            result = store_ctx.verify_certificate()
-        except BaseException as err:
-            result = str(err)
+        # add ca chain to truststore
+        for cert_name in self.ca_cert_chain_list:
+            cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(cert_name).read())
+            store.add_cert(cain_cert)
+
+        # Create a certificate context using the store and the downloaded certificate
+        store_ctx = crypto.X509StoreContext(store, cert)
+        # Verify the certificate, returns None if it can validate the certificate
+        result = store_ctx.verify_certificate()
+        # except BaseException as err:
+        #    result = str(err)
 
         self.logger.debug('CAhandler.verify_certificate_chain() ended with {0}'.format(result))
         return result
