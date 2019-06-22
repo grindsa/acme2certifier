@@ -224,4 +224,4 @@ I use [SemVer](http://semver.org/) for versioning. For the versions available, s
 
 ## License
 
-This project is licensed under the MIT license - see the [LICENSE](LICENSE) file for details
+This project is licensed under the GPLv3 - see the [LICENSE](LICENSE) file for details

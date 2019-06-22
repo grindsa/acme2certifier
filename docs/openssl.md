@@ -2,7 +2,7 @@
 The openssl CA handler is rather for testing and lab usage. I strongly recommend not to reuse it in production environments without reviewing local system configuration and hardening state
 
 ## Prerequisites
-You need to create a certificate authority on the local file-system
+You need to create a certificate authority on the local file-system.
 
 I did it by running the below command:
 ```
