@@ -101,6 +101,7 @@ def cert_serial_get(logger, certificate):
     logger.debug('cert_serial_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    logger.debug('cert_serial_get() ended with: {0}'.format(cert.get_serial_number()))    
     return cert.get_serial_number()
 
 def csr_cn_get(logger, csr):
