@@ -190,7 +190,7 @@ class CAhandler(object):
                         revoked.set_rev_date(rev_date)
                         crl.add_revoked(revoked)
                         # save CRL
-                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 100, 'sha256')
+                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, 'sha256')
                         with open(self.issuer_dict['crl'], 'wb') as fso:
                             fso.write(crl_text)
 
