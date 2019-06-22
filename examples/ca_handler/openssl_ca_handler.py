@@ -6,7 +6,7 @@ import os
 import json
 import base64
 from OpenSSL import crypto
-from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode
+from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get
 
 class CAhandler(object):
     """ CA  handler """
@@ -17,6 +17,7 @@ class CAhandler(object):
         self.issuer_dict = {
             'key' : None,
             'cert' : None,
+            'crl'  : None,
         }
         self.ca_cert_chain_list = []
         self.cert_validity_days = 365
@@ -44,6 +45,17 @@ class CAhandler(object):
         self.logger.debug('CAhandler.check_config() ended with: {0}'.format(error))
         return error
 
+    def check_serial_against_crl(self, crl, serial):
+        """ check if CRL already contains serial """
+        self.logger.debug('CAhandler.check_serial_against_crl()')
+        sn_match = False
+        for rev in crl.get_revoked():
+            if serial == rev.get_serial().lower():
+                sn_match = True
+                break
+        self.logger.debug('CAhandler.check_serial_against_crl() with:{0}'.format(sn_match))
+        return sn_match
+
     def enroll(self, csr):
         """ enroll certificate """
         self.logger.debug('CAhandler.enroll()')
@@ -57,11 +69,9 @@ class CAhandler(object):
             try:
                 # prepare the CSR
                 csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-                if 'passphrase' in self.issuer_dict:
-                    self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
-                # open key and cert
-                ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, open(self.issuer_dict['key']).read(), self.issuer_dict['passphrase'])
-                ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(self.issuer_dict['cert']).read())
+
+                # load ca cert and key
+                (ca_key, ca_cert) = self.load_ca_key_cert()
 
                 # creating a rest form CSR
                 req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
@@ -105,9 +115,18 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return pem_chain
 
+    def load_ca_key_cert(self):
+        """ load ca key and cert """
+        self.logger.debug('CAhandler.load_ca_key_cert()')
+        # open key and cert
+        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, open(self.issuer_dict['key']).read(), self.issuer_dict['passphrase'])
+        ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(self.issuer_dict['cert']).read())
+        self.logger.debug('CAhandler.load_ca_key_cert() endet')
+        return(ca_key, ca_cert)
+
     def load_config(self):
         """" load config from file """
-        self.logger.debug('load_config()')
+        self.logger.debug('CAhandler.load_config()')
         config_dic = load_config(self.logger, 'CAhandler')
 
         if 'issuing_ca_key' in config_dic['CAhandler']:
@@ -122,13 +141,92 @@ class CAhandler(object):
             self.cert_validity_days = int(config_dic['CAhandler']['cert_validity_days'])
         if 'cert_save_path' in config_dic['CAhandler']:
             self.cert_save_path = config_dic['CAhandler']['cert_save_path']
+        if 'issuing_ca_crl' in config_dic['CAhandler']:
+            self.issuer_dict['crl'] = config_dic['CAhandler']['issuing_ca_crl']
+
+        # convert passphrase
+        if 'passphrase' in self.issuer_dict:
+            self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
 
         self.logger.debug('CAhandler.load_config() ended')
 
-    def revoke(self, _cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
+
+    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         code = None
         message = None
         detail = None
+
+        # overwrite revocation date - we ignore what has been submitted
+        rev_date = uts_to_date_utc(uts_now(), '%y%m%d%H%M%SZ')
+
+        if 'crl' in self.issuer_dict and self.issuer_dict['crl']:
+            # load ca cert and key
+            (ca_key, ca_cert) = self.load_ca_key_cert()
+            result = self.verify_certificate_chain(cert, ca_cert)
+
+            # proceed if the cert and ca-cert belong together
+            if not result:
+                serial = hex(cert_serial_get(self.logger, cert))
+                serial = serial.replace('0x', '')
+                if ca_key and ca_cert and serial:
+                    if os.path.exists(self.issuer_dict['crl']):
+                        # existing CRL
+                        with open(self.issuer_dict['crl'], 'r') as fso:
+                            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
+                    else:
+                        # new CRL
+                        crl = crypto.CRL()
+
+                    # check CRL already contains serial
+                    sn_match = self.check_serial_against_crl(crl, serial)
+
+                    # this is the revocation operation
+                    if not sn_match:
+                        revoked = crypto.Revoked()
+                        revoked.set_reason(rev_reason)
+                        revoked.set_serial(serial)
+                        revoked.set_rev_date(rev_date)
+                        crl.add_revoked(revoked)
+                        # save CRL
+                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 100, 'sha256')
+                        with open(self.issuer_dict['crl'], 'wb') as fso:
+                            fso.write(crl_text)
+
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'configuration error'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = result
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'Unsupported operation'
+
+        self.logger.debug('CAhandler.revoke() ended')
         return(code, message, detail)
+
+    def verify_certificate_chain(self, cert, ca_cert):
+        """ verify certificate chain """
+        self.logger.debug('CAhandler.verify_certificate_chain()')
+
+        pem_file = build_pem_file(self.logger, None, b64_url_recode(self.logger, cert), True)
+        try:
+            cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+            #Create a certificate store and add ca cert(s)
+            store = crypto.X509Store()
+            store.add_cert(ca_cert)
+
+            # Create a certificate context using the store and the downloaded certificate
+            store_ctx = crypto.X509StoreContext(store, cert)
+            # Verify the certificate, returns None if it can validate the certificate
+            result = store_ctx.verify_certificate()
+        except BaseException as err:
+            result = str(err)
+
+        self.logger.debug('CAhandler.verify_certificate_chain() ended with {0}'.format(result))
+        return result
