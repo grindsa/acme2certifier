@@ -36,10 +36,18 @@ class CAhandler(object):
         """ check config for consitency """
         self.logger.debug('CAhandler.check_config()')
         error = None
-        if not os.path.exists(self.issuer_dict['key']):
-            error = 'signing key {0} does not exist'.format(self.issuer_dict['ca_key'])
-        if not os.path.exists(self.issuer_dict['cert']):
-            error = 'signing cert {0} does not exist'.format(self.issuer_dict['ca_cert'])
+        if 'key' in self.issuer_dict:
+            if not os.path.exists(self.issuer_dict['key']):
+                error = 'signing key {0} does not exist'.format(self.issuer_dict['key'])
+        else:
+            error = 'key "key" does not exist in config_hash'
+            
+        if not error:
+            if 'cert' in self.issuer_dict: 
+                if not os.path.exists(self.issuer_dict['cert']):
+                    error = 'signing cert {0} does not exist'.format(self.issuer_dict['ca_cert'])
+            else:
+                error = 'key "cert" does not exist in config_hash'
         return error
 
     def check_serial_against_crl(self, crl, serial):
