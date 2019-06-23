@@ -41,9 +41,9 @@ class CAhandler(object):
                 error = 'signing key {0} does not exist'.format(self.issuer_dict['key'])
         else:
             error = 'key "key" does not exist in config_hash'
-            
+
         if not error:
-            if 'cert' in self.issuer_dict: 
+            if 'cert' in self.issuer_dict:
                 if not os.path.exists(self.issuer_dict['cert']):
                     error = 'signing cert {0} does not exist'.format(self.issuer_dict['ca_cert'])
             else:
