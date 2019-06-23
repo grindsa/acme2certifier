@@ -1,20 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for openssl_ca_handler """
-import unittest
 import sys
 import os
 import unittest
-import requests
-from OpenSSL import crypto
-from requests.exceptions import HTTPError
-
 try:
     from mock import patch, MagicMock, Mock
 except ImportError:
     from unittest.mock import patch, MagicMock, Mock
-sys.path.insert(0, '..')
+from OpenSSL import crypto
 
+sys.path.insert(0, '..')
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -73,12 +69,15 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_009_check_serial_against_crl(self):
         """ CAhandler.check_serial_against_crl with a serial number not in CRL"""
-        crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
-        self.assertFalse(self.cahandler.check_serial_against_crl(crl, 2))
+        with open('ca/sub-ca-crl.pem', 'r') as fso:
+            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
+            self.assertFalse(self.cahandler.check_serial_against_crl(crl, 2))
 
     def test_010_check_serial_against_crl(self):
         """ CAhandler.check_serial_against_crl with a serial number already in CRL"""
-        crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
+        # crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
+        with open('ca/sub-ca-crl.pem', 'r') as fso:
+            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())        
         self.assertTrue(self.cahandler.check_serial_against_crl(crl, '5d0e9535'))
 
     def test_011_generate_pem_chain(self):

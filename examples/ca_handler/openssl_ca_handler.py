@@ -125,7 +125,9 @@ class CAhandler(object):
             pem_chain = ee_cert
         for cert in self.ca_cert_chain_list:
             if os.path.exists(cert):
-                pem_chain = '{0}{1}'.format(pem_chain, open(cert).read())
+                with open(cert, 'r') as fso:
+                    cert_pem = fso.read()
+                pem_chain = '{0}{1}'.format(pem_chain, cert_pem)
 
         self.logger.debug('CAhandler.generate_pem_cert_chain() ended')
         return pem_chain
@@ -139,12 +141,15 @@ class CAhandler(object):
         if 'key' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['key']):
                 if 'passphrase' in self.issuer_dict:
-                    ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, open(self.issuer_dict['key']).read(), self.issuer_dict['passphrase'])
+                    with open(self.issuer_dict['key'], 'r') as fso:
+                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read(), self.issuer_dict['passphrase'])
                 else:
-                    ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, open(self.issuer_dict['key']).read())
+                    with open(self.issuer_dict['key'], 'r') as fso:
+                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read())
         if 'cert' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['cert']):
-                ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(self.issuer_dict['cert']).read())
+                with open(self.issuer_dict['cert'], 'r') as fso:
+                    ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
         self.logger.debug('CAhandler.load_ca_key_cert() endet')
         return(ca_key, ca_cert)
 
