@@ -54,10 +54,11 @@ class CAhandler(object):
         """ check if CRL already contains serial """
         self.logger.debug('CAhandler.check_serial_against_crl()')
         sn_match = False
-        for rev in crl.get_revoked():
-            if serial == rev.get_serial().lower():
-                sn_match = True
-                break
+        if crl and serial:
+            for rev in crl.get_revoked():
+                if serial == rev.get_serial().lower():
+                    sn_match = True
+                    break
         self.logger.debug('CAhandler.check_serial_against_crl() with:{0}'.format(sn_match))
         return sn_match
 

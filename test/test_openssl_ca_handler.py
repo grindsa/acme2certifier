@@ -6,6 +6,7 @@ import sys
 import os
 import unittest
 import requests
+from OpenSSL import crypto
 from requests.exceptions import HTTPError
 
 try:
@@ -59,6 +60,29 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler.check_config with key and cert in config_dict """
         self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'cert': 'ca/sub-ca-cert.pem'}
         self.assertFalse(self.cahandler.check_config())
+        
+    def test_007_check_serial_against_crl(self):
+        """ CAhandler.check_serial_against_crl without specifying a CRL"""
+        crl = None
+        self.assertFalse(self.cahandler.check_serial_against_crl(crl, 1))        
+
+    def test_008_check_serial_against_crl(self):
+        """ CAhandler.check_serial_against_crl without specifying a serial number"""
+        crl = 'foo'
+        self.assertFalse(self.cahandler.check_serial_against_crl(crl, None))              
+
+    def test_009_check_serial_against_crl(self):
+        """ CAhandler.check_serial_against_crl with a serial number not in CRL"""
+        crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
+        self.assertFalse(self.cahandler.check_serial_against_crl(crl, 2))     
+
+    def test_010_check_serial_against_crl(self):
+        """ CAhandler.check_serial_against_crl with a serial number already in CRL"""
+        crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
+        self.assertTrue(self.cahandler.check_serial_against_crl(crl, '5d0e9535'))     
+
+
+
 
 if __name__ == '__main__':
 
