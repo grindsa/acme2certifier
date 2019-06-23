@@ -44,18 +44,20 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.issuer_dict = {'key': 'foo.pem'}
         self.assertEqual('signing key foo.pem does not exist', self.cahandler.check_config())
 
-    @patch('os.path.exists')
-    def test_004_check_config(self, mock_exists):
+    def test_004_check_config(self):
         """ CAhandler.check_config with key in config_dict key is existing """
-        self.cahandler.issuer_dict = {'key': 'foo'}
-        mock_exists.return_value = True
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem'}
+        # mock_exists.return_value = True
         self.assertEqual('key "cert" does not exist in config_hash', self.cahandler.check_config())
 
-    @patch('os.path.exists')
-    def test_005_check_config(self, mock_exists):
+    def test_005_check_config(self):
+        """ CAhandler.check_config with key and cert in config_dict but cert does not exist """
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'cert': 'bar'}
+        self.assertEqual('signing cert bar does not exist', self.cahandler.check_config())
+
+    def test_006_check_config(self):
         """ CAhandler.check_config with key and cert in config_dict """
-        self.cahandler.issuer_dict = {'key': 'foo', 'cert': 'bar'}
-        mock_exists.return_value = True
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'cert': 'ca/sub-ca-cert.pem'}
         self.assertFalse(self.cahandler.check_config())
 
 if __name__ == '__main__':
