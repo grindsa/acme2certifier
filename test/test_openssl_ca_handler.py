@@ -5,9 +5,9 @@ import sys
 import os
 import unittest
 try:
-    from mock import patch, MagicMock, Mock
+    from mock import patch #, MagicMock, Mock
 except ImportError:
-    from unittest.mock import patch, MagicMock, Mock
+    from unittest.mock import patch #, MagicMock, Mock
 from OpenSSL import crypto
 
 sys.path.insert(0, '..')
@@ -57,27 +57,27 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'cert': 'ca/sub-ca-cert.pem'}
         self.assertFalse(self.cahandler.check_config())
 
-    def test_007_check_serial_against_crl(self):
+    def test_007_check_serialagainstcrl(self):
         """ CAhandler.check_serial_against_crl without specifying a CRL"""
         crl = None
         self.assertFalse(self.cahandler.check_serial_against_crl(crl, 1))
 
-    def test_008_check_serial_against_crl(self):
+    def test_008_check_serialagainstcrl(self):
         """ CAhandler.check_serial_against_crl without specifying a serial number"""
         crl = 'foo'
         self.assertFalse(self.cahandler.check_serial_against_crl(crl, None))
 
-    def test_009_check_serial_against_crl(self):
+    def test_009_check_serialagainstcrl(self):
         """ CAhandler.check_serial_against_crl with a serial number not in CRL"""
         with open('ca/sub-ca-crl.pem', 'r') as fso:
             crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
             self.assertFalse(self.cahandler.check_serial_against_crl(crl, 2))
 
-    def test_010_check_serial_against_crl(self):
+    def test_010_check_serialagainstcrl(self):
         """ CAhandler.check_serial_against_crl with a serial number already in CRL"""
         # crl = crypto.load_crl(crypto.FILETYPE_PEM, open('ca/sub-ca-crl.pem').read())
         with open('ca/sub-ca-crl.pem', 'r') as fso:
-            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())        
+            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
         self.assertTrue(self.cahandler.check_serial_against_crl(crl, '5d0e9535'))
 
     def test_011_generate_pem_chain(self):
@@ -147,6 +147,63 @@ class TestACMEHandler(unittest.TestCase):
         mock_crypto_key.return_value = 'foo'
         mock_crypto_cert.return_value = 'bar'
         self.assertEqual(('foo', 'bar'), self.cahandler.load_ca_key_cert())
+
+    def test_023_verifycertificatechain(self):
+        """ successful verification of one level certificate chain """
+        with open('ca/root-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        with open('ca/root-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertFalse(self.cahandler.verify_certificate_chain(cert, ca_cert))
+
+    def test_024_verifycertificatechain(self):
+        """ unsuccessful verification of one level certificate chain """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        with open('ca/root-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertEqual("[20, 0, 'unable to get local issuer certificate']", self.cahandler.verify_certificate_chain(cert, ca_cert))
+
+    def test_025_verifycertificatechain(self):
+        """ unsuccessful verification of two level certificate chain with incomplete chain"""
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        with open('ca/sub-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertEqual("[2, 1, 'unable to get issuer certificate']", self.cahandler.verify_certificate_chain(cert, ca_cert))
+
+    def test_026_verifycertificatechain(self):
+        """ successful verification of two level certificate chain with complete chain"""
+        self.cahandler.ca_cert_chain_list = ['ca/root-ca-cert.pem']
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        with open('ca/sub-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertFalse(self.cahandler.verify_certificate_chain(cert, ca_cert))
+
+    def test_027_verifycertificatechain(self):
+        """ unsuccessful verification as certificate is damaged"""
+        cert = 'foo'
+        with open('ca/root-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertEqual('certificate could not get parsed', (self.cahandler.verify_certificate_chain(cert, ca_cert)))
+
+    def test_028_verifycertificatechain(self):
+        """ unsuccessful verification as ca-certificate is damaged"""
+        with open('ca/root-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        ca_cert = 'foo'
+        self.assertEqual('issuing certificate could not be added to trust-store', self.cahandler.verify_certificate_chain(cert, ca_cert))
+
+    def test_029_verifycertificatechain(self):
+        """ unsuccessful verification of two level certificate chain as cain cert is damaged"""
+        self.cahandler.ca_cert_chain_list = ['ca/root-.pem']
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        with open('ca/sub-ca-cert.pem', 'r') as fso:
+            ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+        self.assertEqual('certificate ca/root-.pem could not be added to trust store', self.cahandler.verify_certificate_chain(cert, ca_cert))
+
 
 if __name__ == '__main__':
 

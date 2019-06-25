@@ -244,23 +244,42 @@ class CAhandler(object):
         self.logger.debug('CAhandler.verify_certificate_chain()')
 
         pem_file = build_pem_file(self.logger, None, b64_url_recode(self.logger, cert), True)
-        # try:
-        cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-        #Create a certificate store and add ca cert(s)
-        store = crypto.X509Store()
-        store.add_cert(ca_cert)
+        try:
+            cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+        except BaseException:
+            cert = None
 
-        # add ca chain to truststore
-        for cert_name in self.ca_cert_chain_list:
-            cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(cert_name).read())
-            store.add_cert(cain_cert)
+        if cert:
+            error = None
+            #Create a certificate store and add ca cert(s)
+            try:
+                store = crypto.X509Store()
+                store.add_cert(ca_cert)
+            except BaseException:
+                error = 'issuing certificate could not be added to trust-store'
 
-        # Create a certificate context using the store and the downloaded certificate
-        store_ctx = crypto.X509StoreContext(store, cert)
-        # Verify the certificate, returns None if it can validate the certificate
-        result = store_ctx.verify_certificate()
-        # except BaseException as err:
-        #    result = str(err)
+            if not error:
+                # add ca chain to truststore
+                for cert_name in self.ca_cert_chain_list:
+                    try:
+                        with open(cert_name, 'r') as fso:
+                            cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+                        store.add_cert(cain_cert)
+                    except BaseException:
+                        error = 'certificate {0} could not be added to trust store'.format(cert_name)
+
+            if not error:
+                # Create a certificate context using the store and the downloaded certificate
+                store_ctx = crypto.X509StoreContext(store, cert)
+                # Verify the certificate, returns None if it can validate the certificate
+                try:
+                    result = store_ctx.verify_certificate()
+                except BaseException as err:
+                    result = str(err)
+            else:
+                result = error
+        else:
+            result = 'certificate could not get parsed'
 
         self.logger.debug('CAhandler.verify_certificate_chain() ended with {0}'.format(result))
         return result
