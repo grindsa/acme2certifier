@@ -204,6 +204,79 @@ class TestACMEHandler(unittest.TestCase):
             ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
         self.assertEqual('certificate ca/root-.pem could not be added to trust store', self.cahandler.verify_certificate_chain(cert, ca_cert))
 
+    def test_030_revocation(self):
+        """ revocation without having a CRL in issuer_dic """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Unsupported operation'), self.cahandler.revoke(cert))
+
+    def test_031_revocation(self):
+        """ revocation without having a CRL in issuer_dic but none"""
+        self.cahandler.issuer_dict = {'crl' : None}
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Unsupported operation'), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
+    def test_032_revocation(self, mock_ca_load, mock_vrf):
+        """ revocation cert validation failed """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        mock_ca_load.return_value = ('ca_key', 'ca_cert')
+        mock_vrf.return_value = 'foo'
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'foo'), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
+    def test_033_revocation(self, mock_ca_load, mock_vrf):
+        """ revocation cert no CA key """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        mock_ca_load.return_value = (None, 'ca_cert')
+        mock_vrf.return_value = None
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'configuration error'), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
+    def test_034_revocation(self, mock_ca_load, mock_vrf):
+        """ revocation cert no CA cert """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        mock_ca_load.return_value = ('ca_key', None)
+        mock_vrf.return_value = None
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'configuration error'), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.cert_serial_get')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
+    def test_035_revocation(self, mock_ca_load, mock_vrf, mock_serial):
+        """ revocation cert no serial """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        mock_ca_load.return_value = ('ca_key', 'ca_cert')
+        mock_vrf.return_value = None
+        mock_serial.return_value = None
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'configuration error'), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.cert_serial_get')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
+    def test_035_revocation(self, mock_ca_load, mock_vrf, mock_serial):
+        """ revocation cert """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        mock_ca_load.return_value = ('ca_key', 'ca_cert')
+        mock_vrf.return_value = None
+        mock_serial.return_value = 14
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'configuration error'), self.cahandler.revoke(cert))        
+        
+
 
 if __name__ == '__main__':
 

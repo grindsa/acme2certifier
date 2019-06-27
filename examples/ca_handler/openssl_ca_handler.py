@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import json
 import base64
+import uuid
 from OpenSSL import crypto
 from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get
 
@@ -88,7 +89,8 @@ class CAhandler(object):
                 cert.set_issuer(ca_cert.get_subject())
                 cert.set_subject(req.get_subject())
                 cert.set_pubkey(req.get_pubkey())
-                cert.set_serial_number(uts_now())
+                cert.set_serial_number(uuid.uuid4().int)
+                # cert.set_serial_number(uts_now())
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
                     crypto.X509Extension("authorityKeyIdentifier", False, "keyid:always", issuer=ca_cert),
@@ -194,12 +196,12 @@ class CAhandler(object):
             # load ca cert and key
             (ca_key, ca_cert) = self.load_ca_key_cert()
             result = self.verify_certificate_chain(cert, ca_cert)
-
             # proceed if the cert and ca-cert belong together
             if not result:
-                serial = hex(cert_serial_get(self.logger, cert))
-                serial = serial.replace('0x', '')
+                serial = cert_serial_get(self.logger, cert)
+                # serial = serial.replace('0x', '')
                 if ca_key and ca_cert and serial:
+                    serial = hex(serial).replace('0x', '')
                     if os.path.exists(self.issuer_dict['crl']):
                         # existing CRL
                         with open(self.issuer_dict['crl'], 'r') as fso:
