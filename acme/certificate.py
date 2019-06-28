@@ -3,11 +3,10 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, uts_now, uts_to_date_utc
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
-
 
 class Certificate(object):
     """ CA  handler """
@@ -19,9 +18,11 @@ class Certificate(object):
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path' : '/acme/cert/'}
+        self.tnauthlist_support = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self.load_config()
         return self
 
     def __exit__(self, *args):
@@ -150,7 +151,7 @@ class Certificate(object):
 
     def revocation_request_validate(self, account_name, payload):
         """ chec CSR """
-        self.logger.debug('Certificate.validate_revocation_request({0})'.format(account_name))
+        self.logger.debug('Certificate.revocation_request_validate({0})'.format(account_name))
 
         # set a value to avoid that we are returning none by accident
         code = 400
@@ -220,31 +221,59 @@ class Certificate(object):
 
         # empty list of statuses
         identifier_status = []
-        # get sans
-        san_list = cert_san_get(self.logger, certificate)
+
         # get identifiers for order
         identifier_dic = self.dbstore.order_lookup('name', order_name, ['identifiers'])
+
         if identifier_dic and 'identifiers' in identifier_dic:
+            # load identifiers
             try:
                 identifiers = json.loads(identifier_dic['identifiers'].lower())
             except BaseException:
                 identifiers = []
 
-            for san in san_list:
-                san_is_in = False
-                try:
-                    (cert_type, cert_value) = san.lower().split(':')
-                except BaseException:
-                    cert_type = None
-                    cert_value = None
+            # check if we have a tnauthlist identifier
+            tnauthlist_identifer_in = False
+            for identifier in identifiers:
+                if 'type' in identifier:
+                    if identifier['type'].lower() == 'tnauthlist':
+                        tnauthlist_identifer_in = True
 
-                if cert_type and cert_value:
-                    for identifier in identifiers:
-                        if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                            san_is_in = True
-                            break
-                self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
-                identifier_status.append(san_is_in)
+            if self.tnauthlist_support and tnauthlist_identifer_in:
+                # reload identifiers (case senetive)
+                try:
+                    identifiers = json.loads(identifier_dic['identifiers'])
+                except BaseException:
+                    identifiers = []
+                # get list of certextensions in base64 format
+                tnauthlist = cert_tnauthlist_get(self.logger, certificate)
+
+                for identifier in identifiers:
+                    # get the tnauthlist identifier
+                    if identifier['type'].lower() == 'tnauthlist':
+                        # check if tnauthlist extension is in extension list
+                        if identifier['value'] in tnauthlist:
+                            identifier_status.append(True)
+                        else:
+                            identifier_status.append(False)
+            else:
+                # get sans
+                san_list = cert_san_get(self.logger, certificate)
+                for san in san_list:
+                    san_is_in = False
+                    try:
+                        (cert_type, cert_value) = san.lower().split(':')
+                    except BaseException:
+                        cert_type = None
+                        cert_value = None
+
+                    if cert_type and cert_value:
+                        for identifier in identifiers:
+                            if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                                san_is_in = True
+                                break
+                    self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
+                    identifier_status.append(san_is_in)
 
         result = False
         if identifier_status and False not in identifier_status:
@@ -252,3 +281,11 @@ class Certificate(object):
 
         self.logger.debug('Certificate.authorization_check() ended with {0}'.format(result))
         return result
+
+    def load_config(self):
+        """" load config from file """
+        self.logger.debug('Challenge.load_config()')
+        config_dic = load_config()
+        if 'Order' in config_dic:
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        self.logger.debug('Challenge.load_config() ended.')

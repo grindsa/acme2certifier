@@ -96,12 +96,27 @@ def cert_san_get(logger, certificate):
     logger.debug('cert_san_get() ended')
     return san
 
+def cert_tnauthlist_get(logger, certificate):
+    """ get subject alternate names from certificate """
+    logger.debug('cert_tnauthlist_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    extension_list = []
+    ext_count = cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = cert.get_extension(i)
+        extension_list.append(base64.b64encode(ext.get_data()))
+
+    logger.debug('cert_tnauthlist_get() ended')
+    return extension_list
+
+
 def cert_serial_get(logger, certificate):
     """ get serial number form certificate """
     logger.debug('cert_serial_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    logger.debug('cert_serial_get() ended with: {0}'.format(cert.get_serial_number()))    
+    logger.debug('cert_serial_get() ended with: {0}'.format(cert.get_serial_number()))
     return cert.get_serial_number()
 
 def csr_cn_get(logger, csr):
