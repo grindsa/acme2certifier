@@ -370,8 +370,8 @@ def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%SZ'):
 
 def date_to_uts_utc(date_human, _tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
-    return int(time.mktime(parse(date_human).timetuple()))
-    # return int(calendar.timegm(parse(date_human).timetuple()))
+    # return int(time.mktime(parse(date_human).timetuple()))
+    return int(calendar.timegm(parse(date_human).timetuple()))
 
 def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
