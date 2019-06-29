@@ -14,7 +14,8 @@ class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
         """ setup unittest """
-        from acme.wsgi_handler import DBstore
+        # from acme.wsgi_handler import DBstore
+        from examples.db_handler.wsgi_handler import DBstore
         import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
