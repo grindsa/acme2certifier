@@ -600,11 +600,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_083_utstodate_utc(self):
         """ test date_to_uts_utc for a given format """
-        self.assertEqual(1543644000, self.date_to_uts_utc('2018-12-01', '%Y-%m-%d'))
+        self.assertEqual(1543622400, self.date_to_uts_utc('2018-12-01', '%Y-%m-%d'))
 
     def test_084_utstodate_utc(self):
         """ test date_to_uts_utc without format """
-        self.assertEqual(1543662000, self.date_to_uts_utc('2018-12-01T05:00:00'))
+        self.assertEqual(1543640400, self.date_to_uts_utc('2018-12-01T05:00:00'))
 
     def test_085_generaterandomstring(self):
         """ test date_to_uts_utc without format """
