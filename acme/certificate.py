@@ -38,7 +38,7 @@ class Certificate(object):
         detail = None
 
         # only continue if self.csr_check returned True
-        if csr_check:
+        if csr_check_result:
             with CAhandler(self.debug, self.logger) as ca_handler:
                 (error, certificate, certificate_raw) = ca_handler.enroll(csr)
                 if certificate:
@@ -48,6 +48,7 @@ class Certificate(object):
                     # store error message for later analysis
                     self.store_cert_error(certificate_name, error)
         else:
+            result = None
             error = 'urn:ietf:params:acme:badCSR'
             detail = 'CSR validation failed'
 
@@ -286,6 +287,7 @@ class Certificate(object):
     def tnauth_identifier_check(self, identifier_dic):
         """ check if we have an tnauthlist_identifier """
         self.logger.debug('Certificate.tnauth_identifier_check()')
+
         # check if we have a tnauthlist identifier
         tnauthlist_identifer_in = False
         for identifier in identifier_dic:
@@ -348,7 +350,7 @@ class Certificate(object):
         if identifier_status and False not in identifier_status:
             csr_check_result = True
 
-        self.logger.debug('Certificate.csr_check() ended with {0}'.format(result))
+        self.logger.debug('Certificate.csr_check() ended with {0}'.format(csr_check_result))
         return csr_check_result
 
     def identifer_status_list(self, identifiers, san_list):
