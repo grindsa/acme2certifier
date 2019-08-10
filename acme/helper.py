@@ -139,8 +139,14 @@ def csr_san_get(logger, csr):
     req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     san = []
     for ext in req.get_extensions():
-        if ext.get_short_name() == 'subjectAltName':
-            san.append(ext.__str__())
+        if 'subjectAltName' in str(ext.get_short_name()):
+            san_list = ext.__str__().split(',')
+            for san_name in san_list:
+                san_name = san_name.rstrip()
+                san_name = san_name.lstrip()
+                san.append(san_name)
+        # if ext.get_short_name() == 'subjectAltName':
+        #    san.append(ext.__str__())
     logger.debug('cert_san_get() ended with: {0}'.format(str(san)))
     return san
 
