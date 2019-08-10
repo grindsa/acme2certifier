@@ -33,12 +33,11 @@ class Certificate(object):
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
 
         # check csr against order
-        csr_check = self.csr_check(certificate_name, csr)
-
-        # TO BE VERIFIED
-        csr_check = False
+        csr_check_result = self.csr_check(certificate_name, csr)
         error = None
-        # only continue if there is no error
+        detail = None
+
+        # only continue if self.csr_check returned True
         if csr_check:
             with CAhandler(self.debug, self.logger) as ca_handler:
                 (error, certificate, certificate_raw) = ca_handler.enroll(csr)
@@ -49,10 +48,11 @@ class Certificate(object):
                     # store error message for later analysis
                     self.store_cert_error(certificate_name, error)
         else:
-            result = None
+            error = 'urn:ietf:params:acme:badCSR'
+            detail = 'CSR validation failed'
 
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
-        return (result, error)
+        return (result, error, detail)
 
     def info(self, certificate_name):
         """ get certificate from database """
@@ -344,12 +344,12 @@ class Certificate(object):
         else:
             result = 'error'
 
-        result = False
+        csr_check_result = False
         if identifier_status and False not in identifier_status:
-            result = True
+            csr_check_result = True
 
         self.logger.debug('Certificate.csr_check() ended with {0}'.format(result))
-        return result
+        return csr_check_result
 
     def identifer_status_list(self, identifiers, san_list):
         """ compare identifiers and check if each san is in identifer list """
