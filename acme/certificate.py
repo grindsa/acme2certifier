@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -31,14 +31,25 @@ class Certificate(object):
     def enroll_and_store(self, certificate_name, csr):
         """ cenroll and store certificater """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
-        with CAhandler(self.debug, self.logger) as ca_handler:
-            (error, certificate, certificate_raw) = ca_handler.enroll(csr)
-            if certificate:
-                result = self.store_cert(certificate_name, certificate, certificate_raw)
-            else:
-                result = None
-                # store error message for later analysis
-                self.store_cert_error(certificate_name, error)
+
+        # check csr against order
+        csr_check = self.csr_check(certificate_name, csr)
+
+        # TO BE VERIFIED
+        csr_check = False
+        error = None
+        # only continue if there is no error
+        if csr_check:
+            with CAhandler(self.debug, self.logger) as ca_handler:
+                (error, certificate, certificate_raw) = ca_handler.enroll(csr)
+                if certificate:
+                    result = self.store_cert(certificate_name, certificate, certificate_raw)
+                else:
+                    result = None
+                    # store error message for later analysis
+                    self.store_cert_error(certificate_name, error)
+        else:
+            result = None
 
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error)
@@ -233,11 +244,7 @@ class Certificate(object):
                 identifiers = []
 
             # check if we have a tnauthlist identifier
-            tnauthlist_identifer_in = False
-            for identifier in identifiers:
-                if 'type' in identifier:
-                    if identifier['type'].lower() == 'tnauthlist':
-                        tnauthlist_identifer_in = True
+            tnauthlist_identifer_in = self.tnauth_identifier_check(identifiers)
 
             if self.tnauthlist_support and tnauthlist_identifer_in:
                 # reload identifiers (case senetive)
@@ -259,21 +266,7 @@ class Certificate(object):
             else:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
-                for san in san_list:
-                    san_is_in = False
-                    try:
-                        (cert_type, cert_value) = san.lower().split(':')
-                    except BaseException:
-                        cert_type = None
-                        cert_value = None
-
-                    if cert_type and cert_value:
-                        for identifier in identifiers:
-                            if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                                san_is_in = True
-                                break
-                    self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
-                    identifier_status.append(san_is_in)
+                identifier_status = self.identifer_status_list(identifiers, san_list)
 
         result = False
         if identifier_status and False not in identifier_status:
@@ -284,8 +277,88 @@ class Certificate(object):
 
     def load_config(self):
         """" load config from file """
-        self.logger.debug('Challenge.load_config()')
+        self.logger.debug('Certificate.load_config()')
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        self.logger.debug('Challenge.load_config() ended.')
+        self.logger.debug('Certificate.load_config() ended.')
+
+    def tnauth_identifier_check(self, identifier_dic):
+        """ check if we have an tnauthlist_identifier """
+        self.logger.debug('Certificate.tnauth_identifier_check()')
+        # check if we have a tnauthlist identifier
+        tnauthlist_identifer_in = False
+        for identifier in identifier_dic:
+            if 'type' in identifier:
+                if identifier['type'].lower() == 'tnauthlist':
+                    tnauthlist_identifer_in = True
+        self.logger.debug('Certificate.tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
+        return tnauthlist_identifer_in
+
+    def csr_check(self, certificate_name, csr):
+        """ compare csr extensions against order """
+        self.logger.debug('Certificate.csr_check()')
+        
+        # fetch certificate dictionary from DB
+        certificate_dic = self.info(certificate_name)
+
+        # empty list of statuses
+        identifier_status = []
+
+        if 'order' in certificate_dic:
+            # get identifiers for order
+            identifier_dic = self.dbstore.order_lookup('name', certificate_dic['order'], ['identifiers'])
+
+            if identifier_dic and 'identifiers' in identifier_dic:
+                # load identifiers
+                try:
+                    identifiers = json.loads(identifier_dic['identifiers'].lower())
+                except BaseException:
+                    identifiers = []
+
+                tnauthlist_identifer_in = self.tnauth_identifier_check(identifiers)
+
+                if self.tnauthlist_support and tnauthlist_identifer_in:
+                    # reload identifiers (case senetive)
+                    try:
+                        identifiers = json.loads(identifier_dic['identifiers'])
+                    except BaseException:
+                        identifiers = []
+                else:
+                    # get sans
+                    san_list = csr_san_get(self.logger, csr)
+                    identifier_status = self.identifer_status_list(identifiers, san_list)
+
+        else:
+            result = 'error'
+
+        result = False
+        if identifier_status and False not in identifier_status:
+            result = True
+
+        self.logger.debug('Certificate.csr_check() ended with {0}'.format(result))
+        return result
+
+    def identifer_status_list(self, identifiers, san_list):
+        """ compare identifiers and check if each san is in identifer list """
+        self.logger.debug('Certificate.identifer_status_list()')
+
+        identifier_status = []
+        for san in san_list:
+            san_is_in = False
+            try:
+                (cert_type, cert_value) = san.lower().split(':')
+            except BaseException:
+                cert_type = None
+                cert_value = None
+
+            if cert_type and cert_value:
+                for identifier in identifiers:
+                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                        san_is_in = True
+                        break
+            self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
+            identifier_status.append(san_is_in)
+
+        self.logger.debug('Certificate.identifer_status_list() ended with {0}'.format(identifier_status))
+        return identifier_status

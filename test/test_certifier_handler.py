@@ -20,10 +20,18 @@ class TestACMEHandler(unittest.TestCase):
 
     def setUp(self):
         """ setup unittest """
-        from acme.ca_handler import CAhandler
+        import logging        
+        from examples.ca_handler.certifier_ca_handler import CAhandler        
         self.cahandler = CAhandler(False)
         self.cahandler.api_host = 'api_host'
         self.cahandler.auth = 'auth'
+        from examples.ca_handler.openssl_ca_handler import CAhandler
+        logging.basicConfig(
+            # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
+            datefmt="%Y-%m-%d %H:%M:%S",
+            level=logging.INFO)
+        self.logger = logging.getLogger('test_acme2certifier')
 
     def test_001_default(self):
         """ default test which always passes """
@@ -31,7 +39,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.ca_handler.CAhandler.set_auth')
     @patch('requests.get')
-    def test_002_get_ca(self, mock_get, mock_auth):
+    def test_002_get_ca(self, mock_get):
         """ CAhandler.get_ca() returns an http error """
         mock_get.side_effect = requests.exceptions.HTTPError
         self.assertEqual({'status': 500, 'message': '', 'statusMessage': 'Internal Server Error'}, self.cahandler.get_ca('foo', 'bar'))
