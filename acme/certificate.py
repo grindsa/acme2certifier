@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_tnauthlist_get
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -298,7 +298,7 @@ class Certificate(object):
     def csr_check(self, certificate_name, csr):
         """ compare csr extensions against order """
         self.logger.debug('Certificate.csr_check()')
-        
+
         # fetch certificate dictionary from DB
         certificate_dic = self.info(certificate_name)
 
@@ -324,6 +324,18 @@ class Certificate(object):
                         identifiers = json.loads(identifier_dic['identifiers'])
                     except BaseException:
                         identifiers = []
+
+                    # get list of certextensions in base64 format
+                    tnauthlist = csr_tnauthlist_get(self.logger, csr)
+
+                    for identifier in identifiers:
+                        # get the tnauthlist identifier
+                        if identifier['type'].lower() == 'tnauthlist':
+                            # check if tnauthlist extension is in extension list
+                            if identifier['value'] in tnauthlist:
+                                identifier_status.append(True)
+                            else:
+                                identifier_status.append(False)
                 else:
                     # get sans
                     san_list = csr_san_get(self.logger, csr)

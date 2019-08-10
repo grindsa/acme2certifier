@@ -101,15 +101,15 @@ def cert_tnauthlist_get(logger, certificate):
     logger.debug('cert_tnauthlist_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+
     extension_list = []
     ext_count = cert.get_extension_count()
     for i in range(0, ext_count):
         ext = cert.get_extension(i)
         extension_list.append(base64.b64encode(ext.get_data()))
 
-    logger.debug('cert_tnauthlist_get() ended')
+    logger.debug('cert_tnauthlist_get() ended with: {0}'.format(extension_list))
     return extension_list
-
 
 def cert_serial_get(logger, certificate):
     """ get serial number form certificate """
@@ -129,6 +129,7 @@ def csr_cn_get(logger, csr):
     result = None
     if 'CN' in components:
         result = components['CN']
+
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
 
@@ -145,10 +146,23 @@ def csr_san_get(logger, csr):
                 san_name = san_name.rstrip()
                 san_name = san_name.lstrip()
                 san.append(san_name)
-        # if ext.get_short_name() == 'subjectAltName':
-        #    san.append(ext.__str__())
+
     logger.debug('cert_san_get() ended with: {0}'.format(str(san)))
     return san
+
+def csr_tnauthlist_get(logger, csr):
+    """ get subject alternate names from certificate """
+    logger.debug('csr_tnauthlist_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+
+    extension_list = []
+    for ext in req.get_extensions():
+        extension_list.append(base64.b64encode(ext.get_data()))
+
+    logger.debug('csr_tnauthlist_get() ended with: {0}'.format(extension_list))
+    return extension_list
+
 
 def decode_deserialize(logger, string):
     """ decode and deserialize string """
@@ -226,7 +240,6 @@ def parse_url(logger, url):
 
 def logger_info(logger, addr, url, dat_dic):
     """ log responses """
-
     # create a copy of the dictionary
     data_dic = copy.deepcopy(dat_dic)
 
