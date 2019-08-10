@@ -3,7 +3,7 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, validate_csr
+from acme.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
 from acme.certificate import Certificate
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -218,9 +218,8 @@ class Order(object):
         if order_dic:
             # change decoding from b64url to b64
             csr = b64_url_recode(self.logger, csr)
-            # csr_check = validate_csr(self.logger, order_dic, csr)
-            # if csr_check:
-            with Certificate(self.debug, self.server_name, self.logger) as certificate:           
+
+            with Certificate(self.debug, self.server_name, self.logger) as certificate:
                 # certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
@@ -237,11 +236,6 @@ class Order(object):
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
                     detail = 'CSR processing failed'
-            # else:
-            #    code = 403
-            #    message = 'urn:ietf:params:acme:badCSR'
-            #    detail = 'CSR validation failed'
-
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:unauthorized'
