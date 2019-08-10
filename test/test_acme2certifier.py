@@ -1005,8 +1005,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
         mock_certname.return_value = 'foo'
-        mock_enroll.return_value = (None, 'error')
-        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'error'), self.order.process_csr('order_name', 'csr'))
+        mock_enroll.return_value = (None, 'error', 'detail')
+        self.assertEqual((500, 'error', 'detail'), self.order.process_csr('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
@@ -1017,7 +1017,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_csrchk.return_value = True
         mock_certname.return_value = 'foo'
-        mock_enroll.return_value = ('bar', None)
+        mock_enroll.return_value = ('bar', None, None)
         self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
 
     def test_133_decode_message(self):

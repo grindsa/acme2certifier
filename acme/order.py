@@ -53,14 +53,14 @@ class Order(object):
 
             # check identifiers
             error = self.identifiers_check(payload['identifiers'])
-            
+
             # change order status if needed
             if error:
                 data_dic['status'] = 1
-                
-            # add order to db    
-            oid = self.dbstore.order_add(data_dic)  
-            
+
+            # add order to db
+            oid = self.dbstore.order_add(data_dic)
+
             if not error:
                 if oid:
                     error = None
@@ -107,7 +107,7 @@ class Order(object):
                     break
         else:
             error = 'urn:ietf:params:acme:error:malformed'
-            
+
         self.logger.debug('Order.identifiers_check() done with {0}:'.format(error))
         return error
 
@@ -223,15 +223,15 @@ class Order(object):
                 certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    (_result, error) = certificate.enroll_and_store(certificate_name, csr)
+                    (_result, error, detail) = certificate.enroll_and_store(certificate_name, csr)
                     if not error:
                         code = 200
                         message = certificate_name
                         detail = None
                     else:
                         code = 500
-                        message = 'urn:ietf:params:acme:error:serverInternal'
-                        detail = error
+                        message = error
+
                 else:
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
