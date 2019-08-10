@@ -218,9 +218,10 @@ class Order(object):
         if order_dic:
             # change decoding from b64url to b64
             csr = b64_url_recode(self.logger, csr)
-            csr_check = validate_csr(self.logger, order_dic, csr)
-            if csr_check:
-                certificate = Certificate(self.debug, self.server_name, self.logger)
+            # csr_check = validate_csr(self.logger, order_dic, csr)
+            # if csr_check:
+            with Certificate(self.debug, self.server_name, self.logger) as certificate:           
+                # certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
                     (_result, error, detail) = certificate.enroll_and_store(certificate_name, csr)
@@ -236,10 +237,10 @@ class Order(object):
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
                     detail = 'CSR processing failed'
-            else:
-                code = 403
-                message = 'urn:ietf:params:acme:badCSR'
-                detail = 'CSR validation failed'
+            # else:
+            #    code = 403
+            #    message = 'urn:ietf:params:acme:badCSR'
+            #    detail = 'CSR validation failed'
 
         else:
             code = 400
