@@ -93,8 +93,8 @@ class CAhandler(object):
                 # cert.set_serial_number(uts_now())
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
-                    crypto.X509Extension("authorityKeyIdentifier", False, "keyid:always", issuer=ca_cert),
-                    crypto.X509Extension("extendedKeyUsage", False, "clientAuth"),
+                    crypto.X509Extension('authorityKeyIdentifier'.encode('utf-8'), False, 'keyid:always'.encode('utf-8'), issuer=ca_cert),
+                    crypto.X509Extension('extendedKeyUsage'.encode('utf-8'), False, 'clientAuth'.encode('utf-8')),
                 ])
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
@@ -114,7 +114,7 @@ class CAhandler(object):
             except BaseException as err:
                 error = err
 
-        self.logger.debug('Certificate.enroll() ended')
+        self.logger.debug('Certificate.enroll() ended with: {0}'.format(error))
         return(error, cert_bundle, cert_raw)
 
     def generate_pem_cert_chain(self, ee_cert, issuer_cert):
