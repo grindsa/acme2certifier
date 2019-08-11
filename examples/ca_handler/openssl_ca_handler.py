@@ -189,8 +189,12 @@ class CAhandler(object):
         message = None
         detail = None
 
+        # encode rev-reason to utf8 (just to make sure that py3 dont complain
+        rev_reason = rev_reason.encode('utf-8')
+        
         # overwrite revocation date - we ignore what has been submitted
         rev_date = uts_to_date_utc(uts_now(), '%y%m%d%H%M%SZ')
+        rev_date = rev_date.encode('utf-8')
 
         if 'crl' in self.issuer_dict and self.issuer_dict['crl']:
             # load ca cert and key
@@ -202,6 +206,8 @@ class CAhandler(object):
                 # serial = serial.replace('0x', '')
                 if ca_key and ca_cert and serial:
                     serial = hex(serial).replace('0x', '')
+                    # encode serial just to utf8 (just to make sure that py3 dont complain                    
+                    serial = serial.encode('utf-8')
                     if os.path.exists(self.issuer_dict['crl']):
                         # existing CRL
                         with open(self.issuer_dict['crl'], 'r') as fso:
@@ -221,7 +227,7 @@ class CAhandler(object):
                         revoked.set_rev_date(rev_date)
                         crl.add_revoked(revoked)
                         # save CRL
-                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, 'sha256')
+                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, 'sha256'.encode('utf-8'))
                         with open(self.issuer_dict['crl'], 'wb') as fso:
                             fso.write(crl_text)
 
