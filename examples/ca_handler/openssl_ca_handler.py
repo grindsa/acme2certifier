@@ -7,7 +7,7 @@ import json
 import base64
 import uuid
 from OpenSSL import crypto
-from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get
+from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string
 
 class CAhandler(object):
     """ CA  handler """
@@ -93,8 +93,8 @@ class CAhandler(object):
                 # cert.set_serial_number(uts_now())
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
-                    crypto.X509Extension('authorityKeyIdentifier'.encode('utf-8'), False, 'keyid:always'.encode('utf-8'), issuer=ca_cert),
-                    crypto.X509Extension('extendedKeyUsage'.encode('utf-8'), False, 'clientAuth'.encode('utf-8')),
+                    crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth')),
                 ])
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
@@ -108,13 +108,13 @@ class CAhandler(object):
                     with open('{0}/{1}.pem'.format(self.cert_save_path, str(serial)), 'wb') as fso:
                         fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
                 # create bundle and raw cert
-                cert_bundle = self.generate_pem_cert_chain(crypto.dump_certificate(crypto.FILETYPE_PEM, cert), open(self.issuer_dict['cert']).read())
-                cert_raw = base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))
+                cert_bundle = self.generate_pem_cert_chain(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['cert']).read())
+                cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
 
             except BaseException as err:
-                error = err
+               error = err
 
-        self.logger.debug('Certificate.enroll() ended with: {0}'.format(error))
+        self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw)
 
     def generate_pem_cert_chain(self, ee_cert, issuer_cert):
@@ -189,12 +189,8 @@ class CAhandler(object):
         message = None
         detail = None
 
-        # encode rev-reason to utf8 (just to make sure that py3 dont complain
-        rev_reason = rev_reason.encode('utf-8')
-        
         # overwrite revocation date - we ignore what has been submitted
         rev_date = uts_to_date_utc(uts_now(), '%y%m%d%H%M%SZ')
-        rev_date = rev_date.encode('utf-8')
 
         if 'crl' in self.issuer_dict and self.issuer_dict['crl']:
             # load ca cert and key
@@ -206,8 +202,6 @@ class CAhandler(object):
                 # serial = serial.replace('0x', '')
                 if ca_key and ca_cert and serial:
                     serial = hex(serial).replace('0x', '')
-                    # encode serial just to utf8 (just to make sure that py3 dont complain                    
-                    serial = serial.encode('utf-8')
                     if os.path.exists(self.issuer_dict['crl']):
                         # existing CRL
                         with open(self.issuer_dict['crl'], 'r') as fso:
@@ -222,15 +216,19 @@ class CAhandler(object):
                     # this is the revocation operation
                     if not sn_match:
                         revoked = crypto.Revoked()
-                        revoked.set_reason(rev_reason)
-                        revoked.set_serial(serial)
-                        revoked.set_rev_date(rev_date)
+                        revoked.set_reason(convert_string_to_byte(rev_reason))
+                        revoked.set_serial(convert_string_to_byte(serial))
+                        revoked.set_rev_date(convert_string_to_byte(rev_date))
                         crl.add_revoked(revoked)
                         # save CRL
-                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, 'sha256'.encode('utf-8'))
+                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, convert_string_to_byte('sha256'))
                         with open(self.issuer_dict['crl'], 'wb') as fso:
                             fso.write(crl_text)
-
+                        code = 200
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                        detail = 'Certificate has already been revoked'
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:serverInternal'

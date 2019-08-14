@@ -9,7 +9,6 @@ import random
 import calendar
 import copy
 import configparser
-import time
 import os
 import sys
 import textwrap
@@ -63,18 +62,18 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
     """ construct pem_file """
     logger.debug('build_pem_file()')
     if csr:
-        pem_file = '-----BEGIN CERTIFICATE REQUEST----- \n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(certificate, 64))
+        pem_file = '-----BEGIN CERTIFICATE REQUEST----- \n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
     else:
         if existing:
             if wrap:
-                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, textwrap.fill(certificate, 64))
+                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(existing), textwrap.fill(convert_byte_to_string(certificate), 64))
             else:
-                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(existing, certificate)
+                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(existing), convert_byte_to_string(certificate))
         else:
             if wrap:
-                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(certificate, 64))
+                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
             else:
-                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(certificate)
+                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(certificate))
     return pem_file
 
 def cert_san_get(logger, certificate):
@@ -118,6 +117,20 @@ def cert_serial_get(logger, certificate):
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     logger.debug('cert_serial_get() ended with: {0}'.format(cert.get_serial_number()))
     return cert.get_serial_number()
+
+def convert_byte_to_string(value):
+    """ convert a variable to string if needed """
+    if hasattr(value, 'decode'):
+        return value.decode()
+    else:
+        return value
+
+def convert_string_to_byte(value):
+    """ convert a variable to byte if needed """
+    if hasattr(value, 'encode'):
+        return value.encode()
+    else:
+        return value
 
 def csr_cn_get(logger, csr):
     """ get cn from certificate request """
