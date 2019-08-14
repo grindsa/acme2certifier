@@ -55,6 +55,7 @@ class CAhandler(object):
         """ check if CRL already contains serial """
         self.logger.debug('CAhandler.check_serial_against_crl()')
         sn_match = False
+        serial = convert_string_to_byte(serial)
         if crl and serial:
             for rev in crl.get_revoked():
                 if serial == rev.get_serial().lower():
@@ -112,7 +113,7 @@ class CAhandler(object):
                 cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
 
             except BaseException as err:
-               error = err
+                error = err
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw)
@@ -144,7 +145,7 @@ class CAhandler(object):
             if os.path.exists(self.issuer_dict['key']):
                 if 'passphrase' in self.issuer_dict:
                     with open(self.issuer_dict['key'], 'r') as fso:
-                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read(), self.issuer_dict['passphrase'])
+                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read(), convert_string_to_byte(self.issuer_dict['passphrase']))
                 else:
                     with open(self.issuer_dict['key'], 'r') as fso:
                         ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read())
