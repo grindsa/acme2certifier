@@ -26,14 +26,15 @@ class Error(object):
         """ dictionary containing the implemented acme error messages """
         self.logger.debug('Error.acme_errormessage({0})'.format(message))
         error_dic = {
-            'urn:ietf:params:acme:error:accountDoesNotExist' : None,
-            'urn:ietf:params:acme:error:badCSR' : None,
-            'urn:ietf:params:acme:error:badNonce' : 'JWS has invalid anti-replay nonce',
-            'urn:ietf:params:acme:error:invalidContact' : 'The provided contact URI was invalid',
-            'urn:ietf:params:acme:error:malformed' : None,
-            'urn:ietf:params:acme:error:serverInternal' : None,
-            'urn:ietf:params:acme:error:unauthorized' : None,
-            'urn:ietf:params:acme:error:userActionRequired' : None,
+            'urn:ietf:params:acme:error:accountDoesNotExist': None,
+            'urn:ietf:params:acme:error:badCSR': None,
+            'urn:ietf:params:acme:error:badNonce': 'JWS has invalid anti-replay nonce',
+            'urn:ietf:params:acme:error:invalidContact': 'The provided contact URI was invalid',
+            'urn:ietf:params:acme:error:malformed': None,
+            'urn:ietf:params:acme:error:serverInternal': None,
+            'urn:ietf:params:acme:error:unauthorized': None,
+            'urn:ietf:params:acme:error:userActionRequired': None,
+            'urn:ietf:params:acme:error:alreadyRevoked': None,
             'notImplementedYet' : "we are not that far. Stay tuned",
         }
         if message and message in error_dic:

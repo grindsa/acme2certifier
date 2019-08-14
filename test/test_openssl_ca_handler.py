@@ -266,7 +266,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
     # @patch('examples.ca_handler.openssl_ca_handler.CAhandler.load_ca_key_cert')
-    def test_035_revocation(self, mock_vrf, mock_serial):
+    def test_036_revocation(self, mock_vrf, mock_serial):
         """ revocation cert """
         with open('ca/sub-ca-client.txt', 'r') as fso:
             cert = fso.read()
@@ -274,8 +274,22 @@ class TestACMEHandler(unittest.TestCase):
         # mock_ca_load.return_value = ('ca_key', 'ca_cert')
         mock_vrf.return_value = None
         mock_serial.return_value = 14
-        self.assertEqual((None, None, None), self.cahandler.revoke(cert))        
-        
+        self.assertEqual((200, None, None), self.cahandler.revoke(cert))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.check_serial_against_crl')
+    @patch('examples.ca_handler.openssl_ca_handler.cert_serial_get')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler.verify_certificate_chain')
+    def test_037_revocation(self, mock_vrf, mock_serial, mock_crl):
+        """ revocation cert """
+        with open('ca/sub-ca-client.txt', 'r') as fso:
+            cert = fso.read()
+        self.cahandler.issuer_dict = {'key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'cert': 'ca/sub-ca-cert.pem', 'crl' : 'ca/foo-ca-crl.pem'}
+        # mock_ca_load.return_value = ('ca_key', 'ca_cert')
+        mock_vrf.return_value = None
+        mock_serial.return_value = 14
+        mock_crl.return_value = True
+        self.assertEqual((400, 'urn:ietf:params:acme:error:alreadyRevoked', 'Certificate has already been revoked'), self.cahandler.revoke(cert))
+
 
 
 if __name__ == '__main__':
