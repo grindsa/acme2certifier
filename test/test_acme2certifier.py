@@ -978,44 +978,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.process_csr('order_name', 'csr'))
 
-    @patch('acme.order.validate_csr')
-    @patch('acme.order.Order.info')
-    def test_129_process_csr(self, mock_oinfo, mock_csrchk):
-        """ test order prcoess_csr with failed csr check"""
-        mock_oinfo.return_value = {'foo', 'bar'}
-        mock_csrchk.return_value = False
-        self.assertEqual((403, 'urn:ietf:params:acme:badCSR', 'CSR validation failed'), self.order.process_csr('order_name', 'csr'))
-
     @patch('acme.certificate.Certificate.store_csr')
-    @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_130_process_csr(self, mock_oinfo, mock_csrchk, mock_certname):
+    def test_130_process_csr(self, mock_oinfo, mock_certname):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
-        mock_csrchk.return_value = True
         mock_certname.return_value = None
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order.process_csr('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
-    @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_131_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_131_process_csr(self, mock_oinfo, mock_certname, mock_enroll):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
-        mock_csrchk.return_value = True
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = (None, 'error', 'detail')
         self.assertEqual((500, 'error', 'detail'), self.order.process_csr('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
-    @patch('acme.order.validate_csr')
     @patch('acme.order.Order.info')
-    def test_132_process_csr(self, mock_oinfo, mock_csrchk, mock_certname, mock_enroll):
+    def test_132_process_csr(self, mock_oinfo, mock_certname, mock_enroll):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
-        mock_csrchk.return_value = True
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = ('bar', None, None)
         self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
