@@ -35,7 +35,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.message import Message
         from acme.order import Order
         from acme.signature import Signature
-        from acme.helper import b64decode_pad, b64_decode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file
+        from acme.helper import b64decode_pad, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file
         import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -66,7 +66,6 @@ class TestACMEHandler(unittest.TestCase):
         self.cert_serial_get = cert_serial_get
         self.cert_san_get = cert_san_get
         self.build_pem_file = build_pem_file
-        self.b64_decode = b64_decode
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -1784,10 +1783,6 @@ class TestACMEHandler(unittest.TestCase):
         """ order identifers check with correct identifer in list and tnauthsupport true"""
         self.order.tnauthlist_support = True
         self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
-
-    def test_241_b64_decode(self):
-        """ test bas64 decoder """
-        self.assertEqual('test', self.b64_decode(self.logger, 'dGVzdA=='))    
 
 if __name__ == '__main__':
     unittest.main()
