@@ -5,7 +5,7 @@ from __future__ import print_function
 import textwrap
 import requests
 from OpenSSL import crypto
-from acme.helper import load_config, b64_decode, b64_url_recode, build_pem_file
+from acme.helper import load_config, b64_decode, b64_url_recode
 
 def get_certificates(self):
     """
@@ -85,7 +85,9 @@ class CAhandler(object):
                 (error, cert_raw) = self.simpleenroll(csr)
                 if not error:
                     cert_bundle = cert_raw + ca_pem
-
+                    cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
+                    cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
+                    cert_raw = cert_raw.replace('\n', '')
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw)
 
