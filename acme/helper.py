@@ -36,6 +36,11 @@ def b64decode_pad(logger, string):
         b64dec = b'ERR: b64 decoding error'
     return b64dec.decode('utf-8')
 
+def b64_decode(logger, string):
+    """ b64 decoding """
+    logger.debug('b64decode()')
+    return base64.b64decode(string)
+
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
     logger.debug('b64_encode()')
