@@ -1,0 +1,35 @@
+# Generic EST protocol handler
+
+The EST protocol handler is not bound to a specific CA and implements the ['cacerts'](https://tools.ietf.org/html/rfc7030#section-2.1) and ['simpleenroll'](https://tools.ietf.org/html/rfc7030#section-2.2.1) calls as defined in [RFC7030](https://tools.ietf.org/html/rfc7030).
+
+when using the handler please be aware of the following limitations:
+
+- Authentication towards CA server is limited to ClientAuth as described in [RFC7030 section 3.3.2](https://tools.ietf.org/html/rfc7030#section-3.3.2) 
+- Revocation operations are not supported
+
+The andler has been tested with the following EST implementation:
+
+- EST reference implementation from [Cisco](http://testrfc7030.com/)
+- [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier)
+
+## Pre-requisites
+- Certificate and key (in PEM format) used to authenticate acme2certifier towards EST server. 
+- CA certificate(s) in pem format allowing to validate the certificate presented by the EST server. The CA certificates must be bundled into a single chain file as described in [RFC5246 section 7.4.2](https://tools.ietf.org/html/rfc5246#section-7.4.2)
+ 
+## Installation and Configuration
+ - copy the ca_handler into the acme directory
+```
+root@rlh:~# cp example\est_ca_handler.py acme\ca_handler.py
+``` 
+ - modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
+```
+[CAhandler]
+est_host: https://<ip>:<port>
+est_client_key: <filename>
+est_client_cert: <filename>
+ca_bundle: <filename>
+```
+    - est_host - URL of the est server service
+    - est_client_key - Private key of the certificate used for TLS client-auth (acme/est/est.key.pem)
+    - est_client_cert - Certificate used for TLS client-auth (acme/est/est.crt.pem)
+    - ca_bundle - CA certificate bundle needed to valiate the EST server certificate (acme/est/ca_bundle.pem)
