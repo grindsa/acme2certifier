@@ -15,6 +15,9 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
 
 For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
 
+## ChangeLog
+Releasenotes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
+
 ## Disclaimer
 I am running this project as my RnD guys told me that it won’t be possible :-)
 
