@@ -114,11 +114,11 @@ root@rlh:~# chmod a+x /var/www/acme/acme
 {"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
 ```
 
-## Installation on NGIX runnig on CentOS 7
+## Installation on NGINX runnig on CentOS 7
 
-I barely know NGIX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
+I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
 
-Setup is done in a way that uWSGI will serve acme2certifier while NGIX will act as reverse proxy to provide better connection handling.
+Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
 
 1. setup your project directory
 ```
