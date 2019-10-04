@@ -218,13 +218,15 @@ class DBstore(object):
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
-        self.logger.debug('certificate_lookup({0}:{1})'.format(column, string))
+        self.logger.debug('DBstore.certificate_lookup({0}:{1})'.format(column, string))
 
         lookup = dict_from_row(self.certificate_search(column, string))
         result = {}
         if lookup:
             for ele in vlist:
                 result[ele] = lookup[ele]
+                if ele == 'order__name':
+                    result['order'] = lookup[ele]
         else:
             result = None
 
