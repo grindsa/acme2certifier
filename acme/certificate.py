@@ -303,7 +303,8 @@ class Certificate(object):
 
         # fetch certificate dictionary from DB
         certificate_dic = self.info(certificate_name)
-
+        self.logger.debug('Certificate.info() endet with:{0}'.format(certificate_dic))
+        
         # empty list of statuses
         identifier_status = []
 
