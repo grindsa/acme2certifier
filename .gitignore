@@ -115,6 +115,7 @@ commands.txt
 *.db
 *.pem
 *.csr
+*.old
 /acme2certifier_wsgi.py
 env.txt
 gna.py

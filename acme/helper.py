@@ -151,6 +151,26 @@ def csr_cn_get(logger, csr):
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
 
+def csr_dn_get(logger, csr):
+    """ get subject from certificate request in openssl notation """
+    logger.debug('CAhandler.csr_dn_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    subject = req.get_subject()
+    subject_str = "".join("/{0:s}={1:s}".format(name.decode(), value.decode()) for name, value in subject.get_components())
+    logger.debug('CAhandler.csr_dn_get() ended with: {0}'.format(subject_str))
+    return subject_str
+
+def csr_pubkey_get(logger, csr):
+    """ get public key from certificate request """
+    logger.debug('CAhandler.csr_pubkey_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    pubkey = req.get_pubkey()
+    pubkey_str = OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey)
+    logger.debug('CAhandler.csr_pubkey_get() ended with: {0}'.format(pubkey_str))
+    return pubkey_str
+
 def csr_san_get(logger, csr):
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get()')
