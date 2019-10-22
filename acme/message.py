@@ -18,7 +18,7 @@ class Message(object):
         self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
         self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
-        self.nonce_check_disable = False
+        self.disable_dic = {'signature_check_disable' : False, 'nonce_check_disable' : False}
         self.load_config()
 
     def __enter__(self):
@@ -38,7 +38,7 @@ class Message(object):
         if result:
             # decoding successful - check nonce for anti replay protection
             (code, message, detail) = self.nonce.check(protected)
-            if self.nonce_check_disable:
+            if self.disable_dic['nonce_check_disable']:
                 print('**** NONCE CHECK DISABLED!!! Security issue ****')
                 code = 200
                 message = None
@@ -72,7 +72,8 @@ class Message(object):
         self.logger.debug('load_config()')
         config_dic = load_config()
         if 'Nonce' in config_dic:
-            self.nonce_check_disable = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
+            self.isable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
+            self.isable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
     def name_get(self, content):
         """ get name for account """
