@@ -32,6 +32,11 @@ class Message(object):
         """ validate message """
         self.logger.debug('Message.check()')
 
+        # disable signature check if paramter has been set
+        if disable_dic['signature_check_disable']:
+            print('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
+            skip_signature_check = True
+            
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
         account_name = None
