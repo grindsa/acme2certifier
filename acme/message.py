@@ -33,7 +33,7 @@ class Message(object):
         self.logger.debug('Message.check()')
 
         # disable signature check if paramter has been set
-        if disable_dic['signature_check_disable']:
+        if self.disable_dic['signature_check_disable']:
             print('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
             skip_signature_check = True
             
@@ -77,8 +77,8 @@ class Message(object):
         self.logger.debug('load_config()')
         config_dic = load_config()
         if 'Nonce' in config_dic:
-            self.isable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
-            self.isable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
+            self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
+            self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
     def name_get(self, content):
         """ get name for account """
