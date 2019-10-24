@@ -24,6 +24,7 @@ class Signature(object):
 
         if aname:
             pub_key = self.jwk_load(aname)
+            print(pub_key)
             if pub_key:
                 (result, error) = signature_check(self.logger, content, pub_key)
             else:
@@ -47,5 +48,5 @@ class Signature(object):
 
     def jwk_load(self, kid):
         """ get key for a specific account id """
-        self.logger.debug('Account.jwk_load({0})'.format(kid))
+        self.logger.debug('Signature.jwk_load({0})'.format(kid))
         return self.dbstore.jwk_load(kid)

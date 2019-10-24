@@ -28,32 +28,29 @@ class Account(object):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account_add()')
         account_name = generate_random_string(self.logger, 12)
-
         # check request
         if 'alg' in content and 'jwk' in content and contact:
             # check jwk
-            if 'e' in content['jwk'] and 'kty' in content['jwk'] and 'n' in content['jwk']:
-                data_dic = {
-                    'name' : account_name,
-                    'alg' : content['alg'],
-                    'exponent' : content['jwk']['e'],
-                    'kty' : content['jwk']['kty'],
-                    'modulus' : content['jwk']['n'],
-                    'contact' : json.dumps(contact),
-                }
-                (db_name, new) = self.dbstore.account_add(data_dic)
-                self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
-                if new:
-                    code = 201
-                    message = account_name
-                else:
-                    code = 200
-                    message = db_name
-                detail = None
+            data_dic = {
+                'name': account_name,
+                'alg': content['alg'],
+                'jwk': json.dumps(content['jwk']),
+                'contact': json.dumps(contact),
+            }
+
+            (db_name, new) = self.dbstore.account_add(data_dic)
+            self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
+            if new:
+                code = 201
+                message = account_name
             else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'incomplete JSON Web Key'
+                code = 200
+                message = db_name
+            detail = None
+            # else:
+            #    code = 400
+            #    message = 'urn:ietf:params:acme:error:malformed'
+            #    detail = 'incomplete JSON Web Key'
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
@@ -113,12 +110,12 @@ class Account(object):
         response_dic = {}
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
-        
+
         # lowercase contact field (acme-shell behaves strange)
         if 'Contact' in payload:
             payload['contact'] = payload['Contact']
             del(payload['Contact'])
-        
+
         if code == 200:
             # onlyReturnExisting check
             if 'onlyReturnExisting' in payload:

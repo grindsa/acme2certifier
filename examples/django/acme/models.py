@@ -14,6 +14,7 @@ class Nonce(models.Model):
 class Account(models.Model):
     """ account table """
     name = models.CharField(max_length=15, unique=True)
+    jwk = models.TextField(blank=True)
     alg = models.CharField(max_length=10)
     exponent = models.CharField(max_length=10)
     kty = models.CharField(max_length=10)

@@ -177,7 +177,7 @@ def chall(request):
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
 
             # logging
-            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
+            # logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
             # send response
             return response
         else:
