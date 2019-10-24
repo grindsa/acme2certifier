@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ django handler for acmesrv.py """
 from __future__ import print_function
+import json
 from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
 
 class DBstore(object):
@@ -14,7 +15,7 @@ class DBstore(object):
     def account_add(self, data_dic):
         """ add account in database """
         self.logger.debug('DBStore.account_add({0})'.format(data_dic))
-        account_list = self.account_lookup('modulus', data_dic['modulus'])
+        account_list = self.account_lookup('jwk', data_dic['jwk'])
         if account_list:
             created = False
             aname = account_list['name']
@@ -33,7 +34,7 @@ class DBstore(object):
     def account_lookup(self, mkey, value):
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup({0}:{1})'.format(mkey, value))
-        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'alg', 'exponent', 'kty', 'modulus', 'name')[:1]
+        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name')[:1]
         if account_dict:
             result = account_dict[0]
         else:
@@ -49,13 +50,11 @@ class DBstore(object):
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
-        account_dict = Account.objects.filter(name=aname).values('alg', 'exponent', 'kty', 'modulus')[:1]
+        account_dict = Account.objects.filter(name=aname).values('jwk', 'alg')[:1]
         jwk_dict = {}
         if account_dict:
+            jwk_dict = json.loads(account_dict[0]['jwk'].decode())
             jwk_dict['alg'] = account_dict[0]['alg']
-            jwk_dict['kty'] = account_dict[0]['kty']
-            jwk_dict['e'] = account_dict[0]['exponent']
-            jwk_dict['n'] = account_dict[0]['modulus']
         return jwk_dict
 
     def nonce_add(self, nonce):
