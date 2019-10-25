@@ -3,6 +3,7 @@
 """ cgi handler for acmesrv.py """
 from __future__ import print_function
 import sqlite3
+import json
 import os
 
 def dict_from_row(row):
@@ -30,16 +31,16 @@ class DBstore(object):
         # we need this for compability with django
         created = False
         # check if we alredy have an entry for the key
-        exists = self.account_search('modulus', data_dic['modulus'])
+        exists = self.account_search('jwk', data_dic['jwk'])
         self.db_open()
         if bool(exists):
             # update
             aname = exists[1]
             self.logger.debug('account exists: {0} id: {1}'.format(aname, exists[0]))
-            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, exponent = :exponent, kty = :kty, contact = :contact WHERE modulus = :modulus''', data_dic)
+            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, jwk = :jwk, contact = :contact WHERE jwk = :jwk''', data_dic)
         else:
             # insert
-            self.cursor.execute('''INSERT INTO ACCOUNT(alg, exponent, kty, modulus, contact, name) VALUES(:alg, :exponent, :kty, :modulus, :contact, :name)''', data_dic)
+            self.cursor.execute('''INSERT INTO ACCOUNT(alg, jwk, contact, name) VALUES(:alg, :jwk, :contact, :name)''', data_dic)
             aname = data_dic['name']
             created = True
 
@@ -350,7 +351,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create account')
         self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "exponent" varchar(10) NOT NULL, "kty" varchar(10) NOT NULL, "modulus" varchar(1024) UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
@@ -393,13 +394,11 @@ class DBstore(object):
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
         account_list = self.account_search('name', aname)
-
+        print('foo', account_list)
         jwk_dict = {}
         if account_list:
+            jwk_dict = json.loads(account_list[3])
             jwk_dict['alg'] = account_list[2]
-            jwk_dict['e'] = account_list[3]
-            jwk_dict['kty'] = account_list[4]
-            jwk_dict['n'] = account_list[5]
         self.logger.debug('DBStore.jwk_load() ended')
         return jwk_dict
 
