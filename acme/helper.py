@@ -261,7 +261,9 @@ def get_url(environ, include_path=False):
     """ get url """
     server_name = environ['HTTP_HOST']
     port = environ['SERVER_PORT']
-    if port == 443:
+    if 'wsgi.url_scheme' in environ:
+        proto = environ['wsgi.url_scheme']
+    elif port == 443:
         proto = 'https'
     else:
         proto = 'http'
