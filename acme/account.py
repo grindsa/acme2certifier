@@ -65,6 +65,7 @@ class Account(object):
         code = 200
         message = None
         detail = None
+        print(content)
         if 'contact' in content:
             contact_check = validate_email(self.logger, content['contact'])
             if not contact_check:
@@ -111,14 +112,9 @@ class Account(object):
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
 
-        # lowercase contact field (acme-shell behaves strange)
-        if 'Contact' in payload:
-            payload['contact'] = payload['Contact']
-            del(payload['Contact'])
-
         if code == 200:
             # onlyReturnExisting check
-            if 'onlyReturnExisting' in payload:
+            if 'onlyreturnexisting' in payload:
                 (code, message, detail) = self.onlyreturnexisting(protected, payload)
             else:
                 # tos check
@@ -155,7 +151,7 @@ class Account(object):
 
     def onlyreturnexisting(self, protected, payload):
         """ check onlyreturnexisting """
-        if payload['onlyReturnExisting']:
+        if payload['onlyreturnexisting']:
             code = None
             message = None
             detail = None
@@ -219,9 +215,9 @@ class Account(object):
     def tos_check(self, content):
         """ check terms of service """
         self.logger.debug('Account.tos_check()')
-        if 'termsOfServiceAgreed' in content:
-            self.logger.debug('tos:{0}'.format(content['termsOfServiceAgreed']))
-            if content['termsOfServiceAgreed']:
+        if 'termsofserviceagreed' in content:
+            self.logger.debug('tos:{0}'.format(content['termsofserviceagreed']))
+            if content['termsofserviceagreed']:
                 code = 200
                 message = None
                 detail = None
