@@ -24,7 +24,6 @@ class Signature(object):
 
         if aname:
             pub_key = self.jwk_load(aname)
-            print(pub_key)
             if pub_key:
                 (result, error) = signature_check(self.logger, content, pub_key)
             else:
