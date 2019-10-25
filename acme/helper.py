@@ -236,7 +236,20 @@ def decode_message(logger, message):
         protected = {}
         payload = {}
         signature = None
+        
+    if payload:
+        payload = dkeys_lower(payload)    
     return(result, error, protected, payload, signature)
+
+def dkeys_lower(tree):
+    """ lower characters in payload string """
+    if isinstance(tree, dict):
+        return {k.lower() : dkeys_lower(v) for k, v in tree.items()}
+    if isinstance(tree, list):
+        return [dkeys_lower(ele) for ele in tree]
+    else:
+        return tree
+
 
 def generate_random_string(logger, length):
     """ generate random string to be used as name """
