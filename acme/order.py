@@ -179,16 +179,14 @@ class Order(object):
                         detail = 'csr is missing in payload'
                 else:
                     self.logger.debug('polling request()')
-                    # this is a polling request:
+                    code = 200
+                    # this is a polling request; lookup certificate
                     cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
-                    # we found a cert in the database
                     if cert_dic:
-                        code = 200
+                        # we found a cert in the database                    
                         certificate_name = cert_dic['name']
                     else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:serverInternal'
-                        detail = 'no certificate for order: {0} found'.format(order_name)
+                        certificate_name = None
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
@@ -200,7 +198,8 @@ class Order(object):
                 response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
                 response_dic['data'] = self.lookup(order_name)
                 response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
-                response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
+                if certificate_name:
+                    response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
 
         # prepare/enrich response
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
