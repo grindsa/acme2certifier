@@ -183,7 +183,7 @@ class Order(object):
                     # this is a polling request; lookup certificate
                     cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
                     if cert_dic:
-                        # we found a cert in the database                    
+                        # we found a cert in the database
                         certificate_name = cert_dic['name']
                     else:
                         certificate_name = None
