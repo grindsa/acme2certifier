@@ -869,21 +869,21 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup with wrong hash and correct authorization hash"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
-        self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name']}, self.order.lookup('foo'))
+        self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
     def test_114_order_lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and authorization hash having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
-        self.assertEqual({'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2']}, self.order.lookup('foo'))
+        self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
     def test_115_order_lookup(self, mock_oinfo):
         """ test order lookup status in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value'}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2']}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -891,7 +891,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -899,7 +899,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -907,7 +907,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0, 'notafter' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -915,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -923,7 +923,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
         self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz//name', 'http://tester.local/acme/authz//name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order.lookup('foo'))
 
     @patch('acme.order.Order.info')
@@ -1775,6 +1775,29 @@ class TestACMEHandler(unittest.TestCase):
     def test_241_b64_decode(self):
         """ test bas64 decoder """
         self.assertEqual('test', self.b64_decode(self.logger, 'dGVzdA=='))    
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.authorization.uts_now')
+    @patch('acme.authorization.generate_random_string')
+    def test_242_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+        """ test Authorization.auth_info() in case auth_lookup failed """
+        mock_name.return_value = 'randowm_string'
+        mock_uts.return_value = 1543640400
+        mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
+        self.authorization.dbstore.authorization_update.return_value = 'foo'
+        self.authorization.dbstore.authorization_lookup.return_value = []
+        self.assertEqual({}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.message.Message.check')
+    def test_244_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
+        """ Authorization.new_post() failed bcs url is missing in protected """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'foo_url'}, 'payload', 'account_name')
+        mock_authzinfo.return_value = {}
+        mock_nnonce.return_value = 'new_nonce'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'message': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
 
 if __name__ == '__main__':
     unittest.main()
