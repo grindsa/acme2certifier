@@ -34,9 +34,9 @@ class DBstore(object):
     def account_lookup(self, mkey, value):
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup({0}:{1})'.format(mkey, value))
-        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name')[:1]
+        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name', 'contact', 'alg', 'created_at')[:1]
         if account_dict:
-            result = account_dict[0]
+            result = account_dict[0]          
         else:
             result = None
         return result
@@ -46,6 +46,14 @@ class DBstore(object):
         self.logger.debug('DBStore.account_delete({0})'.format(aname))
         result = Account.objects.filter(name=aname).delete()
         return result
+        
+    def account_update(self, data_dic):
+        """ update existing account """
+        self.logger.debug('DBStore.account_update({0})'.format(data_dic))
+        obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+        self.logger.debug('auth_id({0})'.format(obj.id))
+        return obj.id        
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """

@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, validate_email
+from acme.helper import generate_random_string, validate_email, date_to_datestr
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -76,6 +76,22 @@ class Account(object):
         self.logger.debug('Account.contact_check() ended with:{0}'.format(code))
         return(code, message, detail)
 
+    def contacts_update(self, aname, payload):
+        """ update account """
+        self.logger.debug('Account.update()')
+        (code, message, detail) = self.contact_check(payload)
+        if code == 200:
+            data_dic = {'name' : aname, 'contact' : json.dumps(payload['contact'])}
+            result = self.dbstore.account_update(data_dic)
+            if result:
+                code = 200
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                detail = 'update failed'
+
+        return(code, message, detail)
+
     def delete(self, aname):
         """ delete account """
         self.logger.debug('Account.delete({0})'.format(aname))
@@ -92,6 +108,11 @@ class Account(object):
 
         self.logger.debug('Account.delete() ended with:{0}'.format(code))
         return(code, message, detail)
+
+    def lookup(self, aname):
+        """ lookup account """
+        self.logger.debug('Account.lookup({0})'.format(aname))
+        return self.dbstore.account_lookup('name', aname)
 
     def name_get(self, content):
         """ get id for account depricated"""
@@ -187,6 +208,7 @@ class Account(object):
         (code, message, detail, _protected, payload, account_name) = self.message.check(content)
         if code == 200:
             if 'status' in payload:
+                # account deactivation
                 if payload['status'].lower() == 'deactivated':
                     # account_name = self.message.name_get(protected)
                     (code, message, detail) = self.delete(account_name)
@@ -196,6 +218,19 @@ class Account(object):
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
                     detail = 'status attribute without sense'
+            elif 'contact' in payload:
+                (code, message, detail) = self.contacts_update(account_name, payload)
+                if code == 200:
+                    account_obj = self.lookup(account_name)
+                    response_dic['data'] = {}
+                    response_dic['data']['status'] = 'valid'
+                    response_dic['data']['key'] = json.loads(account_obj['jwk'])
+                    response_dic['data']['contact'] = json.loads(account_obj['contact'])
+                    response_dic['data']['createdAt'] = date_to_datestr(account_obj['created_at'])
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    detail = 'update failed'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'

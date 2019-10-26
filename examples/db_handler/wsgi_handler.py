@@ -5,6 +5,7 @@ from __future__ import print_function
 import sqlite3
 import json
 import os
+from acme.helper import datestr_to_date
 
 def dict_from_row(row):
     """ small helper to convert a select list into a dictionary """
@@ -62,11 +63,9 @@ class DBstore(object):
     def account_lookup(self, column, string):
         """ lookup account table for a certain key/value pair and return id"""
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
-        lookup = self.account_search(column, string)
-        if lookup:
-            result = {'id' : lookup[0], 'name' : lookup[1]}
-        else:
-            result = None
+        result = dict_from_row(self.account_search(column, string))
+        if 'created_at' in result:
+            result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
         self.logger.debug('DBStore.account_lookup() ended')
         return result
 
@@ -79,6 +78,29 @@ class DBstore(object):
         result = self.cursor.fetchone()
         self.db_close()
         self.logger.debug('DBStore.account_search() ended')
+        return result
+
+    def account_update(self, data_dic):
+        """ update existing authorization """
+        self.logger.debug('DBStore.account_update({0})'.format(data_dic))
+
+        lookup = dict_from_row(self.account_search('name', data_dic['name']))
+        if lookup:
+            if 'alg' not in data_dic:
+                data_dic['alg'] = lookup['alg']
+            if 'contact' not in data_dic:
+                data_dic['contact'] = lookup['contact']
+            if 'jwk' not in data_dic:
+                data_dic['jwk'] = lookup['jwk']
+
+            self.db_open()
+            self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
+            self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
+            result = self.cursor.fetchone()[0]
+            self.db_close()
+        else:
+            result = None
+        self.logger.debug('DBStore.authorization_update() ended')
         return result
 
     def authorization_add(self, data_dic):
@@ -351,7 +373,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create account')
         self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" varchar(15) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
