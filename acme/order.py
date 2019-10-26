@@ -273,7 +273,7 @@ class Order(object):
                 order_dic["authorizations"] = []
                 for authz in authz_list:
                     if 'name' in authz:
-                        order_dic["authorizations"].append('{0}{1}/{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
+                        order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
 
         return order_dic
 
