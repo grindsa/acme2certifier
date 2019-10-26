@@ -47,10 +47,6 @@ class Account(object):
                 code = 200
                 message = db_name
             detail = None
-            # else:
-            #    code = 400
-            #    message = 'urn:ietf:params:acme:error:malformed'
-            #    detail = 'incomplete JSON Web Key'
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
