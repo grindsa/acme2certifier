@@ -33,25 +33,25 @@ class Authorization(object):
         """ return authzs information """
         self.logger.debug('Authorization.info({0})'.format(url))
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
-
         expires = uts_now() + self.expiry
         token = generate_random_string(self.logger, 32)
-        # update authorization with expiry date and token (just to be sure)
-        self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
-
         authz_info_dic = {}
-        authz_info_dic['expires'] = uts_to_date_utc(expires)
+        if self.dbstore.authorization_lookup('name', authz_name):
 
-        # get authorization information from db to be inserted in message
-        tnauth = None
-        auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
-        if auth_info:
-            authz_info_dic['status'] = auth_info[0]['status__name']
-            authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
-            if auth_info[0]['type'] == 'TNAuthList':
-                tnauth = True
-        challenge = Challenge(self.debug, self.server_name, self.logger, expires)
-        authz_info_dic['challenges'] = challenge.new_set(authz_name, token, tnauth)
+            # update authorization with expiry date and token (just to be sure)
+            self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
+            authz_info_dic['expires'] = uts_to_date_utc(expires)
+
+            # get authorization information from db to be inserted in message
+            tnauth = None
+            auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
+            if auth_info:
+                authz_info_dic['status'] = auth_info[0]['status__name']
+                authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
+                if auth_info[0]['type'] == 'TNAuthList':
+                    tnauth = True
+            challenge = Challenge(self.debug, self.server_name, self.logger, expires)
+            authz_info_dic['challenges'] = challenge.new_set(authz_name, token, tnauth)
 
         self.logger.debug('Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
@@ -74,7 +74,13 @@ class Authorization(object):
         (code, message, detail, protected, _payload, _account_name) = self.message.check(content)
         if code == 200:
             if 'url' in protected:
-                response_dic['data'] = self.authz_info(protected['url'])
+                auth_info = self.authz_info(protected['url'])
+                if auth_info:
+                    response_dic['data'] = auth_info
+                else:
+                    code = 403
+                    message = 'urn:ietf:params:acme:error:unauthorized'
+                    detail = 'authorizations lookup failed'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
