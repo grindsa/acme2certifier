@@ -174,7 +174,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_027_tos_check_true(self):
         """ test successful tos check """
-        self.assertEqual((200, None, None), self.account.tos_check({'termsOfServiceAgreed': True}))
+        self.assertEqual((200, None, None), self.account.tos_check({'termsofserviceagreed': True}))
 
     def test_028_tos_check_false(self):
         """ test successful tos check """
@@ -221,21 +221,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test account add without jwk """
         dic = {'alg': 'RS256', 'foo': {'foo': u'bar'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protectedpayload'), self.account.add(dic, ['me@example.com']))
-
-    def test_037_account_add_failed3(self):
-        """ test account add without jwk e """
-        dic = {'alg': 'RS256', 'jwk': {'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
-
-    def test_038_account_add_failed4(self):
-        """ test account add without jwk kty """
-        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
-
-    def test_039_account_add_failed5(self):
-        """ test account add without jwk n """
-        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key'), self.account.add(dic, ['me@example.com']))
 
     def test_040_account_add_failed6(self):
         """ test account add without contact """
@@ -387,7 +372,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.message.Message.check')
     def test_056_account_new(self, mock_mcheck, mock_existing):
         """ Account.new() onlyReturnExisting for a non existing account """
-        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyReturnExisting": 'true'}, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyreturnexisting": 'true'}, None)
         mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
         message = {'foo' : 'bar'}
         e_result = {'code': 400, 'data': {'detail': None, 'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {}}
@@ -398,7 +383,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.message.Message.check')
     def test_057_account_new(self, mock_mcheck, mock_existing, mock_nnonce):
         """ Account.new() onlyReturnExisting for an existing account """
-        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyReturnExisting": 'true'}, None)
+        mock_mcheck.return_value = (200, None, None, 'protected', {"onlyreturnexisting": 'true'}, None)
         mock_existing.return_value = (200, 100, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
@@ -560,35 +545,35 @@ class TestACMEHandler(unittest.TestCase):
         """ test onlyReturnExisting with False """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {}
-        payload = {'onlyReturnExisting' : False}
+        payload = {'onlyreturnexisting' : False}
         self.assertEqual((400, 'urn:ietf:params:acme:error:userActionRequired', 'onlyReturnExisting must be true'), self.account.onlyreturnexisting(protected, payload))
 
     def test_077_onlyreturnexisting(self):
         """ test onlyReturnExisting without jwk structure """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {}
-        payload = {'onlyReturnExisting' : True}
+        payload = {'onlyreturnexisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'jwk structure missing'), self.account.onlyreturnexisting(protected, payload))
 
     def test_078_onlyreturnexisting(self):
         """ test onlyReturnExisting without jwk[n] structure """
         # self.signature.dbstore.jwk_load.return_value = 1
         protected = {'jwk' : {}}
-        payload = {'onlyReturnExisting' : True}
+        payload = {'onlyreturnexisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'n value missing'), self.account.onlyreturnexisting(protected, payload))
 
     def test_079_onlyreturnexisting(self):
         """ test onlyReturnExisting for existing account """
         self.signature.dbstore.account_lookup.return_value = {'name' : 'foo', 'alg' : 'RS256'}
         protected = {'jwk' : {'n' : 'foo'}}
-        payload = {'onlyReturnExisting' : True}
+        payload = {'onlyreturnexisting' : True}
         self.assertEqual((200, 'foo', None), self.account.onlyreturnexisting(protected, payload))
 
     def test_080_onlyreturnexisting(self):
         """ test onlyReturnExisting for non existing account """
         self.signature.dbstore.account_lookup.return_value = False
         protected = {'jwk' : {'n' : 'foo'}}
-        payload = {'onlyReturnExisting' : True}
+        payload = {'onlyreturnexisting' : True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.account.onlyreturnexisting(protected, payload))
 
     def test_081_utstodate_utc(self):
@@ -1226,15 +1211,17 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
         self.assertEqual(e_result, self.order.parse(message))
 
+    @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_167_order_parse(self, mock_mcheck, mock_oname):
+    def test_167_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
         """ Order.parse() polling failed bcs. certificate not found """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'order_name'
+        mock_nnonce.return_value = 'new_nonce'        
         message = '{"foo" : "bar"}'
         self.order.dbstore.certificate_lookup.return_value = {}
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'no certificate for order: order_name found', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}, self.order.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.name_get')
