@@ -61,7 +61,6 @@ class Account(object):
         code = 200
         message = None
         detail = None
-        print(content)
         if 'contact' in content:
             contact_check = validate_email(self.logger, content['contact'])
             if not contact_check:
