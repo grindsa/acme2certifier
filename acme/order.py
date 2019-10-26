@@ -279,7 +279,7 @@ class Order(object):
 
     def load_config(self):
         """" load config from file """
-        self.logger.debug('Oder.load_config()')
+        self.logger.debug('Order.load_config()')
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
