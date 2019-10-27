@@ -36,7 +36,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.message import Message
         from acme.order import Order
         from acme.signature import Signature
-        from acme.helper import b64decode_pad, b64_decode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date
+        from acme.helper import b64decode_pad, b64_decode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower
         import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -70,6 +70,7 @@ class TestACMEHandler(unittest.TestCase):
         self.b64_decode = b64_decode
         self.date_to_datestr = date_to_datestr
         self.datestr_to_date = datestr_to_date
+        self.dkeys_lower = dkeys_lower
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -1875,6 +1876,26 @@ class TestACMEHandler(unittest.TestCase):
     def test_256_datestr_to_date(self):
         """ convert datestr to date with invalid format"""
         self.assertEqual(None, self.datestr_to_date('foo', '%Y.%m.%d'))
+
+    def test_257_dkeys_lower(self):
+        """ dkeys_lower with a simple string """
+        tree = 'fOo'
+        self.assertEqual('fOo', self.dkeys_lower(tree))
+
+    def test_258_dkeys_lower(self):
+        """ dkeys_lower with a simple list """
+        tree = ['fOo', 'bAr']
+        self.assertEqual(['fOo', 'bAr'], self.dkeys_lower(tree))
+
+    def test_259_dkeys_lower(self):
+        """ dkeys_lower with a simple dictionary """
+        tree = {'kEy': 'vAlUe'}
+        self.assertEqual({'key': 'vAlUe'}, self.dkeys_lower(tree))
+        
+    def test_260_dkeys_lower(self):
+        """ dkeys_lower with a nested dictionary containg strings, list and dictionaries"""
+        tree = {'kEy1': 'vAlUe2', 'keys2': ['lIsT2', {'kEyS3': 'vAlUe3', 'kEyS4': 'vAlUe3'}], 'keys4': {'kEyS4': 'vAluE5', 'kEyS5': 'vAlUE6'}}
+        self.assertEqual({'key1': 'vAlUe2', 'keys2': ['lIsT2', {'keys3': 'vAlUe3', 'keys4': 'vAlUe3'}], 'keys4': {'keys5': 'vAlUE6', 'keys4': 'vAluE5'}}, self.dkeys_lower(tree))          
 
 if __name__ == '__main__':
     unittest.main()
