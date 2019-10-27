@@ -447,11 +447,19 @@ def date_to_uts_utc(date_human, _tformat='%Y-%m-%dT%H:%M:%S'):
 
 def date_to_datestr(date, tformat='%Y-%m-%dT%H:%M:%SZ'):
     """ convert dateobj to datestring """
-    return(date.strftime(tformat))
+    try:
+        result = date.strftime(tformat)
+    except BaseException:
+        result = None
+    return result
     
 def datestr_to_date(datestr, tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert datestr to dateobj """
-    return(datetime.strptime(datestr, tformat))    
+    try:
+        result = datetime.strptime(datestr, tformat)
+    except BaseException:
+        result = None
+    return result    
 
 def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
