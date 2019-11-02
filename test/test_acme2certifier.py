@@ -1902,21 +1902,21 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.jwk_load.return_value = {}
         aname = 'foo'
         okey = {}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_262_key_compare(self):
         """ Account.key_compare() with empty pub_key and existing old_key"""
         self.account.dbstore.jwk_load.return_value = {}
         aname = 'foo'
         okey = {'foo': 'bar'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_263_key_compare(self):
         """ Account.key_compare() with existing pub_key and empty old_key"""
         self.account.dbstore.jwk_load.return_value = {'foo': 'bar'}
         aname = 'foo'
         okey = {}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_264_key_compare(self):
         """ Account.key_compare() with similar pub_key empty old_key"""
@@ -1944,28 +1944,30 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'foo'}
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_268_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'ESfoo'}
         aname = 'foo'
         okey = {'alg': 'rsa', 'foo2': 'bar2', 'foo1': 'bar1'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_269_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite no alg statement in old_key"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'ESfoo'}
         aname = 'foo'
         okey = {'foo3': None, 'foo2': 'bar2', 'foo1': 'bar1'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
     def test_270_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite no alg statement in pub_key"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'foo3': 'bar3'}
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
+        
+        
 
 if __name__ == '__main__':
     unittest.main()
