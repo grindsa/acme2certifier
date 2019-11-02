@@ -3,7 +3,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, validate_email, date_to_datestr
+from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -16,9 +16,12 @@ class Account(object):
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path' : '/acme/acct/'}
+        self.inner_header_nonce_allow = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self.load_config()
+        print('jupp', self.inner_header_nonce_allow)
         return self
 
     def __exit__(self, *args):
@@ -109,6 +112,46 @@ class Account(object):
         self.logger.debug('Account.delete() ended with:{0}'.format(code))
         return(code, message, detail)
 
+    def inner_jws_check(self, outer_protected, inner_protected):
+        """ check protected headers """
+        self.logger.debug('Account.inner_jws_check()')
+
+        # RFC8655 7.3.5 checs of inner JWS
+        # check for jwk header
+        if 'jwk' in inner_protected:
+            if 'url' in outer_protected and 'url' in inner_protected:
+                # inner and outer JWS must have the same "url" header parameter
+                if outer_protected['url'] == inner_protected['url']:
+                    if self.inner_header_nonce_allow:
+                        code = 200
+                        message = None
+                        detail = None
+                    else:
+                        # inner JWS must omit nonce header
+                        if 'nonce' not in inner_protected:
+                            code = 200
+                            message = None
+                            detail = None
+                        else:
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:malformed'
+                            detail = 'inner JWS must omit nonce header'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'url parameter differ in inner and outer JWS'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'inner or outer JWS is missing url header parameter'
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'inner jws is missing jwk'
+
+        self.logger.debug('Account.inner_jws_check() endet with: {0}:{1}'.format(code, detail))
+        return(code, message, detail)
+
     def key_change(self, aname, payload, protected):
         """ key change for a given account """
         self.logger.debug('Account.key_change({0})'.format(aname))
@@ -122,22 +165,28 @@ class Account(object):
                 # check message
                 (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
 
-                if 'oldkey' in inner_payload:
+                if code == 200:
+                    (code, message, detail) = self.inner_jws_check(protected, inner_protected)
+                    print(code, message, detail)
+
+                # print(inner_protected)
+
+                # if 'oldkey' in inner_payload:
                     # compare oldkey with database
-                    (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
+                #    (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
 
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'old key is missing...'
+                #else:
+                #    code = 400
+                #    message = 'urn:ietf:params:acme:error:malformed'
+                #    detail = 'old key is missing...'
 
-                from pprint import pprint
+                # from pprint import pprint
                 # print('old protected')
                 # pprint(protected)
                 # print('inner protected')
                 # pprint(inner_protected)
-                print('innter payload')
-                pprint(inner_payload)
+                # print('innter payload')
+                # pprint(inner_payload)
                 #print(protected, aname)
             else:
                 code = 400
@@ -178,6 +227,13 @@ class Account(object):
 
         self.logger.debug('Account.key_compare() ended with: {0}'.format(code))
         return(code, message, detail)
+
+    def load_config(self):
+        """" load config from file """
+        self.logger.debug('load_config()')
+        config_dic = load_config()
+        if 'Account' in config_dic:
+            self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
 
     def lookup(self, aname):
         """ lookup account """
