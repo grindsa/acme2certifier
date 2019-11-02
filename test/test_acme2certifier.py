@@ -1966,8 +1966,49 @@ class TestACMEHandler(unittest.TestCase):
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
-        
-        
+
+    def test_271_inner_jws_check(self):
+        """ Account.inner_jws_check() no jwk in inner header"""
+        outer = {}
+        inner = {'foo': 'bar'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner jws is missing jwk'), self.account.inner_jws_check(outer, inner))
+
+    def test_272_inner_jws_check(self):
+        """ Account.inner_jws_check() no url in inner header """
+        outer = {'url' : 'url'}
+        inner = {'jwk': 'jwk'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner or outer jws is missing url header parameter'), self.account.inner_jws_check(outer, inner))
+
+    def test_273_inner_jws_check(self):
+        """ Account.inner_jws_check() no url in outer header """
+        outer = {'foo' : 'bar'}
+        inner = {'jwk': 'jwk', 'url': 'url'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner or outer jws is missing url header parameter'), self.account.inner_jws_check(outer, inner))
+
+    def test_274_inner_jws_check(self):
+        """ Account.inner_jws_check() different url string in inner and outer header """
+        outer = {'url' : 'url_'}
+        inner = {'jwk': 'jwk', 'url': 'url'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'url parameter differ in inner and outer jws'), self.account.inner_jws_check(outer, inner))
+
+    def test_275_inner_jws_check(self):
+        """ Account.inner_jws_check() same url string in inner and outer header """
+        outer = {'url' : 'url'}
+        inner = {'jwk': 'jwk', 'url': 'url'}
+        self.assertEqual((200, None, None), self.account.inner_jws_check(outer, inner))
+
+    def test_276_inner_jws_check(self):
+        """ Account.inner_jws_check() nonce in inner header """
+        outer = {'url' : 'url'}
+        inner = {'jwk': 'jwk', 'url': 'url', 'nonce': 'nonce'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner jws must omit nonce header'), self.account.inner_jws_check(outer, inner))
+
+    def test_277_inner_jws_check(self):
+        """ Account.inner_jws_check() nonce in inner header and inner_header_nonce_allow True """
+        outer = {'url' : 'url'}
+        inner = {'jwk': 'jwk', 'url': 'url', 'nonce': 'nonce'}
+        self.account.inner_header_nonce_allow = True
+        self.assertEqual((200, None, None), self.account.inner_jws_check(outer, inner))
 
 if __name__ == '__main__':
     unittest.main()
