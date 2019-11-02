@@ -15,29 +15,24 @@ class Signature(object):
         self.server_name = srv_name
         self.revocation_path = '/acme/revokecert'
 
-    def check(self, content, aname, protected=None):
+    def check(self, aname, content, use_emb_key=False, protected=None):
         """ signature check """
         self.logger.debug('Signature.check({0})'.format(aname))
 
         result = False
         error = None
-
         if aname:
+            self.logger.debug('check signature against account key')        
             pub_key = self.jwk_load(aname)
             if pub_key:
                 (result, error) = signature_check(self.logger, content, pub_key)
             else:
                 error = 'urn:ietf:params:acme:error:accountDoesNotExist'
-        elif protected:
-            self.logger.debug('no account_key given')
-            if 'url' in protected and 'jwk' in protected:
-                # for revocation we also allow request signed with domain key
-                if protected['url'] == '{0}{1}'.format(self.server_name, self.revocation_path):
-                    self.logger.debug('revocation request signed with domain key')
-                    pub_key = protected['jwk']
-                    (result, error) = signature_check(self.logger, content, pub_key)
-                else:
-                    error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+        elif use_emb_key:
+            self.logger.debug('check signature against key includedn in jwk')
+            if 'jwk' in protected:
+                pub_key = protected['jwk']
+                (result, error) = signature_check(self.logger, content, pub_key)
             else:
                 error = 'urn:ietf:params:acme:error:accountDoesNotExist'
         else:

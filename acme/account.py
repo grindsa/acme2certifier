@@ -21,7 +21,6 @@ class Account(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self.load_config()
-        print('jupp', self.inner_header_nonce_allow)
         return self
 
     def __exit__(self, *args):
@@ -167,7 +166,6 @@ class Account(object):
 
                 if code == 200:
                     (code, message, detail) = self.inner_jws_check(protected, inner_protected)
-                    print(code, message, detail)
 
                 # print(inner_protected)
 
