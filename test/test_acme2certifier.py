@@ -400,8 +400,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.name_get(string))
 
     def test_056_signature_check(self):
-        """ test Signature.check() without having a kid """
-        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', None))
+        """ test Signature.check() without having content """
+        self.assertEqual((False, 'urn:ietf:params:acme:error:malformed', None), self.signature.check('foo', None))
 
     @patch('acme.signature.Signature.jwk_load')
     def test_057_signature_check(self, mock_jwk):
@@ -417,41 +417,28 @@ class TestACMEHandler(unittest.TestCase):
         mock_sig.return_value = (True, None)
         self.assertEqual((True, None, None), self.signature.check('foo', 1))
 
-    @patch('acme.signature.signature_check')
-    @patch('acme.signature.Signature.jwk_load')
-    def test_059_signature_check(self, mock_jwk, mock_sig):
-        """ test successful Signature.check() without account_name but having a corrupted protected header"""
-        mock_jwk.return_value = {'foo' : 'bar'}
-        mock_sig.return_value = (True, None)
-        protected = 'foo'
-        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', None, protected))
+    def test_059_signature_check(self):
+        """ test successful Signature.check() without account_name and use_emb_key False"""
+        protected = {'jwk' : 'jwk'}      
+        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check(None, 1, False))
+
+    def test_060_signature_check(self):
+        """ test successful Signature.check() without account_name and use_emb_key True but having a corrupted protected header"""
+        protected = {'foo': 'foo'}
+        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check(None, 1, True, protected))
 
     @patch('acme.signature.signature_check')
-    @patch('acme.signature.Signature.jwk_load')
-    def test_060_signature_check(self, mock_jwk, mock_sig):
-        """ test successful Signature.check() without account_name but having url in protected header"""
-        mock_jwk.return_value = {'foo' : 'bar'}
-        mock_sig.return_value = (True, None)
-        protected = {'url' : 'url'}
-        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', None, protected))
+    def test_061_signature_check(self, mock_sig):
+        """ test successful Signature.check() with account_name and use_emb_key True, sigcheck returns something"""
+        mock_sig.return_value = ('result', 'error')
+        self.assertEqual(('result', 'error', None), self.signature.check('foo', 1, True))
 
     @patch('acme.signature.signature_check')
-    @patch('acme.signature.Signature.jwk_load')
-    def test_061_signature_check(self, mock_jwk, mock_sig):
-        """ test successful Signature.check() without account_name but having url (wrong) and jwk in protected header"""
-        mock_jwk.return_value = {'foo' : 'bar'}
-        mock_sig.return_value = (True, None)
+    def test_062_signature_check(self, mock_sig):
+        """ test successful Signature.check() without account_name and use_emb_key True, sigcheck returns something"""
+        mock_sig.return_value = ('result', 'error')
         protected = {'url' : 'url', 'jwk': 'jwk'}
-        self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', None, protected))
-
-    @patch('acme.signature.signature_check')
-    @patch('acme.signature.Signature.jwk_load')
-    def test_062_signature_check(self, mock_jwk, mock_sig):
-        """ test successful Signature.check() without account_name but having url (correct) and jwk in protected header"""
-        mock_jwk.return_value = {'foo' : 'bar'}
-        mock_sig.return_value = (True, None)
-        protected = {'url' : 'http://tester.local/acme/revokecert', 'jwk': 'jwk'}
-        self.assertEqual((True, None, None), self.signature.check('foo', None, protected))
+        self.assertEqual(('result', 'error', None), self.signature.check(None, 1, True, protected))        
 
     @patch('acme.message.decode_message')
     def test_063_message_check(self, mock_decode):
