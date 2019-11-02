@@ -28,7 +28,7 @@ class Message(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def check(self, content, skip_signature_check=False):
+    def check(self, content, use_emb_key=False):
         """ validate message """
         self.logger.debug('Message.check()')
 
@@ -36,6 +36,8 @@ class Message(object):
         if self.disable_dic['signature_check_disable']:
             print('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
             skip_signature_check = True
+        else:
+            skip_signature_check = False
             
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
@@ -54,7 +56,7 @@ class Message(object):
                 account_name = self.name_get(protected)
                 signature = Signature(self.debug, self.server_name, self.logger)
                 # we need the decoded protected header to grab a key to verify signature
-                (sig_check, error, error_detail) = signature.check(content, account_name, protected)
+                (sig_check, error, error_detail) = signature.check(account_name, content, use_emb_key, protected)
                 if sig_check:
                     code = 200
                     message = None
