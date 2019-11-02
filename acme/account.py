@@ -112,10 +112,9 @@ class Account(object):
         return(code, message, detail)
 
     def inner_jws_check(self, outer_protected, inner_protected):
-        """ check protected headers """
+        """ RFC8655 7.3.5 checs of inner JWS """
         self.logger.debug('Account.inner_jws_check()')
 
-        # RFC8655 7.3.5 checs of inner JWS
         # check for jwk header
         if 'jwk' in inner_protected:
             if 'url' in outer_protected and 'url' in inner_protected:
@@ -151,6 +150,36 @@ class Account(object):
         self.logger.debug('Account.inner_jws_check() endet with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
+    def inner_payload_check(self, aname, outer_protected, inner_payload):
+        """ RFC8655 7.3.5 checs of inner payload """
+        self.logger.debug('Account.inner_payload_check()')
+
+        if 'kid' in outer_protected:
+            if 'account' in inner_payload:
+                if outer_protected['kid'] == inner_payload['account']:
+                    if 'oldkey' in inner_payload:
+                        # compare oldkey with database
+                        (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])                
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'old key is missing...'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'kid and account objects do not match'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'account object is missing on inner payload'
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'kid is missing in outer header'
+
+        self.logger.debug('Account.inner_payload_check() endet with: {0}:{1}'.format(code, detail))
+        return(code, message, detail)
+
     def key_change(self, aname, payload, protected):
         """ key change for a given account """
         self.logger.debug('Account.key_change({0})'.format(aname))
@@ -167,11 +196,11 @@ class Account(object):
                 if code == 200:
                     (code, message, detail) = self.inner_jws_check(protected, inner_protected)
 
+                if code == 200:
+                    (code, message, detail) = self.inner_payload_check(aname, protected, inner_payload)
                 # print(inner_protected)
 
-                # if 'oldkey' in inner_payload:
-                    # compare oldkey with database
-                #    (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
+
 
                 #else:
                 #    code = 400
