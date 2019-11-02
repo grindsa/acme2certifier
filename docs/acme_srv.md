@@ -10,7 +10,7 @@
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please do only for testing/debugging purposes | True/False | False|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
-| `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURTIY ISSUE bypassing security checks and allowing messsage manipulations during transit. Please do only for testing/debugging purposes | True/False | False|
+| `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURTIY ISSUE bypassing security checks and allowing message manipulations during transit. Please do only for testing/debugging purposes | True/False | False|
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURTIY ISSUE as it exposes the API for replay attacks! Please do only for testing/debugging purposes | True/False | False|
 | `Order` | [`tnauthlist_support`](tnauthlist.md) | accept [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and challenges containing [tkauth-01 type](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) | True/False | False|
 
