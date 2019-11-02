@@ -163,7 +163,7 @@ class Account(object):
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
-                        detail = 'old key is missing...'
+                        detail = 'old key is missing'
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'

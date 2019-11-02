@@ -419,7 +419,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_059_signature_check(self):
         """ test successful Signature.check() without account_name and use_emb_key False"""
-        protected = {'jwk' : 'jwk'}      
+        protected = {'jwk' : 'jwk'}
         self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check(None, 1, False))
 
     def test_060_signature_check(self):
@@ -438,7 +438,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test successful Signature.check() without account_name and use_emb_key True, sigcheck returns something"""
         mock_sig.return_value = ('result', 'error')
         protected = {'url' : 'url', 'jwk': 'jwk'}
-        self.assertEqual(('result', 'error', None), self.signature.check(None, 1, True, protected))        
+        self.assertEqual(('result', 'error', None), self.signature.check(None, 1, True, protected))
 
     @patch('acme.message.decode_message')
     def test_063_message_check(self, mock_decode):
@@ -1996,6 +1996,38 @@ class TestACMEHandler(unittest.TestCase):
         inner = {'jwk': 'jwk', 'url': 'url', 'nonce': 'nonce'}
         self.account.inner_header_nonce_allow = True
         self.assertEqual((200, None, None), self.account.inner_jws_check(outer, inner))
+
+    def test_278_inner_payload_check(self):
+        """ Account.inner_payload_check() without kid in outer protected """
+        outer_protected = {}
+        inner_payload = {}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'kid is missing in outer header'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
+
+    def test_279_inner_payload_check(self):
+        """ Account.inner_payload_check() with kid in outer protected but without account object in inner_payload """
+        outer_protected = {'kid': 'kid'}
+        inner_payload = {}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'account object is missing on inner payload'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
+
+    def test_279_inner_payload_check(self):
+        """ Account.inner_payload_check() with different kid and account values """
+        outer_protected = {'kid': 'kid'}
+        inner_payload = {'account': 'account'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'kid and account objects do not match'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
+
+    def test_280_inner_payload_check(self):
+        """ Account.inner_payload_check() with same kid and account values but no old_key"""
+        outer_protected = {'kid': 'kid'}
+        inner_payload = {'account': 'kid'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'old key is missing'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
+
+    @patch('acme.account.Account.key_compare')
+    def test_281_inner_payload_check(self, mock_cmp):
+        """ Account.inner_payload_check() with same kid and account values but no old_key"""
+        outer_protected = {'kid': 'kid'}
+        inner_payload = {'account': 'kid', 'oldkey': 'oldkey'}
+        mock_cmp.return_value = ('code', 'message', 'detail')
+        self.assertEqual(('code', 'message', 'detail'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
 if __name__ == '__main__':
     unittest.main()
