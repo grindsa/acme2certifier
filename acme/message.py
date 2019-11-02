@@ -38,7 +38,7 @@ class Message(object):
             skip_signature_check = True
         else:
             skip_signature_check = False
-            
+
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
         account_name = None
