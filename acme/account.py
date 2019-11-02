@@ -159,7 +159,7 @@ class Account(object):
                 if outer_protected['kid'] == inner_payload['account']:
                     if 'oldkey' in inner_payload:
                         # compare oldkey with database
-                        (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])                
+                        (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
@@ -193,14 +193,23 @@ class Account(object):
                 # check message
                 (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
 
-                if code == 200:
-                    (code, message, detail) = self.inner_jws_check(protected, inner_protected)
+                if 'jwk' in inner_protected:
+                    # check if we already have the key stored in DB
+                    key_exists = self.lookup(json.dumps(inner_protected['jwk']), 'jwk')
+                    if not key_exists:
+                        if code == 200:
+                            (code, message, detail) = self.inner_jws_check(protected, inner_protected)
 
-                if code == 200:
-                    (code, message, detail) = self.inner_payload_check(aname, protected, inner_payload)
-                # print(inner_protected)
-
-
+                        if code == 200:
+                            (code, message, detail) = self.inner_payload_check(aname, protected, inner_payload)
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:badPublicKey'
+                        detail = 'public key does already exists'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'inner jws is missing jwk'
 
                 #else:
                 #    code = 400
@@ -262,10 +271,10 @@ class Account(object):
         if 'Account' in config_dic:
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
 
-    def lookup(self, aname):
+    def lookup(self, value, field='name'):
         """ lookup account """
-        self.logger.debug('Account.lookup({0})'.format(aname))
-        return self.dbstore.account_lookup('name', aname)
+        self.logger.debug('Account.lookup({0}:{1})'.format(field, value))
+        return self.dbstore.account_lookup(field, value)
 
     def name_get(self, content):
         """ get id for account depricated"""
