@@ -135,15 +135,15 @@ class Account(object):
                         else:
                             code = 400
                             message = 'urn:ietf:params:acme:error:malformed'
-                            detail = 'inner JWS must omit nonce header'
+                            detail = 'inner jws must omit nonce header'
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'url parameter differ in inner and outer JWS'
+                    detail = 'url parameter differ in inner and outer jws'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'inner or outer JWS is missing url header parameter'
+                detail = 'inner or outer jws is missing url header parameter'
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
