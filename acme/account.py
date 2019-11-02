@@ -150,6 +150,35 @@ class Account(object):
 
         return(code, message, detail)
 
+    def key_compare(self, aname, old_key):
+        """ compare key with the one stored in database """
+        self.logger.debug('Account.key_compare({0})'.format(aname))
+
+        # load current public key from database
+        pub_key = self.dbstore.jwk_load(aname)
+
+        if old_key and pub_key:
+            # rewrite alg statement in pubkey statement
+            if 'alg' in pub_key and 'alg' in old_key:
+                if pub_key['alg'].startswith('ES') and old_key['alg'] == 'ECDSA':
+                    pub_key['alg'] = 'ECDSA'
+
+            if old_key == pub_key:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:unauthorized'
+                detail = 'wrong public key'
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:unauthorized'
+            detail = 'wrong public key'
+
+        self.logger.debug('Account.key_compare() ended with: {0}'.format(code))
+        return(code, message, detail)
+
     def lookup(self, aname):
         """ lookup account """
         self.logger.debug('Account.lookup({0})'.format(aname))
