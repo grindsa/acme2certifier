@@ -217,11 +217,11 @@ class Account(object):
                 message = None
                 detail = None
             else:
-                code = 400
+                code = 401
                 message = 'urn:ietf:params:acme:error:unauthorized'
                 detail = 'wrong public key'
         else:
-            code = 400
+            code = 401
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'wrong public key'
 
