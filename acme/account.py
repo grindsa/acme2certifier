@@ -109,6 +109,47 @@ class Account(object):
         self.logger.debug('Account.delete() ended with:{0}'.format(code))
         return(code, message, detail)
 
+    def key_change(self, aname, payload, protected):
+        """ key change for a given account """
+        self.logger.debug('Account.key_change({0})'.format(aname))
+
+        code = 400
+        message = None
+        detail = 'default'
+
+        if 'url' in protected:
+            if 'key-change' in protected['url']:
+                # check message
+                (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
+
+                if 'oldkey' in inner_payload:
+                    # compare oldkey with database
+                    (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
+
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'old key is missing...'
+
+                from pprint import pprint
+                # print('old protected')
+                # pprint(protected)
+                # print('inner protected')
+                # pprint(inner_protected)
+                print('innter payload')
+                pprint(inner_payload)
+                #print(protected, aname)
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'malformed request'
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'malformed request'
+
+        return(code, message, detail)
+
     def lookup(self, aname):
         """ lookup account """
         self.logger.debug('Account.lookup({0})'.format(aname))
@@ -205,7 +246,7 @@ class Account(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
+        (code, message, detail, protected, payload, account_name) = self.message.check(content)
         if code == 200:
             if 'status' in payload:
                 # account deactivation
@@ -231,6 +272,9 @@ class Account(object):
                     code = 400
                     message = 'urn:ietf:params:acme:error:accountDoesNotExist'
                     detail = 'update failed'
+            elif 'payload' in payload:
+                # this could be a key-change
+                (code, message, detail) = self.key_change(account_name, payload, protected)
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
