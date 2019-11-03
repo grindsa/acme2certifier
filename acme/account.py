@@ -329,31 +329,36 @@ class Account(object):
 
     def onlyreturnexisting(self, protected, payload):
         """ check onlyreturnexisting """
-        if payload['onlyreturnexisting']:
-            code = None
-            message = None
-            detail = None
-            
-            if 'jwk' in protected:
-                result = self.dbstore.account_lookup('jwk', protected['jwk'])
-                if result:
-                    code = 200
-                    message = result['name']
-                    detail = None
+        if 'onlyreturnexisting' in payload:
+            if payload['onlyreturnexisting']:
+                code = None
+                message = None
+                detail = None
+                
+                if 'jwk' in protected:
+                    result = self.dbstore.account_lookup('jwk', protected['jwk'])
+                    if result:
+                        code = 200
+                        message = result['name']
+                        detail = None
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                        detail = None
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
-                    detail = None
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'jwk structure missing'
+
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'jwk structure missing'
-
+                message = 'urn:ietf:params:acme:error:userActionRequired'
+                detail = 'onlyReturnExisting must be true'
         else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:userActionRequired'
-            detail = 'onlyReturnExisting must be true'
-
+            code = 500
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'onlyReturnExisting without payload'
+            
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
         return(code, message, detail)
 
