@@ -338,7 +338,6 @@ class Account(object):
 
                 if 'jwk' in protected:
                     result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
-                    print(result)
                     if result:
                         code = 200
                         message = result['name']
