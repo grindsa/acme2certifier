@@ -223,7 +223,7 @@ class Account(object):
                         else:
                             code = 500
                             message = 'urn:ietf:params:acme:error:serverInternal'
-                            detail = 'key rollover failed'                        
+                            detail = 'key rollover failed'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
@@ -329,14 +329,16 @@ class Account(object):
 
     def onlyreturnexisting(self, protected, payload):
         """ check onlyreturnexisting """
+        self.logger.debug('Account.onlyreturnexisting(}')        
         if 'onlyreturnexisting' in payload:
             if payload['onlyreturnexisting']:
                 code = None
                 message = None
                 detail = None
-                
+
                 if 'jwk' in protected:
-                    result = self.dbstore.account_lookup('jwk', protected['jwk'])
+                    result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
+                    print(result)
                     if result:
                         code = 200
                         message = result['name']
@@ -358,7 +360,7 @@ class Account(object):
             code = 500
             message = 'urn:ietf:params:acme:error:serverInternal'
             detail = 'onlyReturnExisting without payload'
-            
+
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
         return(code, message, detail)
 
