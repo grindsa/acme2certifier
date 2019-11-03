@@ -547,11 +547,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'jwk structure missing'), self.account.onlyreturnexisting(protected, payload))
 
     def test_075_onlyreturnexisting(self):
-        """ test onlyReturnExisting without jwk[n] structure """
+        """ test onlyReturnExisting fucntion without onlyReturnExisting structure """
         # self.signature.dbstore.jwk_load.return_value = 1
-        protected = {'jwk' : {}}
-        payload = {'onlyreturnexisting' : True}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'n value missing'), self.account.onlyreturnexisting(protected, payload))
+        protected = {}
+        payload = {}
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'onlyReturnExisting without payload'), self.account.onlyreturnexisting(protected, payload))
 
     def test_076_onlyreturnexisting(self):
         """ test onlyReturnExisting for existing account """
