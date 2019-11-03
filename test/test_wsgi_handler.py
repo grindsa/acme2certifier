@@ -4,12 +4,16 @@
 import unittest
 import sys
 import os
+try:
+    from mock import patch, MagicMock
+except ImportError:
+    from unittest.mock import patch, MagicMock
 sys.path.insert(0, '..')
 
 def dict_from_row(row):
     """ small helper to convert a select list into a dictionary """
     return dict(zip(row.keys(), row))
-    
+
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
@@ -22,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
             format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
             datefmt="%Y-%m-%d %H:%M:%S",
             level=logging.INFO)
-        self.logger = logging.getLogger('test_acme2certifier')        
+        self.logger = logging.getLogger('test_acme2certifier')
         self.dbstore = DBstore(False, self.logger, 'acme_test.db')
 
     def test_001_nonce_add(self):
@@ -56,59 +60,53 @@ class TestACMEHandler(unittest.TestCase):
     def test_008_accout_add(self):
         """ test DBstore.account_add() method for a new entry """
         data_dic = {
-            'alg' : 'alg',
-            'exponent' : 'exponent',
-            'kty' : 'kty',
-            'modulus' : 'modulus',
-            'contact' : 'contact',
-            'name' : 'name'}
-        self.assertEqual(('name', True), self.dbstore.account_add(data_dic))
+            'alg' : 'alg1',
+            'jwk' : '{"key11": "val11", "key12": "val12"}',
+            'contact' : 'contact1',
+            'name' : 'name1'}
+        self.assertEqual(('name1', True), self.dbstore.account_add(data_dic))
 
     def test_009_accout_add(self):
         """ test DBstore.account_add() method for a new entry """
         data_dic = {
             'alg' : 'alg2',
-            'exponent' : 'exponent2',
-            'kty' : 'kty2',
-            'modulus' : 'modulus2',
+            'jwk' : 'jwk2',
             'contact' : 'contact2',
             'name' : 'name2'}
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
 
-    def test_010_accout_add(self):
-        """ test DBstore.account_add() method for an existing entry """
-        data_dic = {
-            'alg' : 'alg',
-            'exponent' : 'exponent',
-            'kty' : 'kty',
-            'modulus' : 'modulus',
-            'contact' : 'contact',
-            'name' : 'name3'}
-        self.assertEqual(('name', False), self.dbstore.account_add(data_dic))
+    #def test_010_accout_add(self):
+    #    """ test DBstore.account_add() method for an existing entry """
+    #    data_dic = {
+    #        'alg' : 'alg3',
+    #        'jwk' : 'jwk3',
+    #        'contact' : 'contact3',
+    #        'name' : 'name'}
+    #    self.assertEqual(('name', False), self.dbstore.account_add(data_dic))
 
     def test_011_accout_search_alg(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('exponent2'), self.dbstore.account_search('alg', 'alg2'))
+        self.assertIn(('contact2'), self.dbstore.account_search('alg', 'alg2'))
 
-    def test_012_accout_search_kty(self):
-        """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('exponent2'), self.dbstore.account_search('kty', 'kty2'))
+    def test_012_accout_search_jwk(self):
+        """ test DBstore.account_seach() method for jwk """
+        self.assertIn(('contact1'), self.dbstore.account_search('jwk', '{"key11": "val11", "key12": "val12"}'))
 
-    def test_013_accout_search_mod(self):
+    def test_013_accout_search_jwk(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('exponent2'), self.dbstore.account_search('modulus', 'modulus2'))
+        self.assertIn(('contact2'), self.dbstore.account_search('jwk', 'jwk2'))
 
     def test_014_accout_search_contact(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('exponent2'), self.dbstore.account_search('contact', 'contact2'))
+        self.assertIn(('jwk2'), self.dbstore.account_search('contact', 'contact2'))
 
     def test_015_accout_search_exponent(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('modulus2'), self.dbstore.account_search('exponent', 'exponent2'))
+        self.assertIn(('name1'), self.dbstore.account_search('name', 'name1'))
 
     def test_016_jkw_load(self):
         """ test DBstore.jwk_load() for an exisitng key"""
-        self.assertEqual({'alg': u'alg', 'e': u'exponent', 'kty': u'kty', 'n': u'modulus'}, self.dbstore.jwk_load('name'))
+        self.assertEqual({'alg': u'alg1', u'key11': u'val11', u'key12': u'val12'}, self.dbstore.jwk_load('name1'))
 
     def test_017_jkw_load(self):
         """ test DBstore.jwk_load() for an not exisitng key"""
@@ -122,13 +120,15 @@ class TestACMEHandler(unittest.TestCase):
         """ test DBstore.account_delete() for an non exisitng key"""
         self.assertFalse(self.dbstore.account_delete('not_existing'))
 
-    def test_020_account_lookup(self):
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_020_account_lookup(self, mock_datestr):
         """ test DBstore.account_delete() for an exisitng key"""
-        self.assertEqual({'id': 1, 'name': u'name'}, self.dbstore.account_lookup('modulus', 'modulus'))
+        mock_datestr.return_value = 'datestr'
+        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr'}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
 
     def test_021_account_lookup(self):
         """ test DBstore.account_delete() for an non exisitng key"""
-        self.assertFalse(self.dbstore.account_lookup('modulus', 'modulus2'))
+        self.assertFalse(self.dbstore.account_lookup('jwk', 'jwk4'))
 
     def test_022_order_add(self):
         """ test DBstore.order_add() method for a new entry """
@@ -216,14 +216,14 @@ class TestACMEHandler(unittest.TestCase):
         """ test DBstore.challenge_update() method  with both"""
         data_dic = {'name' : 'challenge2', 'status' : 'valid', 'keyauthorization' : 'auth2'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
-        
+
     def test_041_order_search(self):
         """ test DBstore.order_search() method (unsuccesful) """
-        self.assertEqual(None, self.dbstore.order_search('name', 'order'))       
+        self.assertEqual(None, self.dbstore.order_search('name', 'order'))
 
     def test_042_order_search(self):
         """ test DBstore.order_search() method (succesful) """
-        self.assertEqual('name', dict_from_row(self.dbstore.order_search('name', 'name'))['name'])              
+        self.assertEqual('name', dict_from_row(self.dbstore.order_search('name', 'name'))['name'])
 
 if __name__ == '__main__':
 
