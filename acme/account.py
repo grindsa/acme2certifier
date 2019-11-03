@@ -52,7 +52,7 @@ class Account(object):
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
-            detail = 'incomplete protectedpayload'
+            detail = 'incomplete protected payload'
 
         self.logger.debug('Account.account_add() ended with:{0}'.format(code))
         return(code, message, detail)
