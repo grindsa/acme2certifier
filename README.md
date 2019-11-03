@@ -37,6 +37,7 @@ As of today acme2certifier supports the below ACME functions only:
 - "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/rfc8555#section-7.3)
     - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/rfc8555#section-7.3.1)
     - Account update [(Section 7.3.2)](https://tools.ietf.org/html/rfc8555#section-7.3.2)    
+    - Key Rollover [(Section 7.3.5)](https://tools.ietf.org/html/rfc8555#section-7.3.5)
     - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/rfc8555#section-7.3.6)
 - "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
 - "order finalization" [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
