@@ -333,21 +333,17 @@ class Account(object):
             code = None
             message = None
             detail = None
+            
             if 'jwk' in protected:
-                if 'n' in protected['jwk']:
-                    result = self.dbstore.account_lookup('modulus', protected['jwk']['n'])
-                    if result:
-                        code = 200
-                        message = result['name']
-                        detail = None
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
-                        detail = None
+                result = self.dbstore.account_lookup('jwk', protected['jwk'])
+                if result:
+                    code = 200
+                    message = result['name']
+                    detail = None
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'n value missing'
+                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    detail = None
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
