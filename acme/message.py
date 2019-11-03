@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
+import json
 from acme.helper import decode_message, load_config
 from acme.error import Error
 from acme.db_handler import DBstore
@@ -94,8 +95,8 @@ class Message(object):
         elif 'jwk' in content and 'url' in content:
             if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing)
-                if 'n' in content['jwk']:
-                    account_list = self.dbstore.account_lookup('modulus', content['jwk']['n'])
+                if 'jwk' in content:
+                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
                     if account_list:
                         if 'name' in account_list:
                             kid = account_list['name']
