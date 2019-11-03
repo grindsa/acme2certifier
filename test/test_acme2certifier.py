@@ -2054,13 +2054,58 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.inner_jws_check')
     @patch('acme.account.Account.lookup')
     def test_285_key_change_validate(self, mock_lup, mock_jws_chk, mock_pl_chk):
-        """ Account.key_change_validate() inner_jws_check returns 400 """
+        """ Account.key_change_validate() inner_jws_check returns 200 """
         inner_protected = {'jwk': 'jwk'}
         mock_lup.return_value = False
         mock_jws_chk.return_value = (200, 'message1', 'detail1')
         mock_pl_chk.return_value = ('code2', 'message2', 'detail2')
         self.assertEqual(('code2', 'message2', 'detail2'), self.account.key_change_validate('aname', {}, inner_protected, {}))
 
+    def test_286_key_change(self):
+        """ Account.key_change() without URL in protected """
+        protected = {}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'malformed request'), self.account.key_change('aname', {}, protected))
+
+    def test_287_key_change(self):
+        """ Account.key_change() with URL in protected without key-change in url"""
+        protected = {'url': 'url'}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'malformed request. not a key-change'), self.account.key_change('aname', {}, protected))
+
+    @patch('acme.message.Message.check')
+    def test_288_key_change(self, mock_mcheck):
+        """ Account.key_change() message.check() returns non-200"""
+        protected = {'url': 'url/key-change'}
+        mock_mcheck.return_value = ('code1', 'message1', 'detail1', 'prot', 'payload', 'aname')
+        self.assertEqual(('code1', 'message1', 'detail1'), self.account.key_change('aname', {}, protected))
+
+    @patch('acme.account.Account.key_change_validate')
+    @patch('acme.message.Message.check')
+    def test_289_key_change(self, mock_mcheck, moch_kchval):
+        """ Account.key_change() with URL in protected without key-change in url"""
+        protected = {'url': 'url/key-change'}
+        mock_mcheck.return_value = (200, 'message1', 'detail1', 'prot', 'payload', 'aname')
+        moch_kchval.return_value = ('code2', 'message2', 'detail2')
+        self.assertEqual(('code2', 'message2', 'detail2'), self.account.key_change('aname', {}, protected))
+
+    @patch('acme.account.Account.key_change_validate')
+    @patch('acme.message.Message.check')
+    def test_290_key_change(self, mock_mcheck, moch_kchval):
+        """ Account.key_change() - account_update returns nothing"""
+        protected = {'url': 'url/key-change'}
+        mock_mcheck.return_value = (200, 'message1', 'detail1', {'jwk': {'h1': 'h1a', 'h2': 'h2a', 'h3': 'h3a'}}, 'payload', 'aname')
+        moch_kchval.return_value = (200, 'message2', 'detail2')
+        self.account.dbstore.account_update.return_value = None
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'key rollover failed'), self.account.key_change('aname', {}, protected))
+
+    @patch('acme.account.Account.key_change_validate')
+    @patch('acme.message.Message.check')
+    def test_291_key_change(self, mock_mcheck, moch_kchval):
+        """ Account.key_change() - account_update returns nothing"""
+        protected = {'url': 'url/key-change'}
+        mock_mcheck.return_value = (200, 'message1', 'detail1', {'jwk': {'h1': 'h1a', 'h2': 'h2a', 'h3': 'h3a'}}, 'payload', 'aname')
+        moch_kchval.return_value = (200, 'message2', 'detail2')
+        self.account.dbstore.account_update.return_value = True
+        self.assertEqual((200, None, None), self.account.key_change('aname', {}, protected))
 
 if __name__ == '__main__':
     unittest.main()

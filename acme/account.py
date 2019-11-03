@@ -220,10 +220,14 @@ class Account(object):
                             code = 200
                             message = None
                             detail = None
+                        else:
+                            code = 500
+                            message = 'urn:ietf:params:acme:error:serverInternal'
+                            detail = 'key rollover failed'                        
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'malformed request'
+                detail = 'malformed request. not a key-change'
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
