@@ -184,10 +184,6 @@ class Account(object):
         """ key change for a given account """
         self.logger.debug('Account.key_change({0})'.format(aname))
 
-        code = 400
-        message = None
-        detail = 'default'
-
         if 'url' in protected:
             if 'key-change' in protected['url']:
                 # check message
@@ -202,6 +198,14 @@ class Account(object):
 
                         if code == 200:
                             (code, message, detail) = self.inner_payload_check(aname, protected, inner_payload)
+
+                        if code == 200:
+                            data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
+                            result = self.dbstore.account_update(data_dic)
+                            if result:
+                                code = 200
+                                message = None
+                                detail = None
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:badPublicKey'
@@ -210,20 +214,6 @@ class Account(object):
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
                     detail = 'inner jws is missing jwk'
-
-                #else:
-                #    code = 400
-                #    message = 'urn:ietf:params:acme:error:malformed'
-                #    detail = 'old key is missing...'
-
-                # from pprint import pprint
-                # print('old protected')
-                # pprint(protected)
-                # print('inner protected')
-                # pprint(inner_protected)
-                # print('innter payload')
-                # pprint(inner_payload)
-                #print(protected, aname)
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
@@ -396,6 +386,8 @@ class Account(object):
             elif 'payload' in payload:
                 # this could be a key-change
                 (code, message, detail) = self.key_change(account_name, payload, protected)
+                if code == 200:     
+                    response_dic['data'] = {}                
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
