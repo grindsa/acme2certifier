@@ -69,42 +69,41 @@ def get_request_body(environ):
 
 def acct(environ, start_response):
     """ account handling """
-    account = Account(DEBUG, get_url(environ), LOGGER)
-    request_body = get_request_body(environ)
-    response_dic = account.parse(request_body)
+    with Account(DEBUG, get_url(environ), LOGGER) as account:
+        request_body = get_request_body(environ)
+        response_dic = account.parse(request_body)
 
-    # create header
-    headers = create_header(response_dic)
-    start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
-    return [json.dumps(response_dic['data']).encode('utf-8')]
+        # create header
+        headers = create_header(response_dic)
+        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        return [json.dumps(response_dic['data']).encode('utf-8')]
 
 
 def authz(environ, start_response):
     """ account handling """
     if environ['REQUEST_METHOD'] == 'POST' or environ['REQUEST_METHOD'] == 'GET':
-        authorization = Authorization(DEBUG, get_url(environ), LOGGER)
-        if environ['REQUEST_METHOD'] == 'POST':
-            try:
-                request_body_size = int(environ.get('CONTENT_LENGTH', 0))
-            except ValueError:
-                request_body_size = 0
-            request_body = environ['wsgi.input'].read(request_body_size)
-            response_dic = authorization.new_post(request_body)
-        else:
-            response_dic = authorization.new_get(get_url(environ, True))
+        with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
+            if environ['REQUEST_METHOD'] == 'POST':
+                try:
+                    request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+                except ValueError:
+                    request_body_size = 0
+                request_body = environ['wsgi.input'].read(request_body_size)
+                response_dic = authorization.new_post(request_body)
+            else:
+                response_dic = authorization.new_get(get_url(environ, True))
 
-        # generate header and nonce
-        headers = [('Content-Type', 'application/json')]
-        # enrich header
-        if 'header' in response_dic:
-            for element, value in response_dic['header'].items():
-                headers.append((element, value))
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            # generate header and nonce
+            headers = [('Content-Type', 'application/json')]
+            # enrich header
+            if 'header' in response_dic:
+                for element, value in response_dic['header'].items():
+                    headers.append((element, value))
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data']).encode('utf-8')]
-
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            return [json.dumps(response_dic['data']).encode('utf-8')]
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
@@ -140,34 +139,34 @@ def directory(environ, start_response):
 
 def cert(environ, start_response):
     """ create new account """
-    certificate = Certificate(DEBUG, get_url(environ), LOGGER)
-    if environ['REQUEST_METHOD'] == 'POST':
-        request_body = get_request_body(environ)
-        response_dic = certificate.new_post(request_body)
-        # create header
-        headers = create_header(response_dic, False)
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+    with Certificate(DEBUG, get_url(environ), LOGGER) as certificate:
+        if environ['REQUEST_METHOD'] == 'POST':
+            request_body = get_request_body(environ)
+            response_dic = certificate.new_post(request_body)
+            # create header
+            headers = create_header(response_dic, False)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [response_dic['data'].encode('utf-8')]
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            return [response_dic['data'].encode('utf-8')]
 
-    elif environ['REQUEST_METHOD'] == 'GET':
+        elif environ['REQUEST_METHOD'] == 'GET':
 
-        response_dic = certificate.new_get(get_url(environ, True))
-        # create header
-        headers = create_header(response_dic)
-        # create the response
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            response_dic = certificate.new_get(get_url(environ, True))
+            # create header
+            headers = create_header(response_dic)
+            # create the response
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        # send response
-        return [response_dic['data']]
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            # send response
+            return [response_dic['data']]
 
-    else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        else:
+            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 def chall(environ, start_response):
     """ create new account """
@@ -255,20 +254,20 @@ def order(environ, start_response):
 def revokecert(environ, start_response):
     """ revocation_handler """
     if environ['REQUEST_METHOD'] == 'POST':
-        certificate = Certificate(DEBUG, get_url(environ), LOGGER)
-        request_body = get_request_body(environ)
-        response_dic = certificate.revoke(request_body)
+        with Certificate(DEBUG, get_url(environ), LOGGER) as certificate:
+            request_body = get_request_body(environ)
+            response_dic = certificate.revoke(request_body)
 
-        # create header
-        headers = create_header(response_dic)
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            # create header
+            headers = create_header(response_dic)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        if 'data' in response_dic:
-            return [json.dumps(response_dic['data']).encode('utf-8')]
-        else:
-            return []
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            if 'data' in response_dic:
+                return [json.dumps(response_dic['data']).encode('utf-8')]
+            else:
+                return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
@@ -285,6 +284,7 @@ URLS = [
     (r'^acme/authz', authz),
     (r'^acme/cert', cert),
     (r'^acme/chall', chall),
+    (r'^acme/key-change', acct),
     (r'^acme/newaccount$', newaccount),
     (r'^acme/newnonce$', newnonce),
     (r'^acme/neworders$', neworders),

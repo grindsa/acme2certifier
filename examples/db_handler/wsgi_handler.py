@@ -63,7 +63,10 @@ class DBstore(object):
     def account_lookup(self, column, string):
         """ lookup account table for a certain key/value pair and return id"""
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
-        result = dict_from_row(self.account_search(column, string))
+        try:
+            result = dict_from_row(self.account_search(column, string))
+        except:
+            result = {}
         if 'created_at' in result:
             result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
         self.logger.debug('DBStore.account_lookup() ended')
@@ -81,7 +84,7 @@ class DBstore(object):
         return result
 
     def account_update(self, data_dic):
-        """ update existing authorization """
+        """ update existing account """
         self.logger.debug('DBStore.account_update({0})'.format(data_dic))
 
         lookup = dict_from_row(self.account_search('name', data_dic['name']))
@@ -100,7 +103,7 @@ class DBstore(object):
             self.db_close()
         else:
             result = None
-        self.logger.debug('DBStore.authorization_update() ended')
+        self.logger.debug('DBStore.account_update() ended')
         return result
 
     def authorization_add(self, data_dic):
@@ -119,7 +122,7 @@ class DBstore(object):
 
         lookup = self.authorization_search(column, string)
         authz_list = []
-
+    
         for row in lookup:
             row_dic = dict_from_row(row)
             tmp_dic = {}
@@ -416,7 +419,6 @@ class DBstore(object):
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
         account_list = self.account_search('name', aname)
-        print('foo', account_list)
         jwk_dict = {}
         if account_list:
             jwk_dict = json.loads(account_list[3])
