@@ -5,6 +5,7 @@ from __future__ import print_function
 import re
 import json
 import sys
+from wsgiref.simple_server import make_server, WSGIRequestHandler
 from acme.account import Account
 from acme.authorization import Authorization
 from acme.certificate import Certificate
@@ -302,10 +303,21 @@ def application(environ, start_response):
             return callback(environ, start_response)
     return not_found(environ, start_response)
 
+def get_handler_cls():
+    """ my handler to disable name resolution """
+    cls = WSGIRequestHandler
+
+    # disable dns resolution in BaseHTTPServer.py
+    class Acme2certiferhandler(cls, object):
+        """ source: https://review.opendev.org/#/c/79876/9/ceilometer/api/app.py """
+        def address_string(self):
+            return self.client_address[0]
+
+    return Acme2certiferhandler
+
 if __name__ == '__main__':
 
-    from wsgiref.simple_server import make_server
-    SRV = make_server('0.0.0.0', 80, application)
+    SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
     SRV.serve_forever()
 
 # start_response('403 {0}'.format(HTTP_CODE_DIC[403]), [('Content-Type', 'application/json')])
