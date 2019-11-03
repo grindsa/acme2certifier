@@ -134,6 +134,13 @@ class CAhandler(object):
         if san_list:
             cmd_list.extend(['-sans', san_list])
         cmd_list.extend(['-extracertsout', '{0}/{1}_capubs.pem'.format(self.tmp_dir, uts), '-certout', '{0}/{1}_cert.pem'.format(self.tmp_dir, uts)])
+
+        # set timeouts if not configured
+        if '-msgtimeout' not in cmd_list:
+            cmd_list.extend(['-msgtimeout', '5'])
+        if '-totaltimeout' not in cmd_list:
+            cmd_list.extend(['-totaltimeout', '10'])
+
         self.logger.debug('CAhandler.opensslcmd_build() ended with: {0}'.format(' '.join(cmd_list)))
         return cmd_list
 
