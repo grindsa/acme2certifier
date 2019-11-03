@@ -180,6 +180,29 @@ class Account(object):
         self.logger.debug('Account.inner_payload_check() endet with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
+    def key_change_validate(self, aname, outer_protected, inner_protected, inner_payload):
+        """ validate key_change before exectution """
+        self.logger.debug('Account.key_change_validate({0})'.format(aname))
+        if 'jwk' in inner_protected:
+            # check if we already have the key stored in DB
+            key_exists = self.lookup(json.dumps(inner_protected['jwk']), 'jwk')
+            if not key_exists:
+                (code, message, detail) = self.inner_jws_check(outer_protected, inner_protected)
+
+                if code == 200:
+                    (code, message, detail) = self.inner_payload_check(aname, outer_protected, inner_payload)
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:badPublicKey'
+                detail = 'public key does already exists'
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'inner jws is missing jwk'
+
+        self.logger.debug('Account.key_change_validate() endet with: {0}:{1}'.format(code, detail))
+        return(code, message, detail)
+
     def key_change(self, aname, payload, protected):
         """ key change for a given account """
         self.logger.debug('Account.key_change({0})'.format(aname))
@@ -188,32 +211,15 @@ class Account(object):
             if 'key-change' in protected['url']:
                 # check message
                 (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
-
-                if 'jwk' in inner_protected:
-                    # check if we already have the key stored in DB
-                    key_exists = self.lookup(json.dumps(inner_protected['jwk']), 'jwk')
-                    if not key_exists:
-                        if code == 200:
-                            (code, message, detail) = self.inner_jws_check(protected, inner_protected)
-
-                        if code == 200:
-                            (code, message, detail) = self.inner_payload_check(aname, protected, inner_payload)
-
-                        if code == 200:
-                            data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
-                            result = self.dbstore.account_update(data_dic)
-                            if result:
-                                code = 200
-                                message = None
-                                detail = None
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:badPublicKey'
-                        detail = 'public key does already exists'
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'inner jws is missing jwk'
+                if code == 200:
+                    (code, message, detail) = self.key_change_validate(aname, protected, inner_protected, inner_payload)
+                    if code == 200:
+                        data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
+                        result = self.dbstore.account_update(data_dic)
+                        if result:
+                            code = 200
+                            message = None
+                            detail = None
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
@@ -386,8 +392,8 @@ class Account(object):
             elif 'payload' in payload:
                 # this could be a key-change
                 (code, message, detail) = self.key_change(account_name, payload, protected)
-                if code == 200:     
-                    response_dic['data'] = {}                
+                if code == 200:
+                    response_dic['data'] = {}
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
