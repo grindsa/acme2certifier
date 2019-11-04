@@ -12,6 +12,7 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
     - [Insta certifier](docs/certifier.md)
     - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
     - [Generic EST protocol handler](docs/est.md)
+    - [Generic CMPv2 protocol handler](docs/cmp.md) 
     - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
 
 For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
