@@ -1169,63 +1169,65 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
     def test_166_order_parse(self, mock_mcheck, mock_oname):
-        """ Order.parse() finalized failed bcs. no csr in payload """
+        """ Order.parse() name_get failed """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
-        mock_oname.return_value = 'order_name'
+        mock_oname.return_value = None
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'csr is missing in payload', 'message': 'urn:ietf:params:acme:error:badCSR', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'order name is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
 
-    @patch('acme.order.Order.process_csr')
+    @patch('acme.order.Order.lookup')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_167_order_parse(self, mock_mcheck, mock_oname, mock_csr):
-        """ Order.parse() finalized failed bcs. enrollment failure """
-        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"}, 'account_name')
-        mock_oname.return_value = 'order_name'
-        mock_csr.return_value = (400, 'cert_name', 'detail')
+    def test_167_order_parse(self, mock_mcheck, mock_oname, mock_lookup):
+        """ Order.parse() failed as order lookup failed """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = None
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'enrollment failed', 'message': 'urn:ietf:params:acme:error:badCSR', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 404, 'data': {'detail': 'order not found', 'message': 'urn:ietf:params:acme:error:orderNotReady', 'status': 404}}, self.order.parse(message))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.order.Order.update')
-    @patch('acme.order.Order.process_csr')
+    @patch('acme.order.Order.process')
+    @patch('acme.order.Order.lookup')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_168_order_parse(self, mock_mcheck, mock_oname, mock_csr, mock_update, mock_nnonce):
-        """ Order.parse() finalized sucessful """
-        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"csr" : "csr_payload"}, 'account_name')
-        mock_oname.return_value = 'order_name'
-        mock_csr.return_value = (200, 'cert_name', 'detail')
-        mock_update.return_value = True
-        mock_nnonce.return_value = 'new_nonce'
+    def test_168_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process):
+        """ Order.parse() succ, oder process returned non 200 """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = 'foo'
+        mock_process.return_value = ('code', 'message', 'detail', None)
         message = '{"foo" : "bar"}'
-        e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
-        self.assertEqual(e_result, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 'code', 'data': {'detail': 'detail', 'message': 'message', 'status': 'code'}}, self.order.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order.process')
+    @patch('acme.order.Order.lookup')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_169_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
-        """ Order.parse() polling failed bcs. certificate not found """
-        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"}, 'account_name')
-        mock_oname.return_value = 'order_name'
-        mock_nnonce.return_value = 'new_nonce'
+    def test_169_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process, mock_nnonce):
+        """ Order.parse() succ, oder process returned 200 and no certname """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = {'foo': 'bar'}
+        mock_process.return_value = (200, 'message', 'detail', None)
+        mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.order.dbstore.certificate_lookup.return_value = {}
-        self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order.process')
+    @patch('acme.order.Order.lookup')
     @patch('acme.order.Order.name_get')
     @patch('acme.message.Message.check')
-    def test_170_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
-        """ Order.parse() polling successful """
-        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url'}, {"foo_payload" : "bar_payload"}, 'account_name')
-        mock_oname.return_value = 'order_name'
-        mock_nnonce.return_value = 'new_nonce'
+    def test_170_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process, mock_nnonce):
+        """ Order.parse() succ, oder process returned 200 and certname """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = {'foo': 'bar'}
+        mock_process.return_value = (200, 'message', 'detail', 'certname')
+        mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.order.dbstore.certificate_lookup.return_value = {'name' : 'cert_name'}
-        e_result = {'header': {'Location': 'http://tester.local/acme/order/order_name', 'Replay-Nonce': 'new_nonce'}, 'code': 200, 'data': {'authorizations': [], 'certificate': 'http://tester.local/acme/cert/cert_name', 'finalize': 'http://tester.local/acme/order/order_name/finalize'}}
-        self.assertEqual(e_result, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'certificate': 'http://tester.local/acme/cert/certname', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     @patch('acme.message.Message.check')
     def test_171_authorization_post(self, mock_mcheck):
