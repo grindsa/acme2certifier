@@ -102,9 +102,12 @@ class Order(object):
 
         if identifiers_list:
             for identifier in identifiers_list:
-                if identifier['type'].lower() not in allowed_identifers:
-                    error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
-                    break
+                if 'type' in identifier:
+                    if identifier['type'].lower() not in allowed_identifers:
+                        error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
+                        break
+                else:
+                    error = 'urn:ietf:params:acme:error:malformed'
         else:
             error = 'urn:ietf:params:acme:error:malformed'
 
