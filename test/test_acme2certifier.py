@@ -1721,6 +1721,10 @@ class TestACMEHandler(unittest.TestCase):
         """ order identifers check with dictionary identifier """
         self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check({'type': 'dns', 'value': 'foo.bar'}))
 
+    def test_112_order_identifier_check(self):
+        """ order identifers check with correct identifer but case-insensitive """
+        self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([{'Type': 'dns', 'value': 'value'}]))
+
     def test_232_order_identifier_check(self):
         """ order identifers check with wrong identifer in list"""
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}]))
