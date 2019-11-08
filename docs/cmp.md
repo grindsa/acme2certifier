@@ -14,7 +14,7 @@ if you need further instructions  how to do so.
 Pre-compiled binaries for [Ubuntu 18.04](UB18CMPOpenSSL.7z) and [Windows](WindowsCMPOpenSSL.zip) are also available for testing purposes.
 
 Technically the ca-handler acts as registration authority towards CMPv2 server. That means you need to configure a registration authority on your CMPv2 server with
-either Refnum/PSK or certificate authentication. Please consult your CMPv2 server configuration how to do this.
+either Refnum/PSK or certificate authentication. Please consult your server configuration how to do this.
 
 The configuration could be a bid tricky and may require finetuning depending on type and configuration of your CMPv2 server. I strongly suggest to try enrollment via
 command line first and adapt the ca_handler accordingly.
