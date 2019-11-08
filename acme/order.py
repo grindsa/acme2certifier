@@ -159,37 +159,17 @@ class Order(object):
         response_dic = {}
         # check message
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+
         if code == 200:
             if 'url' in protected:
                 order_name = self.name_get(protected['url'])
-                if 'finalize' in protected['url']:
-                    self.logger.debug('finalize request()')
-                    if  'csr' in payload:
-                        self.logger.debug('CSR found()')
-                        # this is a new request
-                        (code, certificate_name, detail) = self.process_csr(order_name, payload['csr'])
-                        if code == 200:
-                            # update order_status / set to valid
-                            self.update({'name' : order_name, 'status': 'valid'})
-                        else:
-                            self.logger.debug('no CSR found()')
-                            code = 400
-                            message = 'urn:ietf:params:acme:error:badCSR'
-                            detail = 'enrollment failed'
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:badCSR'
-                        detail = 'csr is missing in payload'
+                order_dic = self.lookup(order_name)
+                if order_dic:
+                    (code, message, detail, certificate_name) = self.process(order_name, protected, payload)
                 else:
-                    self.logger.debug('polling request()')
-                    code = 200
-                    # this is a polling request; lookup certificate
-                    cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
-                    if cert_dic:
-                        # we found a cert in the database
-                        certificate_name = cert_dic['name']
-                    else:
-                        certificate_name = None
+                    code = 404
+                    message = 'urn:ietf:params:acme:error:orderNotReady'
+                    detail = 'order not found'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
@@ -210,6 +190,42 @@ class Order(object):
 
         self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
+
+    def process(self, order_name, protected, payload):
+        """ process order """
+        self.logger.debug('Order.process({0})'.format(order_name))
+        certificate_name = None
+        if 'finalize' in protected['url']:
+            self.logger.debug('finalize request()')
+            if  'csr' in payload:
+                self.logger.debug('CSR found()')
+                # this is a new request
+                (code, certificate_name, detail) = self.process_csr(order_name, payload['csr'])
+                if code == 200:
+                    # update order_status / set to valid
+                    self.update({'name' : order_name, 'status': 'valid'})
+                else:
+                    self.logger.debug('no CSR found()')
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:badCSR'
+                    detail = 'enrollment failed'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:badCSR'
+                detail = 'csr is missing in payload'
+        else:
+            self.logger.debug('polling request()')
+            code = 200
+            message = None
+            detail = None
+            # this is a polling request; lookup certificate
+            cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
+            if cert_dic:
+                # we found a cert in the database
+                certificate_name = cert_dic['name']
+                
+        self.logger.debug('Order.process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        return(code, message, detail, certificate_name)
 
     def process_csr(self, order_name, csr):
         """ process certificate signing request """
