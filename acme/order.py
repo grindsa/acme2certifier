@@ -195,6 +195,8 @@ class Order(object):
         """ process order """
         self.logger.debug('Order.process({0})'.format(order_name))
         certificate_name = None
+        message = None
+        detail = None
         if 'finalize' in protected['url']:
             self.logger.debug('finalize request()')
             if  'csr' in payload:
@@ -216,14 +218,12 @@ class Order(object):
         else:
             self.logger.debug('polling request()')
             code = 200
-            message = None
-            detail = None
             # this is a polling request; lookup certificate
             cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
             if cert_dic:
                 # we found a cert in the database
                 certificate_name = cert_dic['name']
-                
+
         self.logger.debug('Order.process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return(code, message, detail, certificate_name)
 
