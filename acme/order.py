@@ -100,7 +100,7 @@ class Order(object):
         if self.tnauthlist_support:
             allowed_identifers.append('tnauthlist')
 
-        if identifiers_list:
+        if identifiers_list and isinstance(identifiers_list, list):
             for identifier in identifiers_list:
                 if 'type' in identifier:
                     if identifier['type'].lower() not in allowed_identifers:
