@@ -11,7 +11,7 @@ The handler has been tested against [Insta Certifier](https://www.insta.fi/en/se
 You need to patch your the local openssl version to support CMPV2. Please follow the instructions provided at the [cmpossl webstite](https://github.com/mpeylo/cmpossl/wiki/Quick-Start)
 if you need further instructions  how to do so.
 
-Pre-compiled binaries for [Ubuntu 18.04](example/ca_handler/UB18CMPOpenSSL.7z) and [Windows](example/ca_handler/WindowsCMPOpenSSL.zip) are also available for testing purposes.
+Pre-compiled binaries for [Ubuntu 18.04](https://github.com/grindsa/acme2certifier/raw/master/examples/ca_handler/UB18CMPOpenSSL.7z) and [Windows](https://github.com/grindsa/acme2certifier/raw/master/examples/ca_handler/WindowsCMPOpenSSL.zip) are also available for testing purposes.
 
 Technically the ca-handler acts as registration authority towards CMPv2 server. That means you need to configure a registration authority on your CMPv2 server with
 either Refnum/PSK or certificate authentication. Please consult your server configuration how to do this.
