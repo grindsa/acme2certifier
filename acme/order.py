@@ -163,13 +163,18 @@ class Order(object):
         if code == 200:
             if 'url' in protected:
                 order_name = self.name_get(protected['url'])
-                order_dic = self.lookup(order_name)
-                if order_dic:
-                    (code, message, detail, certificate_name) = self.process(order_name, protected, payload)
+                if order_name:
+                    order_dic = self.lookup(order_name)
+                    if order_dic:
+                        (code, message, detail, certificate_name) = self.process(order_name, protected, payload)
+                    else:
+                        code = 404
+                        message = 'urn:ietf:params:acme:error:orderNotReady'
+                        detail = 'order not found'
                 else:
-                    code = 404
-                    message = 'urn:ietf:params:acme:error:orderNotReady'
-                    detail = 'order not found'
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'order name is missing'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
