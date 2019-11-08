@@ -51,6 +51,7 @@ The latest version of the documentation for the openssl cmp CLI can be found [he
 - copy the ca_handler into the acme directory
 ```
 root@rlh:~# cp example/cmp_ca_handler.py acme/ca_handler.py
+```
 
 - modify the server configuration (/acme/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler 
 section. The entry is the name of the openssl parameter with the prefix "cmp_", value is the parameter value used in the openssl CLI command. In addtion you need to specify the
