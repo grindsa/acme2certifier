@@ -246,7 +246,11 @@ class DBstore(object):
         """ search certificate based on "something" """
         self.logger.debug('DBstore.certificate_lookup({0}:{1})'.format(column, string))
 
-        lookup = dict_from_row(self.certificate_search(column, string))
+        try:
+            lookup = dict_from_row(self.certificate_search(column, string))
+        except:
+            lookup = None
+            
         result = {}
         if lookup:
             for ele in vlist:
