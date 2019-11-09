@@ -23,7 +23,7 @@ class Order(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        self.load_config()
+        self.config_load()
         return self
 
     def __exit__(self, *args):
@@ -281,7 +281,7 @@ class Order(object):
 
     def lookup(self, order_name):
         """ sohw order details based on ordername """
-        self.logger.debug('Order.show({0})'.format(order_name))
+        self.logger.debug('Order.lookup({0})'.format(order_name))
         order_dic = {}
 
         tmp_dic = self.info(order_name)
@@ -305,12 +305,12 @@ class Order(object):
                 for authz in authz_list:
                     if 'name' in authz:
                         order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
-
+        self.logger.debug('Order.lookup() ended')
         return order_dic
 
-    def load_config(self):
+    def config_load(self):
         """" load config from file """
-        self.logger.debug('Order.load_config()')
+        self.logger.debug('Order.config_load()')
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
