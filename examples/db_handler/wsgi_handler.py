@@ -65,7 +65,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
         try:
             result = dict_from_row(self.account_search(column, string))
-        except:
+        except BaseException:
             result = {}
         if 'created_at' in result:
             result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
@@ -122,7 +122,7 @@ class DBstore(object):
 
         lookup = self.authorization_search(column, string)
         authz_list = []
-    
+
         for row in lookup:
             row_dic = dict_from_row(row)
             tmp_dic = {}
@@ -248,9 +248,9 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self.certificate_search(column, string))
-        except:
+        except BaseException:
             lookup = None
-            
+
         result = {}
         if lookup:
             for ele in vlist:
@@ -300,7 +300,11 @@ class DBstore(object):
     def challenge_lookup(self, column, string, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
         self.logger.debug('challenge_lookup({0}:{1})'.format(column, string))
-        lookup = dict_from_row(self.challenge_search(column, string))
+
+        try:
+            lookup = dict_from_row(self.challenge_search(column, string))
+        except BaseException:
+            lookup = None
 
         result = {}
         if lookup:
@@ -488,16 +492,18 @@ class DBstore(object):
         """ search orders for a given ordername """
         self.logger.debug('order_lookup({0}:{1})'.format(column, string))
 
-        lookup = dict_from_row(self.order_search(column, string))
-
-        # small hack (not sure db returnsblank and not 0)
-        if lookup['notafter'] == '':
-            lookup['notafter'] = 0
-        if lookup['notbefore'] == '':
-            lookup['notbefore'] = 0
+        try:
+            lookup = dict_from_row(self.order_search(column, string))
+        except BaseException:
+            lookup = None
 
         result = {}
         if lookup:
+            # small hack (not sure db returnsblank and not 0)
+            if lookup['notafter'] == '':
+                lookup['notafter'] = 0
+            if lookup['notbefore'] == '':
+                lookup['notbefore'] = 0
             for ele in vlist:
                 if ele == 'status__name':
                     result['status'] = lookup['status__name']

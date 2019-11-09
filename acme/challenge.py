@@ -138,16 +138,16 @@ class Challenge(object):
                 if challenge_name:
                     challenge_dic = self.info(challenge_name)
 
-                    # check tnauthlist payload
-                    if self.tnauthlist_support:
-                        (code, message, detail) = self.validate_tnauthlist_payload(payload, challenge_dic)
+                    if challenge_dic:
+                        # check tnauthlist payload
+                        if self.tnauthlist_support:
+                            (code, message, detail) = self.validate_tnauthlist_payload(payload, challenge_dic)
 
-                    if code == 200:
-                        # update challenge state to 'processing' - i am not so sure about this
-                        # self.update({'name' : challenge_name, 'status' : 4})
-                        # start validation
-                        _validation = self.validate(challenge_name, payload)
-                        if challenge_dic:
+                        if code == 200:
+                            # update challenge state to 'processing' - i am not so sure about this
+                            # self.update({'name' : challenge_name, 'status' : 4})
+                            # start validation
+                            _validation = self.validate(challenge_name, payload)
                             response_dic['data'] = {}
                             challenge_dic['url'] = protected['url']
                             code = 200
@@ -155,10 +155,10 @@ class Challenge(object):
                             response_dic['data'] = challenge_dic
                             response_dic['header'] = {}
                             response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
-                        else:
-                            code = 400
-                            message = 'urn:ietf:params:acme:error:malformed'
-                            detail = 'invalid challenge: {0}'.format(challenge_name)
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'invalid challenge: {0}'.format(challenge_name)
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
@@ -260,7 +260,7 @@ class Challenge(object):
         code = 400
         message = None
         detail = None
-        
+
         if 'type' in challenge_dic:
             if challenge_dic['type'] == 'tkauth-01':
                 self.logger.debug('tkauth identifier found')
@@ -281,7 +281,7 @@ class Challenge(object):
                 code = 200
         else:
             message = 'urn:ietf:params:acme:error:malformed'
-            detail = 'invalid challenge: {0}'.format(challenge_dic)               
+            detail = 'invalid challenge: {0}'.format(challenge_dic)
 
         self.logger.debug('Challenge.validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
