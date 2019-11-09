@@ -2169,7 +2169,7 @@ class TestACMEHandler(unittest.TestCase):
         payload = {'csr': 'csr'}
         mock_process_csr.return_value = (200, 'cert_name', 'detail')     
         mock_update.return_value = None
-        self.assertEqual((200, None, 'detail', 'cert_name'), self.order.process(order_name, protected, payload))           
+        self.assertEqual((200, None, 'detail', 'cert_name'), self.order.process(order_name, protected, payload))     
 
 if __name__ == '__main__':
     unittest.main()
