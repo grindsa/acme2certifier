@@ -950,38 +950,38 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, 'fafa_f'))
 
     @patch('acme.order.Order.info')
-    def test_131_process_csr(self, mock_oinfo):
+    def test_131_csr_process(self, mock_oinfo):
         """ test order prcoess_csr with empty order_dic """
         mock_oinfo.return_value = {}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.process_csr('order_name', 'csr'))
+        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order.csr_process('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order.info')
-    def test_132_process_csr(self, mock_oinfo, mock_certname):
+    def test_132_csr_process(self, mock_oinfo, mock_certname):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = None
-        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order.process_csr('order_name', 'csr'))
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order.csr_process('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order.info')
-    def test_133_process_csr(self, mock_oinfo, mock_certname, mock_enroll):
+    def test_133_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = (None, 'error', 'detail')
-        self.assertEqual((500, 'error', 'detail'), self.order.process_csr('order_name', 'csr'))
+        self.assertEqual((500, 'error', 'detail'), self.order.csr_process('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order.info')
-    def test_134_process_csr(self, mock_oinfo, mock_certname, mock_enroll):
+    def test_134_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = ('bar', None, None)
-        self.assertEqual((200, 'foo', None), self.order.process_csr('order_name', 'csr'))
+        self.assertEqual((200, 'foo', None), self.order.csr_process('order_name', 'csr'))
 
     def test_135_decode_message(self):
         """ decode message with empty payload - certbot issue"""
@@ -1715,76 +1715,76 @@ class TestACMEHandler(unittest.TestCase):
         """ order identifers check with empty identifer list"""
         self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([]))
 
-    def test_110_order_identifier_check(self):
+    def test_232_order_identifier_check(self):
         """ order identifers check with string identifier """
         self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check('foo'))
 
-    def test_111_order_identifier_check(self):
+    def test_233_order_identifier_check(self):
         """ order identifers check with dictionary identifier """
         self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check({'type': 'dns', 'value': 'foo.bar'}))
 
-    def test_112_order_identifier_check(self):
+    def test_234_order_identifier_check(self):
         """ order identifers check with correct identifer but case-insensitive """
         self.assertEqual('urn:ietf:params:acme:error:malformed', self.order.identifiers_check([{'Type': 'dns', 'value': 'value'}]))
 
-    def test_232_order_identifier_check(self):
+    def test_235_order_identifier_check(self):
         """ order identifers check with wrong identifer in list"""
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}]))
 
-    def test_233_order_identifier_check(self):
+    def test_236_order_identifier_check(self):
         """ order identifers check with correct identifer in list"""
         self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
 
-    def test_234_order_identifier_check(self):
+    def test_237_order_identifier_check(self):
         """ order identifers check with two identifers in list (one wrong) """
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'foo', 'value': 'value'}]))
 
-    def test_235_order_identifier_check(self):
+    def test_238_order_identifier_check(self):
         """ order identifers check with two identifers in list (one wrong) """
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
 
-    def test_236_order_identifier_check(self):
+    def test_239_order_identifier_check(self):
         """ order identifers check with two identifers in list (one wrong) """
         self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
 
-    def test_237_order_identifier_check(self):
+    def test_240_order_identifier_check(self):
         """ order identifers check with tnauthlist identifier and support false """
         self.order.tnauthlist_support = False
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
 
-    def test_238_order_identifier_check(self):
+    def test_241_order_identifier_check(self):
         """ order identifers check with tnauthlist identifier and support True """
         self.order.tnauthlist_support = True
         self.assertEqual(None, self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
 
-    def test_239_order_identifier_check(self):
+    def test_242_order_identifier_check(self):
         """ order identifers check with tnauthlist identifier and support True """
         self.order.tnauthlist_support = True
         self.assertEqual(None, self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}]))
 
-    def test_240_order_identifier_check(self):
+    def test_243_order_identifier_check(self):
         """ order identifers check with tnauthlist identifier a wrong identifer and support True """
         self.order.tnauthlist_support = True
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'type', 'value': 'value'}]))
 
-    def test_241_order_identifier_check(self):
+    def test_244_order_identifier_check(self):
         """ order identifers check with wrong identifer in list and tnauthsupport true"""
         self.order.tnauthlist_support = True
         self.assertEqual('urn:ietf:params:acme:error:unsupportedIdentifier', self.order.identifiers_check([{'type': 'foo', 'value': 'value'}]))
 
-    def test_242_order_identifier_check(self):
+    def test_245_order_identifier_check(self):
         """ order identifers check with correct identifer in list and tnauthsupport true"""
         self.order.tnauthlist_support = True
         self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
 
-    def test_243_b64_decode(self):
+    def test_246_b64_decode(self):
         """ test bas64 decoder """
         self.assertEqual('test', self.b64_decode(self.logger, 'dGVzdA=='))
 
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
-    def test_244_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_247_authorization_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() in case auth_lookup failed """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -1796,7 +1796,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.authorization.Authorization.authz_info')
     @patch('acme.message.Message.check')
-    def test_245_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
+    def test_248_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, {'url' : 'foo_url'}, 'payload', 'account_name')
         mock_authzinfo.return_value = {}
@@ -1805,7 +1805,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'message': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
 
     @patch('acme.account.Account.contact_check')
-    def test_246_account_contact_update(self, mock_contact_chk,):
+    def test_249_account_contact_update(self, mock_contact_chk,):
         """ Account.contact_update() failed contact_check failed """
         mock_contact_chk.return_value = (400, 'message', 'detail')
         payload = '{"foo" : "bar"}'
@@ -1813,7 +1813,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((400,'message', 'detail'), self.account.contacts_update(aname, payload))
 
     @patch('acme.account.Account.contact_check')
-    def test_247_account_contact_update(self, mock_contact_chk,):
+    def test_250_account_contact_update(self, mock_contact_chk,):
         """ Account.contact_update() failed bcs account update failed """
         mock_contact_chk.return_value = (200, 'message', 'detail')
         self.account.dbstore.account_update.return_value = None
@@ -1822,7 +1822,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((400, 'urn:ietf:params:acme:error:accountDoesNotExist', 'update failed'), self.account.contacts_update(aname, payload))
 
     @patch('acme.account.Account.contact_check')
-    def test_248_account_contact_update(self, mock_contact_chk,):
+    def test_251_account_contact_update(self, mock_contact_chk,):
         """ Account.contact_update() succ """
         mock_contact_chk.return_value = (200, 'message', 'detail')
         self.account.dbstore.account_update.return_value = 'foo'
@@ -1832,7 +1832,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.contacts_update')
     @patch('acme.message.Message.check')
-    def test_249_accout_parse(self, mock_mcheck, mock_contact_upd):
+    def test_252_accout_parse(self, mock_mcheck, mock_contact_upd):
         """ test failed account parse for contacts update as contact updated failed """
         mock_mcheck.return_value = (200, None, None, 'protected', {"contact" : "deactivated"}, 'account_name')
         mock_contact_upd.return_value = (400, 'message', 'detail')
@@ -1844,7 +1844,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.lookup')
     @patch('acme.account.Account.contacts_update')
     @patch('acme.message.Message.check')
-    def test_250_accout_parse(self, mock_mcheck, mock_contact_upd, mock_account_lookup, mock_datestr, mock_nnonce):
+    def test_253_accout_parse(self, mock_mcheck, mock_contact_upd, mock_account_lookup, mock_datestr, mock_nnonce):
         """ test succ account parse for reqeust with succ contacts update """
         mock_mcheck.return_value = (200, None, None, 'protected', {"contact" : "deactivated"}, 'account_name')
         mock_contact_upd.return_value = (200, None, None)
@@ -1854,202 +1854,202 @@ class TestACMEHandler(unittest.TestCase):
         message = 'message'
         self.assertEqual({'code': 200, 'data': {'contact': [u'foo@bar', u'foo1@bar'], 'createdAt': 'foo_date', 'key': {u'foo1': u'bar1', u'foo2': u'bar2'}, 'status': 'valid'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
 
-    def test_251_date_to_datestr(self):
+    def test_254_date_to_datestr(self):
         """ convert dateobj to date-string with default format"""
         self.assertEqual('2019-10-27T00:00:00Z', self.date_to_datestr(datetime.date(2019, 10, 27)))
 
-    def test_252_date_to_datestr(self):
+    def test_255_date_to_datestr(self):
         """ convert dateobj to date-string with a predefined format"""
         self.assertEqual('2019.10.27', self.date_to_datestr(datetime.date(2019, 10, 27), '%Y.%m.%d'))
 
-    def test_253_date_to_datestr(self):
+    def test_256_date_to_datestr(self):
         """ convert dateobj to date-string for an knvalid date"""
         self.assertEqual(None, self.date_to_datestr('foo', '%Y.%m.%d'))
 
-    def test_254_datestr_to_date(self):
+    def test_257_datestr_to_date(self):
         """ convert datestr to date with default format"""
         self.assertEqual(datetime.datetime(2019, 11, 27, 0, 1, 2), self.datestr_to_date('2019-11-27T00:01:02'))
 
-    def test_255_datestr_to_date(self):
+    def test_258_datestr_to_date(self):
         """ convert datestr to date with predefined format"""
         self.assertEqual(datetime.datetime(2019, 11, 27, 0, 0, 0), self.datestr_to_date('2019.11.27', '%Y.%m.%d'))
 
-    def test_256_datestr_to_date(self):
+    def test_259_datestr_to_date(self):
         """ convert datestr to date with invalid format"""
         self.assertEqual(None, self.datestr_to_date('foo', '%Y.%m.%d'))
 
-    def test_257_dkeys_lower(self):
+    def test_260_dkeys_lower(self):
         """ dkeys_lower with a simple string """
         tree = 'fOo'
         self.assertEqual('fOo', self.dkeys_lower(tree))
 
-    def test_258_dkeys_lower(self):
+    def test_261_dkeys_lower(self):
         """ dkeys_lower with a simple list """
         tree = ['fOo', 'bAr']
         self.assertEqual(['fOo', 'bAr'], self.dkeys_lower(tree))
 
-    def test_259_dkeys_lower(self):
+    def test_262_dkeys_lower(self):
         """ dkeys_lower with a simple dictionary """
         tree = {'kEy': 'vAlUe'}
         self.assertEqual({'key': 'vAlUe'}, self.dkeys_lower(tree))
 
-    def test_260_dkeys_lower(self):
+    def test_263_dkeys_lower(self):
         """ dkeys_lower with a nested dictionary containg strings, list and dictionaries"""
         tree = {'kEy1': 'vAlUe2', 'keys2': ['lIsT2', {'kEyS3': 'vAlUe3', 'kEyS4': 'vAlUe3'}], 'keys4': {'kEyS4': 'vAluE5', 'kEyS5': 'vAlUE6'}}
         self.assertEqual({'key1': 'vAlUe2', 'keys2': ['lIsT2', {'keys3': 'vAlUe3', 'keys4': 'vAlUe3'}], 'keys4': {'keys5': 'vAlUE6', 'keys4': 'vAluE5'}}, self.dkeys_lower(tree))
 
-    def test_261_key_compare(self):
+    def test_264_key_compare(self):
         """ Account.key_compare() with two empty dictionaries"""
         self.account.dbstore.jwk_load.return_value = {}
         aname = 'foo'
         okey = {}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_262_key_compare(self):
+    def test_265_key_compare(self):
         """ Account.key_compare() with empty pub_key and existing old_key"""
         self.account.dbstore.jwk_load.return_value = {}
         aname = 'foo'
         okey = {'foo': 'bar'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_263_key_compare(self):
+    def test_266_key_compare(self):
         """ Account.key_compare() with existing pub_key and empty old_key"""
         self.account.dbstore.jwk_load.return_value = {'foo': 'bar'}
         aname = 'foo'
         okey = {}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_264_key_compare(self):
+    def test_267_key_compare(self):
         """ Account.key_compare() with similar pub_key empty old_key"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'foo3': None}
         aname = 'foo'
         okey = {'foo1': 'bar1', 'foo2': 'bar2', 'foo3': None}
         self.assertEqual((200, None, None), self.account.key_compare(aname, okey))
 
-    def test_265_key_compare(self):
+    def test_268_key_compare(self):
         """ Account.key_compare() with similar pub_key empty old_key but different order"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'foo3': None}
         aname = 'foo'
         okey = {'foo3': None, 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((200, None, None), self.account.key_compare(aname, okey))
 
-    def test_266_key_compare(self):
+    def test_269_key_compare(self):
         """ Account.key_compare() pub_key alg rewrite"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'ESfoo'}
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((200, None, None), self.account.key_compare(aname, okey))
 
-    def test_267_key_compare(self):
+    def test_270_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'foo'}
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_268_key_compare(self):
+    def test_271_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'ESfoo'}
         aname = 'foo'
         okey = {'alg': 'rsa', 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_269_key_compare(self):
+    def test_272_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite no alg statement in old_key"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'alg': 'ESfoo'}
         aname = 'foo'
         okey = {'foo3': None, 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_270_key_compare(self):
+    def test_273_key_compare(self):
         """ Account.key_compare() pub_key failed alg rewrite no alg statement in pub_key"""
         self.account.dbstore.jwk_load.return_value = {'foo1': 'bar1', 'foo2': 'bar2', 'foo3': 'bar3'}
         aname = 'foo'
         okey = {'alg': 'ECDSA', 'foo2': 'bar2', 'foo1': 'bar1'}
         self.assertEqual((401, 'urn:ietf:params:acme:error:unauthorized', 'wrong public key'), self.account.key_compare(aname, okey))
 
-    def test_271_inner_jws_check(self):
+    def test_274_inner_jws_check(self):
         """ Account.inner_jws_check() no jwk in inner header"""
         outer = {}
         inner = {'foo': 'bar'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner jws is missing jwk'), self.account.inner_jws_check(outer, inner))
 
-    def test_272_inner_jws_check(self):
+    def test_275_inner_jws_check(self):
         """ Account.inner_jws_check() no url in inner header """
         outer = {'url' : 'url'}
         inner = {'jwk': 'jwk'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner or outer jws is missing url header parameter'), self.account.inner_jws_check(outer, inner))
 
-    def test_273_inner_jws_check(self):
+    def test_276_inner_jws_check(self):
         """ Account.inner_jws_check() no url in outer header """
         outer = {'foo' : 'bar'}
         inner = {'jwk': 'jwk', 'url': 'url'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner or outer jws is missing url header parameter'), self.account.inner_jws_check(outer, inner))
 
-    def test_274_inner_jws_check(self):
+    def test_277_inner_jws_check(self):
         """ Account.inner_jws_check() different url string in inner and outer header """
         outer = {'url' : 'url_'}
         inner = {'jwk': 'jwk', 'url': 'url'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'url parameter differ in inner and outer jws'), self.account.inner_jws_check(outer, inner))
 
-    def test_275_inner_jws_check(self):
+    def test_278_inner_jws_check(self):
         """ Account.inner_jws_check() same url string in inner and outer header """
         outer = {'url' : 'url'}
         inner = {'jwk': 'jwk', 'url': 'url'}
         self.assertEqual((200, None, None), self.account.inner_jws_check(outer, inner))
 
-    def test_276_inner_jws_check(self):
+    def test_279_inner_jws_check(self):
         """ Account.inner_jws_check() nonce in inner header """
         outer = {'url' : 'url'}
         inner = {'jwk': 'jwk', 'url': 'url', 'nonce': 'nonce'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner jws must omit nonce header'), self.account.inner_jws_check(outer, inner))
 
-    def test_277_inner_jws_check(self):
+    def test_280_inner_jws_check(self):
         """ Account.inner_jws_check() nonce in inner header and inner_header_nonce_allow True """
         outer = {'url' : 'url'}
         inner = {'jwk': 'jwk', 'url': 'url', 'nonce': 'nonce'}
         self.account.inner_header_nonce_allow = True
         self.assertEqual((200, None, None), self.account.inner_jws_check(outer, inner))
 
-    def test_278_inner_payload_check(self):
+    def test_281_inner_payload_check(self):
         """ Account.inner_payload_check() without kid in outer protected """
         outer_protected = {}
         inner_payload = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'kid is missing in outer header'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
-    def test_279_inner_payload_check(self):
+    def test_282_inner_payload_check(self):
         """ Account.inner_payload_check() with kid in outer protected but without account object in inner_payload """
         outer_protected = {'kid': 'kid'}
         inner_payload = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'account object is missing on inner payload'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
-    def test_279_inner_payload_check(self):
+    def test_283_inner_payload_check(self):
         """ Account.inner_payload_check() with different kid and account values """
         outer_protected = {'kid': 'kid'}
         inner_payload = {'account': 'account'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'kid and account objects do not match'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
-    def test_280_inner_payload_check(self):
+    def test_284_inner_payload_check(self):
         """ Account.inner_payload_check() with same kid and account values but no old_key"""
         outer_protected = {'kid': 'kid'}
         inner_payload = {'account': 'kid'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'old key is missing'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
     @patch('acme.account.Account.key_compare')
-    def test_281_inner_payload_check(self, mock_cmp):
+    def test_285_inner_payload_check(self, mock_cmp):
         """ Account.inner_payload_check() with same kid and account values but no old_key"""
         outer_protected = {'kid': 'kid'}
         inner_payload = {'account': 'kid', 'oldkey': 'oldkey'}
         mock_cmp.return_value = ('code', 'message', 'detail')
         self.assertEqual(('code', 'message', 'detail'), self.account.inner_payload_check('aname', outer_protected, inner_payload))
 
-    def test_282_key_change_validate(self):
+    def test_286_key_change_validate(self):
         """ Account.key_change_validate() without JWK in inner_protected """
         inner_protected = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'inner jws is missing jwk'), self.account.key_change_validate('aname', {}, inner_protected, {}))
 
     @patch('acme.account.Account.lookup')
-    def test_283_key_change_validate(self, mock_lup):
+    def test_287_key_change_validate(self, mock_lup):
         """ Account.key_change_validate() for existing key """
         inner_protected = {'jwk': 'jwk'}
         mock_lup.return_value = True
@@ -2057,7 +2057,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.inner_jws_check')
     @patch('acme.account.Account.lookup')
-    def test_284_key_change_validate(self, mock_lup, mock_jws_chk):
+    def test_288_key_change_validate(self, mock_lup, mock_jws_chk):
         """ Account.key_change_validate() inner_jws_check returns 400 """
         inner_protected = {'jwk': 'jwk'}
         mock_lup.return_value = False
@@ -2067,7 +2067,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.account.Account.inner_payload_check')
     @patch('acme.account.Account.inner_jws_check')
     @patch('acme.account.Account.lookup')
-    def test_285_key_change_validate(self, mock_lup, mock_jws_chk, mock_pl_chk):
+    def test_289_key_change_validate(self, mock_lup, mock_jws_chk, mock_pl_chk):
         """ Account.key_change_validate() inner_jws_check returns 200 """
         inner_protected = {'jwk': 'jwk'}
         mock_lup.return_value = False
@@ -2075,18 +2075,18 @@ class TestACMEHandler(unittest.TestCase):
         mock_pl_chk.return_value = ('code2', 'message2', 'detail2')
         self.assertEqual(('code2', 'message2', 'detail2'), self.account.key_change_validate('aname', {}, inner_protected, {}))
 
-    def test_286_key_change(self):
+    def test_290_key_change(self):
         """ Account.key_change() without URL in protected """
         protected = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'malformed request'), self.account.key_change('aname', {}, protected))
 
-    def test_287_key_change(self):
+    def test_291_key_change(self):
         """ Account.key_change() with URL in protected without key-change in url"""
         protected = {'url': 'url'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'malformed request. not a key-change'), self.account.key_change('aname', {}, protected))
 
     @patch('acme.message.Message.check')
-    def test_288_key_change(self, mock_mcheck):
+    def test_292_key_change(self, mock_mcheck):
         """ Account.key_change() message.check() returns non-200"""
         protected = {'url': 'url/key-change'}
         mock_mcheck.return_value = ('code1', 'message1', 'detail1', 'prot', 'payload', 'aname')
@@ -2094,7 +2094,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.key_change_validate')
     @patch('acme.message.Message.check')
-    def test_289_key_change(self, mock_mcheck, moch_kchval):
+    def test_293_key_change(self, mock_mcheck, moch_kchval):
         """ Account.key_change() with URL in protected without key-change in url"""
         protected = {'url': 'url/key-change'}
         mock_mcheck.return_value = (200, 'message1', 'detail1', 'prot', 'payload', 'aname')
@@ -2103,7 +2103,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.key_change_validate')
     @patch('acme.message.Message.check')
-    def test_290_key_change(self, mock_mcheck, moch_kchval):
+    def test_294_key_change(self, mock_mcheck, moch_kchval):
         """ Account.key_change() - account_update returns nothing"""
         protected = {'url': 'url/key-change'}
         mock_mcheck.return_value = (200, 'message1', 'detail1', {'jwk': {'h1': 'h1a', 'h2': 'h2a', 'h3': 'h3a'}}, 'payload', 'aname')
@@ -2113,13 +2113,63 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.account.Account.key_change_validate')
     @patch('acme.message.Message.check')
-    def test_291_key_change(self, mock_mcheck, moch_kchval):
+    def test_295_key_change(self, mock_mcheck, moch_kchval):
         """ Account.key_change() - account_update returns nothing"""
         protected = {'url': 'url/key-change'}
         mock_mcheck.return_value = (200, 'message1', 'detail1', {'jwk': {'h1': 'h1a', 'h2': 'h2a', 'h3': 'h3a'}}, 'payload', 'aname')
         moch_kchval.return_value = (200, 'message2', 'detail2')
         self.account.dbstore.account_update.return_value = True
         self.assertEqual((200, None, None), self.account.key_change('aname', {}, protected))
+
+    def test_296_order_process(self):
+        """ Order.prcoess() without url in protected header """
+        order_name = 'order_name'
+        protected = 'protected'
+        payload = 'payload'
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'url is missing in protected', None), self.order.process(order_name, protected, payload))
+
+    def test_297_order_process(self):
+        """ Order.prcoess() polling request with failed certificate lookup """
+        order_name = 'order_name'
+        protected = {'url': 'foo'}
+        payload = 'payload'
+        self.order.dbstore.certificate_lookup.return_value = {}
+        self.assertEqual((200, None, None, None), self.order.process(order_name, protected, payload))
+
+    def test_298_order_process(self):
+        """ Order.prcoess() polling request with successful certificate lookup """
+        order_name = 'order_name'
+        protected = {'url': 'foo'}
+        payload = 'payload'
+        self.order.dbstore.certificate_lookup.return_value = {'name': 'cert_name'}
+        self.assertEqual((200, None, None, 'cert_name'), self.order.process(order_name, protected, payload))
+        
+    def test_299_order_process(self):
+        """ Order.prcoess() finalize request without CSR """
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = 'payload'
+        self.assertEqual((400, 'urn:ietf:params:acme:error:badCSR', 'csr is missing in payload', None), self.order.process(order_name, protected, payload))      
+
+    @patch('acme.order.Order.csr_process')
+    def test_300_order_process(self, mock_process_csr):
+        """ Order.prcoess() finalize request with CSR but csr_process failed """
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = {'csr': 'csr'}
+        mock_process_csr.return_value = (400, 'cert_name', 'detail')        
+        self.assertEqual((400, 'urn:ietf:params:acme:error:badCSR', 'enrollment failed', 'cert_name'), self.order.process(order_name, protected, payload))           
+ 
+    @patch('acme.order.Order.update') 
+    @patch('acme.order.Order.csr_process')
+    def test_301_order_process(self, mock_process_csr, mock_update):
+        """ Order.prcoess() finalize request with CSR but csr_process failed """
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = {'csr': 'csr'}
+        mock_process_csr.return_value = (200, 'cert_name', 'detail')     
+        mock_update.return_value = None
+        self.assertEqual((200, None, 'detail', 'cert_name'), self.order.process(order_name, protected, payload))           
 
 if __name__ == '__main__':
     unittest.main()
