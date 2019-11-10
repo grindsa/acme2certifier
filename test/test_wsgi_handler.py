@@ -278,6 +278,21 @@ class TestACMEHandler(unittest.TestCase):
         """ test DBstore.order_search() method (succesful) """
         self.assertEqual('name', dict_from_row(self.dbstore.order_search('name', 'name'))['name'])
 
+    def test_055_certificate_add(self):
+        """ test DBstore.certificate_add() method (succesful) """
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'} 
+        self.assertEqual(1, self.dbstore.certificate_add(data_dic))
+
+    def test_056_certificate_add(self):
+        """ test DBstore.certificate_add() method (succesful) """
+        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name2'} 
+        self.assertEqual(2, self.dbstore.certificate_add(data_dic))
+
+    def test_057_certificate_add(self):
+        """ test DBstore.certificate_add() method with error """
+        data_dic = {'name': 'certname3', 'csr': 'csr3', 'order': 'name2', 'error': 'error3'} 
+        self.assertEqual(3, self.dbstore.certificate_add(data_dic))
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):
