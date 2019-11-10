@@ -120,9 +120,12 @@ class DBstore(object):
         """ search account for a given id """
         self.logger.debug('DBStore.authorization_lookup(column:{0}, pattern:{1})'.format(column, string))
 
-        lookup = self.authorization_search(column, string)
+        try:
+            lookup = self.authorization_search(column, string)
+        except:
+            lookup = []
+            
         authz_list = []
-
         for row in lookup:
             row_dic = dict_from_row(row)
             tmp_dic = {}
@@ -139,15 +142,17 @@ class DBstore(object):
             self.logger.debug('rename name to authorization.name')
             column = 'authorization.name'
         self.db_open()
-        pre_statement = '''SELECT 
-                            authorization.*, 
-                            orders.id as orders__id, 
-                            orders.name as order__name, 
-                            status.id as status_id, 
-                            status.name as status__name 
-                        from authorization 
-                        INNER JOIN orders on orders.id = authorization.order_id 
-                        INNER JOIN status on status.id = authorization.status_id 
+        pre_statement = '''SELECT
+                            authorization.*,
+                            orders.id as orders__id,
+                            orders.name as order__name,
+                            status.id as status_id,
+                            status.name as status__name,
+                            account.name as order__account__name
+                        from authorization
+                        INNER JOIN orders on orders.id = authorization.order_id
+                        INNER JOIN status on status.id = authorization.status_id
+                        INNER JOIN account on account.id = orders.account_id
                         WHERE {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchall()
@@ -343,6 +348,7 @@ class DBstore(object):
                 authorization.type as authorization__type,
                 authorization.value as authorization__value,
                 authorization.token as authorization__token,
+                orders.name as authorization__order__name,
                 account.name as authorization__order__account__name
             from challenge
             INNER JOIN status on status.id = challenge.status_id
@@ -527,7 +533,17 @@ class DBstore(object):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.order_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
-        pre_statement = 'SELECT orders.*, status.name as status__name, status.id as status__id, account.name as account__name, account.id as account_id from orders INNER JOIN status on status.id = orders.status_id INNER JOIN account on account.id = orders.account_id WHERE orders.{0} LIKE ?'.format(column)
+        pre_statement = '''
+                    SELECT 
+                        orders.*, 
+                        status.name as status__name, 
+                        status.id as status__id, 
+                        account.name as account__name, 
+                        account.id as account_id 
+                    from orders 
+                    INNER JOIN status on status.id = orders.status_id 
+                    INNER JOIN account on account.id = orders.account_id 
+                    WHERE orders.{0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
