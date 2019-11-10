@@ -139,7 +139,16 @@ class DBstore(object):
             self.logger.debug('rename name to authorization.name')
             column = 'authorization.name'
         self.db_open()
-        pre_statement = 'SELECT authorization.*, orders.id as orders__id, orders.name as order__name, status.id as status_id, status.name as status__name from authorization INNER JOIN orders on orders.id = authorization.order_id INNER JOIN status on status.id = authorization.status_id WHERE {0} LIKE ?'.format(column)
+        pre_statement = '''SELECT 
+                            authorization.*, 
+                            orders.id as orders__id, 
+                            orders.name as order__name, 
+                            status.id as status_id, 
+                            status.name as status__name 
+                        from authorization 
+                        INNER JOIN orders on orders.id = authorization.order_id 
+                        INNER JOIN status on status.id = authorization.status_id 
+                        WHERE {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchall()
         self.db_close()
