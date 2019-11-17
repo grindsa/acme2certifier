@@ -8,7 +8,7 @@ import os
 from acme.helper import datestr_to_date
 
 def dict_from_row(row):
-    """ small helper to convert a select list into a dictionary """
+    """ small helper to convert the output of a "select" command into a dictionary """
     return dict(zip(row.keys(), row))
 
 class DBstore(object):
