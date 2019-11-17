@@ -122,9 +122,9 @@ class DBstore(object):
 
         try:
             lookup = self.authorization_search(column, string)
-        except:
+        except BaseException:
             lookup = []
-            
+
         authz_list = []
         for row in lookup:
             row_dic = dict_from_row(row)
@@ -200,21 +200,21 @@ class DBstore(object):
             order_dic = self.order_lookup('name', certificate_dic['order__name'], ['name', 'account__name'])
             if order_dic:
                 if 'account__name' in order_dic:
-
                     if account_name:
                         # if there is an acoount name validate it against the account_name from db-query
                         if order_dic['account__name'] == account_name:
                             result = certificate_dic['order__name']
-                            self.logger.info('message signed with account key')
-                        print(account_name, order_dic['account__name'])
+                            self.logger.debug('message signed with account key')
+                        else:
+                            self.logger.debug('account_name and and account_name from oder differ.')
                     else:
                         # no account name given (message signed with domain key)
                         result = certificate_dic['order__name']
-                        self.logger.info('message signed with domain key')
+                        self.logger.debug('message signed with domain key')
                 else:
-                    self.logger.error('account_name missing in order_dic')
+                    self.logger.debug('account_name missing in order_dic')
             else:
-                self.logger.error('order_dic empty')
+                self.logger.debug('order_dic empty')
 
         self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
@@ -272,7 +272,7 @@ class DBstore(object):
                 if ele == 'order__name':
                     result['order'] = lookup[ele]
         else:
-            result = None
+            result = {}
 
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
@@ -286,7 +286,14 @@ class DBstore(object):
             column = 'certificate.{0}'.format(column)
             self.logger.debug('modified column to {0}'.format(column))
 
-        pre_statement = 'SELECT certificate.*, orders.id as order__id, orders.name as order__name from certificate INNER JOIN orders on orders.id = certificate.order_id WHERE {0} LIKE ?'.format(column)
+        pre_statement = '''SELECT certificate.*,
+                            orders.id as order__id,
+                            orders.name as order__name,
+                            account.name as order__account__name
+                            from certificate
+                            INNER JOIN orders on orders.id = certificate.order_id
+                            INNER JOIN account on account.id = orders.account_id
+                            WHERE {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self.db_close()
@@ -534,15 +541,15 @@ class DBstore(object):
         self.logger.debug('DBStore.order_search(column:{0}, pattern:{1})'.format(column, string))
         self.db_open()
         pre_statement = '''
-                    SELECT 
-                        orders.*, 
-                        status.name as status__name, 
-                        status.id as status__id, 
-                        account.name as account__name, 
-                        account.id as account_id 
-                    from orders 
-                    INNER JOIN status on status.id = orders.status_id 
-                    INNER JOIN account on account.id = orders.account_id 
+                    SELECT
+                        orders.*,
+                        status.name as status__name,
+                        status.id as status__id,
+                        account.name as account__name,
+                        account.id as account_id
+                    from orders
+                    INNER JOIN status on status.id = orders.status_id
+                    INNER JOIN account on account.id = orders.account_id
                     WHERE orders.{0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()

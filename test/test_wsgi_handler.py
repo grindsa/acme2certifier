@@ -280,18 +280,91 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_055_certificate_add(self):
         """ test DBstore.certificate_add() method (succesful) """
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'} 
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
 
     def test_056_certificate_add(self):
         """ test DBstore.certificate_add() method (succesful) """
-        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name2'} 
+        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name2'}
         self.assertEqual(2, self.dbstore.certificate_add(data_dic))
 
     def test_057_certificate_add(self):
         """ test DBstore.certificate_add() method with error """
-        data_dic = {'name': 'certname3', 'csr': 'csr3', 'order': 'name2', 'error': 'error3'} 
+        data_dic = {'name': 'certname3', 'csr': 'csr3', 'order': 'name2', 'error': 'error3'}
         self.assertEqual(3, self.dbstore.certificate_add(data_dic))
+
+    def test_058_certificate_add(self):
+        """ test DBstore.certificate_add() method for existing certificate """
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        self.assertEqual(1, self.dbstore.certificate_add(data_dic))
+
+    def test_059_certificate_add(self):
+        """ test DBstore.certificate_add() method existing certificate with error """
+        data_dic = {'name': 'certname2', 'error': 'error3'}
+        self.assertEqual(2, self.dbstore.certificate_add(data_dic))
+
+    def test_060_certificate_lookup(self):
+        """ test DBstore.certificate_lookup() by name (successful) """
+        self.assertEqual({'cert': u'cert', 'order': u'name', 'order__name': u'name', 'name': u'certname1', 'csr': u'csr1'}, self.dbstore.certificate_lookup('name', 'certname1'))
+
+    def test_061_certificate_lookup(self):
+        """ test DBstore.certificate_lookup() by name (successful) """
+        self.assertFalse(self.dbstore.certificate_lookup('name', 'certname'))
+
+    def test_062_certificate_lookup(self):
+        """ test DBstore.certificate_lookup() methodwith modified output  """
+        self.assertEqual({'name': u'certname1', 'order__account__name': u'name1'}, self.dbstore.certificate_lookup('name', 'certname1', ('name', 'order__account__name')))
+
+    def test_063_certificate_lookup(self):
+        """ test DBstore.certificate_lookup() methodwith modified output  """
+        self.assertFalse(self.dbstore.certificate_lookup('name', 'certname', ('name', 'order__account__name')))
+
+    def test_064_certificate_account_check(self):
+        """ test DBstore.certificate_account_check() successful """
+        self.assertEqual('name', self.dbstore.certificate_account_check('name1', 'cert_raw'))
+
+    def test_065_certificate_account_check(self):
+        """ test DBstore.certificate_account_check() cert lookup failed """
+        self.assertFalse(self.dbstore.certificate_account_check('name1', 'cert_failed'))
+
+    def test_065_certificate_account_check(self):
+        """ test DBstore.certificate_account_check() cert lookup failed """
+        self.assertFalse(self.dbstore.certificate_account_check('name1', 'cert_failed'))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore.order_lookup')
+    @patch('examples.db_handler.wsgi_handler.DBstore.certificate_lookup')
+    def test_066_certificate_account_check(self, mock_certlookup, mock_orderlookup):
+        """ test DBstore.certificate_account_check() order lookup failed """
+        mock_certlookup.return_value = {'order__name': 'foo'}
+        mock_orderlookup.return_value = {}
+        self.assertFalse(self.dbstore.certificate_account_check('name1', 'cert_failed'))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore.order_lookup')
+    @patch('examples.db_handler.wsgi_handler.DBstore.certificate_lookup')
+    def test_067_certificate_account_check(self, mock_certlookup, mock_orderlookup):
+        """ test DBstore.certificate_account_check() order lookup return different account_name"""
+        mock_certlookup.return_value = {'order__name': 'foo'}
+        mock_orderlookup.return_value = {'account__name': 'xxx'}
+        self.assertFalse(self.dbstore.certificate_account_check('name1', 'cert_failed'))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore.order_lookup')
+    @patch('examples.db_handler.wsgi_handler.DBstore.certificate_lookup')
+    def test_068_certificate_account_check(self, mock_certlookup, mock_orderlookup):
+        """ test DBstore.certificate_account_check() order lookup retured same account_name"""
+        mock_certlookup.return_value = {'order__name': 'foo'}
+        mock_orderlookup.return_value = {'account__name': 'name1'}
+        self.assertEqual('foo', self.dbstore.certificate_account_check('name1', 'cert_failed'))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore.order_lookup')
+    @patch('examples.db_handler.wsgi_handler.DBstore.certificate_lookup')
+    def test_069_certificate_account_check(self, mock_certlookup, mock_orderlookup):
+        """ test DBstore.certificate_account_check() order lookup retured same account_name"""
+        mock_certlookup.return_value = {'order__name': 'foo1'}
+        mock_orderlookup.return_value = {'account__name': 'name1'}
+        self.assertEqual('foo1', self.dbstore.certificate_account_check(None, 'cert_failed'))
+
+
+
 
 if __name__ == '__main__':
 
