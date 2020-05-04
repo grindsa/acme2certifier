@@ -4,3 +4,5 @@ pyOpenssl
 dnspython
 pytz
 configparser
+python-dateutil
+requests
