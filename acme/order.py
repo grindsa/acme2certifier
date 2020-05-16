@@ -300,12 +300,23 @@ class Order(object):
             if 'identifiers' in tmp_dic:
                 order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
 
-            authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name'])
+            authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
             if authz_list:
                 order_dic["authorizations"] = []
+                # collect status of different authorizations in list
+                validity_list = []
                 for authz in authz_list:
                     if 'name' in authz:
                         order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
+                    if 'status__name' in authz:
+                        if authz['status__name'] == 'valid':
+                            validity_list.append(True)
+                        else:
+                            validity_list.append(False)
+                if validity_list:
+                    if False not in validity_list:
+                        # update orderstatus to "ready"
+                        self.update({'name' : order_name, 'status': 'ready'})
         self.logger.debug('Order.lookup() ended')
         return order_dic
 
