@@ -206,23 +206,30 @@ class Order(object):
         if 'url' in protected:
             if 'finalize' in protected['url']:
                 self.logger.debug('finalize request()')
-                if  'csr' in payload:
-                    self.logger.debug('CSR found()')
-                    # this is a new request
-                    (code, certificate_name, detail) = self.csr_process(order_name, payload['csr'])
-                    if code == 200:
-                        # update order_status / set to valid
-                        self.update({'name' : order_name, 'status': 'valid'})
-                    else:
-                        if certificate_name:
-                            message = certificate_name
+
+                # lookup order-status (must be ready to proceed)
+                order_dic = self.info(order_name)
+                if order_dic['status'] == 'ready':
+                    # update order_status / set to processing
+                    self.update({'name' : order_name, 'status': 'processing'})
+                    if  'csr' in payload:
+                        self.logger.debug('CSR found()')
+                        # this is a new request
+                        (code, certificate_name, detail) = self.csr_process(order_name, payload['csr'])
+                        if code == 200:
+                            # update order_status / set to valid
+                            self.update({'name' : order_name, 'status': 'valid'})
                         else:
-                            message = 'urn:ietf:params:acme:error:badCSR'
-                        detail = 'enrollment failed'
+                            message = certificate_name
+                            detail = 'enrollment failed'
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:badCSR'
+                        detail = 'csr is missing in payload'
                 else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:badCSR'
-                    detail = 'csr is missing in payload'
+                    code = 403
+                    message = 'urn:ietf:params:acme:error:orderNotReady'
+                    detail = 'Order is not ready'
             else:
                 self.logger.debug('polling request()')
                 code = 200
