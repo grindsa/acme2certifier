@@ -209,7 +209,7 @@ class Order(object):
 
                 # lookup order-status (must be ready to proceed)
                 order_dic = self.info(order_name)
-                if order_dic['status'] == 'ready':
+                if 'status' in order_dic and order_dic['status'] == 'ready':
                     # update order_status / set to processing
                     self.update({'name' : order_name, 'status': 'processing'})
                     if  'csr' in payload:
@@ -324,6 +324,7 @@ class Order(object):
                     if False not in validity_list:
                         # update orderstatus to "ready"
                         self.update({'name' : order_name, 'status': 'ready'})
+
         self.logger.debug('Order.lookup() ended')
         return order_dic
 
