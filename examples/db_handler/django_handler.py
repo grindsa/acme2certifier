@@ -61,7 +61,10 @@ class DBstore(object):
         account_dict = Account.objects.filter(name=aname).values('jwk', 'alg')[:1]
         jwk_dict = {}
         if account_dict:
-            jwk_dict = json.loads(account_dict[0]['jwk'].decode())
+            try:
+                jwk_dict = json.loads(account_dict[0]['jwk'].decode())
+            except:
+                jwk_dict = json.loads(account_dict[0]['jwk'])
             jwk_dict['alg'] = account_dict[0]['alg']
         return jwk_dict
 
