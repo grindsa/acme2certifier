@@ -3,6 +3,8 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import textwrap
+import math
+import time
 import requests
 from requests.auth import HTTPBasicAuth
 from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc
@@ -18,6 +20,7 @@ class CAhandler(object):
         self.api_password = None
         self.ca_name = None
         self.auth = None
+        self.polling_timeout = 60
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -61,6 +64,9 @@ class CAhandler(object):
                 # this is a valid cert generate the bundle
                 cert_bundle = self.generate_pem_cert_chain(cert_dic)
                 cert_raw = cert_dic['certificateBase64']
+            elif 'href' in cert_dic:
+                # request is pending
+                (error, cert_bundle, cert_raw) = self.poll_request(cert_dic['href'])
             else:
                 error = 'no certificate information found'
         else:
@@ -179,6 +185,39 @@ class CAhandler(object):
         if 'ca_name' in config_dic['CAhandler']:
             self.ca_name = config_dic['CAhandler']['ca_name']
         self.logger.debug('CAhandler.load_config() ended')
+
+    def poll_request(self, request_url):
+        """ poll request """
+        self.logger.debug('CAhandler.poll_request({0})'.format(request_url))
+
+        error = 'Polling timeout reached'
+        cert_bundle = None
+        cert_raw = None
+
+        # calculate iterations based on timeout
+        poll_cnt = math.ceil(self.polling_timeout/5)
+        cnt = 1
+        while cnt <= poll_cnt:
+            request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+            cnt += 1
+            # check response
+            if 'status' in request_dic:
+                if request_dic['status'] == 'accepted':
+                    if 'certificate' in request_dic:
+                        cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                        if 'certificateBase64' in cert_dic:
+                            # this is a valid cert generate the bundle
+                            error = None
+                            cert_bundle = self.generate_pem_cert_chain(cert_dic)
+                            cert_raw = cert_dic['certificateBase64']
+                            break
+                elif request_dic['status'] == 'rejected':
+                    error = 'Request rejected by operator'
+                    break
+            # sleep
+            time.sleep(5)
+        self.logger.debug('CAhandler.poll_request() ended with error: {0}'.format(error))           
+        return(error, cert_bundle, cert_raw)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
