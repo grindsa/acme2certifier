@@ -216,7 +216,7 @@ class CAhandler(object):
                     break
             # sleep
             time.sleep(5)
-        self.logger.debug('CAhandler.poll_request() ended with error: {0}'.format(error))           
+        self.logger.debug('CAhandler.poll_request() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
