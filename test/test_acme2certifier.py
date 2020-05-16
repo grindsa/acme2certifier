@@ -2150,16 +2150,47 @@ class TestACMEHandler(unittest.TestCase):
         self.order.dbstore.certificate_lookup.return_value = {'name': 'cert_name'}
         self.assertEqual((200, None, None, 'cert_name'), self.order.process(order_name, protected, payload))
 
-    def test_298_order_process(self):
+    @patch('acme.order.Order.info')
+    def test_298_order_process(self, mock_info):
+        """ Order.prcoess() finalize request with empty orderinfo """
+        mock_info.return_value = {}
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = 'payload'
+        self.assertEqual((403, 'urn:ietf:params:acme:error:orderNotReady', 'Order is not ready', None), self.order.process(order_name, protected, payload))
+
+    @patch('acme.order.Order.info')
+    def test_299_order_process(self, mock_info):
+        """ Order.prcoess() finalize request with orderinfo without status"""
+        mock_info.return_value = {'foo': 'bar'}
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = 'payload'
+        self.assertEqual((403, 'urn:ietf:params:acme:error:orderNotReady', 'Order is not ready', None), self.order.process(order_name, protected, payload))
+
+    @patch('acme.order.Order.info')
+    def test_300_order_process(self, mock_info):
+        """ Order.prcoess() finalize request with orderinfo with wrong status"""
+        mock_info.return_value = {'status': 'bar'}
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = 'payload'
+        self.assertEqual((403, 'urn:ietf:params:acme:error:orderNotReady', 'Order is not ready', None), self.order.process(order_name, protected, payload))
+
+    @patch('acme.order.Order.info')
+    def test_301_order_process(self, mock_info):
         """ Order.prcoess() finalize request without CSR """
+        mock_info.return_value = {'status': 'ready'}
         order_name = 'order_name'
         protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
         payload = 'payload'
         self.assertEqual((400, 'urn:ietf:params:acme:error:badCSR', 'csr is missing in payload', None), self.order.process(order_name, protected, payload))
 
     @patch('acme.order.Order.csr_process')
-    def test_299_order_process(self, mock_process_csr):
+    @patch('acme.order.Order.info')
+    def test_302_order_process(self, mock_info, mock_process_csr):
         """ Order.prcoess() finalize request with CSR but csr_process failed """
+        mock_info.return_value = {'status': 'ready'}
         order_name = 'order_name'
         protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
         payload = {'csr': 'csr'}
@@ -2168,14 +2199,17 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.order.Order.update')
     @patch('acme.order.Order.csr_process')
-    def test_300_order_process(self, mock_process_csr, mock_update):
+    @patch('acme.order.Order.info')
+    def test_303_order_process(self, mock_info, mock_process_csr, mock_update):
         """ Order.prcoess() finalize request with CSR but csr_process failed """
+        mock_info.return_value = {'status': 'ready'}
         order_name = 'order_name'
         protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
         payload = {'csr': 'csr'}
         mock_process_csr.return_value = (200, 'cert_name', 'detail')
         mock_update.return_value = None
         self.assertEqual((200, None, 'detail', 'cert_name'), self.order.process(order_name, protected, payload))
+
 
 if __name__ == '__main__':
     unittest.main()
