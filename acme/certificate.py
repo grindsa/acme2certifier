@@ -40,20 +40,21 @@ class Certificate(object):
         # only continue if self.csr_check returned True
         if csr_check_result:
             with CAhandler(self.debug, self.logger) as ca_handler:
-                (error, certificate, certificate_raw) = ca_handler.enroll(csr)
+                (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
                 if certificate:
                     result = self.store_cert(certificate_name, certificate, certificate_raw)
                 else:
                     result = None
                     # store error message for later analysis
-                    self.store_cert_error(certificate_name, error)
+                    self.store_cert_error(certificate_name, error, poll_identifier)
+                    detail = poll_identifier
         else:
             result = None
             error = 'urn:ietf:params:acme:badCSR'
             detail = 'CSR validation failed'
 
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
-        return (result, error, detail)
+        return (error, detail)
 
     def info(self, certificate_name):
         """ get certificate from database """
@@ -144,10 +145,11 @@ class Certificate(object):
         self.logger.debug('Certificate.store_cert({0}) ended'.format(cert_id))
         return cert_id
 
-    def store_cert_error(self, certificate_name, error):
+    def store_cert_error(self, certificate_name, error, poll_identifier):
         """ get key for a specific account id """
         self.logger.debug('Certificate.store_error({0})'.format(certificate_name))
-        data_dic = {'error' : error, 'name': certificate_name}
+        data_dic = {'error' : error, 'name': certificate_name, 'poll_identifier': poll_identifier}
+        print(data_dic)
         cert_id = self.dbstore.certificate_add(data_dic)
         self.logger.debug('Certificate.store_error({0}) ended'.format(cert_id))
         return cert_id
@@ -344,8 +346,8 @@ class Certificate(object):
                     san_list = csr_san_get(self.logger, csr)
                     identifier_status = self.identifer_status_list(identifiers, san_list)
 
-        else:
-            result = 'error'
+        # else:
+        #    result = 'error'
 
         csr_check_result = False
         if identifier_status and False not in identifier_status:

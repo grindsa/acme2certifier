@@ -19,6 +19,7 @@ class Order(object):
         self.message = Message(self.debug, self.server_name, self.logger)
         self.expiry = expiry
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
+        self.retry_after = 600
         self.tnauthlist_support = False
 
     def __enter__(self):
@@ -185,6 +186,9 @@ class Order(object):
                 response_dic['header'] = {}
                 response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
                 response_dic['data'] = self.lookup(order_name)
+                if response_dic['data']['status'] == 'processing':
+                    # set retry header as cert issuane is not completed.
+                    response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
                 response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
                 if certificate_name:
                     response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
@@ -216,9 +220,11 @@ class Order(object):
                         self.logger.debug('CSR found()')
                         # this is a new request
                         (code, certificate_name, detail) = self.csr_process(order_name, payload['csr'])
+                        # change status only if we do not have a poll_identifier (stored in detail variable)
                         if code == 200:
-                            # update order_status / set to valid
-                            self.update({'name' : order_name, 'status': 'valid'})
+                            if not detail:
+                                # update order_status / set to valid
+                                self.update({'name' : order_name, 'status': 'valid'})
                         else:
                             message = certificate_name
                             detail = 'enrollment failed'
@@ -261,15 +267,14 @@ class Order(object):
                 # certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    (_result, error, detail) = certificate.enroll_and_store(certificate_name, csr)
+                    (error, detail) = certificate.enroll_and_store(certificate_name, csr)
                     if not error:
                         code = 200
                         message = certificate_name
-                        detail = None
+                        # detail = None
                     else:
                         code = 400
                         message = error
-
                 else:
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
@@ -320,9 +325,10 @@ class Order(object):
                             validity_list.append(True)
                         else:
                             validity_list.append(False)
-                if validity_list:
-                    if False not in validity_list:
-                        # update orderstatus to "ready"
+
+                # update orders status from pending to ready
+                if validity_list and 'status' in order_dic:
+                    if False not in validity_list and order_dic['status'] == 'pending':
                         self.update({'name' : order_name, 'status': 'ready'})
 
         self.logger.debug('Order.lookup() ended')
