@@ -214,9 +214,10 @@ class Order(object):
                         # update order_status / set to valid
                         self.update({'name' : order_name, 'status': 'valid'})
                     else:
-                        self.logger.debug('no CSR found()')
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:badCSR'
+                        if certificate_name:
+                            message = certificate_name
+                        else:
+                            message = 'urn:ietf:params:acme:error:badCSR'
                         detail = 'enrollment failed'
                 else:
                     code = 400
@@ -259,7 +260,7 @@ class Order(object):
                         message = certificate_name
                         detail = None
                     else:
-                        code = 500
+                        code = 400
                         message = error
 
                 else:
