@@ -1201,9 +1201,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'foo'
         mock_lookup.return_value = 'foo'
-        mock_process.return_value = ('code', 'message', 'detail', None)
+        mock_process.return_value = (400, 'message', 'detail', None)
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 'code', 'data': {'detail': 'detail', 'message': 'message', 'status': 'code'}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order.process')
@@ -2164,7 +2164,7 @@ class TestACMEHandler(unittest.TestCase):
         protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
         payload = {'csr': 'csr'}
         mock_process_csr.return_value = (400, 'cert_name', 'detail')
-        self.assertEqual((400, 'urn:ietf:params:acme:error:badCSR', 'enrollment failed', 'cert_name'), self.order.process(order_name, protected, payload))
+        self.assertEqual((400, 'cert_name', 'enrollment failed', 'cert_name'), self.order.process(order_name, protected, payload))
 
     @patch('acme.order.Order.update')
     @patch('acme.order.Order.csr_process')

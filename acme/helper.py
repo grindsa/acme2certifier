@@ -39,7 +39,10 @@ def b64decode_pad(logger, string):
 def b64_decode(logger, string):
     """ b64 decoding """
     logger.debug('b64decode()')
-    return base64.b64decode(string.encode('utf-8'))
+    if sys.version_info[0] >= 3:    
+        return base64.b64decode(string).decode()  
+    else:
+        return base64.b64decode(string)      
 
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
