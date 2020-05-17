@@ -60,7 +60,7 @@ class CAhandler(object):
             error = 'Config incomplete'
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, None)
 
     def load_config(self):
         """" load config from file """
