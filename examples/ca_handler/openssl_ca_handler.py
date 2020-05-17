@@ -100,7 +100,7 @@ class CAhandler(object):
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
                 # save cert if needed
-                if self.cert_save_path and self.cert_save_path != None:
+                if self.cert_save_path and self.cert_save_path is not None:
                     # create cert-store dir if not existing
                     if not os.path.isdir(self.cert_save_path):
                         self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
@@ -116,7 +116,7 @@ class CAhandler(object):
                 error = err
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, None)
 
     def generate_pem_cert_chain(self, ee_cert, issuer_cert):
         """ build pem chain """
@@ -181,7 +181,6 @@ class CAhandler(object):
             self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
 
         self.logger.debug('CAhandler.load_config() ended')
-
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """

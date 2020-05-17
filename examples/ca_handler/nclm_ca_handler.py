@@ -197,7 +197,7 @@ class CAhandler(object):
             error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
 
         self.logger.debug('CAhandler.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, None)
 
     def login(self):
         """ login into NCLM API """

@@ -54,6 +54,7 @@ class CAhandler(object):
         cert_bundle = None
         error = None
         cert_raw = None
+        poll_identifier = None
 
         cert_dic = self.get_cert(csr)
         if cert_dic:
@@ -66,13 +67,13 @@ class CAhandler(object):
                 cert_raw = cert_dic['certificateBase64']
             elif 'href' in cert_dic:
                 # request is pending
-                (error, cert_bundle, cert_raw) = self.poll_request(cert_dic['href'])
+                (error, cert_bundle, cert_raw, poll_identifier) = self.poll_request(cert_dic['href'])
             else:
                 error = 'no certificate information found'
         else:
             error = 'internal error'
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, poll_identifier)
 
     def get_cert(self, csr):
         """ get certificate from CA """
@@ -184,13 +185,15 @@ class CAhandler(object):
             self.api_password = config_dic['CAhandler']['api_password']
         if 'ca_name' in config_dic['CAhandler']:
             self.ca_name = config_dic['CAhandler']['ca_name']
+        if 'polling_timeout' in config_dic['CAhandler']:
+            self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
         self.logger.debug('CAhandler.load_config() ended')
 
     def poll_request(self, request_url):
         """ poll request """
         self.logger.debug('CAhandler.poll_request({0})'.format(request_url))
 
-        error = 'Polling timeout reached'
+        error = None
         cert_bundle = None
         cert_raw = None
 
@@ -199,25 +202,30 @@ class CAhandler(object):
         cnt = 1
         while cnt <= poll_cnt:
             request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+            poll_identifier = request_url
             cnt += 1
             # check response
             if 'status' in request_dic:
                 if request_dic['status'] == 'accepted':
                     if 'certificate' in request_dic:
+                        # poll identifier for later storage
                         cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
                         if 'certificateBase64' in cert_dic:
                             # this is a valid cert generate the bundle
                             error = None
                             cert_bundle = self.generate_pem_cert_chain(cert_dic)
                             cert_raw = cert_dic['certificateBase64']
+                            poll_identifier = None
                             break
                 elif request_dic['status'] == 'rejected':
                     error = 'Request rejected by operator'
+                    poll_identifier = None
                     break
+
             # sleep
             time.sleep(5)
         self.logger.debug('CAhandler.poll_request() ended with error: {0}'.format(error))
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, poll_identifier)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
