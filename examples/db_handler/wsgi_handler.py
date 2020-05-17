@@ -289,6 +289,7 @@ class DBstore(object):
         pre_statement = '''SELECT certificate.*,
                             orders.id as order__id,
                             orders.name as order__name,
+                            orders.status_id as order__status_id,
                             account.name as order__account__name
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
@@ -299,6 +300,44 @@ class DBstore(object):
         self.db_close()
         self.logger.debug('DBStore.certificate_search() ended')
         return result
+
+    def certificates_search(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
+        """ search certificate table for a certain key/value pair """
+        self.logger.debug('DBStore.certificate_search(column:{0}, pattern:{1})'.format(column, string))
+        self.db_open()
+
+        if column == 'order__status_id':
+            column = 'orders.status_id'
+            self.logger.debug('modified column to {0}'.format(column))
+
+        pre_statement = '''SELECT certificate.*,
+                            orders.id as order__id,
+                            orders.name as order__name,
+                            orders.status_id as order__status_id,
+                            account.name as order__account__name
+                            from certificate
+                            INNER JOIN orders on orders.id = certificate.order_id
+                            INNER JOIN account on account.id = orders.account_id
+                            WHERE {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [string])
+
+        rows = self.cursor.fetchall()
+
+        cert_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+                    if ele == 'order__name':
+                        result['order'] = lookup[ele]
+            cert_list.append(result)
+
+        self.db_close()
+        self.logger.debug('DBStore.certificate_search() ended')
+        return cert_list
+
 
     def challenge_add(self, data_dic):
         """ add challenge to database """
