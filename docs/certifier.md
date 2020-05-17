@@ -3,12 +3,12 @@
 ## Prerequisites
  - the Certifier needs to have the REST-service activated
  - you have a user and password to access Certifier via REST-Service
- 
+
 ## Configuration
  - copy the ca_handler into the acme directory
 ```
 root@rlh:~# cp example\ca_handlers\certifier_ca_handler.py acme\ca_handler.py
-``` 
+```
  - modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
 ```
 [CAhandler]
@@ -16,14 +16,18 @@ api_host: http://<ip>:<port>
 api_user: <user>
 api_password: <password>
 ca_name: <ca_name>
+polling_timeout: <seconds>
 ```
     - api_host - URL of the Certifier-REST service
     - api_user - REST user
     - api_password - password for REST user
     - ca_name - name of the CA used to enroll certificates
-    
+    - polling_timeout - polling timeout (default 60s)
+
+Depending on CA policy configuration a CSR may require approval. In such a situation acme2certfier will poll the CA server to check the CSR status. The polling intervall can be configured in acme.server.cfg.
+
 You can get the ca_name by running the following REST call against certifier.
- 
+
 ```
 root@rlh:~# curl -u '$api_user':'$api_password' $api_host'/v1/cas
 ```
