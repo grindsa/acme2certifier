@@ -18,6 +18,7 @@ class Certificate(object):
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path' : '/acme/cert/'}
+        self.retry_after = 600
         self.tnauthlist_support = False
 
     def __enter__(self):
@@ -56,30 +57,42 @@ class Certificate(object):
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (error, detail)
 
-    def info(self, certificate_name):
+    def info(self, certificate_name, flist=('name', 'csr', 'cert', 'order__name')):
         """ get certificate from database """
         self.logger.debug('Certificate.info({0})'.format(certificate_name))
-        return self.dbstore.certificate_lookup('name', certificate_name)
+        return self.dbstore.certificate_lookup('name', certificate_name, flist)
 
     def new_get(self, url):
         """ get request """
         self.logger.debug('Certificate.new_get({0})'.format(url))
         certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
 
-        response_dic = {}
         # fetch certificate dictionary from DB
-        certificate_dic = self.info(certificate_name)
+        certificate_dic = self.info(certificate_name, ['name', 'csr', 'cert', 'order__name', 'order__status_id'])
+        response_dic = {}
+        if 'order__status_id' in certificate_dic:
+            if certificate_dic['order__status_id'] == 5:
+                # oder status is valid - download certificate
+                if 'cert' in certificate_dic:
+                    response_dic['code'] = 200
+                    # filter certificate and decode it
+                    response_dic['data'] = certificate_dic['cert']
+                    response_dic['header'] = {}
+                    response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
+                else:
+                    response_dic['code'] = 403
+                    response_dic['data'] = 'NotFound'
+            elif certificate_dic['order__status_id'] == 4:
+                # order status is processing - ratelimiting
+                response_dic['header'] = {'Retry-After':  '{0}'.format(self.retry_after)}
+                response_dic['code'] = 403
+                response_dic['data'] = 'urn:ietf:params:acme:error:rateLimited'
+            else:
+                response_dic['code'] = 403
+                response_dic['data'] = 'urn:ietf:params:acme:error:orderNotReady'
 
-        if 'cert' in certificate_dic:
-            response_dic['code'] = 200
-            # filter certificate and decode it
-            response_dic['data'] = certificate_dic['cert']
-            response_dic['header'] = {}
-            response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
-        else:
-            response_dic['code'] = 403
-            response_dic['data'] = 'NotFound'
         self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic))
+
         return response_dic
 
     def new_post(self, content):
@@ -92,13 +105,23 @@ class Certificate(object):
         if code == 200:
             if 'url' in protected:
                 response_dic = self.new_get(protected['url'])
+                if response_dic['code'] == 403:
+                    code = response_dic['code']
+                    message = response_dic['data']
+                    detail = None
             else:
                 response_dic['code'] = code = 400
                 response_dic['data'] = message = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
+
         # prepare/enrich response
         status_dic = {'code': code, 'message' : message, 'detail' : detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        # depending on the response the content of responsedic['data'] can be either string or dict
+        # data will get serialzed
+        if isinstance(response_dic['data'], dict):
+            response_dic['data'] = json.dumps(response_dic['data'])
 
         self.logger.debug('Certificate.new_post() ended with: {0}'.format(response_dic))
         return response_dic

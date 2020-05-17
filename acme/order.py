@@ -169,7 +169,7 @@ class Order(object):
                     if order_dic:
                         (code, message, detail, certificate_name) = self.process(order_name, protected, payload)
                     else:
-                        code = 404
+                        code = 403
                         message = 'urn:ietf:params:acme:error:orderNotReady'
                         detail = 'order not found'
                 else:
