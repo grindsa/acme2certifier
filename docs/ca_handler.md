@@ -36,11 +36,12 @@ class CAhandler(object):
             error - error message during cert enrollment (None in case no error occured)
             cert_bundle - certificate chain in pem format
             cert_raw - certificate in PEM format """
+            poll_identifier - callback identifier to lookup enrollment request in case the CA server does not issue certificate immediately
             
         self.logger.debug('Certificate.enroll()')
         ...
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, poll_identifier)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate
