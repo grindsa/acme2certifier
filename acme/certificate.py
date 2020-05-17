@@ -405,3 +405,8 @@ class Certificate(object):
 
         self.logger.debug('Certificate.identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
+
+    def certlist_search(self, key, value, vlist=('name', 'csr', 'cert', 'order__name')):
+        """ get certificate from database """
+        self.logger.debug('Certificate.search({0}: {1})'.format(key, value))
+        return self.dbstore.certificates_search(key, value, vlist)
