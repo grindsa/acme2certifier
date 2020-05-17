@@ -230,7 +230,7 @@ class DBstore(object):
             self.logger.debug('update existing entry for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
             self.db_open()
             if 'error' in data_dic:
-                self.cursor.execute('''UPDATE Certificate SET error = :error WHERE name = :name''', data_dic)
+                self.cursor.execute('''UPDATE Certificate SET error = :error, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
             else:
                 self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw WHERE name = :name''', data_dic)
             self.db_close()
@@ -431,7 +431,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
 
         self.db_close()
