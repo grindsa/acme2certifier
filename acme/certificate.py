@@ -90,6 +90,9 @@ class Certificate(object):
             else:
                 response_dic['code'] = 403
                 response_dic['data'] = 'urn:ietf:params:acme:error:orderNotReady'
+        else:
+            response_dic['code'] = 403
+            response_dic['data'] = 'NotFound'
 
         self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic))
 
