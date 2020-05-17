@@ -445,6 +445,24 @@ class DBstore(object):
         self.cursor = self.dbs.cursor()
         self.logger.debug('DBStore.db_open() ended')
 
+    def db_update(self):
+        """ update database """
+        self.logger.debug('DBStore.db_update()')
+        self.db_open()
+        # add poll_identifier if not existing
+        self.cursor.execute('''PRAGMA table_info(certificate)''')
+        certificate_column_list = []
+        for column in self.cursor.fetchall():
+            certificate_column_list.append(column[1])
+
+        if 'poll_identifier' not in certificate_column_list:
+            self.logger.debug('alter certificate table - add poll_identifier')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
+
+        self.db_close()
+
+        self.logger.debug('DBStore.db_update() ended')
+
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
