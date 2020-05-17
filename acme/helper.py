@@ -39,10 +39,10 @@ def b64decode_pad(logger, string):
 def b64_decode(logger, string):
     """ b64 decoding """
     logger.debug('b64decode()')
-    if sys.version_info[0] >= 3:    
-        return base64.b64decode(string).decode()  
+    if sys.version_info[0] >= 3:
+        return base64.b64decode(string).decode()
     else:
-        return base64.b64decode(string)      
+        return base64.b64decode(string)
 
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
@@ -199,7 +199,11 @@ def csr_tnauthlist_get(logger, csr):
 
     extension_list = []
     for ext in req.get_extensions():
-        extension_list.append(base64.b64encode(ext.get_data()))
+        # decoding based on python version
+        if sys.version_info[0] >= 3:
+            extension_list.append(base64.b64encode(ext.get_data()).decode())
+        else:
+            extension_list.append(base64.b64encode(ext.get_data()))
 
     logger.debug('csr_tnauthlist_get() ended with: {0}'.format(extension_list))
     return extension_list
@@ -239,9 +243,9 @@ def decode_message(logger, message):
         protected = {}
         payload = {}
         signature = None
-        
+
     if payload:
-        payload = dkeys_lower(payload)    
+        payload = dkeys_lower(payload)
     return(result, error, protected, payload, signature)
 
 def dkeys_lower(tree):
@@ -455,14 +459,14 @@ def date_to_datestr(date, tformat='%Y-%m-%dT%H:%M:%SZ'):
     except BaseException:
         result = None
     return result
-    
+
 def datestr_to_date(datestr, tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert datestr to dateobj """
     try:
         result = datetime.strptime(datestr, tformat)
     except BaseException:
         result = None
-    return result    
+    return result
 
 def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
