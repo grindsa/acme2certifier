@@ -186,7 +186,7 @@ class Order(object):
                 response_dic['header'] = {}
                 response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
                 response_dic['data'] = self.lookup(order_name)
-                if response_dic['data']['status'] == 'processing':
+                if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
                     # set retry header as cert issuane is not completed.
                     response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
                 response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)

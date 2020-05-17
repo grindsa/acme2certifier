@@ -976,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
-        mock_enroll.return_value = (None, 'error', 'detail')
+        mock_enroll.return_value = ('error', 'detail')
         self.assertEqual((400, 'error', 'detail'), self.order.csr_process('order_name', 'csr'))
 
     @patch('acme.certificate.Certificate.enroll_and_store')
@@ -986,7 +986,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
-        mock_enroll.return_value = ('bar', None, None)
+        mock_enroll.return_value = (None, None)
         self.assertEqual((200, 'foo', None), self.order.csr_process('order_name', 'csr'))
 
     def test_134_decode_message(self):
