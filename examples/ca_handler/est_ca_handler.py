@@ -89,7 +89,7 @@ class CAhandler(object):
                     cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
                     cert_raw = cert_raw.replace('\n', '')
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw)
+        return(error, cert_bundle, cert_raw, None)
 
     def load_config(self):
         """" load config from file """
