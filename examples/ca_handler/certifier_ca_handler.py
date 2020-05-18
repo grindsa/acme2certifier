@@ -25,14 +25,20 @@ class CAhandler(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         if not self.api_host:
-            self.load_config()
-            self.set_auth()
+            self._config_load()
+            self._auth_set()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def api_post(self, url, data):
+    def _auth_set(self):
+        """ set basic authentication header """
+        self.logger.debug('CAhandler._auth_set()')
+        self.auth = HTTPBasicAuth(self.api_user, self.api_password)
+        self.logger.debug('CAhandler._auth_set() ended')
+
+    def _api_post(self, url, data):
         """
         generic wrapper for an API post call
         args:
@@ -48,53 +54,9 @@ class CAhandler(object):
 
         return api_response
 
-    def enroll(self, csr):
-        """ enroll certificate """
-        self.logger.debug('Certificate.enroll()')
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        poll_identifier = None
-
-        cert_dic = self.get_cert(csr)
-        if cert_dic:
-            if 'status' in cert_dic:
-                # this is an error
-                error = cert_dic['message']
-            elif 'certificateBase64' in cert_dic:
-                # this is a valid cert generate the bundle
-                cert_bundle = self.generate_pem_cert_chain(cert_dic)
-                cert_raw = cert_dic['certificateBase64']
-            elif 'href' in cert_dic:
-                # request is pending
-                (error, cert_bundle, cert_raw, poll_identifier) = self.poll_request(cert_dic['href'])
-            else:
-                error = 'no certificate information found'
-        else:
-            error = 'internal error'
-        self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier)
-
-    def get_cert(self, csr):
-        """ get certificate from CA """
-        self.logger.debug('CAhandler.get_cert({0})'.format(csr))
-        ca_dic = self.get_ca_properties('name', self.ca_name)
-        cert_dic = {}
-
-        if 'href' in ca_dic:
-            # data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
-            data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
-            cert_dic = self.api_post(self.api_host + '/v1/requests', data)
-
-        if not cert_dic:
-            cert_dic = ca_dic
-
-        self.logger.debug('CAhandler.enroll() ended with: {0}'.format(cert_dic))
-        return cert_dic
-
-    def get_ca(self, filter_key=None, filter_value=None):
+    def _ca_get(self, filter_key=None, filter_value=None):
         """ get list of CAs"""
-        self.logger.debug('get_ca({0}:{1})'.format(filter_key, filter_value))
+        self.logger.debug('_ca_get({0}:{1})'.format(filter_key, filter_value))
         params = {}
 
         if filter_key:
@@ -104,13 +66,13 @@ class CAhandler(object):
         except BaseException as err:
             api_response = {'status': 500, 'message': str(err), 'statusMessage': 'Internal Server Error'}
 
-        self.logger.debug('CAhandler.get_ca() ended with: {0}'.format(api_response))
+        self.logger.debug('CAhandler._ca_get() ended with: {0}'.format(api_response))
         return api_response
 
-    def get_ca_properties(self, filter_key, filter_value):
+    def _ca_get_properties(self, filter_key, filter_value):
         """ get properties for a single CAs"""
-        self.logger.debug('get_ca_properties({0}:{1})'.format(filter_key, filter_value))
-        ca_list = self.get_ca(filter_key, filter_value)
+        self.logger.debug('_ca_get_properties({0}:{1})'.format(filter_key, filter_value))
+        ca_list = self._ca_get(filter_key, filter_value)
         ca_dic = {}
         if 'status' in ca_list and 'message' in ca_list:
             # we got an error from get_ca()
@@ -122,12 +84,29 @@ class CAhandler(object):
                     break
         if not ca_dic:
             ca_dic = {'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}
-        self.logger.debug('CAhandler.get_ca_properties() ended with: {0}'.format(ca_dic))
+        self.logger.debug('CAhandler._ca_get_properties() ended with: {0}'.format(ca_dic))
         return ca_dic
 
-    def get_cert_properties(self, serial, ca_link):
+    def _cert_get(self, csr):
+        """ get certificate from CA """
+        self.logger.debug('CAhandler._cert_get({0})'.format(csr))
+        ca_dic = self._ca_get_properties('name', self.ca_name)
+        cert_dic = {}
+
+        if 'href' in ca_dic:
+            # data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
+            data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
+            cert_dic = self._api_post(self.api_host + '/v1/requests', data)
+
+        if not cert_dic:
+            cert_dic = ca_dic
+
+        self.logger.debug('CAhandler._cert_get() ended with: {0}'.format(cert_dic))
+        return cert_dic
+
+    def _cert_get_properties(self, serial, ca_link):
         """ get properties for a single cert """
-        self.logger.debug('get_cert_properties({0}: {1})'.format(serial, ca_link))
+        self.logger.debug('_cert_get_properties({0}: {1})'.format(serial, ca_link))
 
         params = {'q' : 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
         try:
@@ -135,10 +114,64 @@ class CAhandler(object):
         except BaseException as err:
             api_response = {'status': 500, 'message': str(err), 'statusMessage': 'Internal Server Error'}
 
-        self.logger.debug('CAhandler.get_cert_properties() ended')
+        self.logger.debug('CAhandler._cert_get_properties() ended')
         return api_response
 
-    def generate_pem_cert_chain(self, cert_dic):
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('_config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+        if 'api_host' in config_dic['CAhandler']:
+            self.api_host = config_dic['CAhandler']['api_host']
+        if 'api_user' in config_dic['CAhandler']:
+            self.api_user = config_dic['CAhandler']['api_user']
+        if 'api_password' in config_dic['CAhandler']:
+            self.api_password = config_dic['CAhandler']['api_password']
+        if 'ca_name' in config_dic['CAhandler']:
+            self.ca_name = config_dic['CAhandler']['ca_name']
+        if 'polling_timeout' in config_dic['CAhandler']:
+            self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+        self.logger.debug('CAhandler._config_load() ended')
+
+    def _loop_poll(self, request_url):
+        """ poll request """
+        self.logger.debug('CAhandler._loop_poll({0})'.format(request_url))
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        # calculate iterations based on timeout
+        poll_cnt = math.ceil(self.polling_timeout/5)
+        cnt = 1
+        while cnt <= poll_cnt:
+            cnt += 1
+            request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+            poll_identifier = request_url
+            # check response
+            if 'status' in request_dic:
+                if request_dic['status'] == 'accepted':
+                    if 'certificate' in request_dic:
+                        # poll identifier for later storage
+                        cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                        if 'certificateBase64' in cert_dic:
+                            # this is a valid cert generate the bundle
+                            error = None
+                            cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                            cert_raw = cert_dic['certificateBase64']
+                            poll_identifier = None
+                            break
+                elif request_dic['status'] == 'rejected':
+                    error = 'Request rejected by operator'
+                    poll_identifier = None
+                    break
+
+            # sleep
+            time.sleep(5)
+        self.logger.debug('CAhandler._loop_poll() ended with error: {0}'.format(error))
+        return(error, cert_bundle, cert_raw, poll_identifier)
+
+    def _pem_cert_chain_generate(self, cert_dic):
         """ build certificate chain based """
         pem_list = []
         issuer_loop = True
@@ -170,79 +203,97 @@ class CAhandler(object):
         for cert in pem_list:
             pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
 
-        self.logger.debug('CAhandler.generate_pem_cert_chain() ended')
+        self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
         return pem_file
 
-    def load_config(self):
-        """" load config from file """
-        self.logger.debug('load_config()')
-        config_dic = load_config(self.logger, 'CAhandler')
-        if 'api_host' in config_dic['CAhandler']:
-            self.api_host = config_dic['CAhandler']['api_host']
-        if 'api_user' in config_dic['CAhandler']:
-            self.api_user = config_dic['CAhandler']['api_user']
-        if 'api_password' in config_dic['CAhandler']:
-            self.api_password = config_dic['CAhandler']['api_password']
-        if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-        if 'polling_timeout' in config_dic['CAhandler']:
-            self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
-        self.logger.debug('CAhandler.load_config() ended')
-
-    def poll_request(self, request_url):
+    def _request_poll(self, request_url):
         """ poll request """
-        self.logger.debug('CAhandler.poll_request({0})'.format(request_url))
+        self.logger.debug('CAhandler._request_poll({0})'.format(request_url))
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        poll_identifier = request_url
+
+        request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+
+        # check response
+        if 'status' in request_dic:
+            if request_dic['status'] == 'accepted':
+                if 'certificate' in request_dic:
+                    # poll identifier for later storage
+                    cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                    if 'certificateBase64' in cert_dic:
+                        # this is a valid cert generate the bundle
+                        error = None
+                        cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                        cert_raw = cert_dic['certificateBase64']
+                        poll_identifier = None
+            elif request_dic['status'] == 'rejected':
+                error = 'Request rejected by operator'
+                poll_identifier = None
+
+        self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
+        return(error, cert_bundle, cert_raw, poll_identifier)
+
+    def enroll(self, csr):
+        """ enroll certificate """
+        self.logger.debug('Certificate.enroll()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_identifier = None
+
+        cert_dic = self._cert_get(csr)
+        if cert_dic:
+            if 'status' in cert_dic:
+                # this is an error
+                error = cert_dic['message']
+            elif 'certificateBase64' in cert_dic:
+                # this is a valid cert generate the bundle
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                cert_raw = cert_dic['certificateBase64']
+            elif 'href' in cert_dic:
+                # request is pending
+                (error, cert_bundle, cert_raw, poll_identifier) = self._loop_poll(cert_dic['href'])
+            else:
+                error = 'no certificate information found'
+        else:
+            error = 'internal error'
+        self.logger.debug('Certificate.enroll() ended')
+        return(error, cert_bundle, cert_raw, poll_identifier)
+
+    def poll(self, cert_name, poll_identifier, _csr):
+        """ poll pending status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
 
         error = None
         cert_bundle = None
         cert_raw = None
 
-        # calculate iterations based on timeout
-        poll_cnt = math.ceil(self.polling_timeout/5)
-        cnt = 1
-        while cnt <= poll_cnt:
-            request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
-            poll_identifier = request_url
-            cnt += 1
-            # check response
-            if 'status' in request_dic:
-                if request_dic['status'] == 'accepted':
-                    if 'certificate' in request_dic:
-                        # poll identifier for later storage
-                        cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
-                        if 'certificateBase64' in cert_dic:
-                            # this is a valid cert generate the bundle
-                            error = None
-                            cert_bundle = self.generate_pem_cert_chain(cert_dic)
-                            cert_raw = cert_dic['certificateBase64']
-                            poll_identifier = None
-                            break
-                elif request_dic['status'] == 'rejected':
-                    error = 'Request rejected by operator'
-                    poll_identifier = None
-                    break
+        if poll_identifier:
+            (error, cert_bundle, cert_raw, poll_identifier) = self._request_poll(poll_identifier)
+        else:
+            self.logger.debug('skipping cert: {0} as there is no poll_identifier'.format(cert_name))
 
-            # sleep
-            time.sleep(5)
-        self.logger.debug('CAhandler.poll_request() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, poll_identifier)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         # lookup REST-PATH of issuing CA
-        ca_dic = self.get_ca_properties('name', self.ca_name)
+        ca_dic = self._ca_get_properties('name', self.ca_name)
         if 'href' in ca_dic:
             # get serial from pem file
             serial = cert_serial_get(self.logger, cert)
             if serial:
                 # get certificate information via rest by search for ca+ serial
-                cert_dic = self.get_cert_properties(serial, ca_dic['href'])
+                cert_dic = self._cert_get_properties(serial, ca_dic['href'])
                 if 'certificates' in cert_dic:
                     if 'href' in cert_dic['certificates'][0]:
                         # revoke the cert
                         data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
-                        cert_dic = self.api_post(cert_dic['certificates'][0]['href'] + '/status', data)
+                        cert_dic = self._api_post(cert_dic['certificates'][0]['href'] + '/status', data)
                         if 'status' in cert_dic:
                             # code = cert_dic['status']
                             code = 400
@@ -271,8 +322,6 @@ class CAhandler(object):
 
         return(code, message, detail)
 
-    def set_auth(self):
-        """ set basic authentication header """
-        self.logger.debug('CAhandler.set_auth()')
-        self.auth = HTTPBasicAuth(self.api_user, self.api_password)
-        self.logger.debug('CAhandler.set_auth() ended')
+
+
+
