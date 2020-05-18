@@ -3,6 +3,8 @@
 """ Directory class """
 from __future__ import print_function
 import uuid
+from .version import __version__
+from .helper import load_config
 
 class Directory(object):
     """ class for directory handling """
@@ -10,17 +12,30 @@ class Directory(object):
     def __init__(self, _debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
         self.logger = logger
+        self.supress_version = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self._config_load()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Directory._config_load()')
+        config_dic = load_config(self.logger, 'Directory')
+        if 'Directory' in config_dic:
+            if 'supress_version' in config_dic['Directory']:
+                self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
+        self.logger.debug('CAhandler._config_load() ended')
+
+
     def directory_get(self):
         """ return response to ACME directory call """
         self.logger.debug('Directory.directory_get()')
+
         d_dic = {
             'newAuthz' : self.server_name + '/acme/new-authz',
             'newNonce': self.server_name + '/acme/newnonce',
@@ -31,8 +46,14 @@ class Directory(object):
             'meta' : {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',
+                'name': 'acme2certifier'
             },
         }
+
+        # show version information in meta tags if not disabled....
+        if not self.supress_version:
+            d_dic['meta']['version'] = __version__
+
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
