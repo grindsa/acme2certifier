@@ -338,7 +338,6 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_search() ended')
         return cert_list
 
-
     def challenge_add(self, data_dic):
         """ add challenge to database """
         self.logger.debug('DBStore.challenge_add({0})'.format(data_dic))

@@ -214,9 +214,9 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         poll_identifier = request_url
+        rejected = False
 
         request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
-
         # check response
         if 'status' in request_dic:
             if request_dic['status'] == 'accepted':
@@ -228,13 +228,12 @@ class CAhandler(object):
                         error = None
                         cert_bundle = self._pem_cert_chain_generate(cert_dic)
                         cert_raw = cert_dic['certificateBase64']
-                        poll_identifier = None
             elif request_dic['status'] == 'rejected':
                 error = 'Request rejected by operator'
-                poll_identifier = None
+                rejected = True
 
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
-        return(error, cert_bundle, cert_raw, poll_identifier)
+        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def enroll(self, csr):
         """ enroll certificate """
@@ -270,13 +269,14 @@ class CAhandler(object):
         error = None
         cert_bundle = None
         cert_raw = None
+        rejected = False
 
         if poll_identifier:
-            (error, cert_bundle, cert_raw, poll_identifier) = self._request_poll(poll_identifier)
+            (error, cert_bundle, cert_raw, poll_identifier, rejected) = self._request_poll(poll_identifier)
         else:
             self.logger.debug('skipping cert: {0} as there is no poll_identifier'.format(cert_name))
 
-        return(error, cert_bundle, cert_raw, poll_identifier)
+        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
