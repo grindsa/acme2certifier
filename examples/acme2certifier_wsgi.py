@@ -14,7 +14,7 @@ from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
 from acme.helper import get_url, load_config, logger_setup, logger_info
-
+from acme.version import __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -130,12 +130,11 @@ def newaccount(environ, start_response):
 
 def directory(environ, start_response):
     """ directory listing """
-    direct_tory = Directory(DEBUG, get_url(environ), LOGGER)
-    start_response('200 OK', [('Content-Type', 'application/json')])
-
-    # logging
-    logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
-    return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
+    with Directory(DEBUG, get_url(environ), LOGGER) as direct_tory:
+        start_response('200 OK', [('Content-Type', 'application/json')])
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
+        return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
 
 def cert(environ, start_response):
     """ create new account """
@@ -316,7 +315,7 @@ def get_handler_cls():
     return Acme2certiferhandler
 
 if __name__ == '__main__':
-
+    LOGGER.info('starting acme2certifier version {0}'.format(__version__))
     SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
     SRV.serve_forever()
 
