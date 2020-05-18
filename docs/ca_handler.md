@@ -37,7 +37,9 @@ class CAhandler(object):
             error - error message during cert enrollment (None in case no error occured)
             cert_bundle - certificate chain in pem format
             cert_raw - certificate in PEM format 
-            poll_identifier - callback identifier to lookup enrollment request in case the CA server does not issue certificate immediately. This identifier will be used by the polling method check if a certifcate got enrolled
+            poll_identifier - callback identifier to lookup enrollment request in case the CA server does not issue 
+                              certificate immediately. This identifier will be used by the polling method check if 
+                              a certifcate got enrolled
             
         self.logger.debug('Certificate.enroll()')
         ...
