@@ -321,7 +321,3 @@ class CAhandler(object):
             detail = 'CA could not be found'
 
         return(code, message, detail)
-
-
-
-
