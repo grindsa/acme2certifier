@@ -1,7 +1,7 @@
 from setuptools import setup
-
+exec(open('acme/version.py').read())
 setup(name='acme2certifier',
-    version='0.0.1',
+    version=__version__,
     description='acme v2 serer for NetGuard Certificate Manager / Insta Certifier.',
     url='https://github.com/grindsa/acme2certifier',
     author='grindsa',

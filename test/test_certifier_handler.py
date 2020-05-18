@@ -14,7 +14,6 @@ except ImportError:
     from unittest.mock import patch, MagicMock, Mock
 sys.path.insert(0, '..')
 
-
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
 
