@@ -18,4 +18,4 @@ if __name__ == '__main__':
         for cert in CERT_LIST:
             # check status of certificate
             certificate.poll(cert['name'], cert['poll_identifier'], cert['csr'])
-            sys.exit(0)
+
