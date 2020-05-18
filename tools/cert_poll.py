@@ -5,7 +5,6 @@ sys.path.insert(0, '..')
 from acme.helper import logger_setup
 from acme.certificate import Certificate
 
-
 if __name__ == '__main__':
 
     DEBUG = True
@@ -16,5 +15,7 @@ if __name__ == '__main__':
         # search certificates in status "processing"
         CERT_LIST = certificate.certlist_search('order__status_id', 4, ('name', 'poll_identifier', 'csr'))
 
-        from pprint import pprint
-        pprint(CERT_LIST)
+        for cert in CERT_LIST:
+            # check status of certificate
+            certificate.poll(cert['name'], cert['poll_identifier'], cert['csr'])
+            sys.exit(0)
