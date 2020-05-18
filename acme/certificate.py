@@ -410,3 +410,9 @@ class Certificate(object):
         """ get certificate from database """
         self.logger.debug('Certificate.search({0}: {1})'.format(key, value))
         return self.dbstore.certificates_search(key, value, vlist)
+
+    def poll(self, cert_name, poll_identifier, csr):
+        """ try to fetch a certificate from CA and store it into database """
+        self.logger.debug('Certificate.poll({0}: {1})'.format(cert_name, poll_identifier))
+        with CAhandler(self.debug, self.logger) as ca_handler:
+            (error, certificate, certificate_raw, poll_identifier) = ca_handler.poll(cert_name, poll_identifier, csr)
