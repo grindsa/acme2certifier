@@ -429,4 +429,4 @@ class Certificate(object):
                     self.dbstore.order_update({'name': order_name, 'status': 'invalid'})
 
         self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
-        return result
+        return _result

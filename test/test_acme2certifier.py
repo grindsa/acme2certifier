@@ -87,7 +87,8 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_004_get_dir_meta(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>'}}, self.directory.directory_get())
+        self.directory.supress_version = True
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier'}}, self.directory.directory_get())
 
     def test_005_nonce_new(self):
         """ test Nonce.new() and check if we get something back """
@@ -2252,7 +2253,6 @@ class TestACMEHandler(unittest.TestCase):
         mock_process_csr.return_value = (200, 'cert_name', 'detail')
         mock_update.return_value = None
         self.assertEqual((200, None, 'detail', 'cert_name'), self.order.process(order_name, protected, payload))
-
 
 if __name__ == '__main__':
     unittest.main()
