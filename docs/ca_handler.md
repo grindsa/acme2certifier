@@ -39,7 +39,7 @@ class CAhandler(object):
             cert_raw - certificate in PEM format 
             poll_identifier - callback identifier to lookup enrollment request in case the CA server does not issue 
                               certificate immediately. This identifier will be used by the polling method check if 
-                              a certifcate got enrolled
+                              a CSR got accepted
             
         self.logger.debug('Certificate.enroll()')
         ...
@@ -58,7 +58,8 @@ class CAhandler(object):
             cert_bundle - certificate chain in pem format
             cert_raw - certificate in PEM format """
             poll_identifier - (updated) callback identifier - will be updated in database for later lookups
-            rejected - indicates of request has been rejected by CA admistrator - in case of a request rejection by CA admistrator, the corresponding order status will be set to "invalid" state
+            rejected - indicates of request has been rejected by CA admistrator - in case of a request rejection by CA 
+                       admistrator, the corresponding order status will be set to "invalid" state
         
         self.logger.debug('CAhandler.poll()')
         ...
