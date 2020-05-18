@@ -175,7 +175,6 @@ class Certificate(object):
         """ get key for a specific account id """
         self.logger.debug('Certificate.store_error({0})'.format(certificate_name))
         data_dic = {'error' : error, 'name': certificate_name, 'poll_identifier': poll_identifier}
-        print(data_dic)
         cert_id = self.dbstore.certificate_add(data_dic)
         self.logger.debug('Certificate.store_error({0}) ended'.format(cert_id))
         return cert_id
@@ -411,8 +410,23 @@ class Certificate(object):
         self.logger.debug('Certificate.search({0}: {1})'.format(key, value))
         return self.dbstore.certificates_search(key, value, vlist)
 
-    def poll(self, cert_name, poll_identifier, csr):
+    def poll(self, certificate_name, poll_identifier, csr, order_name):
         """ try to fetch a certificate from CA and store it into database """
-        self.logger.debug('Certificate.poll({0}: {1})'.format(cert_name, poll_identifier))
+        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
+        
         with CAhandler(self.debug, self.logger) as ca_handler:
-            (error, certificate, certificate_raw, poll_identifier) = ca_handler.poll(cert_name, poll_identifier, csr)
+            (error, certificate, certificate_raw, poll_identifier, rejected) = ca_handler.poll(certificate_name, poll_identifier, csr)
+            if certificate:
+                # update certificate record in database
+                _result = self.store_cert(certificate_name, certificate, certificate_raw)
+                # update order status to 5 (valid)
+                self.dbstore.order_update({'name': order_name, 'status': 'valid'})
+            else:
+                # store error message for later analysis
+                self.store_cert_error(certificate_name, error, poll_identifier)
+                _result = None                
+                if rejected:
+                    self.dbstore.order_update({'name': order_name, 'status': 'invalid'})
+
+        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
+        return result
