@@ -37,20 +37,17 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('foo', 'foo')
 
     @patch('requests.get')
-    def test_002_get_ca(self, mock_get):
+    def test_002_ca_get(self, mock_get):
         """ CAhandler.get_ca() returns an http error """
         mock_get.side_effect = requests.exceptions.HTTPError
-        self.assertEqual({'status': 500, 'message': '', 'statusMessage': 'Internal Server Error'}, self.cahandler.get_ca('foo', 'bar'))
+        self.assertEqual({'status': 500, 'message': '', 'statusMessage': 'Internal Server Error'}, self.cahandler._ca_get('foo', 'bar'))
 
     @patch('requests.get')
-    def test_003_get_ca(self, mock_get):
+    def test_003_ca_get(self, mock_get):
         """ CAhandler.get_ca() returns an not json file """
         mock_get.status_code = 200
         mock_get.return_value.json = {"bbs": "hahha"}
-        self.assertEqual({'status': 500, 'message': "'dict' object is not callable", 'statusMessage': 'Internal Server Error'}, self.cahandler.get_ca('foo', 'bar'))
-
-
-
+        self.assertEqual({'status': 500, 'message': "'dict' object is not callable", 'statusMessage': 'Internal Server Error'}, self.cahandler._ca_get('foo', 'bar'))
 
 if __name__ == '__main__':
 
