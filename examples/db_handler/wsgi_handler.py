@@ -23,125 +23,26 @@ class DBstore(object):
         self.cursor = None
 
         if not os.path.exists(self.db_name):
-            self.db_create()
+            self._db_create()
 
-    def account_add(self, data_dic):
-        """ add account in database """
-        self.logger.debug('DBStore.account_add({0})'.format(data_dic))
-
-        # we need this for compability with django
-        created = False
-        # check if we alredy have an entry for the key
-        exists = self.account_search('jwk', data_dic['jwk'])
-        self.db_open()
-        if bool(exists):
-            # update
-            aname = exists[1]
-            self.logger.debug('account exists: {0} id: {1}'.format(aname, exists[0]))
-            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, jwk = :jwk, contact = :contact WHERE jwk = :jwk''', data_dic)
-        else:
-            # insert
-            self.cursor.execute('''INSERT INTO ACCOUNT(alg, jwk, contact, name) VALUES(:alg, :jwk, :contact, :name)''', data_dic)
-            aname = data_dic['name']
-            created = True
-
-        self.db_close()
-        self.logger.debug('DBStore.account_add() ended')
-        return(aname, created)
-
-    def account_delete(self, aname):
-        """ add account in database """
-        self.logger.debug('DBStore.account_delete({0})'.format(aname))
-        self.db_open()
-        pre_statement = 'DELETE FROM account WHERE name LIKE ?'
-        self.cursor.execute(pre_statement, [aname])
-        result = bool(self.cursor.rowcount)
-        self.db_close()
-        self.logger.debug('DBStore.account_delete() ended')
-        return result
-
-    def account_lookup(self, column, string):
-        """ lookup account table for a certain key/value pair and return id"""
-        self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
-        try:
-            result = dict_from_row(self.account_search(column, string))
-        except BaseException:
-            result = {}
-        if 'created_at' in result:
-            result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
-        self.logger.debug('DBStore.account_lookup() ended')
-        return result
-
-    def account_search(self, column, string):
+    def _account_search(self, column, string):
         """ search account table for a certain key/value pair """
-        self.logger.debug('DBStore.account_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
+        self.logger.debug('DBStore._account_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
         pre_statement = 'SELECT * from account WHERE {0} LIKE ?'.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
-        self.db_close()
-        self.logger.debug('DBStore.account_search() ended')
+        self._db_close()
+        self.logger.debug('DBStore._account_search() ended')
         return result
 
-    def account_update(self, data_dic):
-        """ update existing account """
-        self.logger.debug('DBStore.account_update({0})'.format(data_dic))
-
-        lookup = dict_from_row(self.account_search('name', data_dic['name']))
-        if lookup:
-            if 'alg' not in data_dic:
-                data_dic['alg'] = lookup['alg']
-            if 'contact' not in data_dic:
-                data_dic['contact'] = lookup['contact']
-            if 'jwk' not in data_dic:
-                data_dic['jwk'] = lookup['jwk']
-
-            self.db_open()
-            self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
-            self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
-            result = self.cursor.fetchone()[0]
-            self.db_close()
-        else:
-            result = None
-        self.logger.debug('DBStore.account_update() ended')
-        return result
-
-    def authorization_add(self, data_dic):
-        """ add authorization to database """
-        self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
-        self.db_open()
-        self.cursor.execute('''INSERT INTO authorization(name, order_id, type, value) VALUES(:name, :order, :type, :value)''', data_dic)
-        rid = self.cursor.lastrowid
-        self.db_close()
-        self.logger.debug('DBStore.authorization_add() ended with: {0}'.format(rid))
-        return rid
-
-    def authorization_lookup(self, column, string, vlist=('type', 'value')):
-        """ search account for a given id """
-        self.logger.debug('DBStore.authorization_lookup(column:{0}, pattern:{1})'.format(column, string))
-
-        try:
-            lookup = self.authorization_search(column, string)
-        except BaseException:
-            lookup = []
-
-        authz_list = []
-        for row in lookup:
-            row_dic = dict_from_row(row)
-            tmp_dic = {}
-            for ele in vlist:
-                tmp_dic[ele] = row_dic[ele]
-            authz_list.append(tmp_dic)
-        self.logger.debug('DBStore.authorization_lookup() ended')
-        return authz_list
-
-    def authorization_search(self, column, string):
+    def _authorization_search(self, column, string):
         """ search account table for a certain key/value pair """
-        self.logger.debug('DBStore.authorization_search(column:{0}, pattern:{1})'.format(column, string))
+        self.logger.debug('DBStore._authorization_search(column:{0}, pattern:{1})'.format(column, string))
         if column == 'name':
             self.logger.debug('rename name to authorization.name')
             column = 'authorization.name'
-        self.db_open()
+        self._db_open()
         pre_statement = '''SELECT
                             authorization.*,
                             orders.id as orders__id,
@@ -156,19 +57,259 @@ class DBstore(object):
                         WHERE {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchall()
-        self.db_close()
-        self.logger.debug('DBStore.authorization_search() ended')
+        self._db_close()
+        self.logger.debug('DBStore._authorization_search() ended')
         return result
+
+    def _certificate_search(self, column, string):
+        """ search certificate table for a certain key/value pair """
+        self.logger.debug('DBStore._certificate_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+
+        if column != 'order__name':
+            column = 'certificate.{0}'.format(column)
+            self.logger.debug('modified column to {0}'.format(column))
+
+        pre_statement = '''SELECT certificate.*,
+                            orders.id as order__id,
+                            orders.name as order__name,
+                            orders.status_id as order__status_id,
+                            account.name as order__account__name
+                            from certificate
+                            INNER JOIN orders on orders.id = certificate.order_id
+                            INNER JOIN account on account.id = orders.account_id
+                            WHERE {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self._db_close()
+        self.logger.debug('DBStore._certificate_search() ended')
+        return result
+
+    def _challenge_search(self, column, string):
+        """ search challenge table for a certain key/value pair """
+        self.logger.debug('DBStore._challenge_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        pre_statement = '''
+            SELECT
+                challenge.*,
+                status.id as status__id,
+                status.name as status__name,
+                authorization.id as authorization__id,
+                authorization.name as authorization__name,
+                authorization.type as authorization__type,
+                authorization.value as authorization__value,
+                authorization.token as authorization__token,
+                orders.name as authorization__order__name,
+                account.name as authorization__order__account__name
+            from challenge
+            INNER JOIN status on status.id = challenge.status_id
+            INNER JOIN authorization on authorization.id = challenge.authorization_id
+            INNER JOIN orders on orders.id = authorization.order_id
+            INNER JOIN account on account.id = orders.account_id
+            WHERE challenge.{0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self._db_close()
+        self.logger.debug('DBStore._challenge_search() ended')
+        return result
+
+    def _db_close(self):
+        """ commit and close """
+        self.logger.debug('DBStore._db_close()')
+        self.dbs.commit()
+        self.dbs.close()
+        self.logger.debug('DBStore._db_close() ended')
+
+    def _db_create(self):
+        """ create the database if dos not exist """
+        self.logger.debug('DBStore._db_create({0})'.format(self.db_name))
+        self._db_open()
+        # create nonce table
+        self.logger.debug('create nonce')
+        self.cursor.execute('''
+            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create account')
+        self.cursor.execute('''
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create status')
+        self.cursor.execute('''
+            CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
+        ''')
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'invalid'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'pending'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'ready'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'processing'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
+        self.logger.debug('create orders')
+        self.cursor.execute('''
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create authorization')
+        self.cursor.execute('''
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create challenge')
+        self.cursor.execute('''
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create certificate')
+        self.cursor.execute('''
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+
+        self._db_close()
+        self.logger.debug('DBStore._db_create() ended')
+
+    def _db_open(self):
+        """ opens db and sets cursor """
+        self.logger.debug('DBStore._db_open()')
+        self.dbs = sqlite3.connect(self.db_name)
+        self.dbs.row_factory = sqlite3.Row
+        self.cursor = self.dbs.cursor()
+        self.logger.debug('DBStore._db_open() ended')
+
+    def _order_search(self, column, string):
+        """ search order table for a certain key/value pair """
+        self.logger.debug('DBStore._order_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        pre_statement = '''
+                    SELECT
+                        orders.*,
+                        status.name as status__name,
+                        status.id as status__id,
+                        account.name as account__name,
+                        account.id as account_id
+                    from orders
+                    INNER JOIN status on status.id = orders.status_id
+                    INNER JOIN account on account.id = orders.account_id
+                    WHERE orders.{0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self._db_close()
+        self.logger.debug('DBStore._order_search() ended')
+        return result
+
+    def _status_search(self, column, string):
+        """ search status table for a certain key/value pair """
+        self.logger.debug('DBStore._status_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format(column)
+        self.cursor.execute(pre_statement, [string])
+        result = self.cursor.fetchone()
+        self._db_close()
+        self.logger.debug('DBStore._status_search() ended')
+        return result
+
+    def account_add(self, data_dic):
+        """ add account in database """
+        self.logger.debug('DBStore.account_add({0})'.format(data_dic))
+
+        # we need this for compability with django
+        created = False
+        # check if we alredy have an entry for the key
+        exists = self._account_search('jwk', data_dic['jwk'])
+        self._db_open()
+        if bool(exists):
+            # update
+            aname = exists[1]
+            self.logger.debug('account exists: {0} id: {1}'.format(aname, exists[0]))
+            self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, jwk = :jwk, contact = :contact WHERE jwk = :jwk''', data_dic)
+        else:
+            # insert
+            self.cursor.execute('''INSERT INTO ACCOUNT(alg, jwk, contact, name) VALUES(:alg, :jwk, :contact, :name)''', data_dic)
+            aname = data_dic['name']
+            created = True
+
+        self._db_close()
+        self.logger.debug('DBStore.account_add() ended')
+        return(aname, created)
+
+    def account_delete(self, aname):
+        """ add account in database """
+        self.logger.debug('DBStore.account_delete({0})'.format(aname))
+        self._db_open()
+        pre_statement = 'DELETE FROM account WHERE name LIKE ?'
+        self.cursor.execute(pre_statement, [aname])
+        result = bool(self.cursor.rowcount)
+        self._db_close()
+        self.logger.debug('DBStore.account_delete() ended')
+        return result
+
+    def account_lookup(self, column, string):
+        """ lookup account table for a certain key/value pair and return id"""
+        self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
+        try:
+            result = dict_from_row(self._account_search(column, string))
+        except BaseException:
+            result = {}
+        if 'created_at' in result:
+            result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
+        self.logger.debug('DBStore.account_lookup() ended')
+        return result
+
+    def account_update(self, data_dic):
+        """ update existing account """
+        self.logger.debug('DBStore.account_update({0})'.format(data_dic))
+
+        lookup = dict_from_row(self._account_search('name', data_dic['name']))
+        if lookup:
+            if 'alg' not in data_dic:
+                data_dic['alg'] = lookup['alg']
+            if 'contact' not in data_dic:
+                data_dic['contact'] = lookup['contact']
+            if 'jwk' not in data_dic:
+                data_dic['jwk'] = lookup['jwk']
+
+            self._db_open()
+            self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
+            self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
+            result = self.cursor.fetchone()[0]
+            self._db_close()
+        else:
+            result = None
+        self.logger.debug('DBStore.account_update() ended')
+        return result
+
+    def authorization_add(self, data_dic):
+        """ add authorization to database """
+        self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
+        self._db_open()
+        self.cursor.execute('''INSERT INTO authorization(name, order_id, type, value) VALUES(:name, :order, :type, :value)''', data_dic)
+        rid = self.cursor.lastrowid
+        self._db_close()
+        self.logger.debug('DBStore.authorization_add() ended with: {0}'.format(rid))
+        return rid
+
+    def authorization_lookup(self, column, string, vlist=('type', 'value')):
+        """ search account for a given id """
+        self.logger.debug('DBStore.authorization_lookup(column:{0}, pattern:{1})'.format(column, string))
+
+        try:
+            lookup = self._authorization_search(column, string)
+        except BaseException:
+            lookup = []
+
+        authz_list = []
+        for row in lookup:
+            row_dic = dict_from_row(row)
+            tmp_dic = {}
+            for ele in vlist:
+                tmp_dic[ele] = row_dic[ele]
+            authz_list.append(tmp_dic)
+        self.logger.debug('DBStore.authorization_lookup() ended')
+        return authz_list
 
     def authorization_update(self, data_dic):
         """ update existing authorization """
         self.logger.debug('DBStore.authorization_update({0})'.format(data_dic))
 
-        lookup = self.authorization_search('name', data_dic['name'])
+        lookup = self._authorization_search('name', data_dic['name'])
         if lookup:
             lookup = dict_from_row(lookup[0])
             if 'status' in data_dic:
-                data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
+                data_dic['status'] = dict_from_row(self._status_search('name', data_dic['status']))['id']
             else:
                 data_dic['status'] = lookup['status_id']
             if 'token' not in data_dic:
@@ -176,11 +317,11 @@ class DBstore(object):
             if 'expires' not in data_dic:
                 data_dic['expires'] = lookup['expires']
 
-            self.db_open()
+            self._db_open()
             self.cursor.execute('''UPDATE authorization SET status_id = :status, token = :token, expires = :expires WHERE name = :name''', data_dic)
             self.cursor.execute('''SELECT id FROM authorization WHERE name=:name''', {'name': data_dic['name']})
             result = self.cursor.fetchone()[0]
-            self.db_close()
+            self._db_close()
         else:
             result = None
         self.logger.debug('DBStore.authorization_update() ended')
@@ -223,35 +364,35 @@ class DBstore(object):
         """ add csr/certificate to database """
         self.logger.debug('DBStore.certificate_add({0})'.format(data_dic['name']))
         # check if we alredy have an entry for the key
-        exists = self.certificate_search('name', data_dic['name'])
+        exists = self._certificate_search('name', data_dic['name'])
 
         if bool(exists):
             # update
             self.logger.debug('update existing entry for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
-            self.db_open()
+            self._db_open()
             if 'error' in data_dic:
                 self.cursor.execute('''UPDATE Certificate SET error = :error, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
             else:
                 self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw WHERE name = :name''', data_dic)
-            self.db_close()
+            self._db_close()
             rid = dict_from_row(exists)['id']
         else:
             # insert
             self.logger.debug('insert new entry for {0}'.format(data_dic['name']))
             # change order name to id but tackle cases where we cannot do this
             try:
-                data_dic['order'] = dict_from_row(self.order_search('name', data_dic['order']))['id']
+                data_dic['order'] = dict_from_row(self._order_search('name', data_dic['order']))['id']
             except BaseException:
                 data_dic['order'] = 0
 
-            self.db_open()
+            self._db_open()
             if not 'csr' in data_dic:
                 data_dic['csr'] = ''
             if 'error' in data_dic:
                 self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr) VALUES(:name, :error, :order, :csr)''', data_dic)
             else:
                 self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
-            self.db_close()
+            self._db_close()
             rid = self.cursor.lastrowid
         self.logger.debug('DBStore.certificate_add() ended with: {0}'.format(rid))
         return rid
@@ -261,7 +402,7 @@ class DBstore(object):
         self.logger.debug('DBstore.certificate_lookup({0}:{1})'.format(column, string))
 
         try:
-            lookup = dict_from_row(self.certificate_search(column, string))
+            lookup = dict_from_row(self._certificate_search(column, string))
         except BaseException:
             lookup = None
 
@@ -277,34 +418,10 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
-    def certificate_search(self, column, string):
-        """ search certificate table for a certain key/value pair """
-        self.logger.debug('DBStore.certificate_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
-
-        if column != 'order__name':
-            column = 'certificate.{0}'.format(column)
-            self.logger.debug('modified column to {0}'.format(column))
-
-        pre_statement = '''SELECT certificate.*,
-                            orders.id as order__id,
-                            orders.name as order__name,
-                            orders.status_id as order__status_id,
-                            account.name as order__account__name
-                            from certificate
-                            INNER JOIN orders on orders.id = certificate.order_id
-                            INNER JOIN account on account.id = orders.account_id
-                            WHERE {0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
-        self.db_close()
-        self.logger.debug('DBStore.certificate_search() ended')
-        return result
-
     def certificates_search(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate table for a certain key/value pair """
-        self.logger.debug('DBStore.certificate_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
+        self.logger.debug('DBStore.certificates_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
 
         if column == 'order__status_id':
             column = 'orders.status_id'
@@ -334,8 +451,8 @@ class DBstore(object):
                         result['order'] = lookup[ele]
             cert_list.append(result)
 
-        self.db_close()
-        self.logger.debug('DBStore.certificate_search() ended')
+        self._db_close()
+        self.logger.debug('DBStore.certificates_search() ended')
         return cert_list
 
     def challenge_add(self, data_dic):
@@ -347,10 +464,10 @@ class DBstore(object):
             data_dic['status'] = 2
         if authorization:
             data_dic['authorization'] = authorization[0]['id']
-            self.db_open()
+            self._db_open()
             self.cursor.execute('''INSERT INTO challenge(name, token, authorization_id, expires, type, status_id) VALUES(:name, :token, :authorization, :expires, :type, :status)''', data_dic)
             rid = self.cursor.lastrowid
-            self.db_close()
+            self._db_close()
         else:
             rid = None
         self.logger.debug('DBStore.challenge_add() ended')
@@ -361,7 +478,7 @@ class DBstore(object):
         self.logger.debug('challenge_lookup({0}:{1})'.format(column, string))
 
         try:
-            lookup = dict_from_row(self.challenge_search(column, string))
+            lookup = dict_from_row(self._challenge_search(column, string))
         except BaseException:
             lookup = None
 
@@ -379,114 +496,29 @@ class DBstore(object):
         self.logger.debug('DBStore.challenge_lookup() ended with:{0}'.format(result))
         return result
 
-    def challenge_search(self, column, string):
-        """ search challenge table for a certain key/value pair """
-        self.logger.debug('DBStore.challenge_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
-        pre_statement = '''
-            SELECT
-                challenge.*,
-                status.id as status__id,
-                status.name as status__name,
-                authorization.id as authorization__id,
-                authorization.name as authorization__name,
-                authorization.type as authorization__type,
-                authorization.value as authorization__value,
-                authorization.token as authorization__token,
-                orders.name as authorization__order__name,
-                account.name as authorization__order__account__name
-            from challenge
-            INNER JOIN status on status.id = challenge.status_id
-            INNER JOIN authorization on authorization.id = challenge.authorization_id
-            INNER JOIN orders on orders.id = authorization.order_id
-            INNER JOIN account on account.id = orders.account_id
-            WHERE challenge.{0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
-        self.db_close()
-        self.logger.debug('DBStore.challenge_search() ended')
-        return result
-
     def challenge_update(self, data_dic):
         """ update challenge """
         self.logger.debug('challenge_update({0})'.format(data_dic))
-        lookup = self.challenge_search('name', data_dic['name'])
+        lookup = self._challenge_search('name', data_dic['name'])
         lookup = dict_from_row(lookup)
 
         if 'status' in data_dic:
-            data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
+            data_dic['status'] = dict_from_row(self._status_search('name', data_dic['status']))['id']
         else:
             data_dic['status'] = lookup['status__id']
 
         if 'keyauthorization' not in data_dic:
             data_dic['keyauthorization'] = lookup['keyauthorization']
 
-        self.db_open()
+        self._db_open()
         self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
-        self.db_close()
+        self._db_close()
         self.logger.debug('DBStore.challenge_update() ended')
-
-    def db_close(self):
-        """ commit and close """
-        self.logger.debug('DBStore.db_close()')
-        self.dbs.commit()
-        self.dbs.close()
-        self.logger.debug('DBStore.db_close() ended')
-
-    def db_create(self):
-        """ create the database if dos not exist """
-        self.logger.debug('DBStore.db_create({0})'.format(self.db_name))
-        self.db_open()
-        # create nonce table
-        self.logger.debug('create nonce')
-        self.cursor.execute('''
-            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create account')
-        self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create status')
-        self.cursor.execute('''
-            CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
-        ''')
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'invalid'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'pending'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'ready'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'processing'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
-        self.logger.debug('create orders')
-        self.cursor.execute('''
-            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create authorization')
-        self.cursor.execute('''
-            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create challenge')
-        self.cursor.execute('''
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create certificate')
-        self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-
-        self.db_close()
-        self.logger.debug('DBStore.db_create() ended')
-
-    def db_open(self):
-        """ opens db and sets cursor """
-        self.logger.debug('DBStore.db_open()')
-        self.dbs = sqlite3.connect(self.db_name)
-        self.dbs.row_factory = sqlite3.Row
-        self.cursor = self.dbs.cursor()
-        self.logger.debug('DBStore.db_open() ended')
 
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
-        self.db_open()
+        self._db_open()
         # add poll_identifier if not existing
         self.cursor.execute('''PRAGMA table_info(certificate)''')
         certificate_column_list = []
@@ -497,14 +529,13 @@ class DBstore(object):
             self.logger.debug('alter certificate table - add poll_identifier')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
 
-        self.db_close()
-
+        self._db_close()
         self.logger.debug('DBStore.db_update() ended')
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
-        account_list = self.account_search('name', aname)
+        account_list = self._account_search('name', aname)
         jwk_dict = {}
         if account_list:
             jwk_dict = json.loads(account_list[3])
@@ -517,10 +548,10 @@ class DBstore(object):
         in: nonce
         return: rowid """
         self.logger.debug('DBStore.nonce_add({0})'.format(nonce))
-        self.db_open()
+        self._db_open()
         self.cursor.execute('''INSERT INTO nonce(nonce) VALUES(:nonce)''', {'nonce': nonce})
         rid = self.cursor.lastrowid
-        self.db_close()
+        self._db_close()
         self.logger.debug('DBStore.nonce_add() ended')
         return rid
 
@@ -529,10 +560,10 @@ class DBstore(object):
         in: nonce
         return: true in case nonce exit, otherwise false """
         self.logger.debug('DBStore.nonce_check({0})'.format(nonce))
-        self.db_open()
+        self._db_open()
         self.cursor.execute('''SELECT nonce FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
         result = bool(self.cursor.fetchone())
-        self.db_close()
+        self._db_close()
         self.logger.debug('DBStore.nonce_check() ended')
         return result
 
@@ -540,9 +571,9 @@ class DBstore(object):
         """ delete nonce from datbase
         in: nonce """
         self.logger.debug('DBStore.nonce_delete({0})'.format(nonce))
-        self.db_open()
+        self._db_open()
         self.cursor.execute('''DELETE FROM nonce WHERE nonce=:nonce''', {'nonce': nonce})
-        self.db_close()
+        self._db_close()
         self.logger.debug('DBStore.nonce_delete() ended')
 
     def order_add(self, data_dic):
@@ -557,10 +588,10 @@ class DBstore(object):
         account = self.account_lookup('name', data_dic['account'])
         if account:
             data_dic['account'] = account['id']
-            self.db_open()
+            self._db_open()
             self.cursor.execute('''INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )''', data_dic)
             rid = self.cursor.lastrowid
-            self.db_close()
+            self._db_close()
         else:
             rid = None
         self.logger.debug('DBStore.order_add() ended')
@@ -571,7 +602,7 @@ class DBstore(object):
         self.logger.debug('order_lookup({0}:{1})'.format(column, string))
 
         try:
-            lookup = dict_from_row(self.order_search(column, string))
+            lookup = dict_from_row(self._order_search(column, string))
         except BaseException:
             lookup = None
 
@@ -592,44 +623,12 @@ class DBstore(object):
         self.logger.debug('DBStore.order_lookup() ended with: {0}'.format(result))
         return result
 
-    def order_search(self, column, string):
-        """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.order_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
-        pre_statement = '''
-                    SELECT
-                        orders.*,
-                        status.name as status__name,
-                        status.id as status__id,
-                        account.name as account__name,
-                        account.id as account_id
-                    from orders
-                    INNER JOIN status on status.id = orders.status_id
-                    INNER JOIN account on account.id = orders.account_id
-                    WHERE orders.{0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
-        self.db_close()
-        self.logger.debug('DBStore.order_search() ended')
-        return result
-
     def order_update(self, data_dic):
         """ update order """
         self.logger.debug('order_update({0})'.format(data_dic))
         if 'status' in data_dic:
-            data_dic['status'] = dict_from_row(self.status_search('name', data_dic['status']))['id']
-        self.db_open()
+            data_dic['status'] = dict_from_row(self._status_search('name', data_dic['status']))['id']
+        self._db_open()
         self.cursor.execute('''UPDATE orders SET status_id = :status WHERE name = :name''', data_dic)
-        self.db_close()
+        self._db_close()
         self.logger.debug('DBStore.order_update() ended')
-
-    def status_search(self, column, string):
-        """ search status table for a certain key/value pair """
-        self.logger.debug('DBStore.status_search(column:{0}, pattern:{1})'.format(column, string))
-        self.db_open()
-        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
-        self.db_close()
-        self.logger.debug('DBStore.status_search() ended')
-        return result
