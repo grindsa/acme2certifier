@@ -29,9 +29,9 @@ class Authorization(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def authz_info(self, url):
+    def _authz_info(self, url):
         """ return authzs information """
-        self.logger.debug('Authorization.info({0})'.format(url))
+        self.logger.debug('Authorization._authz_info({0})'.format(url))
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
         expires = uts_now() + self.expiry
         token = generate_random_string(self.logger, 32)
@@ -53,7 +53,7 @@ class Authorization(object):
             challenge = Challenge(self.debug, self.server_name, self.logger, expires)
             authz_info_dic['challenges'] = challenge.new_set(authz_name, token, tnauth)
 
-        self.logger.debug('Authorization.authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
+        self.logger.debug('Authorization._authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
 
     def new_get(self, url):
@@ -62,7 +62,7 @@ class Authorization(object):
         response_dic = {}
         response_dic['code'] = 200
         response_dic['header'] = {}
-        response_dic['data'] = self.authz_info(url)
+        response_dic['data'] = self._authz_info(url)
         return response_dic
 
     def new_post(self, content):
@@ -74,7 +74,7 @@ class Authorization(object):
         (code, message, detail, protected, _payload, _account_name) = self.message.check(content)
         if code == 200:
             if 'url' in protected:
-                auth_info = self.authz_info(protected['url'])
+                auth_info = self._authz_info(protected['url'])
                 if auth_info:
                     response_dic['data'] = auth_info
                 else:
