@@ -732,7 +732,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
         self.authorization.dbstore.authorization_update.return_value = 'foo'
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'identifier_type', 'value' : 'identifier_value', 'status__name' : 'foo'}]
-        self.assertEqual({'status': 'foo', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'type': 'identifier_type', 'value': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+        self.assertEqual({'status': 'foo', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'type': 'identifier_type', 'value': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
     def test_099_challenge_info(self):
         """ test challenge.info() """
@@ -1286,7 +1286,7 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.authorization.new_post(message))
 
-    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.authorization.Authorization._authz_info')
     @patch('acme.message.Message.check')
     def test_175_authorization_post(self, mock_mcheck, mock_authzinfo):
         """ Authorization.new_post() failed bcs url is missing in protected """
@@ -1296,7 +1296,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.authorization.Authorization._authz_info')
     @patch('acme.message.Message.check')
     def test_176_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
         """ Authorization.new_post() failed bcs url is missing in protected """
@@ -1841,10 +1841,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
         self.authorization.dbstore.authorization_update.return_value = 'foo'
         self.authorization.dbstore.authorization_lookup.return_value = []
-        self.assertEqual({}, self.authorization.authz_info('http://tester.local/acme/authz/foo'))
+        self.assertEqual({}, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.authorization.Authorization.authz_info')
+    @patch('acme.authorization.Authorization._authz_info')
     @patch('acme.message.Message.check')
     def test_251_authorization_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
         """ Authorization.new_post() failed bcs url is missing in protected """
