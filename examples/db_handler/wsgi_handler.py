@@ -7,6 +7,10 @@ import json
 import os
 from acme.helper import datestr_to_date
 
+def initialize():
+    """ run db_handler specific initialization functions  """
+    pass
+
 def dict_from_row(row):
     """ small helper to convert the output of a "select" command into a dictionary """
     return dict(zip(row.keys(), row))
