@@ -23,18 +23,261 @@ class Certificate(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        self.load_config()
+        self._config_load()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
+
+    def _account_check(self, account_name, certificate):
+        """ check account """
+        self.logger.debug('Certificate.issuer_check()')
+        return self.dbstore.certificate_account_check(account_name, b64_url_recode(self.logger, certificate))
+
+    def _authorization_check(self, order_name, certificate):
+        """ check if an acount holds authorization for all identifiers = SANs in the certificate """
+        self.logger.debug('Certificate._authorization_check()')
+
+        # empty list of statuses
+        identifier_status = []
+
+        # get identifiers for order
+        identifier_dic = self.dbstore.order_lookup('name', order_name, ['identifiers'])
+
+        if identifier_dic and 'identifiers' in identifier_dic:
+            # load identifiers
+            try:
+                identifiers = json.loads(identifier_dic['identifiers'].lower())
+            except BaseException:
+                identifiers = []
+
+            # check if we have a tnauthlist identifier
+            tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
+
+            if self.tnauthlist_support and tnauthlist_identifer_in:
+                # reload identifiers (case senetive)
+                try:
+                    identifiers = json.loads(identifier_dic['identifiers'])
+                except BaseException:
+                    identifiers = []
+                # get list of certextensions in base64 format
+                tnauthlist = cert_tnauthlist_get(self.logger, certificate)
+
+                for identifier in identifiers:
+                    # get the tnauthlist identifier
+                    if identifier['type'].lower() == 'tnauthlist':
+                        # check if tnauthlist extension is in extension list
+                        if identifier['value'] in tnauthlist:
+                            identifier_status.append(True)
+                        else:
+                            identifier_status.append(False)
+            else:
+                # get sans
+                san_list = cert_san_get(self.logger, certificate)
+                identifier_status = self._identifer_status_list(identifiers, san_list)
+
+        result = False
+        if identifier_status and False not in identifier_status:
+            result = True
+
+        self.logger.debug('Certificate._authorization_check() ended with {0}'.format(result))
+        return result
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Certificate._config_load()')
+        config_dic = load_config()
+        if 'Order' in config_dic:
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        self.logger.debug('Certificate._config_load() ended.')
+
+    def _csr_check(self, certificate_name, csr):
+        """ compare csr extensions against order """
+        self.logger.debug('Certificate._csr_check()')
+
+        # fetch certificate dictionary from DB
+        certificate_dic = self._info(certificate_name)
+        self.logger.debug('Certificate._info() endet with:{0}'.format(certificate_dic))
+
+        # empty list of statuses
+        identifier_status = []
+
+        if 'order' in certificate_dic:
+            # get identifiers for order
+            identifier_dic = self.dbstore.order_lookup('name', certificate_dic['order'], ['identifiers'])
+
+            if identifier_dic and 'identifiers' in identifier_dic:
+                # load identifiers
+                try:
+                    identifiers = json.loads(identifier_dic['identifiers'].lower())
+                except BaseException:
+                    identifiers = []
+
+                tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
+
+                if self.tnauthlist_support and tnauthlist_identifer_in:
+                    # reload identifiers (case senetive)
+                    try:
+                        identifiers = json.loads(identifier_dic['identifiers'])
+                    except BaseException:
+                        identifiers = []
+
+                    # get list of certextensions in base64 format
+                    tnauthlist = csr_tnauthlist_get(self.logger, csr)
+
+                    for identifier in identifiers:
+                        # get the tnauthlist identifier
+                        if identifier['type'].lower() == 'tnauthlist':
+                            # check if tnauthlist extension is in extension list
+                            if identifier['value'] in tnauthlist:
+                                identifier_status.append(True)
+                            else:
+                                identifier_status.append(False)
+                else:
+                    # get sans
+                    san_list = csr_san_get(self.logger, csr)
+                    identifier_status = self._identifer_status_list(identifiers, san_list)
+
+        # else:
+        #    result = 'error'
+
+        csr_check_result = False
+        if identifier_status and False not in identifier_status:
+            csr_check_result = True
+
+        self.logger.debug('Certificate._csr_check() ended with {0}'.format(csr_check_result))
+        return csr_check_result
+
+    def _identifer_status_list(self, identifiers, san_list):
+        """ compare identifiers and check if each san is in identifer list """
+        self.logger.debug('Certificate._identifer_status_list()')
+
+        identifier_status = []
+        for san in san_list:
+            san_is_in = False
+            try:
+                (cert_type, cert_value) = san.lower().split(':')
+            except BaseException:
+                cert_type = None
+                cert_value = None
+
+            if cert_type and cert_value:
+                for identifier in identifiers:
+                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                        san_is_in = True
+                        break
+            self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
+            identifier_status.append(san_is_in)
+
+        self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
+        return identifier_status
+
+    def _info(self, certificate_name, flist=('name', 'csr', 'cert', 'order__name')):
+        """ get certificate from database """
+        self.logger.debug('Certificate._info({0})'.format(certificate_name))
+        return self.dbstore.certificate_lookup('name', certificate_name, flist)
+
+    def _revocation_reason_check(self, reason):
+        """ check reason """
+        self.logger.debug('Certificate._revocation_reason_check({0})'.format(reason))
+
+        # taken from https://tools.ietf.org/html/rfc5280#section-5.3.1
+        allowed_reasons = {
+            0 : 'unspecified',
+            1 : 'keyCompromise',
+            # 2 : 'cACompromise',
+            3 : 'affiliationChanged',
+            4 : 'superseded',
+            5 : 'cessationOfOperation',
+            6 : 'certificateHold',
+            # 8 : 'removeFromCRL',
+            # 9 : 'privilegeWithdrawn',
+            # 10 : 'aACompromise'
+        }
+
+        result = None
+        if reason in allowed_reasons:
+            result = allowed_reasons[reason]
+        self.logger.debug('Certificate._revocation_reason_check() ended with {0}'.format(result))
+        return result
+
+    def _revocation_request_validate(self, account_name, payload):
+        """ check revocaton request for consistency"""
+        self.logger.debug('Certificate._revocation_request_validate({0})'.format(account_name))
+
+        # set a value to avoid that we are returning none by accident
+        code = 400
+        error = None
+        if 'reason' in payload:
+            # check revocatoin reason if we get one
+            rev_reason = self._revocation_reason_check(payload['reason'])
+            # successful
+            if not rev_reason:
+                error = 'urn:ietf:params:acme:error:badRevocationReason'
+        else:
+            # set revocation reason to unspecified
+            rev_reason = 'unspecified'
+
+        if rev_reason:
+            # check if the account issued the certificate and return the order name
+            if 'certificate' in payload:
+                order_name = self._account_check(account_name, payload['certificate'])
+            else:
+                order_name = None
+
+            error = rev_reason
+            if order_name:
+                # check if the account holds the authorization for the identifiers
+                auth_chk = self._authorization_check(order_name, payload['certificate'])
+                if auth_chk:
+                    # all good set code to 200
+                    code = 200
+                else:
+                    error = 'urn:ietf:params:acme:error:unauthorized'
+
+        self.logger.debug('Certificate._revocation_request_validate() ended with: {0}, {1}'.format(code, error))
+        return (code, error)
+
+    def _store_cert(self, certificate_name, certificate, raw):
+        """ get key for a specific account id """
+        self.logger.debug('Certificate._store_cert({0})'.format(certificate_name))
+        data_dic = {'cert' : certificate, 'name': certificate_name, 'cert_raw' : raw}
+        cert_id = self.dbstore.certificate_add(data_dic)
+        self.logger.debug('Certificate._store_cert({0}) ended'.format(cert_id))
+        return cert_id
+
+    def _store_cert_error(self, certificate_name, error, poll_identifier):
+        """ get key for a specific account id """
+        self.logger.debug('Certificate._store_cert_error({0})'.format(certificate_name))
+        data_dic = {'error' : error, 'name': certificate_name, 'poll_identifier': poll_identifier}
+        cert_id = self.dbstore.certificate_add(data_dic)
+        self.logger.debug('Certificate._store_cert_error({0}) ended'.format(cert_id))
+        return cert_id
+
+    def _tnauth_identifier_check(self, identifier_dic):
+        """ check if we have an tnauthlist_identifier """
+        self.logger.debug('Certificate._tnauth_identifier_check()')
+
+        # check if we have a tnauthlist identifier
+        tnauthlist_identifer_in = False
+        for identifier in identifier_dic:
+            if 'type' in identifier:
+                if identifier['type'].lower() == 'tnauthlist':
+                    tnauthlist_identifer_in = True
+        self.logger.debug('Certificate._tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
+        return tnauthlist_identifer_in
+
+    def certlist_search(self, key, value, vlist=('name', 'csr', 'cert', 'order__name')):
+        """ get certificate from database """
+        self.logger.debug('Certificate.certlist_search({0}: {1})'.format(key, value))
+        return self.dbstore.certificates_search(key, value, vlist)
 
     def enroll_and_store(self, certificate_name, csr):
         """ cenroll and store certificater """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
 
         # check csr against order
-        csr_check_result = self.csr_check(certificate_name, csr)
+        csr_check_result = self._csr_check(certificate_name, csr)
         error = None
         detail = None
 
@@ -43,11 +286,11 @@ class Certificate(object):
             with CAhandler(self.debug, self.logger) as ca_handler:
                 (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
                 if certificate:
-                    result = self.store_cert(certificate_name, certificate, certificate_raw)
+                    result = self._store_cert(certificate_name, certificate, certificate_raw)
                 else:
                     result = None
                     # store error message for later analysis
-                    self.store_cert_error(certificate_name, error, poll_identifier)
+                    self._store_cert_error(certificate_name, error, poll_identifier)
                     detail = poll_identifier
         else:
             result = None
@@ -57,18 +300,13 @@ class Certificate(object):
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (error, detail)
 
-    def info(self, certificate_name, flist=('name', 'csr', 'cert', 'order__name')):
-        """ get certificate from database """
-        self.logger.debug('Certificate.info({0})'.format(certificate_name))
-        return self.dbstore.certificate_lookup('name', certificate_name, flist)
-
     def new_get(self, url):
         """ get request """
         self.logger.debug('Certificate.new_get({0})'.format(url))
         certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
 
         # fetch certificate dictionary from DB
-        certificate_dic = self.info(certificate_name, ['name', 'csr', 'cert', 'order__name', 'order__status_id'])
+        certificate_dic = self._info(certificate_name, ['name', 'csr', 'cert', 'order__name', 'order__status_id'])
         response_dic = {}
         if 'order__status_id' in certificate_dic:
             if certificate_dic['order__status_id'] == 5:
@@ -139,7 +377,7 @@ class Certificate(object):
 
         if code == 200:
             if 'certificate' in payload:
-                (code, error) = self.revocation_request_validate(account_name, payload)
+                (code, error) = self._revocation_request_validate(account_name, payload)
                 if code == 200:
                     # revocation starts here
                     # revocation reason is stored in error variable
@@ -163,270 +401,32 @@ class Certificate(object):
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))
         return response_dic
 
-    def store_cert(self, certificate_name, certificate, raw):
-        """ get key for a specific account id """
-        self.logger.debug('Certificate.store_cert({0})'.format(certificate_name))
-        data_dic = {'cert' : certificate, 'name': certificate_name, 'cert_raw' : raw}
-        cert_id = self.dbstore.certificate_add(data_dic)
-        self.logger.debug('Certificate.store_cert({0}) ended'.format(cert_id))
-        return cert_id
+    def poll(self, certificate_name, poll_identifier, csr, order_name):
+        """ try to fetch a certificate from CA and store it into database """
+        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
 
-    def store_cert_error(self, certificate_name, error, poll_identifier):
-        """ get key for a specific account id """
-        self.logger.debug('Certificate.store_error({0})'.format(certificate_name))
-        data_dic = {'error' : error, 'name': certificate_name, 'poll_identifier': poll_identifier}
-        cert_id = self.dbstore.certificate_add(data_dic)
-        self.logger.debug('Certificate.store_error({0}) ended'.format(cert_id))
-        return cert_id
+        with CAhandler(self.debug, self.logger) as ca_handler:
+            (error, certificate, certificate_raw, poll_identifier, rejected) = ca_handler.poll(certificate_name, poll_identifier, csr)
+            if certificate:
+                # update certificate record in database
+                _result = self._store_cert(certificate_name, certificate, certificate_raw)
+                # update order status to 5 (valid)
+                self.dbstore.order_update({'name': order_name, 'status': 'valid'})
+            else:
+                # store error message for later analysis
+                self._store_cert_error(certificate_name, error, poll_identifier)
+                _result = None
+                if rejected:
+                    self.dbstore.order_update({'name': order_name, 'status': 'invalid'})
+
+        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
+        return _result
 
     def store_csr(self, order_name, csr):
-        """ get key for a specific account id """
+        """ store csr into database """
         self.logger.debug('Certificate.store_csr({0})'.format(order_name))
         certificate_name = generate_random_string(self.logger, 12)
         data_dic = {'order' : order_name, 'csr' : csr, 'name': certificate_name}
         self.dbstore.certificate_add(data_dic)
         self.logger.debug('Certificate.store_csr() ended')
         return certificate_name
-
-    def revocation_request_validate(self, account_name, payload):
-        """ chec CSR """
-        self.logger.debug('Certificate.revocation_request_validate({0})'.format(account_name))
-
-        # set a value to avoid that we are returning none by accident
-        code = 400
-        error = None
-        if 'reason' in payload:
-            # check revocatoin reason if we get one
-            rev_reason = self.revocation_reason_check(payload['reason'])
-            # successful
-            if not rev_reason:
-                error = 'urn:ietf:params:acme:error:badRevocationReason'
-        else:
-            # set revocation reason to unspecified
-            rev_reason = 'unspecified'
-
-        if rev_reason:
-            # check if the account issued the certificate and return the order name
-            if 'certificate' in payload:
-                order_name = self.account_check(account_name, payload['certificate'])
-            else:
-                order_name = None
-
-            error = rev_reason
-            if order_name:
-                # check if the account holds the authorization for the identifiers
-                auth_chk = self.authorization_check(order_name, payload['certificate'])
-                if auth_chk:
-                    # all good set code to 200
-                    code = 200
-                else:
-                    error = 'urn:ietf:params:acme:error:unauthorized'
-
-        self.logger.debug('Certificate.revocation_request_validate() ended with: {0}, {1}'.format(code, error))
-        return (code, error)
-
-    def revocation_reason_check(self, reason):
-        """ check reason """
-        self.logger.debug('Certificate.check_revocation_reason({0})'.format(reason))
-
-        # taken from https://tools.ietf.org/html/rfc5280#section-5.3.1
-        allowed_reasons = {
-            0 : 'unspecified',
-            1 : 'keyCompromise',
-            # 2 : 'cACompromise',
-            3 : 'affiliationChanged',
-            4 : 'superseded',
-            5 : 'cessationOfOperation',
-            6 : 'certificateHold',
-            # 8 : 'removeFromCRL',
-            # 9 : 'privilegeWithdrawn',
-            # 10 : 'aACompromise'
-        }
-
-        result = None
-        if reason in allowed_reasons:
-            result = allowed_reasons[reason]
-        self.logger.debug('Certificate.store_csr() ended with {0}'.format(result))
-        return result
-
-    def account_check(self, account_name, certificate):
-        """ check account """
-        self.logger.debug('Certificate.issuer_check()')
-        return self.dbstore.certificate_account_check(account_name, b64_url_recode(self.logger, certificate))
-
-    def authorization_check(self, order_name, certificate):
-        """ check if an acount holds authorization for all identifiers = SANs in the certificate """
-        self.logger.debug('Certificate.authorization_check()')
-
-        # empty list of statuses
-        identifier_status = []
-
-        # get identifiers for order
-        identifier_dic = self.dbstore.order_lookup('name', order_name, ['identifiers'])
-
-        if identifier_dic and 'identifiers' in identifier_dic:
-            # load identifiers
-            try:
-                identifiers = json.loads(identifier_dic['identifiers'].lower())
-            except BaseException:
-                identifiers = []
-
-            # check if we have a tnauthlist identifier
-            tnauthlist_identifer_in = self.tnauth_identifier_check(identifiers)
-
-            if self.tnauthlist_support and tnauthlist_identifer_in:
-                # reload identifiers (case senetive)
-                try:
-                    identifiers = json.loads(identifier_dic['identifiers'])
-                except BaseException:
-                    identifiers = []
-                # get list of certextensions in base64 format
-                tnauthlist = cert_tnauthlist_get(self.logger, certificate)
-
-                for identifier in identifiers:
-                    # get the tnauthlist identifier
-                    if identifier['type'].lower() == 'tnauthlist':
-                        # check if tnauthlist extension is in extension list
-                        if identifier['value'] in tnauthlist:
-                            identifier_status.append(True)
-                        else:
-                            identifier_status.append(False)
-            else:
-                # get sans
-                san_list = cert_san_get(self.logger, certificate)
-                identifier_status = self.identifer_status_list(identifiers, san_list)
-
-        result = False
-        if identifier_status and False not in identifier_status:
-            result = True
-
-        self.logger.debug('Certificate.authorization_check() ended with {0}'.format(result))
-        return result
-
-    def load_config(self):
-        """" load config from file """
-        self.logger.debug('Certificate.load_config()')
-        config_dic = load_config()
-        if 'Order' in config_dic:
-            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        self.logger.debug('Certificate.load_config() ended.')
-
-    def tnauth_identifier_check(self, identifier_dic):
-        """ check if we have an tnauthlist_identifier """
-        self.logger.debug('Certificate.tnauth_identifier_check()')
-
-        # check if we have a tnauthlist identifier
-        tnauthlist_identifer_in = False
-        for identifier in identifier_dic:
-            if 'type' in identifier:
-                if identifier['type'].lower() == 'tnauthlist':
-                    tnauthlist_identifer_in = True
-        self.logger.debug('Certificate.tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
-        return tnauthlist_identifer_in
-
-    def csr_check(self, certificate_name, csr):
-        """ compare csr extensions against order """
-        self.logger.debug('Certificate.csr_check()')
-
-        # fetch certificate dictionary from DB
-        certificate_dic = self.info(certificate_name)
-        self.logger.debug('Certificate.info() endet with:{0}'.format(certificate_dic))
-
-        # empty list of statuses
-        identifier_status = []
-
-        if 'order' in certificate_dic:
-            # get identifiers for order
-            identifier_dic = self.dbstore.order_lookup('name', certificate_dic['order'], ['identifiers'])
-
-            if identifier_dic and 'identifiers' in identifier_dic:
-                # load identifiers
-                try:
-                    identifiers = json.loads(identifier_dic['identifiers'].lower())
-                except BaseException:
-                    identifiers = []
-
-                tnauthlist_identifer_in = self.tnauth_identifier_check(identifiers)
-
-                if self.tnauthlist_support and tnauthlist_identifer_in:
-                    # reload identifiers (case senetive)
-                    try:
-                        identifiers = json.loads(identifier_dic['identifiers'])
-                    except BaseException:
-                        identifiers = []
-
-                    # get list of certextensions in base64 format
-                    tnauthlist = csr_tnauthlist_get(self.logger, csr)
-
-                    for identifier in identifiers:
-                        # get the tnauthlist identifier
-                        if identifier['type'].lower() == 'tnauthlist':
-                            # check if tnauthlist extension is in extension list
-                            if identifier['value'] in tnauthlist:
-                                identifier_status.append(True)
-                            else:
-                                identifier_status.append(False)
-                else:
-                    # get sans
-                    san_list = csr_san_get(self.logger, csr)
-                    identifier_status = self.identifer_status_list(identifiers, san_list)
-
-        # else:
-        #    result = 'error'
-
-        csr_check_result = False
-        if identifier_status and False not in identifier_status:
-            csr_check_result = True
-
-        self.logger.debug('Certificate.csr_check() ended with {0}'.format(csr_check_result))
-        return csr_check_result
-
-    def identifer_status_list(self, identifiers, san_list):
-        """ compare identifiers and check if each san is in identifer list """
-        self.logger.debug('Certificate.identifer_status_list()')
-
-        identifier_status = []
-        for san in san_list:
-            san_is_in = False
-            try:
-                (cert_type, cert_value) = san.lower().split(':')
-            except BaseException:
-                cert_type = None
-                cert_value = None
-
-            if cert_type and cert_value:
-                for identifier in identifiers:
-                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                        san_is_in = True
-                        break
-            self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
-            identifier_status.append(san_is_in)
-
-        self.logger.debug('Certificate.identifer_status_list() ended with {0}'.format(identifier_status))
-        return identifier_status
-
-    def certlist_search(self, key, value, vlist=('name', 'csr', 'cert', 'order__name')):
-        """ get certificate from database """
-        self.logger.debug('Certificate.search({0}: {1})'.format(key, value))
-        return self.dbstore.certificates_search(key, value, vlist)
-
-    def poll(self, certificate_name, poll_identifier, csr, order_name):
-        """ try to fetch a certificate from CA and store it into database """
-        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
-        
-        with CAhandler(self.debug, self.logger) as ca_handler:
-            (error, certificate, certificate_raw, poll_identifier, rejected) = ca_handler.poll(certificate_name, poll_identifier, csr)
-            if certificate:
-                # update certificate record in database
-                _result = self.store_cert(certificate_name, certificate, certificate_raw)
-                # update order status to 5 (valid)
-                self.dbstore.order_update({'name': order_name, 'status': 'valid'})
-            else:
-                # store error message for later analysis
-                self.store_cert_error(certificate_name, error, poll_identifier)
-                _result = None                
-                if rejected:
-                    self.dbstore.order_update({'name': order_name, 'status': 'invalid'})
-
-        self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
-        return _result

@@ -1007,38 +1007,38 @@ class TestACMEHandler(unittest.TestCase):
     def test_136_store_cert(self):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'bar'
-        self.assertEqual('bar', self.certificate.store_cert('cert_name', 'cert', 'raw'))
+        self.assertEqual('bar', self.certificate._store_cert('cert_name', 'cert', 'raw'))
 
     def test_137_info(self):
         """ test Certificate.new_get() """
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
-        self.assertEqual('foo', self.certificate.info('cert_name'))
+        self.assertEqual('foo', self.certificate._info('cert_name'))
 
-    @patch('acme.certificate.Certificate.info')
+    @patch('acme.certificate.Certificate._info')
     def test_138_new_get(self, mock_info):
         """ test Certificate.new_get() without certificate"""
         mock_info.return_value = {}
         self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate.info')
+    @patch('acme.certificate.Certificate._info')
     def test_139_new_get(self, mock_info):
         """ test Certificate.new_get() without unknown order_status_id"""
         mock_info.return_value = {'order__status_id': 'foo'}
         self.assertEqual({'code': 403, 'data': 'urn:ietf:params:acme:error:orderNotReady'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate.info')
+    @patch('acme.certificate.Certificate._info')
     def test_140_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 4 (processing)"""
         mock_info.return_value = {'order__status_id': 4}
         self.assertEqual({'code': 403, 'data': 'urn:ietf:params:acme:error:rateLimited', 'header': {'Retry-After': '600'}}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate.info')
+    @patch('acme.certificate.Certificate._info')
     def test_141_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) but no certificate in"""
         mock_info.return_value = {'order__status_id': 5}
         self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate.info')
+    @patch('acme.certificate.Certificate._info')
     def test_142_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) but no certificate in"""
         mock_info.return_value = {'order__status_id': 5, 'cert': 'foo-bar'}
@@ -1393,130 +1393,130 @@ class TestACMEHandler(unittest.TestCase):
     def test_181_revocation_reason_check(self):
         """ test Certificate.revocation_reason_check with allowed reason"""
         rev_reason = 0
-        self.assertEqual('unspecified', self.certificate.revocation_reason_check(rev_reason))
+        self.assertEqual('unspecified', self.certificate._revocation_reason_check(rev_reason))
 
     def test_182_revocation_reason_check(self):
         """ test Certificate.revocation_reason_check with non-allowed reason"""
         rev_reason = 8
-        self.assertFalse(self.certificate.revocation_reason_check(rev_reason))
+        self.assertFalse(self.certificate._revocation_reason_check(rev_reason))
 
     @patch('acme.certificate.cert_san_get')
     def test_183_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans but failed order lookup"""
         self.account.dbstore.order_lookup.return_value = {}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_184_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order returning wrong values (no 'identifiers' key) """
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_185_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order lookup returning identifiers without json structure) """
         self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_186_authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with wrong sans) """
         self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_187_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with SAN entry which is not in the identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_188_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with single SAN entry and correct entry in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
-        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_189_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with multiple SAN entries and correct entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
-        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_190_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with one SAN entry and multiple entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
-        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_191_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with uppercase SAN entries and lowercase entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:SAN1.EXAMPLE.COM', 'DNS:SAN2.EXAMPLE.COM']
-        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_192_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lowercase SAN entries and uppercase entries in identifier list"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
         mock_san.return_value = ['dns:san1.example.com', 'dns:san2.example.com']
-        self.assertTrue(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_193_authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lSAN entries (return none) and entries in identifier containing None"""
         self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
         mock_san.return_value = ['san1.example.com']
-        self.assertFalse(self.certificate.authorization_check('order_name', 'cert'))
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     def test_194_revocation_request_validate(self):
         """ test Certificate.revocation_request_validate empty payload"""
         payload = {}
-        self.assertEqual((400, 'unspecified'), self.certificate.revocation_request_validate('account_name', payload))
+        self.assertEqual((400, 'unspecified'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate.revocation_reason_check')
+    @patch('acme.certificate.Certificate._revocation_reason_check')
     def test_195_revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns None"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = False
-        self.assertEqual((400, 'urn:ietf:params:acme:error:badRevocationReason'), self.certificate.revocation_request_validate('account_name', payload))
+        self.assertEqual((400, 'urn:ietf:params:acme:error:badRevocationReason'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate.revocation_reason_check')
+    @patch('acme.certificate.Certificate._revocation_reason_check')
     def test_196_revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns a reason"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = 'revrcheck'
-        self.assertEqual((400, 'revrcheck'), self.certificate.revocation_request_validate('account_name', payload))
+        self.assertEqual((400, 'revrcheck'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate.authorization_check')
-    @patch('acme.certificate.Certificate.account_check')
-    @patch('acme.certificate.Certificate.revocation_reason_check')
+    @patch('acme.certificate.Certificate._authorization_check')
+    @patch('acme.certificate.Certificate._account_check')
+    @patch('acme.certificate.Certificate._revocation_reason_check')
     def test_197_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check failed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
         mock_revrcheck.return_value = 'revrcheck'
         mock_account.return_value = 'account_name'
         mock_authz.return_value = False
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized'), self.certificate.revocation_request_validate('account_name', payload))
+        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate.authorization_check')
-    @patch('acme.certificate.Certificate.account_check')
-    @patch('acme.certificate.Certificate.revocation_reason_check')
+    @patch('acme.certificate.Certificate._authorization_check')
+    @patch('acme.certificate.Certificate._account_check')
+    @patch('acme.certificate.Certificate._revocation_reason_check')
     def test_198_revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check succeed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
         mock_revrcheck.return_value = 'revrcheck'
         mock_account.return_value = 'account_name'
         mock_authz.return_value = True
-        self.assertEqual((200, 'revrcheck'), self.certificate.revocation_request_validate('account_name', payload))
+        self.assertEqual((200, 'revrcheck'), self.certificate._revocation_request_validate('account_name', payload))
 
     @patch('acme.message.Message.check')
     def test_199_revoke(self, mock_mcheck):
@@ -1530,7 +1530,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, 'message', 'detail', None, {}, 'account_name')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'certificate not found'}}, self.certificate.revoke('content'))
 
-    @patch('acme.certificate.Certificate.revocation_request_validate')
+    @patch('acme.certificate.Certificate._revocation_request_validate')
     @patch('acme.message.Message.check')
     def test_201_revoke(self, mock_mcheck, mock_validate):
         """ test Certificate.revoke with failed request validation """
@@ -1540,7 +1540,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.ca_handler.CAhandler.revoke')
-    @patch('acme.certificate.Certificate.revocation_request_validate')
+    @patch('acme.certificate.Certificate._revocation_request_validate')
     @patch('acme.message.Message.check')
     def test_202_revoke(self, mock_mcheck, mock_validate, mock_ca_handler, mock_nnonce):
         """ test Certificate.revoke with sucessful request validation """
@@ -1605,11 +1605,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_213_revocation_reason_check(self):
         """ test Certicate.revocation_reason_check() with a valid revocation reason"""
-        self.assertEqual('unspecified', self.certificate.revocation_reason_check(0))
+        self.assertEqual('unspecified', self.certificate._revocation_reason_check(0))
 
     def test_214_revocation_reason_check(self):
         """ test Certicate.revocation_reason_check() with an invalid revocation reason"""
-        self.assertFalse(self.certificate.revocation_reason_check(2))
+        self.assertFalse(self.certificate._revocation_reason_check(2))
 
     def test_215_build_pem_file(self):
         """ test build_pem_file without exsting content """
