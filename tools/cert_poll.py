@@ -2,6 +2,9 @@
 """ database updater """
 import sys
 sys.path.insert(0, '..')
+from acme.db_handler import initialize
+initialize()
+
 from acme.helper import logger_setup
 from acme.certificate import Certificate
 
