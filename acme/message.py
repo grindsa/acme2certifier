@@ -20,7 +20,7 @@ class Message(object):
         self.server_name = srv_name
         self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
         self.disable_dic = {'signature_check_disable' : False, 'nonce_check_disable' : False}
-        self.load_config()
+        self._config_load()
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -28,6 +28,44 @@ class Message(object):
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('_config_load()')
+        config_dic = load_config()
+        if 'Nonce' in config_dic:
+            self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
+            self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
+
+    def _name_get(self, content):
+        """ get name for account """
+        self.logger.debug('Message._name_get()')
+
+        if 'kid' in content:
+            self.logger.debug('kid: {0}'.format(content['kid']))
+            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path_dic['acct_path']), '')
+            if '/' in kid:
+                kid = None
+        elif 'jwk' in content and 'url' in content:
+            if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
+                # this is needed for cases where we get a revocation message signed with account key but account name is missing)
+                if 'jwk' in content:
+                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
+                    if account_list:
+                        if 'name' in account_list:
+                            kid = account_list['name']
+                        else:
+                            kid = None
+                    else:
+                        kid = None
+                else:
+                    kid = None
+            else:
+                kid = None
+        else:
+            kid = None
+        self.logger.debug('Message._name_get() returns: {0}'.format(kid))
+        return kid
 
     def check(self, content, use_emb_key=False):
         """ validate message """
@@ -54,7 +92,7 @@ class Message(object):
 
             if code == 200 and not skip_signature_check:
                 # nonce check successful - check signature
-                account_name = self.name_get(protected)
+                account_name = self._name_get(protected)
                 signature = Signature(self.debug, self.server_name, self.logger)
                 # we need the decoded protected header to grab a key to verify signature
                 (sig_check, error, error_detail) = signature.check(account_name, content, use_emb_key, protected)
@@ -74,44 +112,6 @@ class Message(object):
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return(code, message, detail, protected, payload, account_name)
-
-    def load_config(self):
-        """" load config from file """
-        self.logger.debug('load_config()')
-        config_dic = load_config()
-        if 'Nonce' in config_dic:
-            self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
-            self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
-
-    def name_get(self, content):
-        """ get name for account """
-        self.logger.debug('Message.name_get()')
-
-        if 'kid' in content:
-            self.logger.debug('kid: {0}'.format(content['kid']))
-            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path_dic['acct_path']), '')
-            if '/' in kid:
-                kid = None
-        elif 'jwk' in content and 'url' in content:
-            if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
-                # this is needed for cases where we get a revocation message signed with account key but account name is missing)
-                if 'jwk' in content:
-                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
-                    if account_list:
-                        if 'name' in account_list:
-                            kid = account_list['name']
-                        else:
-                            kid = None
-                    else:
-                        kid = None
-                else:
-                    kid = None
-            else:
-                kid = None
-        else:
-            kid = None
-        self.logger.debug('Message.name_get() returns: {0}'.format(kid))
-        return kid
 
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """

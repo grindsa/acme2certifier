@@ -15,6 +15,11 @@ class Signature(object):
         self.server_name = srv_name
         self.revocation_path = '/acme/revokecert'
 
+    def _jwk_load(self, kid):
+        """ get key for a specific account id """
+        self.logger.debug('Signature._jwk_load({0})'.format(kid))
+        return self.dbstore.jwk_load(kid)
+
     def check(self, aname, content, use_emb_key=False, protected=None):
         """ signature check """
         self.logger.debug('Signature.check({0})'.format(aname))
@@ -23,7 +28,7 @@ class Signature(object):
             error = None
             if aname:
                 self.logger.debug('check signature against account key')
-                pub_key = self.jwk_load(aname)
+                pub_key = self._jwk_load(aname)
                 if pub_key:
                     (result, error) = signature_check(self.logger, content, pub_key)
                 else:
@@ -39,11 +44,6 @@ class Signature(object):
                 error = 'urn:ietf:params:acme:error:accountDoesNotExist'
         else:
             error = 'urn:ietf:params:acme:error:malformed'
-            
+
         self.logger.debug('Signature.check() ended with: {0}:{1}'.format(result, error))
         return(result, error, None)
-
-    def jwk_load(self, kid):
-        """ get key for a specific account id """
-        self.logger.debug('Signature.jwk_load({0})'.format(kid))
-        return self.dbstore.jwk_load(kid)

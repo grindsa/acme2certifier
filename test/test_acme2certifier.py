@@ -98,7 +98,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_005_nonce_new(self):
         """ test Nonce.new() and check if we get something back """
-        self.assertIsNotNone(self.nonce.new())
+        self.assertIsNotNone(self.nonce._new())
 
     def test_006_nonce_generate_and_add(self):
         """ test Nonce.nonce_generate_and_add() and check if we get something back """
@@ -114,7 +114,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_009_nonce_check_and_delete(self):
         """ test Nonce.nonce_check_and_delete """
-        self.assertEqual((200, None, None), self.nonce.check_and_delete('aaa'))
+        self.assertEqual((200, None, None), self.nonce._check_and_delete('aaa'))
 
     def test_010_err_badnonce(self):
         """ test badnonce error message """
@@ -303,7 +303,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_046_jwk_load(self):
         """ test jwk load """
         self.signature.dbstore.jwk_load.return_value = 'foo'
-        self.assertEqual('foo', self.signature.jwk_load(1))
+        self.assertEqual('foo', self.signature._jwk_load(1))
 
     @patch('acme.message.Message.check')
     def test_047_account_new(self, mock_mcheck):
@@ -411,14 +411,14 @@ class TestACMEHandler(unittest.TestCase):
         """ test Signature.check() without having content """
         self.assertEqual((False, 'urn:ietf:params:acme:error:malformed', None), self.signature.check('foo', None))
 
-    @patch('acme.signature.Signature.jwk_load')
+    @patch('acme.signature.Signature._jwk_load')
     def test_057_signature_check(self, mock_jwk):
         """ test Signature.check() while pubkey lookup failed """
         mock_jwk.return_value = {}
         self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check('foo', 1))
 
     @patch('acme.signature.signature_check')
-    @patch('acme.signature.Signature.jwk_load')
+    @patch('acme.signature.Signature._jwk_load')
     def test_058_signature_check(self, mock_jwk, mock_sig):
         """ test successful Signature.check()  """
         mock_jwk.return_value = {'foo' : 'bar'}
@@ -474,7 +474,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((403, 'urn:ietf:params:acme:error:accountDoesNotExist', None, 'protected', 'payload', None), self.message.check(message))
 
     @patch('acme.signature.Signature.check')
-    @patch('acme.message.Message.name_get')
+    @patch('acme.message.Message._name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
     def test_066_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
@@ -487,7 +487,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((403, 'error', 'detail', 'protected', 'payload', 'account_name'), self.message.check(message))
 
     @patch('acme.signature.Signature.check')
-    @patch('acme.message.Message.name_get')
+    @patch('acme.message.Message._name_get')
     @patch('acme.nonce.Nonce.check')
     @patch('acme.message.decode_message')
     def test_067_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
@@ -1583,55 +1583,55 @@ class TestACMEHandler(unittest.TestCase):
     def test_209_name_get(self):
         """ test Message.name_get() with empty content"""
         protected = {}
-        self.assertFalse(self.message.name_get(protected))
+        self.assertFalse(self.message._name_get(protected))
 
     def test_210_name_get(self):
         """ test Message.name_get() with kid with nonsens in content"""
         protected = {'kid' : 'foo'}
-        self.assertEqual('foo', self.message.name_get(protected))
+        self.assertEqual('foo', self.message._name_get(protected))
 
     def test_211_name_get(self):
         """ test Message.name_get() with wrong kid in content"""
         protected = {'kid' : 'http://tester.local/acme/account/account_name'}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_212_name_get(self):
         """ test Message.name_get() with correct kid in content"""
         protected = {'kid' : 'http://tester.local/acme/acct/account_name'}
-        self.assertEqual('account_name', self.message.name_get(protected))
+        self.assertEqual('account_name', self.message._name_get(protected))
 
     def test_213_name_get(self):
         """ test Message.name_get() with 'jwk' in content but without URL"""
         protected = {'jwk' : 'jwk'}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_214_name_get(self):
         """ test Message.name_get() with 'jwk' and 'url' in content but url is wrong"""
         protected = {'jwk' : 'jwk', 'url' : 'url'}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_215_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' in content but no 'n' in jwk """
         protected = {'jwk' : 'jwk', 'url' : 'http://tester.local/acme/revokecert'}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_216_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' but account lookup failed """
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_217_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'bar' : 'foo'}
-        self.assertEqual(None, self.message.name_get(protected))
+        self.assertEqual(None, self.message._name_get(protected))
 
     def test_218_name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'name' : 'foo'}
-        self.assertEqual('foo', self.message.name_get(protected))
+        self.assertEqual('foo', self.message._name_get(protected))
 
     def test_219_revocation_reason_check(self):
         """ test Certicate.revocation_reason_check() with a valid revocation reason"""

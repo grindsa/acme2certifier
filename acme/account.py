@@ -280,7 +280,7 @@ class Account(object):
         """ get id for account depricated"""
         self.logger.debug('Account.name_get()')
         deprecated = True
-        return self.message.name_get(content)
+        return self.message._name_get(content)
 
     def new(self, content):
         """ generate a new account """

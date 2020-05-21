@@ -20,21 +20,9 @@ class Nonce(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def check(self, protected_decoded):
-        """ check nonce """
-        self.logger.debug('Nonce.check_nonce()')
-        if 'nonce' in protected_decoded:
-            (code, message, detail) = self.check_and_delete(protected_decoded['nonce'])
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:badNonce'
-            detail = 'NONE'
-        self.logger.debug('Nonce.check_nonce() ended with:{0}'.format(code))
-        return(code, message, detail)
-
-    def check_and_delete(self, nonce):
+    def _check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
-        self.logger.debug('Nonce.nonce_check_and_delete({0})'.format(nonce))
+        self.logger.debug('Nonce.nonce._check_and_delete({0})'.format(nonce))
         if self.dbstore.nonce_check(nonce):
             self.dbstore.nonce_delete(nonce)
             code = 200
@@ -44,19 +32,31 @@ class Nonce(object):
             code = 400
             message = 'urn:ietf:params:acme:error:badNonce'
             detail = nonce
-        self.logger.debug('Nonce.check_and_delete() ended with:{0}'.format(code))
+        self.logger.debug('Nonce._check_and_delete() ended with:{0}'.format(code))
+        return(code, message, detail)
+
+    def _new(self):
+        """ generate a new nonce """
+        self.logger.debug('Nonce.nonce__new()')
+        return uuid.uuid4().hex
+
+    def check(self, protected_decoded):
+        """ check nonce """
+        self.logger.debug('Nonce.check_nonce()')
+        if 'nonce' in protected_decoded:
+            (code, message, detail) = self._check_and_delete(protected_decoded['nonce'])
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:badNonce'
+            detail = 'NONE'
+        self.logger.debug('Nonce.check_nonce() ended with:{0}'.format(code))
         return(code, message, detail)
 
     def generate_and_add(self):
         """ generate new nonce and store it """
         self.logger.debug('Nonce.nonce_generate_and_add()')
-        nonce = self.new()
+        nonce = self._new()
         self.logger.debug('got nonce: {0}'.format(nonce))
         _id = self.dbstore.nonce_add(nonce)
         self.logger.debug('Nonce.generate_and_add() ended with:{0}'.format(nonce))
         return nonce
-
-    def new(self):
-        """ generate a new nonce """
-        self.logger.debug('Nonce.nonce_new()')
-        return uuid.uuid4().hex
