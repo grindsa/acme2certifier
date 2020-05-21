@@ -27,6 +27,5 @@ In case a CSR got rejected the order status will be changed to “invalid”.
 
 The handler for [NeCM/Insta certifier](docs/certifier.md) contains an example implementation.
 
-Further, an [example acme_srv.db](/example/acme_srv.db) is available to give a better insight on the expected values especially in the certificate table.
-
+Further, an [example acme_srv.db](/example/acme_srv.db.example) is available to give a better insight on the expected values especially in the certificate table.
 
