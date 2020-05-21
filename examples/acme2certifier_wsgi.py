@@ -13,6 +13,7 @@ from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.nonce import Nonce
 from acme.order import Order
+from acme.trigger import Trigger
 from acme.helper import get_url, load_config, logger_setup, logger_info
 from acme.version import __version__
 
@@ -271,6 +272,30 @@ def revokecert(environ, start_response):
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
+def trigger(environ, start_response):
+    """ ca trigger handler """
+    if environ['REQUEST_METHOD'] == 'POST':
+        with Trigger(DEBUG, get_url(environ), LOGGER) as trigger_:
+            request_body = get_request_body(environ)
+            response_dic = trigger_.parse(request_body)
+
+            # create header
+            headers = create_header(response_dic)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+
+            if 'data' in response_dic:
+                return [json.dumps(response_dic['data']).encode('utf-8')]
+            else:
+                return []
+            # start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/json')])
+            # return [json.dumps({'status':200, 'message':HTTP_CODE_DIC[200], 'detail': 'OK'}).encode('utf-8')]
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
@@ -290,6 +315,7 @@ URLS = [
     (r'^acme/order', order),
     (r'^acme/revokecert', revokecert),
     (r'^directory?$', directory),
+    (r'^trigger', trigger),
 ]
 
 def application(environ, start_response):

@@ -12,6 +12,8 @@ from acme.directory import Directory
 from acme.helper import get_url, load_config, logger_setup, logger_info
 from acme.nonce import Nonce
 from acme.order import Order
+from acme.trigger import Trigger
+from acme.version import __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -19,6 +21,7 @@ DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
+LOGGER.info('starting acme2certifier version {0}'.format(__version__))
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
@@ -232,6 +235,28 @@ def revokecert(request):
     if request.method == 'POST':
         with Certificate(DEBUG, get_url(request.META), LOGGER) as certificate:
             response_dic = certificate.revoke(request.body)
+            # create the response
+            if 'data' in response_dic:
+                response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
+            else:
+                response = HttpResponse(status=response_dic['code'])
+
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
+            # send response
+            return response
+    else:
+        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def trigger(request):
+    """ ca trigger"""
+    if request.method == 'POST':
+        with Trigger(DEBUG, get_url(request.META), LOGGER) as trigger_:
+            response_dic = trigger_.parse(request.body)
             # create the response
             if 'data' in response_dic:
                 response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
