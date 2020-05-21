@@ -20,15 +20,15 @@ class Account(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        self.load_config()
+        self._config_load()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def add(self, content, contact):
+    def _add(self, content, contact):
         """ prepare db insert and call DBstore helper """
-        self.logger.debug('Account.account_add()')
+        self.logger.debug('Account.account._add()')
         account_name = generate_random_string(self.logger, 12)
         # check request
         if 'alg' in content and 'jwk' in content and contact:
@@ -54,12 +54,12 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'incomplete protected payload'
 
-        self.logger.debug('Account.account_add() ended with:{0}'.format(code))
+        self.logger.debug('Account.account._add() ended with:{0}'.format(code))
         return(code, message, detail)
 
-    def contact_check(self, content):
+    def _contact_check(self, content):
         """ check contact information from payload"""
-        self.logger.debug('Account.contact_check()')
+        self.logger.debug('Account._contact_check()')
         code = 200
         message = None
         detail = None
@@ -75,13 +75,13 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:invalidContact'
             detail = 'no contacts specified'
 
-        self.logger.debug('Account.contact_check() ended with:{0}'.format(code))
+        self.logger.debug('Account._contact_check() ended with:{0}'.format(code))
         return(code, message, detail)
 
-    def contacts_update(self, aname, payload):
+    def _contacts_update(self, aname, payload):
         """ update account """
         self.logger.debug('Account.update()')
-        (code, message, detail) = self.contact_check(payload)
+        (code, message, detail) = self._contact_check(payload)
         if code == 200:
             data_dic = {'name' : aname, 'contact' : json.dumps(payload['contact'])}
             result = self.dbstore.account_update(data_dic)
@@ -94,9 +94,9 @@ class Account(object):
 
         return(code, message, detail)
 
-    def delete(self, aname):
+    def _delete(self, aname):
         """ delete account """
-        self.logger.debug('Account.delete({0})'.format(aname))
+        self.logger.debug('Account._delete({0})'.format(aname))
         result = self.dbstore.account_delete(aname)
 
         if result:
@@ -108,12 +108,12 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:accountDoesNotExist'
             detail = 'deletion failed'
 
-        self.logger.debug('Account.delete() ended with:{0}'.format(code))
+        self.logger.debug('Account._delete() ended with:{0}'.format(code))
         return(code, message, detail)
 
-    def inner_jws_check(self, outer_protected, inner_protected):
+    def _inner_jws_check(self, outer_protected, inner_protected):
         """ RFC8655 7.3.5 checs of inner JWS """
-        self.logger.debug('Account.inner_jws_check()')
+        self.logger.debug('Account._inner_jws_check()')
 
         # check for jwk header
         if 'jwk' in inner_protected:
@@ -147,19 +147,19 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account.inner_jws_check() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_jws_check() endet with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
-    def inner_payload_check(self, aname, outer_protected, inner_payload):
+    def _inner_payload_check(self, aname, outer_protected, inner_payload):
         """ RFC8655 7.3.5 checs of inner payload """
-        self.logger.debug('Account.inner_payload_check()')
+        self.logger.debug('Account._inner_payload_check()')
 
         if 'kid' in outer_protected:
             if 'account' in inner_payload:
                 if outer_protected['kid'] == inner_payload['account']:
                     if 'oldkey' in inner_payload:
                         # compare oldkey with database
-                        (code, message, detail) = self.key_compare(aname, inner_payload['oldkey'])
+                        (code, message, detail) = self._key_compare(aname, inner_payload['oldkey'])
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
@@ -177,20 +177,20 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'kid is missing in outer header'
 
-        self.logger.debug('Account.inner_payload_check() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_payload_check() endet with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
-    def key_change_validate(self, aname, outer_protected, inner_protected, inner_payload):
+    def _key_change_validate(self, aname, outer_protected, inner_protected, inner_payload):
         """ validate key_change before exectution """
-        self.logger.debug('Account.key_change_validate({0})'.format(aname))
+        self.logger.debug('Account._key_change_validate({0})'.format(aname))
         if 'jwk' in inner_protected:
             # check if we already have the key stored in DB
-            key_exists = self.lookup(json.dumps(inner_protected['jwk']), 'jwk')
+            key_exists = self._lookup(json.dumps(inner_protected['jwk']), 'jwk')
             if not key_exists:
-                (code, message, detail) = self.inner_jws_check(outer_protected, inner_protected)
+                (code, message, detail) = self._inner_jws_check(outer_protected, inner_protected)
 
                 if code == 200:
-                    (code, message, detail) = self.inner_payload_check(aname, outer_protected, inner_payload)
+                    (code, message, detail) = self._inner_payload_check(aname, outer_protected, inner_payload)
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:badPublicKey'
@@ -200,19 +200,19 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account.key_change_validate() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._key_change_validate() endet with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
-    def key_change(self, aname, payload, protected):
+    def _key_change(self, aname, payload, protected):
         """ key change for a given account """
-        self.logger.debug('Account.key_change({0})'.format(aname))
+        self.logger.debug('Account._key_change({0})'.format(aname))
 
         if 'url' in protected:
             if 'key-change' in protected['url']:
                 # check message
                 (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
                 if code == 200:
-                    (code, message, detail) = self.key_change_validate(aname, protected, inner_protected, inner_payload)
+                    (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
                     if code == 200:
                         data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
                         result = self.dbstore.account_update(data_dic)
@@ -235,9 +235,9 @@ class Account(object):
 
         return(code, message, detail)
 
-    def key_compare(self, aname, old_key):
+    def _key_compare(self, aname, old_key):
         """ compare key with the one stored in database """
-        self.logger.debug('Account.key_compare({0})'.format(aname))
+        self.logger.debug('Account._key_compare({0})'.format(aname))
 
         # load current public key from database
         pub_key = self.dbstore.jwk_load(aname)
@@ -261,75 +261,30 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'wrong public key'
 
-        self.logger.debug('Account.key_compare() ended with: {0}'.format(code))
+        self.logger.debug('Account._key_compare() ended with: {0}'.format(code))
         return(code, message, detail)
 
-    def load_config(self):
+    def _config_load(self):
         """" load config from file """
-        self.logger.debug('load_config()')
+        self.logger.debug('_config_load()')
         config_dic = load_config()
         if 'Account' in config_dic:
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
 
-    def lookup(self, value, field='name'):
+    def _lookup(self, value, field='name'):
         """ lookup account """
-        self.logger.debug('Account.lookup({0}:{1})'.format(field, value))
+        self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
         return self.dbstore.account_lookup(field, value)
 
-    def name_get(self, content):
+    def _name_get(self, content):
         """ get id for account depricated"""
-        self.logger.debug('Account.name_get()')
+        self.logger.debug('Account._name_get()')
         deprecated = True
         return self.message._name_get(content)
 
-    def new(self, content):
-        """ generate a new account """
-        self.logger.debug('Account.account_new()')
-
-        response_dic = {}
-        # check message but skip signature check as this is a new account (True)
-        (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
-
-        if code == 200:
-            # onlyReturnExisting check
-            if 'onlyreturnexisting' in payload:
-                (code, message, detail) = self.onlyreturnexisting(protected, payload)
-            else:
-                # tos check
-                (code, message, detail) = self.tos_check(payload)
-
-                # contact check
-                if code == 200:
-                    (code, message, detail) = self.contact_check(payload)
-
-                # add account to database
-                if code == 200:
-                    (code, message, detail) = self.add(protected, payload['contact'])
-
-        if code == 200 or code == 201:
-            response_dic['data'] = {}
-            if code == 201:
-                response_dic['data'] = {
-                    'status': 'valid',
-                    'contact': payload['contact'],
-                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path_dic['acct_path'], message),
-                }
-            response_dic['header'] = {}
-            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
-        else:
-            if detail == 'tosfalse':
-                detail = 'Terms of service must be accepted'
-
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-
-        self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
-
-    def onlyreturnexisting(self, protected, payload):
+    def _onlyreturnexisting(self, protected, payload):
         """ check onlyreturnexisting """
-        self.logger.debug('Account.onlyreturnexisting(}')        
+        self.logger.debug('Account._onlyreturnexisting(}')
         if 'onlyreturnexisting' in payload:
             if payload['onlyreturnexisting']:
                 code = None
@@ -363,57 +318,9 @@ class Account(object):
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
         return(code, message, detail)
 
-    def parse(self, content):
-        """ parse message """
-        self.logger.debug('Account.parse()')
-
-        response_dic = {}
-        # check message
-        (code, message, detail, protected, payload, account_name) = self.message.check(content)
-        if code == 200:
-            if 'status' in payload:
-                # account deactivation
-                if payload['status'].lower() == 'deactivated':
-                    # account_name = self.message.name_get(protected)
-                    (code, message, detail) = self.delete(account_name)
-                    if code == 200:
-                        response_dic['data'] = payload
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'status attribute without sense'
-            elif 'contact' in payload:
-                (code, message, detail) = self.contacts_update(account_name, payload)
-                if code == 200:
-                    account_obj = self.lookup(account_name)
-                    response_dic['data'] = {}
-                    response_dic['data']['status'] = 'valid'
-                    response_dic['data']['key'] = json.loads(account_obj['jwk'])
-                    response_dic['data']['contact'] = json.loads(account_obj['contact'])
-                    response_dic['data']['createdAt'] = date_to_datestr(account_obj['created_at'])
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
-                    detail = 'update failed'
-            elif 'payload' in payload:
-                # this could be a key-change
-                (code, message, detail) = self.key_change(account_name, payload, protected)
-                if code == 200:
-                    response_dic['data'] = {}
-            else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'dont know what to do with this request'
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-
-        self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
-
-    def tos_check(self, content):
+    def _tos_check(self, content):
         """ check terms of service """
-        self.logger.debug('Account.tos_check()')
+        self.logger.debug('Account._tos_check()')
         if 'termsofserviceagreed' in content:
             self.logger.debug('tos:{0}'.format(content['termsofserviceagreed']))
             if content['termsofserviceagreed']:
@@ -430,5 +337,98 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:userActionRequired'
             detail = 'tosfalse'
 
-        self.logger.debug('Account.tos_check() ended with:{0}'.format(code))
+        self.logger.debug('Account._tos_check() ended with:{0}'.format(code))
         return(code, message, detail)
+
+    def new(self, content):
+        """ generate a new account """
+        self.logger.debug('Account.account_new()')
+
+        response_dic = {}
+        # check message but skip signature check as this is a new account (True)
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
+
+        if code == 200:
+            # onlyReturnExisting check
+            if 'onlyreturnexisting' in payload:
+                (code, message, detail) = self._onlyreturnexisting(protected, payload)
+            else:
+                # tos check
+                (code, message, detail) = self._tos_check(payload)
+
+                # contact check
+                if code == 200:
+                    (code, message, detail) = self._contact_check(payload)
+
+                # add account to database
+                if code == 200:
+                    (code, message, detail) = self._add(protected, payload['contact'])
+
+        if code in (200, 201):
+            response_dic['data'] = {}
+            if code == 201:
+                response_dic['data'] = {
+                    'status': 'valid',
+                    'contact': payload['contact'],
+                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path_dic['acct_path'], message),
+                }
+            response_dic['header'] = {}
+            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
+        else:
+            if detail == 'tosfalse':
+                detail = 'Terms of service must be accepted'
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
+
+    def parse(self, content):
+        """ parse message """
+        self.logger.debug('Account.parse()')
+
+        response_dic = {}
+        # check message
+        (code, message, detail, protected, payload, account_name) = self.message.check(content)
+        if code == 200:
+            if 'status' in payload:
+                # account deactivation
+                if payload['status'].lower() == 'deactivated':
+                    # account_name = self.message.name_get(protected)
+                    (code, message, detail) = self._delete(account_name)
+                    if code == 200:
+                        response_dic['data'] = payload
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'status attribute without sense'
+            elif 'contact' in payload:
+                (code, message, detail) = self._contacts_update(account_name, payload)
+                if code == 200:
+                    account_obj = self._lookup(account_name)
+                    response_dic['data'] = {}
+                    response_dic['data']['status'] = 'valid'
+                    response_dic['data']['key'] = json.loads(account_obj['jwk'])
+                    response_dic['data']['contact'] = json.loads(account_obj['contact'])
+                    response_dic['data']['createdAt'] = date_to_datestr(account_obj['created_at'])
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    detail = 'update failed'
+            elif 'payload' in payload:
+                # this could be a key-change
+                (code, message, detail) = self._key_change(account_name, payload, protected)
+                if code == 200:
+                    response_dic['data'] = {}
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'dont know what to do with this request'
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
