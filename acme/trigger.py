@@ -29,6 +29,9 @@ class Trigger(object):
         """ compared certificate against csr stored in db """
         self.logger.debug('Trigger._certname_lookup()')
 
+        cert_name = None
+        order_name = None
+
         # extract the public key form certificate
         cert_pubkey = cert_pubkey_get(self.logger, cert_pem)
         with Certificate(self.debug, 'foo', self.logger) as certificate:
@@ -42,9 +45,10 @@ class Trigger(object):
                     csr_pubkey = csr_pubkey_get(self.logger, cert['csr'])
                     if csr_pubkey == cert_pubkey:
                         cert_name = cert['name']
+                        order_name = cert['order__name']                        
                         break
         self.logger.debug('Trigger._certname_lookup() ended with: {0}'.format(cert_name))
-        return cert_name
+        return (cert_name, order_name)
 
     def _payload_process(self, payload):
         """ process payload """
@@ -59,11 +63,21 @@ class Trigger(object):
                     cert_pem = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
 
                     # lookup certificate_name by comparing public keys
-                    certificate_name = self._certname_lookup(cert_pem)
+                    (certificate_name, order_name) = self._certname_lookup(cert_pem)
 
-                    code = 200
-                    message = 'OK'
-                    detail = None
+                    if certificate_name:
+                        data_dic = {'cert' : cert_bundle, 'name': certificate_name, 'cert_raw' : cert_raw}                       
+                        cert_id = self.dbstore.certificate_add(data_dic)
+                        if order_name:
+                            # update order status to 5 (valid)                        
+                            self.dbstore.order_update({'name': order_name, 'status': 'valid'})
+                        code = 200
+                        message = 'OK'
+                        detail = None
+                    else:
+                        code = 400
+                        message = 'certificate_name lookup failed'
+                        detail = None                   
                 else:
                     code = 400
                     message = error
