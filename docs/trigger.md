@@ -21,6 +21,3 @@ It is expected that ```ca_handler.trigger()``` returns the follwoing values:
 In case a valid certificate will be returned,  acme2certifier will update the local database set the status of the order ressource to "valid". 
 The correlation between certifcate and certificate ressource will be done by comparing the public keys of certificate and CSR (which should 
 already exist in the database) 
-
-
-
