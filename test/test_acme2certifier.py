@@ -72,6 +72,7 @@ class TestACMEHandler(unittest.TestCase):
         self.date_to_datestr = date_to_datestr
         self.datestr_to_date = datestr_to_date
         self.dkeys_lower = dkeys_lower
+        self.maxDiff = None
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -957,6 +958,30 @@ class TestACMEHandler(unittest.TestCase):
         """ test base64url replace _ with / and pad"""
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, 'fafa_f'))
 
+    def test_130_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 1 char"""
+        self.assertEqual('fafafaf=', self.b64_url_recode(self.logger, b'fafafaf'))
+
+    def test_131_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 2 char"""
+        self.assertEqual('fafafa==', self.b64_url_recode(self.logger, b'fafafa'))
+
+    def test_132_base64_recode(self):
+        """ test base64url recode to base64 - add padding for 3 char"""
+        self.assertEqual('fafaf===', self.b64_url_recode(self.logger, b'fafaf'))
+
+    def test_133_base64_recode(self):
+        """ test base64url recode to base64 - no padding"""
+        self.assertEqual('fafafafa', self.b64_url_recode(self.logger, b'fafafafa'))
+
+    def test_134_base64_recode(self):
+        """ test base64url replace - with + and pad"""
+        self.assertEqual('fafa+f==', self.b64_url_recode(self.logger, b'fafa-f'))
+
+    def test_135_base64_recode(self):
+        """ test base64url replace _ with / and pad"""
+        self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, b'fafa_f'))
+
     @patch('acme.order.Order.info')
     def test_130_csr_process(self, mock_oinfo):
         """ test order prcoess_csr with empty order_dic """
@@ -1635,6 +1660,29 @@ class TestACMEHandler(unittest.TestCase):
         cert = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         self.assertEqual('-----BEGIN CERTIFICATE-----\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n-----END CERTIFICATE-----\n', self.build_pem_file(self.logger, existing, cert, False))
 
+    def test_219_build_pem_file(self):
+        """ test build_pem_file for CSR """
+        existing = None   
+        csr = 'MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBvH7P73CwR7AF/WGeTfIDLlMWD6VZV3CTZBF0AwNMTFU/zbdAX8r63pzElX/5C5ZVsc36XHqdAJcioJlI33uE3RhOSvDyOcDgWlnPK9gj2soQ7enizGqd1u7hf6C3IwFtc4uGNOU3Z/tnTzVdYiCSKS+5lTZfMxn4FtEUN+w90NHBvC+AlTo3Gl0gqbYOZgg/UwWj60u7S2gBzSeb2/w62Z7bz+SknGZbeI4ySo30ET6oCSCAUN42jE+1dHI/Y+tGBtqP3h7W7OezKeLsJjD9r07U0+uMoVCY9oKTyT0gK8+gsde0tpt6QKa93HJGUPAP9ehrKCl335QcJESFw67/AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAf4cdGpYHLqX+06BFF7+NqXLmKvc7n66vAfevLN75eu/pCXhhRSdpXvcYm+mAVEXJCPaG2kFGt6wfBvVWoVX/91d+OuAtiUHmhY95Oi7g3RF3ThCrvT2mR4zsNiKgC34jXbl9489iIiFRBQXkq2fLwN5JwBYutUENwkDIeApRRbmUzTDbar1xoBAQ3GjVtOAEjHc/3S1yyKkCpM6Qkg8uWOJAXw9INJqH6x55nMZrvTUuXkURc/mvhV+bp2vdKoigGvfa3VVfoAI0BZLQMohQ9QLKoNQsKxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A=='
+        result = """-----BEGIN CERTIFICATE REQUEST-----
+MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqG
+SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBvH7P73CwR7AF/WGeTfIDLlMWD6VZV3CT
+ZBF0AwNMTFU/zbdAX8r63pzElX/5C5ZVsc36XHqdAJcioJlI33uE3RhOSvDyOcDg
+WlnPK9gj2soQ7enizGqd1u7hf6C3IwFtc4uGNOU3Z/tnTzVdYiCSKS+5lTZfMxn4
+FtEUN+w90NHBvC+AlTo3Gl0gqbYOZgg/UwWj60u7S2gBzSeb2/w62Z7bz+SknGZb
+eI4ySo30ET6oCSCAUN42jE+1dHI/Y+tGBtqP3h7W7OezKeLsJjD9r07U0+uMoVCY
+9oKTyT0gK8+gsde0tpt6QKa93HJGUPAP9ehrKCl335QcJESFw67/AgMBAAGgOTA3
+BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJh
+ci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAf4cdGpYHLqX+06BFF7+NqXLmKvc7
+n66vAfevLN75eu/pCXhhRSdpXvcYm+mAVEXJCPaG2kFGt6wfBvVWoVX/91d+OuAt
+iUHmhY95Oi7g3RF3ThCrvT2mR4zsNiKgC34jXbl9489iIiFRBQXkq2fLwN5JwBYu
+tUENwkDIeApRRbmUzTDbar1xoBAQ3GjVtOAEjHc/3S1yyKkCpM6Qkg8uWOJAXw9I
+NJqH6x55nMZrvTUuXkURc/mvhV+bp2vdKoigGvfa3VVfoAI0BZLQMohQ9QLKoNQs
+KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
+-----END CERTIFICATE REQUEST-----
+"""
+        self.assertEqual(result, self.build_pem_file(self.logger, existing, csr, False, True))
+
     @patch('acme.challenge.url_get')
     def test_219_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
@@ -1828,8 +1876,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(None, self.order.identifiers_check([{'type': 'dns', 'value': 'value'}]))
 
     def test_249_b64_decode(self):
-        """ test bas64 decoder """
+        """ test bas64 decoder for string value"""
         self.assertEqual('test', self.b64_decode(self.logger, 'dGVzdA=='))
+
+    def test_250_b64_decode(self):
+        """ test bas64 decoder for byte value """
+        self.assertEqual('test', self.b64_decode(self.logger, b'dGVzdA=='))
 
     @patch('acme.challenge.Challenge.new_set')
     @patch('acme.authorization.uts_now')
