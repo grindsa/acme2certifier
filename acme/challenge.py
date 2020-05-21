@@ -53,15 +53,6 @@ class Challenge(object):
         self.logger.debug('challenge._check() ended with: {0}'.format(result))
         return result
 
-    def get(self, url):
-        """ get challenge details based on get request """
-        self.logger.debug('challenge.get({0})'.format(url))
-        challenge_name = self._name_get(url)
-        response_dic = {}
-        response_dic['code'] = 200
-        response_dic['data'] = self._info(challenge_name)
-        return response_dic
-
     def _info(self, challenge_name):
         """ get challenge details """
         self.logger.debug('Challenge._info({0})'.format(challenge_name))
@@ -112,68 +103,6 @@ class Challenge(object):
                 challenge_dic['tkauth-type'] = 'atc'
         return challenge_dic
 
-    def new_set(self, authz_name, token, tnauth=False):
-        """ net challenge set """
-        self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
-        challenge_list = []
-        if not tnauth:
-            challenge_list.append(self._new(authz_name, 'http-01', token))
-            challenge_list.append(self._new(authz_name, 'dns-01', token))
-        else:
-            challenge_list.append(self._new(authz_name, 'tkauth-01', token))
-        self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
-        return challenge_list
-
-    def parse(self, content):
-        """ new oder request """
-        self.logger.debug('Challenge.parse()')
-
-        response_dic = {}
-        # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
-
-        if code == 200:
-            if 'url' in protected:
-                challenge_name = self._name_get(protected['url'])
-                if challenge_name:
-                    challenge_dic = self._info(challenge_name)
-
-                    if challenge_dic:
-                        # check tnauthlist payload
-                        if self.tnauthlist_support:
-                            (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
-
-                        if code == 200:
-                            # update challenge state to 'processing' - i am not so sure about this
-                            # self.update({'name' : challenge_name, 'status' : 4})
-                            # start validation
-                            _validation = self._validate(challenge_name, payload)
-                            response_dic['data'] = {}
-                            challenge_dic['url'] = protected['url']
-                            code = 200
-                            response_dic['data'] = {}
-                            response_dic['data'] = challenge_dic
-                            response_dic['header'] = {}
-                            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
-                        detail = 'invalid challenge: {0}'.format(challenge_name)
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'could not get challenge'
-            else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'url missing in protected header'
-
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-        self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
-
     def _update(self, data_dic):
         """ update challenge """
         self.logger.debug('Challenge._update({0})'.format(data_dic))
@@ -210,6 +139,7 @@ class Challenge(object):
                 self._update(data_dic)
 
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
+        return challenge_check
 
     def _validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
@@ -286,3 +216,74 @@ class Challenge(object):
 
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
+
+    def get(self, url):
+        """ get challenge details based on get request """
+        self.logger.debug('challenge.get({0})'.format(url))
+        challenge_name = self._name_get(url)
+        response_dic = {}
+        response_dic['code'] = 200
+        response_dic['data'] = self._info(challenge_name)
+        return response_dic
+
+    def new_set(self, authz_name, token, tnauth=False):
+        """ net challenge set """
+        self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
+        challenge_list = []
+        if not tnauth:
+            challenge_list.append(self._new(authz_name, 'http-01', token))
+            challenge_list.append(self._new(authz_name, 'dns-01', token))
+        else:
+            challenge_list.append(self._new(authz_name, 'tkauth-01', token))
+        self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
+        return challenge_list
+
+    def parse(self, content):
+        """ new oder request """
+        self.logger.debug('Challenge.parse()')
+
+        response_dic = {}
+        # check message
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+
+        if code == 200:
+            if 'url' in protected:
+                challenge_name = self._name_get(protected['url'])
+                if challenge_name:
+                    challenge_dic = self._info(challenge_name)
+
+                    if challenge_dic:
+                        # check tnauthlist payload
+                        if self.tnauthlist_support:
+                            (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
+
+                        if code == 200:
+                            # update challenge state to 'processing' - i am not so sure about this
+                            # self.update({'name' : challenge_name, 'status' : 4})
+                            # start validation
+                            _validation = self._validate(challenge_name, payload)
+                            response_dic['data'] = {}
+                            challenge_dic['url'] = protected['url']
+                            code = 200
+                            response_dic['data'] = {}
+                            response_dic['data'] = challenge_dic
+                            response_dic['header'] = {}
+                            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'invalid challenge: {0}'.format(challenge_name)
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'could not get challenge'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'url missing in protected header'
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+        self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
