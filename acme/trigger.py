@@ -41,12 +41,13 @@ class Trigger(object):
             cert_name = None
             for cert in cert_list:
                 # extract public key from certificate and compare it with pub from cert
-                if cert['csr']:
-                    csr_pubkey = csr_pubkey_get(self.logger, cert['csr'])
-                    if csr_pubkey == cert_pubkey:
-                        cert_name = cert['name']
-                        order_name = cert['order__name']                        
-                        break
+                if 'csr' in cert:
+                    if cert['csr']:
+                        csr_pubkey = csr_pubkey_get(self.logger, cert['csr'])
+                        if csr_pubkey == cert_pubkey:
+                            cert_name = cert['name']
+                            order_name = cert['order__name']                        
+                            break
         self.logger.debug('Trigger._certname_lookup() ended with: {0}'.format(cert_name))
         return (cert_name, order_name)
 
