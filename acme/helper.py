@@ -233,7 +233,6 @@ def csr_tnauthlist_get(logger, csr):
     logger.debug('csr_tnauthlist_get() ended with: {0}'.format(extension_list))
     return extension_list
 
-
 def decode_deserialize(logger, string):
     """ decode and deserialize string """
     logger.debug('decode_deserialize()')
