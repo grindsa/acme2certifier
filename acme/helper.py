@@ -39,15 +39,16 @@ def b64decode_pad(logger, string):
 def b64_decode(logger, string):
     """ b64 decoding """
     logger.debug('b64decode()')
-    if sys.version_info[0] >= 3:
-        return base64.b64decode(string).decode()
-    else:
-        return base64.b64decode(string)
+    return convert_byte_to_string(base64.b64decode(string))
+    #if sys.version_info[0] >= 3:
+    #    return base64.b64decode(string).decode()
+    #else:
+    #    return base64.b64decode(string)
 
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
     logger.debug('b64_encode()')
-    return base64.b64encode(string.encode('utf-8'))
+    return convert_byte_to_string(base64.b64encode(string))
 
 def b64_url_encode(logger, string):
     """ encode a bytestream in base64 url and remove padding """
@@ -59,6 +60,7 @@ def b64_url_recode(logger, string):
     """ recode base64_url to base64 """
     logger.debug('b64_url_recode()')
     padding_factor = (4 - len(string) % 4) % 4
+    string = convert_byte_to_string(string)
     string += "="*padding_factor
     # differ between py2 and py3
     if sys.version_info[0] >= 3:
@@ -70,7 +72,9 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
     """ construct pem_file """
     logger.debug('build_pem_file()')
     if csr:
-        pem_file = '-----BEGIN CERTIFICATE REQUEST----- \n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
+        pem_file = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
+        # req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_ASN1, base64.b64decode(certificate))
+        # pem_file = convert_byte_to_string(OpenSSL.crypto.dump_certificate_request(OpenSSL.crypto.FILETYPE_PEM,req))
     else:
         if existing:
             if wrap:
@@ -83,6 +87,25 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
             else:
                 pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(certificate))
     return pem_file
+
+def cert_pem2der(pem_file):
+    """ convert certificate pem to der """
+    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, certobj)
+
+def cert_der2pem(pem_file):
+    """ convert certificate der to pem """
+    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, pem_file)
+    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, certobj)
+
+def cert_pubkey_get(logger, cert):
+    """ get public key from certificate  """
+    logger.debug('CAhandler.cert_pubkey_get()')
+    req = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    pubkey = req.get_pubkey()
+    pubkey_str = convert_byte_to_string(OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey))
+    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
+    return convert_byte_to_string(pubkey_str)
 
 def cert_san_get(logger, certificate):
     """ get subject alternate names from certificate """
@@ -99,7 +122,6 @@ def cert_san_get(logger, certificate):
                 san_name = san_name.rstrip()
                 san_name = san_name.lstrip()
                 san.append(san_name)
-
     logger.debug('cert_san_get() ended')
     return san
 
@@ -129,7 +151,10 @@ def cert_serial_get(logger, certificate):
 def convert_byte_to_string(value):
     """ convert a variable to string if needed """
     if hasattr(value, 'decode'):
-        return value.decode()
+        try:
+            return value.decode()
+        except BaseException:
+            return value
     else:
         return value
 
@@ -170,7 +195,7 @@ def csr_pubkey_get(logger, csr):
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
     req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     pubkey = req.get_pubkey()
-    pubkey_str = OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey)
+    pubkey_str = convert_byte_to_string(OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey))
     logger.debug('CAhandler.csr_pubkey_get() ended with: {0}'.format(pubkey_str))
     return pubkey_str
 

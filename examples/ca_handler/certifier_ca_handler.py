@@ -7,7 +7,7 @@ import math
 import time
 import requests
 from requests.auth import HTTPBasicAuth
-from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc
+from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
 
 class CAhandler(object):
     """ CA  handler """
@@ -178,6 +178,7 @@ class CAhandler(object):
 
         while issuer_loop:
             if 'certificateBase64' in cert_dic:
+                print('jaaaa')
                 pem_list.append(cert_dic['certificateBase64'])
             else:
                 # stop if there is no pem content in the json response
@@ -321,3 +322,38 @@ class CAhandler(object):
             detail = 'CA could not be found'
 
         return(code, message, detail)
+
+    def trigger(self, payload):
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        # decode payload
+        cert_pem = b64_decode(self.logger, payload)
+        # cert raw is a base64 encoded der file
+        cert_raw = b64_encode(self.logger, cert_pem2der(cert_pem))
+
+        # lookup REST-PATH of issuing CA
+        ca_dic = self._ca_get_properties('name', self.ca_name)
+        if 'href' in ca_dic:
+            # get serial from pem file
+            serial = cert_serial_get(self.logger, cert_raw)
+            if serial:
+                # get certificate information via rest by search for ca+ serial
+                cert_list = self._cert_get_properties(serial, ca_dic['href'])
+                # the first entry is the cert we are looking for
+                if 'certificates' in cert_list:
+                    cert_dic = cert_list['certificates'][0]
+                    cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                else:
+                    error = 'no certifcates found in rest query'
+            else:
+                error = 'serial number lookup vi rest failed'
+        else:
+            error = 'CA could not be found'
+
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        return (error, cert_bundle, cert_raw)
