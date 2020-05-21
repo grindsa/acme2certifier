@@ -23,26 +23,26 @@ class Challenge(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        self.load_config()
+        self._config_load()
         return self
 
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
-    def check(self, challenge_name, payload):
+    def _check(self, challenge_name, payload):
         """ challene check """
-        self.logger.debug('challenge.check({0})'.format(challenge_name))
+        self.logger.debug('challenge._check({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
             pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
             if  pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                    result = self.validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    result = self._validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                    result = self.validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    result = self._validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                    result = self.validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+                    result = self._validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
                     self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                     result = False
@@ -50,35 +50,35 @@ class Challenge(object):
                 result = False
         else:
             result = False
-        self.logger.debug('challenge.check() ended with: {0}'.format(result))
+        self.logger.debug('challenge._check() ended with: {0}'.format(result))
         return result
 
     def get(self, url):
         """ get challenge details based on get request """
-        self.logger.debug('challenge.new_get({0})'.format(url))
-        challenge_name = self.name_get(url)
+        self.logger.debug('challenge.get({0})'.format(url))
+        challenge_name = self._name_get(url)
         response_dic = {}
         response_dic['code'] = 200
-        response_dic['data'] = self.info(challenge_name)
+        response_dic['data'] = self._info(challenge_name)
         return response_dic
 
-    def info(self, challenge_name):
+    def _info(self, challenge_name):
         """ get challenge details """
-        self.logger.debug('Challenge.info({0})'.format(challenge_name))
+        self.logger.debug('Challenge._info({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
         return challenge_dic
 
-    def load_config(self):
+    def _config_load(self):
         """" load config from file """
-        self.logger.debug('Challenge.load_config()')
+        self.logger.debug('Challenge._config_load()')
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        self.logger.debug('Challenge.load_config() ended.')
+        self.logger.debug('Challenge._config_load() ended.')
 
-    def name_get(self, url):
+    def _name_get(self, url):
         """ get challenge """
         self.logger.debug('Challenge.get_name({0})'.format(url))
         url_dic = parse_url(self.logger, url)
@@ -87,9 +87,9 @@ class Challenge(object):
             (challenge_name, _sinin) = challenge_name.split('/', 1)
         return challenge_name
 
-    def new(self, authz_name, mtype, token):
+    def _new(self, authz_name, mtype, token):
         """ new challenge """
-        self.logger.debug('Challenge.new({0})'.format(mtype))
+        self.logger.debug('Challenge._new({0})'.format(mtype))
 
         challenge_name = generate_random_string(self.logger, 12)
 
@@ -117,11 +117,11 @@ class Challenge(object):
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
         challenge_list = []
         if not tnauth:
-            challenge_list.append(self.new(authz_name, 'http-01', token))
-            challenge_list.append(self.new(authz_name, 'dns-01', token))
+            challenge_list.append(self._new(authz_name, 'http-01', token))
+            challenge_list.append(self._new(authz_name, 'dns-01', token))
         else:
-            challenge_list.append(self.new(authz_name, 'tkauth-01', token))
-        self.logger.debug('Challenge.new_set returned ({0})'.format(challenge_list))
+            challenge_list.append(self._new(authz_name, 'tkauth-01', token))
+        self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
     def parse(self, content):
@@ -134,20 +134,20 @@ class Challenge(object):
 
         if code == 200:
             if 'url' in protected:
-                challenge_name = self.name_get(protected['url'])
+                challenge_name = self._name_get(protected['url'])
                 if challenge_name:
-                    challenge_dic = self.info(challenge_name)
+                    challenge_dic = self._info(challenge_name)
 
                     if challenge_dic:
                         # check tnauthlist payload
                         if self.tnauthlist_support:
-                            (code, message, detail) = self.validate_tnauthlist_payload(payload, challenge_dic)
+                            (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
 
                         if code == 200:
                             # update challenge state to 'processing' - i am not so sure about this
                             # self.update({'name' : challenge_name, 'status' : 4})
                             # start validation
-                            _validation = self.validate(challenge_name, payload)
+                            _validation = self._validate(challenge_name, payload)
                             response_dic['data'] = {}
                             challenge_dic['url'] = protected['url']
                             code = 200
@@ -174,45 +174,46 @@ class Challenge(object):
         self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
-    def update(self, data_dic):
+    def _update(self, data_dic):
         """ update challenge """
-        self.logger.debug('Challenge.update({0})'.format(data_dic))
+        self.logger.debug('Challenge._update({0})'.format(data_dic))
         self.dbstore.challenge_update(data_dic)
+        self.logger.debug('Challenge._update() ended')
 
-    def update_authz(self, challenge_name):
+    def _update_authz(self, challenge_name):
         """ update authorizsation based on challenge_name """
-        self.logger.debug('Challenge.update_authz({0})'.format(challenge_name))
+        self.logger.debug('Challenge._update_authz({0})'.format(challenge_name))
 
         # lookup autorization based on challenge_name
         authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
         self.dbstore.authorization_update({'name' : authz_name, 'status' : 'valid'})
-        # print(authz_name)
+        self.logger.debug('Challenge._update_authz() ended')
 
-    def validate(self, challenge_name, payload):
+    def _validate(self, challenge_name, payload):
         """ validate challenge"""
-        self.logger.debug('Challenge.validate({0}: {1})'.format(challenge_name, payload))
+        self.logger.debug('Challenge._validate({0}: {1})'.format(challenge_name, payload))
         if self.challenge_validation_disable:
             self.logger.debug('CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
             challenge_check = True
         else:
-            challenge_check = self.check(challenge_name, payload)
+            challenge_check = self._check(challenge_name, payload)
 
         if challenge_check:
-            self.update({'name' : challenge_name, 'status' : 'valid'})
+            self._update({'name' : challenge_name, 'status' : 'valid'})
             # authorization update to ready state
-            self.update_authz(challenge_name)
+            self._update_authz(challenge_name)
 
         if payload:
             if 'keyAuthorization' in payload:
                 # update challenge to ready state
                 data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
-                self.update(data_dic)
+                self._update(data_dic)
 
-        self.logger.debug('Challenge.validate() ended with:{0}'.format(challenge_check))
+        self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
 
-    def validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
+    def _validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
-        self.logger.debug('Challenge.validate_dns_challenge()')
+        self.logger.debug('Challenge._validate_dns_challenge()')
 
         # rewrite fqdn
         fqdn = '_acme-challenge.{0}'.format(fqdn)
@@ -227,12 +228,12 @@ class Challenge(object):
             result = True
         else:
             result = False
-        self.logger.debug('Challenge.validate_dns_challenge() ended with: {0}'.format(result))
+        self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
         return result
 
-    def validate_http_challenge(self, fqdn, token, jwk_thumbprint):
+    def _validate_http_challenge(self, fqdn, token, jwk_thumbprint):
         """ validate http challenge """
-        self.logger.debug('Challenge.validate_http_challenge()')
+        self.logger.debug('Challenge._validate_http_challenge()')
 
         req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
         if req:
@@ -242,20 +243,20 @@ class Challenge(object):
                 result = False
         else:
             result = False
-        self.logger.debug('Challenge.validate_http_challenge() ended with: {0}'.format(result))
+        self.logger.debug('Challenge._validate_http_challenge() ended with: {0}'.format(result))
         return result
 
-    def validate_tkauth_challenge(self, tnauthlist, _token, _jwk_thumbprint, payload):
+    def _validate_tkauth_challenge(self, tnauthlist, _token, _jwk_thumbprint, payload):
         """ validate tkauth challenge """
-        self.logger.debug('Challenge.validate_tkauth_challenge({0}:{1})'.format(tnauthlist, payload))
+        self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1})'.format(tnauthlist, payload))
 
         result = True
-        self.logger.debug('Challenge.validate_tkauth_challenge() ended with: {0}'.format(result))
+        self.logger.debug('Challenge._validate_tkauth_challenge() ended with: {0}'.format(result))
         return result
 
-    def validate_tnauthlist_payload(self, payload, challenge_dic):
+    def _validate_tnauthlist_payload(self, payload, challenge_dic):
         """ check payload in cae tnauthlist option has been set """
-        self.logger.debug('Challenge.validate_tnauthlist_payload({0}:{1})'.format(payload, challenge_dic))
+        self.logger.debug('Challenge._validate_tnauthlist_payload({0}:{1})'.format(payload, challenge_dic))
 
         code = 400
         message = None
@@ -283,5 +284,5 @@ class Challenge(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'invalid challenge: {0}'.format(challenge_dic)
 
-        self.logger.debug('Challenge.validate_tnauthlist_payload() ended with:{0}'.format(code))
+        self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
