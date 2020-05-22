@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*
+# -*- coding: utf-8 -*-
 """ wsgi based acme server """
 from __future__ import print_function
 import re
