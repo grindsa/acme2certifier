@@ -89,6 +89,9 @@ class Order(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+            if 'retry_after_timeout' in config_dic['Order']:
+                self.retry_after = config_dic['Order']['retry_after_timeout']        
+  
         self.logger.debug('Order._config_load() ended.')
 
     def _name_get(self, url):
