@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """ ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class """
 from __future__ import print_function
