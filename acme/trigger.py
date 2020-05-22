@@ -29,27 +29,23 @@ class Trigger(object):
         """ compared certificate against csr stored in db """
         self.logger.debug('Trigger._certname_lookup()')
 
-        cert_name = None
-        order_name = None
-
+        result_list = []
         # extract the public key form certificate
         cert_pubkey = cert_pubkey_get(self.logger, cert_pem)
         with Certificate(self.debug, 'foo', self.logger) as certificate:
             # search certificates in status "processing"
             cert_list = certificate.certlist_search('order__status_id', 4, ('name', 'csr', 'order__name'))
 
-            cert_name = None
             for cert in cert_list:
                 # extract public key from certificate and compare it with pub from cert
                 if 'csr' in cert:
                     if cert['csr']:
                         csr_pubkey = csr_pubkey_get(self.logger, cert['csr'])
                         if csr_pubkey == cert_pubkey:
-                            cert_name = cert['name']
-                            order_name = cert['order__name']                        
-                            break
-        self.logger.debug('Trigger._certname_lookup() ended with: {0}'.format(cert_name))
-        return (cert_name, order_name)
+                            result_list.append({'cert_name': cert['name'], 'order_name': cert['order__name']})
+        self.logger.debug('Trigger._certname_lookup() ended with: {0}'.format(result_list))
+
+        return result_list
 
     def _payload_process(self, payload):
         """ process payload """
@@ -64,21 +60,22 @@ class Trigger(object):
                     cert_pem = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
 
                     # lookup certificate_name by comparing public keys
-                    (certificate_name, order_name) = self._certname_lookup(cert_pem)
+                    cert_name_list = self._certname_lookup(cert_pem)
 
-                    if certificate_name:
-                        data_dic = {'cert' : cert_bundle, 'name': certificate_name, 'cert_raw' : cert_raw}                       
-                        cert_id = self.dbstore.certificate_add(data_dic)
-                        if order_name:
-                            # update order status to 5 (valid)                        
-                            self.dbstore.order_update({'name': order_name, 'status': 'valid'})
+                    if cert_name_list:
+                        for cert in cert_name_list:
+                            data_dic = {'cert' : cert_bundle, 'name': cert['cert_name'], 'cert_raw' : cert_raw}
+                            _cert_id = self.dbstore.certificate_add(data_dic)
+                            if 'order_name' in cert and cert['order_name']:
+                                # update order status to 5 (valid)
+                                self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
                         code = 200
                         message = 'OK'
                         detail = None
                     else:
                         code = 400
                         message = 'certificate_name lookup failed'
-                        detail = None                   
+                        detail = None
                 else:
                     code = 400
                     message = error

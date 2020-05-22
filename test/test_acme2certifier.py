@@ -2377,7 +2377,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of empty certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list = []
-        self.assertEqual((None, None), self.trigger._certname_lookup('cert_pem'))
+        self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
@@ -2385,7 +2385,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of wrong certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'foo': 'bar'}]
-        self.assertEqual((None, None), self.trigger._certname_lookup('cert_pem'))
+        self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
@@ -2393,7 +2393,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of emty csr field """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': None}]
-        self.assertEqual((None, None), self.trigger._certname_lookup('cert_pem'))
+        self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('acme.trigger.csr_pubkey_get')
     @patch('acme.certificate.Certificate.certlist_search')
@@ -2403,7 +2403,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo1'
         mock_search_list.return_value = [{'csr': None}]
-        self.assertEqual((None, None), self.trigger._certname_lookup('cert_pem'))
+        self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('acme.trigger.csr_pubkey_get')
     @patch('acme.certificate.Certificate.certlist_search')
@@ -2413,7 +2413,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': 'csr', 'name': 'cert_name', 'order__name': 'order_name'}]
-        self.assertEqual(('cert_name', 'order_name'), self.trigger._certname_lookup('cert_pem'))
+        self.assertEqual([{'cert_name': 'cert_name', 'order_name': 'order_name'}], self.trigger._certname_lookup('cert_pem'))
 
     def test_323_convert_byte_to_string(self):
         """ convert byte2string for a string value """
@@ -2503,7 +2503,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value ='b64dec'
-        mock_lookup.return_value = ('certificate_name', None)
+        mock_lookup.return_value = [{'cert_name': 'certificate_name', 'order_name': None}]
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
     @patch('acme.trigger.Trigger._certname_lookup')
@@ -2518,8 +2518,8 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value ='b64dec'
-        mock_lookup.return_value = (None, 'order_name')
-        self.assertEqual((400, 'certificate_name lookup failed', None), self.trigger._payload_process(payload))
+        mock_lookup.return_value = [{'cert_name': None, 'order_name': 'order_name'}]
+        self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
     @patch('acme.trigger.Trigger._certname_lookup')
     @patch('acme.trigger.b64_decode')
@@ -2533,7 +2533,23 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value ='b64dec'
-        mock_lookup.return_value = ('certificate_name', 'order_name')
+        mock_lookup.return_value = [{'cert_name': 'certificate_name', 'order_name': 'order_name'}]
+        self.order.dbstore.order_update.return_value = None
+        self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
+
+    @patch('acme.trigger.Trigger._certname_lookup')
+    @patch('acme.trigger.b64_decode')
+    @patch('acme.trigger.cert_der2pem')
+    @patch('acme.trigger.convert_byte_to_string')
+    @patch('acme.ca_handler.CAhandler.trigger')
+    def test_339__payload_process(self, mock_cat_trigger, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+        """ Trigger._payload_process() without certificate_name """
+        payload = {'payload': 'foo'}
+        mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
+        mock_der2pem.return_value = 'der2pem'
+        mock_cobystr.return_value = 'cert_pem'
+        mock_b64dec.return_value ='b64dec'
+        mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
         self.order.dbstore.order_update.return_value = None
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
