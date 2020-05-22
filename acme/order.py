@@ -83,6 +83,14 @@ class Order(object):
         self.logger.debug('Order._add() ended')
         return(error, order_name, auth_dic, uts_to_date_utc(expires))
 
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Order._config_load()')
+        config_dic = load_config()
+        if 'Order' in config_dic:
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        self.logger.debug('Order._config_load() ended.')
+
     def _name_get(self, url):
         """ get ordername """
         self.logger.debug('Order._name_get({0})'.format(url))
@@ -121,88 +129,6 @@ class Order(object):
         """ list details of an order """
         self.logger.debug('Order._info({0})'.format(order_name))
         return self.dbstore.order_lookup('name', order_name)
-
-    def new(self, content):
-        """ new oder request """
-        self.logger.debug('Order.new()')
-
-        response_dic = {}
-        # check message
-        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
-        if code == 200:
-            (error, order_name, auth_dic, expires) = self._add(payload, account_name)
-            if not error:
-                code = 201
-                response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
-                response_dic['data'] = {}
-                response_dic['data']['identifiers'] = []
-                response_dic['data']['authorizations'] = []
-                response_dic['data']['status'] = 'pending'
-                response_dic['data']['expires'] = expires
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
-                for auth_name in auth_dic:
-                    response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], auth_name))
-                    response_dic['data']['identifiers'].append(auth_dic[auth_name])
-            else:
-                code = 400
-                message = error
-                detail = 'could not process order'
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-
-        self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
-
-    def parse(self, content):
-        """ new oder request """
-        self.logger.debug('Order.parse()')
-
-        response_dic = {}
-        # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
-
-        if code == 200:
-            if 'url' in protected:
-                order_name = self._name_get(protected['url'])
-                if order_name:
-                    order_dic = self._lookup(order_name)
-                    if order_dic:
-                        (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
-                    else:
-                        code = 403
-                        message = 'urn:ietf:params:acme:error:orderNotReady'
-                        detail = 'order not found'
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'order name is missing'
-            else:
-                code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'url is missing in protected'
-
-            if code == 200:
-                # create response
-                response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
-                response_dic['data'] = self._lookup(order_name)
-                if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
-                    # set retry header as cert issuane is not completed.
-                    response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
-                # add the path to certificate if order-status is ready
-                # if certificate_name:
-                if certificate_name and 'status' in response_dic['data'] and response_dic['data']['status'] == 'valid':
-                    response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
-
-        # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
-
-        self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
-        return response_dic
 
     def _process(self, order_name, protected, payload):
         """ process order """
@@ -338,10 +264,84 @@ class Order(object):
         self.logger.debug('Order._lookup() ended')
         return order_dic
 
-    def _config_load(self):
-        """" load config from file """
-        self.logger.debug('Order._config_load()')
-        config_dic = load_config()
-        if 'Order' in config_dic:
-            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        self.logger.debug('Order._config_load() ended.')
+    def new(self, content):
+        """ new oder request """
+        self.logger.debug('Order.new()')
+
+        response_dic = {}
+        # check message
+        (code, message, detail, _protected, payload, account_name) = self.message.check(content)
+        if code == 200:
+            (error, order_name, auth_dic, expires) = self._add(payload, account_name)
+            if not error:
+                code = 201
+                response_dic['header'] = {}
+                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['data'] = {}
+                response_dic['data']['identifiers'] = []
+                response_dic['data']['authorizations'] = []
+                response_dic['data']['status'] = 'pending'
+                response_dic['data']['expires'] = expires
+                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
+                for auth_name in auth_dic:
+                    response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], auth_name))
+                    response_dic['data']['identifiers'].append(auth_dic[auth_name])
+            else:
+                code = 400
+                message = error
+                detail = 'could not process order'
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
+
+    def parse(self, content):
+        """ new oder request """
+        self.logger.debug('Order.parse()')
+
+        response_dic = {}
+        # check message
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+
+        if code == 200:
+            if 'url' in protected:
+                order_name = self._name_get(protected['url'])
+                if order_name:
+                    order_dic = self._lookup(order_name)
+                    if order_dic:
+                        (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
+                    else:
+                        code = 403
+                        message = 'urn:ietf:params:acme:error:orderNotReady'
+                        detail = 'order not found'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'order name is missing'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'url is missing in protected'
+
+            if code == 200:
+                # create response
+                response_dic['header'] = {}
+                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['data'] = self._lookup(order_name)
+                if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
+                    # set retry header as cert issuane is not completed.
+                    response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
+                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
+                # add the path to certificate if order-status is ready
+                # if certificate_name:
+                if certificate_name and 'status' in response_dic['data'] and response_dic['data']['status'] == 'valid':
+                    response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
