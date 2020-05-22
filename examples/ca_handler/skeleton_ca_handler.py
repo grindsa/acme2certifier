@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" skeleton for CA handler """
+""" skeleton for customized CA handler """
 from __future__ import print_function
 from acme.helper import load_config
 
