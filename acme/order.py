@@ -24,15 +24,15 @@ class Order(object):
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        self.config_load()
+        self._config_load()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def add(self, payload, aname):
+    def _add(self, payload, aname):
         """ add order request to database """
-        self.logger.debug('Order.add({0})'.format(aname))
+        self.logger.debug('Order._add({0})'.format(aname))
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.logger, 12)
@@ -53,7 +53,7 @@ class Order(object):
             #    data_dic['notafter'] = payload['notAfter']
 
             # check identifiers
-            error = self.identifiers_check(payload['identifiers'])
+            error = self._identifiers_check(payload['identifiers'])
 
             # change order status if needed
             if error:
@@ -80,20 +80,22 @@ class Order(object):
             error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
 
         # print(auth_dic)
+        self.logger.debug('Order._add() ended')
         return(error, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def name_get(self, url):
+    def _name_get(self, url):
         """ get ordername """
-        self.logger.debug('Order.get_name({0})'.format(url))
+        self.logger.debug('Order._name_get({0})'.format(url))
         url_dic = parse_url(self.logger, url)
         order_name = url_dic['path'].replace(self.path_dic['order_path'], '')
         if '/' in order_name:
             (order_name, _sinin) = order_name.split('/', 1)
+        self.logger.debug('Order._name_get() ended')
         return order_name
 
-    def identifiers_check(self, identifiers_list):
+    def _identifiers_check(self, identifiers_list):
         """ check validity of identifers in order """
-        self.logger.debug('Order.identifiers_check({0})'.format(identifiers_list))
+        self.logger.debug('Order._identifiers_check({0})'.format(identifiers_list))
         error = None
         allowed_identifers = ['dns']
 
@@ -112,12 +114,12 @@ class Order(object):
         else:
             error = 'urn:ietf:params:acme:error:malformed'
 
-        self.logger.debug('Order.identifiers_check() done with {0}:'.format(error))
+        self.logger.debug('Order._identifiers_check() done with {0}:'.format(error))
         return error
 
-    def info(self, order_name):
+    def _info(self, order_name):
         """ list details of an order """
-        self.logger.debug('Order.info({0})'.format(order_name))
+        self.logger.debug('Order._info({0})'.format(order_name))
         return self.dbstore.order_lookup('name', order_name)
 
     def new(self, content):
@@ -128,7 +130,7 @@ class Order(object):
         # check message
         (code, message, detail, _protected, payload, account_name) = self.message.check(content)
         if code == 200:
-            (error, order_name, auth_dic, expires) = self.add(payload, account_name)
+            (error, order_name, auth_dic, expires) = self._add(payload, account_name)
             if not error:
                 code = 201
                 response_dic['header'] = {}
@@ -163,11 +165,11 @@ class Order(object):
 
         if code == 200:
             if 'url' in protected:
-                order_name = self.name_get(protected['url'])
+                order_name = self._name_get(protected['url'])
                 if order_name:
-                    order_dic = self.lookup(order_name)
+                    order_dic = self._lookup(order_name)
                     if order_dic:
-                        (code, message, detail, certificate_name) = self.process(order_name, protected, payload)
+                        (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
                     else:
                         code = 403
                         message = 'urn:ietf:params:acme:error:orderNotReady'
@@ -185,7 +187,7 @@ class Order(object):
                 # create response
                 response_dic['header'] = {}
                 response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
-                response_dic['data'] = self.lookup(order_name)
+                response_dic['data'] = self._lookup(order_name)
                 if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
                     # set retry header as cert issuane is not completed.
                     response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
@@ -202,9 +204,9 @@ class Order(object):
         self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
-    def process(self, order_name, protected, payload):
+    def _process(self, order_name, protected, payload):
         """ process order """
-        self.logger.debug('Order.process({0})'.format(order_name))
+        self.logger.debug('Order._process({0})'.format(order_name))
         certificate_name = None
         message = None
         detail = None
@@ -214,19 +216,19 @@ class Order(object):
                 self.logger.debug('finalize request()')
 
                 # lookup order-status (must be ready to proceed)
-                order_dic = self.info(order_name)
+                order_dic = self._info(order_name)
                 if 'status' in order_dic and order_dic['status'] == 'ready':
                     # update order_status / set to processing
-                    self.update({'name' : order_name, 'status': 'processing'})
+                    self._update({'name' : order_name, 'status': 'processing'})
                     if  'csr' in payload:
                         self.logger.debug('CSR found()')
                         # this is a new request
-                        (code, certificate_name, detail) = self.csr_process(order_name, payload['csr'])
+                        (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'])
                         # change status only if we do not have a poll_identifier (stored in detail variable)
                         if code == 200:
                             if not detail:
                                 # update order_status / set to valid
-                                self.update({'name' : order_name, 'status': 'valid'})
+                                self._update({'name' : order_name, 'status': 'valid'})
                         else:
                             message = certificate_name
                             detail = 'enrollment failed'
@@ -252,14 +254,14 @@ class Order(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'url is missing in protected'
 
-        self.logger.debug('Order.process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return(code, message, detail, certificate_name)
 
-    def csr_process(self, order_name, csr):
+    def _csr_process(self, order_name, csr):
         """ process certificate signing request """
-        self.logger.debug('Order.csr_process({0})'.format(order_name))
+        self.logger.debug('Order._csr_process({0})'.format(order_name))
 
-        order_dic = self.info(order_name)
+        order_dic = self._info(order_name)
 
         if order_dic:
             # change decoding from b64url to b64
@@ -286,20 +288,20 @@ class Order(object):
             message = 'urn:ietf:params:acme:error:unauthorized'
             detail = 'order: {0} not found'.format(order_name)
 
-        self.logger.debug('Order.csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        self.logger.debug('Order._csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return(code, message, detail)
 
-    def update(self, data_dic):
+    def _update(self, data_dic):
         """ update order based on ordername """
-        self.logger.debug('Order.update({0})'.format(data_dic))
+        self.logger.debug('Order._update({0})'.format(data_dic))
         return self.dbstore.order_update(data_dic)
 
-    def lookup(self, order_name):
+    def _lookup(self, order_name):
         """ sohw order details based on ordername """
-        self.logger.debug('Order.lookup({0})'.format(order_name))
+        self.logger.debug('Order._lookup({0})'.format(order_name))
         order_dic = {}
 
-        tmp_dic = self.info(order_name)
+        tmp_dic = self._info(order_name)
         if tmp_dic:
             if 'status' in tmp_dic:
                 order_dic['status'] = tmp_dic['status']
@@ -331,15 +333,15 @@ class Order(object):
                 # update orders status from pending to ready
                 if validity_list and 'status' in order_dic:
                     if False not in validity_list and order_dic['status'] == 'pending':
-                        self.update({'name' : order_name, 'status': 'ready'})
+                        self._update({'name' : order_name, 'status': 'ready'})
 
-        self.logger.debug('Order.lookup() ended')
+        self.logger.debug('Order._lookup() ended')
         return order_dic
 
-    def config_load(self):
+    def _config_load(self):
         """" load config from file """
-        self.logger.debug('Order.config_load()')
+        self.logger.debug('Order._config_load()')
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        self.logger.debug('Order.load_config() ended.')
+        self.logger.debug('Order._config_load() ended.')
