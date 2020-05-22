@@ -10,19 +10,7 @@ class Error(object):
         self.debug = debug
         self.logger = logger
 
-    def enrich_error(self, message, detail=None):
-        """ put some more content into the error messgae """
-        self.logger.debug('Error.enrich_error()')
-        error_message = self.acme_errormessage(message)
-
-        if message and error_message:
-            detail = '{0}: {1}'.format(error_message, detail)
-        elif error_message:
-            detail = '{0}{1}'.format(error_message, detail)
-
-        return detail
-
-    def acme_errormessage(self, message):
+    def _acme_errormessage(self, message):
         """ dictionary containing the implemented acme error messages """
         self.logger.debug('Error.acme_errormessage({0})'.format(message))
         error_dic = {
@@ -41,3 +29,17 @@ class Error(object):
             return error_dic[message]
         else:
             return None
+
+    def enrich_error(self, message, detail=None):
+        """ put some more content into the error messgae """
+        self.logger.debug('Error.enrich_error()')
+        error_message = self._acme_errormessage(message)
+
+        if message and error_message:
+            detail = '{0}: {1}'.format(error_message, detail)
+        elif error_message:
+            detail = '{0}{1}'.format(error_message, detail)
+
+        return detail
+
+

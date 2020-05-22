@@ -118,19 +118,19 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_010_err_badnonce(self):
         """ test badnonce error message """
-        self.assertEqual('JWS has invalid anti-replay nonce', self.error.acme_errormessage('urn:ietf:params:acme:error:badNonce'))
+        self.assertEqual('JWS has invalid anti-replay nonce', self.error._acme_errormessage('urn:ietf:params:acme:error:badNonce'))
 
     def test_011_err_invalidcontact(self):
         """ test badnonce error message """
-        self.assertEqual('The provided contact URI was invalid', self.error.acme_errormessage('urn:ietf:params:acme:error:invalidContact'))
+        self.assertEqual('The provided contact URI was invalid', self.error._acme_errormessage('urn:ietf:params:acme:error:invalidContact'))
 
     def test_012_err_useractionrequired(self):
         """ test badnonce error message """
-        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:userActionRequired'))
+        self.assertFalse(self.error._acme_errormessage('urn:ietf:params:acme:error:userActionRequired'))
 
     def test_013_err_malformed(self):
         """ test badnonce error message """
-        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:malformed'))
+        self.assertFalse(self.error._acme_errormessage('urn:ietf:params:acme:error:malformed'))
 
     def test_014_b64decode_pad_correct(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -1152,19 +1152,19 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_158_acme_errormessage(self):
         """ Error.acme_errormessage for existing value with content """
-        self.assertEqual('JWS has invalid anti-replay nonce', self.error.acme_errormessage('urn:ietf:params:acme:error:badNonce'))
+        self.assertEqual('JWS has invalid anti-replay nonce', self.error._acme_errormessage('urn:ietf:params:acme:error:badNonce'))
 
     def test_159_acme_errormessage(self):
         """ Error.acme_errormessage for existing value without content """
-        self.assertFalse(self.error.acme_errormessage('urn:ietf:params:acme:error:unauthorized'))
+        self.assertFalse(self.error._acme_errormessage('urn:ietf:params:acme:error:unauthorized'))
 
     def test_160_acme_errormessage(self):
         """ Error.acme_errormessage for message None """
-        self.assertFalse(self.error.acme_errormessage(None))
+        self.assertFalse(self.error._acme_errormessage(None))
 
     def test_161_acme_errormessage(self):
         """ Error.acme_errormessage for not unknown message """
-        self.assertFalse(self.error.acme_errormessage('unknown'))
+        self.assertFalse(self.error._acme_errormessage('unknown'))
 
     def test_162_enrich_error(self):
         """ Error.enrich_error for valid message and detail """
