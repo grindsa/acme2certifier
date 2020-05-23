@@ -81,15 +81,7 @@ DATABASES = {
         'USER': "acme2certifier",
         'PASSWORD': "TO BE REPLACED",
         'HOST': "TO BE REPLACED",
-        'OPTIONS': {
-            'sql_mode': 'TRADITIONAL',
-            'charset': 'utf8',
-            'init_command': 'SET '
-                'storage_engine=INNODB,'
-                'character_set_connection=utf8,'
-                'collation_connection=utf8_bin;'
-                'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED',
-        }
+        'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
     },
 }
 
