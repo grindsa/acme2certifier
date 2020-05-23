@@ -20,7 +20,8 @@ from acme import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', views.directory, name='index'),      
-	url(r'^directory$',views.directory, name='directory'),    
-	url(r'^get_servername$',views.servername_get, name='servername_get'),  
+	url(r'^directory$',views.directory, name='directory'),        
+	url(r'^get_servername$',views.servername_get, name='servername_get'), 
+	url(r'^trigger$',views.trigger, name='trigger'),      
     url(r'^acme/', include('acme.urls')),    
 ]

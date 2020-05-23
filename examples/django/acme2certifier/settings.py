@@ -20,12 +20,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'eixb4779sd3_+*9voff_f^hy7p=6@ml0r4mt)f#^(m9p@$&v$^'
+SECRET_KEY = 'TO BE REPLACED'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.14.1', '127.0.0.1']
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
@@ -76,10 +76,29 @@ WSGI_APPLICATION = 'acme2certifier.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'acme2certifier',
+        'USER': "acme2certifier",
+        'PASSWORD': "TO BE REPLACED",
+        'HOST': "TO BE REPLACED",
+        'OPTIONS': {
+            'sql_mode': 'TRADITIONAL',
+            'charset': 'utf8',
+            'init_command': 'SET '
+                'storage_engine=INNODB,'
+                'character_set_connection=utf8,'
+                'collation_connection=utf8_bin;'
+                'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED',
+        }
+    },
 }
+
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.sqlite3',
+#        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+#    }
+#}
 
 
 # Password validation
