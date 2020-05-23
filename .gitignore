@@ -101,7 +101,7 @@ ENV/
 # mystuff
 /acme2certifier/
 db.sqlite3
-manage.py
+/manage.py
 acme/migrations/
 acme/admin.py
 acme/apps.py
