@@ -225,7 +225,7 @@ class CAhandler(object):
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
                     crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-                    crypto.X509Extension(convert_string_to_byte('keyUsage'), False, convert_string_to_byte('digitalSignature,keyEncipherment')),
+                    crypto.X509Extension(convert_string_to_byte('keyUsage'), False, convert_string_to_byte('digitalSignature,keyEncipherment')),  # might be redundant to be checked
                     crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
                 ])
                 cert.sign(ca_key, 'sha256')
