@@ -51,11 +51,10 @@ Starting from version 0.4 acme2certifer includes experimental support for [TNAut
 
 Starting from version 0.8 acme2certifier supports [certificate polling](doc/poll.md) and [call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA servers,
 
-
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
 # Installation
-The proxy can run either as plain wsgi-script on either apache or ngix or as Django project. Running acme2certifier as Django project allows to use other database backendes than SQLite.
+The proxy can run either as plain wsgi-script on either apache or ngix or as django project. Running acme2certifier as django project allows to use other database backendes than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker containers. I am not providing prepared images (I am to lazy to do continuous patch management) but instructions and ready-made scripts to build your own container.
 
