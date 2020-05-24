@@ -37,7 +37,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._stub_func() ended')
 
     def enroll(self, csr):
-        """ enroll certificate from via MS certsrv """
+        """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None
@@ -51,7 +51,7 @@ class CAhandler(object):
         return(error, cert_bundle, cert_raw, poll_indentifier)
 
     def poll(self, cert_name, poll_identifier, _csr):
-        """ poll pending status of pending CSR and download certificates """
+        """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
         error = None
