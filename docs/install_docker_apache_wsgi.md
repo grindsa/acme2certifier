@@ -58,4 +58,6 @@ Both configuration file and ca_handler must be modified according to your setup.
 ```
 root@docker-test:/home/grindsa/acme2certifier# docker stop acme2certifier
 root@docker-test:/home/grindsa/acme2certifier# docker start acme2certifier
-´´´
+```
+
+Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](/docs/acme_srv.md) in acme2certifier for further investigation.

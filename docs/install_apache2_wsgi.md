@@ -22,9 +22,9 @@ root@rlh:~# a2ensite acme2certifier.conf
 8. create a directory /var/www/acme2certifier/acme
 9. copy the content of the acme -directory to /var/www/acme2certifier/acme
 10. create a configuration file 'acme_srv.cfg' in /var/www/acme2certfier/acme or use the example stored in the example directory
-11. modify the [configuration file](docs/acme_srv.md) according to you needs
+11. modify the [configuration file](/docs/acme_srv.md) according to you needs
 12. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
-13. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
+13. configure the connection to your ca server. [Example for Insta Certifier](/docs/certifier.md)
 14. activate the wsgi database handler
 ```
 root@rlh:~# cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme/acme2certfier/db_handler.py
@@ -43,4 +43,4 @@ root@rlh:~# chmod a+x /var/www/acme2certifier/acme
 {"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
 ```
 
-Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler.
+Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable debug mode in acme2certifier for further investigation.
