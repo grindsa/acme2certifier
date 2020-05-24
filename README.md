@@ -49,180 +49,21 @@ As of today acme2certifier supports the below ACME functions only:
 
 Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
-~~IMPORTANT: The current version does NOT perform Identifier validation. In the current version the acme server will change the status of each challenge to "valid" forcing an acme client to send the CSR immediately.~~
+Starting from version 0.8 acme2certifier supports [certificate polling](doc/poll.md) and [call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA servers,
+
 
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
 # Installation
-The proxy can run either as Django project or as plain wsgi-script
+The proxy can run either as plain wsgi-script on either apache or ngix or as Django project. Running acme2certifier as Django project allows to use other database backendes than SQLite.
 
-## Installation as wsgi script
+The fastest and most convenient way to install acme2certifier is to use docker containers. I am not providing prepared images (I am to lazy to do continuous patch management) but instructions and ready-made scripts to build your own container.
 
-### Installation on apache2 running on Ubuntu 18.04
+- [Installation as wsgi-script running in a dockerized apache instance](docs/docker_wsgi_install.md)
+- [Installation as Django project running in a dockerized apache instance](docs/docker_django_install.md)
+- [Installation as wsgi-Script running on apache](docs/wsgi_apache_install.md)
+- [Installation as wsgi-script running on NGINX](docs/wsgi_ngix_install.md)
 
-1. check of the wsgi module is running on your apache2
-```
-root@rlh:~# apache2ctl -M | grep -i wsgi
- wsgi_module (shared)
-root@rlh:~#
-```
-if the wsgi_module is not enabled please check the internet how to do this.
-
-2. download the archive and unpack it.
-
-3. install the missing modules via pip
-```
-root@rlh:~# pip3 install -r requirements.txt
-```
-4. copy the file "examples/apache_acme.conf" to "/etc/apache2/sites-available" and modify it according to you needs.
-
-5. activate the virtual server
-```
-root@rlh:~# a2ensite acme_acme.conf
-```
-6. create a directory /var/www/acme
-
-7. copy the file acme2certifier_wsgi.py to /var/www/acme
-
-8. create a directory /var/www/acme/acme
-
-9. copy the content of the acme -directory to /var/www/acme/acme
-
-10. create a configuration file 'acme_srv.cfg' in /var/www/acme/acme or use the example stored in the example directory
-
-11. modify the [configuration file](docs/acme_srv.md) according to you needs
-
-12. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
-
-13. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
-
-14. activate the wsgi database handler
-```
-root@rlh:~# cp /var/www/acme/examples/db_handler/wsgi_handler.py /var/www/acme/acme/db_handler.py
-```
-
-15. ensure that the all files and directories under /var/www/acme are owned by the user running the webserver (www-data is just an example!)
-```
-root@rlh:~# chown -R www-data.www-data /var/www/acme/
-```
-
-16. set correct permissions to acme subdirectory
-```
-root@rlh:~# chmod a+x /var/www/acme/acme
-```
-
-17. Check access to the directory resource to verify that everything works so far
-```
-[root@srv ~]# curl http://127.0.0.1/directory
-{"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
-```
-
-## Installation on NGINX runnig on CentOS 7
-
-I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
-
-Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
-
-1. setup your project directory
-```
-[root@srv ~]# mkdir /opt/acme2certifier
-```
-
-2. download the archive and unpack it into /opt/acme2certifier.
-
-3. create a configuration file 'acme_srv.cfg' in /opt/acme2certifier/acme/ or use the example stored in the examples directory
-
-4. modify the [configuration file](docs/acme_srv.md) according to you needs
-
-5. pick the correct ca handler from the /opt/acme2certifier/examples/ca_handler directory and copy it to /opt/acme2certifier/acme/ca_handler.py
-
-6. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
-
-7. activate the wsgi database handler
-```
-root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py
-```
-
-8. copy the application file "acme2certifer_wsgi.py" from examples directory
-```
-root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
-```
-
-9. set the correct permissions to the acme-subdirectory
-```
-[root@srv ~]# chmod a+x /opt/acme2certifier/acme
-```
-
-10. set the ownership of the acme subdirectory to the user running nginx
-```
-[root@srv ~]# chown -R nginx /opt/acme2certifier/acme
-```
-
-11. install the missing python modules
-```
-[root@srv ~]# pip install -r requirements.txt
-```
-
-12. Install uswgi by using pip
-```
-[root@srv ~]# pip install uwsgi
-```
-
-13. Test acme2certifier by starting the application
-```
-[root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
-```
-
-14. Check access to directory resource in a parallel session to verify that everything works so far
-```
-[root@srv ~]# curl http://127.0.0.1:8000/directory
-{"newAccount": "http://127.0.0.1:8000/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme/key-change", "newNonce": "http://127.0.0.1:8000/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme/neworders", "revokeCert": "http://127.0.0.1:8000/acme/revokecert"}[root@srv ~]#
-```
-
-15. create an uWSGI config file or use the one stored in examples/nginx directory
-```
-[root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier
-```
-
-16. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
-```
-[root@srv ~]# cp examples/nginx/uwsgi.service /etc/systemd/system/
-[root@srv ~]# systemctl enable uwsgi.service
-```
-
-17. start uWSGI as service
-```
-[root@srv ~]# systemctl start uwsgi
-```
-
-18. configure NGINX as reverse proxy or use example stored in examples/nginx directory and modify it according to your needs
-```
-[root@srv ~]# cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
-```
-
-19. restart nginx
-```
-[root@srv ~]# systemctl restart nginx
-```
-
-20. test the server by accessing the directory resource
-```
-[root@srv ~]# curl http://<your server name>/directory
-you should get your resource overview now
-```
-
-## Installation as Django project
-
-1. create a new Django project called acme2certier
-```
-missing
-```
-2. create a new app inside your project called "acme"
-```
-missing
-```
-3. copy the content of the folder "examples/django/acme2certifier" into the "acme2certifer" folder of your project
-4. copy the content of the folder "examples/django/acme" into the "acme" folder created in step 2
 
 ## Contributing
 

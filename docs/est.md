@@ -2,12 +2,12 @@
 
 The EST protocol handler is not bound to a specific CA and implements the ['cacerts'](https://tools.ietf.org/html/rfc7030#section-2.1) and ['simpleenroll'](https://tools.ietf.org/html/rfc7030#section-2.2.1) calls as defined in [RFC7030](https://tools.ietf.org/html/rfc7030).
 
-when using the handler please be aware of the following limitations:
+Wwhen using the handler please be aware of the following limitations:
 
 - Authentication towards CA server is limited to ClientAuth as described in [RFC7030 section 3.3.2](https://tools.ietf.org/html/rfc7030#section-3.3.2) 
 - Revocation operations are not supported
 
-The andler has been tested with the following EST implementation:
+The handler has been tested with the following EST implementation:
 
 - [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier)
 - EST reference implementation from [Cisco](http://testrfc7030.com/)
