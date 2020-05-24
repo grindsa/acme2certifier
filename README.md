@@ -60,7 +60,7 @@ The fastest and most convenient way to install acme2certifier is to use docker c
 
 - [Containerized wsgi installation using apache2](docs/install_docker_apache_wsgi.md)
 - [Containerized django project using apache2](docs/install_docker_apache_django.md)
-- [Installation as wsgi-script running on apache](docs/install_apache2_wsgi.md)
+- [Installation as wsgi-script running on apache2](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX](docs/install_nginx_wsgi.md)
 
 
