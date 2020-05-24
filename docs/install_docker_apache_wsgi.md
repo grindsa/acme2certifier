@@ -33,12 +33,10 @@ If the container creation completed without errors the container can be started 
 `root@docker-test:/home/joern/acme2certifier# docker run -p 80:80 -p 443:443 -v acme2certifier:/var/www/acme2certifier/volume --name=acme2certifier --restart=always -d acme2certifier`
 
 
-The entry-point script will check during the start process if a configuration file and a ca_handler do exist on the volume. If these files do not exist:
+The entry-point script will check during the start process if a configuration file and a ca_handler do exist on the volume. If these files do not exist the below examples will be copied to the volume.
 
-- the acme_srv.cfg file from the example directory
-- the stub_handler from the example/ca-handler directory
-
-Will be copied.
+- [acme_srv.cfg file](/examples/acme_srv.cfg) from the example directory
+- [stub_handler](/examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
 
 The container should be visible in the list of active containers
 
