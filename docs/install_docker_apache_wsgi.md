@@ -24,13 +24,13 @@ After entering the directory 
 
 You can build the container 
 
-`root@docker-test:/home/joern/acme2certifier# docker build -t acme2certifier .`
+`root@docker-test:/home/grindsa/acme2certifier# docker build -t acme2certifier .`
 
 All components needed to create the container will be downloaded automatically. The time to build the container depends from quality and speed of your internet connection but should not take more than 15 min.
 
 If the container creation completed without errors the container can be started by using the command below.
 
-`root@docker-test:/home/joern/acme2certifier# docker run -p 80:80 -p 443:443 -v acme2certifier:/var/www/acme2certifier/volume --name=acme2certifier --restart=always -d acme2certifier`
+`root@docker-test:/home/grindsa/acme2certifier# docker run -p 80:80 -p 443:443 -v acme2certifier:/var/www/acme2certifier/volume --name=acme2certifier --restart=always -d acme2certifier`
 
 
 The entry-point script will check during the start process if a configuration file and a ca_handler do exist on the volume. If these files do not exist the below examples will be copied to the volume.
@@ -41,7 +41,7 @@ The entry-point script will check during the start process if a configuration fi
 The container should be visible in the list of active containers
 
 ```
-root@docker-test:/home/joern/acme2certifier# docker ps -a
+root@docker-test:/home/grindsa/acme2certifier# docker ps -a
 CONTAINER ID        IMAGE                 COMMAND                  CREATED             STATUS              PORTS                                      NAMES
 db925fc41668        acme2certifier        "/docker-entrypoint.…"   13 seconds ago      Up 12 seconds       0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp   acme2certifier
 ```
@@ -56,6 +56,6 @@ root@ub18-04:~# curl http://192.168.14.133/directory
 Both configuration file and ca_handler must be modified according to your setup. To reload the modified files the container should be restarted.
 
 ```
-root@docker-test:/home/joern/acme2certifier# docker stop acme2certifier
-root@docker-test:/home/joern/acme2certifier# docker start acme2certifier
+root@docker-test:/home/grindsa/acme2certifier# docker stop acme2certifier
+root@docker-test:/home/grindsa/acme2certifier# docker start acme2certifier
 ´´´
