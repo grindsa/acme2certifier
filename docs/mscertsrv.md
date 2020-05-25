@@ -37,7 +37,7 @@ X-Powered-By: ASP.NET
 
 ## Installation
 
-- install [certsrv](https://github.com/magnuswatn/certsrv) via pip
+- install [certsrv](https://github.com/magnuswatn/certsrv) via pip (module is already part of the docker images)
 ```
 root@rlh:~# pip install certsrv[ntlm]
 ```
