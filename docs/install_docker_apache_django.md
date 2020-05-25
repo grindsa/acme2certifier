@@ -76,7 +76,7 @@ DATABASES
 In case you would like to enable ssl-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
 - the private key
 - the end-entity certificate
-- intermediate CA certificates, sorted from leaf to root. The root-ca should not be included for security reasons.
+- intermediate CA certificates, sorted from leaf to root. The root CA certificate should not be included for security reasons.
 
 ```
 -----BEGIN RSA PRIVATE KEY-----
