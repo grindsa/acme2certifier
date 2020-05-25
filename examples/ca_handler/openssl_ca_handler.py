@@ -22,6 +22,7 @@ class CAhandler(object):
         }
         self.ca_cert_chain_list = []
         self.cert_validity_days = 365
+        self.openssl_conf = None
         self.cert_save_path = None
 
     def __enter__(self):
@@ -129,6 +130,11 @@ class CAhandler(object):
             else:
                 error = 'cert_save_path must be specified in config file'
 
+        if not error:
+            if self.openssl_conf:
+                if not os.path.exists(self.openssl_conf):
+                    error = 'openssl_conf {0} does not exist'.format(self.openssl_conf)
+
         if not error and not self.ca_cert_chain_list:
             error = 'ca_cert_chain_list must be specified in config file'
 
@@ -157,10 +163,11 @@ class CAhandler(object):
             self.cert_save_path = config_dic['CAhandler']['cert_save_path']
         if 'issuing_ca_crl' in config_dic['CAhandler']:
             self.issuer_dict['issuing_ca_crl'] = config_dic['CAhandler']['issuing_ca_crl']
-
         # convert passphrase
         if 'passphrase' in self.issuer_dict:
             self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
+        if 'openssl_conf' in config_dic['CAhandler']:
+            self.openssl_conf = config_dic['CAhandler']['openssl_conf']
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -221,14 +228,15 @@ class CAhandler(object):
                 cert.set_subject(req.get_subject())
                 cert.set_pubkey(req.get_pubkey())
                 cert.set_serial_number(uuid.uuid4().int)
+                cert.set_version(2)
                 # cert.set_serial_number(uts_now())
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
-                    crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False , convert_string_to_byte('hash'), subject=cert),
+                    crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
                     crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-                    crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),                      
-                    crypto.X509Extension(convert_string_to_byte('basicConstraints'), True ,convert_string_to_byte('CA:FALSE')),       
-                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+                    crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+                    crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
                 ])
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
