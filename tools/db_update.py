@@ -2,9 +2,9 @@
 """ database updater """
 import sys
 sys.path.insert(0, '..')
+sys.path.insert(1, '.')
 from acme.helper import logger_setup
 from acme.db_handler import DBstore
-
 
 if __name__ == '__main__':
 
