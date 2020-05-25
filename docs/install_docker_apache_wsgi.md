@@ -1,4 +1,4 @@
-# Containerized wsgi installation using apache2
+# Containerized wsgi installation using apache2 as webserver
 
 This should be the fastest and most convinent way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 18.04 container using apache2 as webserver.
 
@@ -58,7 +58,7 @@ Both configuration file and ca_handler must be modified according to your setup.
 In case you would like to enable ssl-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
 - the private key
 - the end-entity certificate
-- intermediate CA certificates, sorted from leaf to root
+- intermediate CA certificates, sorted from leaf to root. The root CA certificate should not be included for security reasons.
 
 ```
 -----BEGIN RSA PRIVATE KEY-----
