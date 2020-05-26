@@ -108,20 +108,21 @@ class CAhandler(object):
             if not os.path.exists(self.issuer_dict['issuing_ca_key']):
                 error = 'issuing_ca_key {0} does not exist'.format(self.issuer_dict['issuing_ca_key'])
         else:
-            error = 'issuing_ca_key not defined or empty'
+            error = 'issuing_ca_key not specfied in config_file'
 
-        if 'issuing_ca_cert' in self.issuer_dict and self.issuer_dict['issuing_ca_cert']:
-            if not os.path.exists(self.issuer_dict['issuing_ca_cert']):
-                error = 'issuing_ca_cert {0} does not exist'.format(self.issuer_dict['issuing_ca_cert'])
-        else:
-            error = 'issuing_ca_cert must be specified in config file'
+        if not error:
+            if 'issuing_ca_cert' in self.issuer_dict and self.issuer_dict['issuing_ca_cert']:
+                if not os.path.exists(self.issuer_dict['issuing_ca_cert']):
+                    error = 'issuing_ca_cert {0} does not exist'.format(self.issuer_dict['issuing_ca_cert'])
+            else:
+                error = 'issuing_ca_cert must be specified in config file'
 
         if not error:
             if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
                 if not os.path.exists(self.issuer_dict['issuing_ca_crl']):
                     error = 'issuing_ca_crl {0} does not exist'.format(self.issuer_dict['issuing_ca_crl'])
             else:
-                error = 'issuing_ca_cert must be specified in config file'
+                error = 'issuing_ca_crl must be specified in config file'
 
         if not error:
             if self.cert_save_path:
