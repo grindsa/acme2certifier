@@ -53,6 +53,7 @@ def b64_encode(logger, string):
 def b64_url_encode(logger, string):
     """ encode a bytestream in base64 url and remove padding """
     logger.debug('b64_url_encode()')
+    string = convert_string_to_byte(string)
     encoded = base64.urlsafe_b64encode(string)
     return encoded.rstrip(b"=")
 
