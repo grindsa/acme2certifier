@@ -322,3 +322,15 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler.revoke() ended')
         return(code, message, detail)
+
+    def trigger(self, payload):
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        self._stub_func(payload)
+
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        return (error, cert_bundle, cert_raw)
