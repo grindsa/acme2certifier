@@ -38,7 +38,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, cert_pubkey_get, csr_pubkey_get, convert_byte_to_string
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, cert_pubkey_get, csr_pubkey_get, convert_byte_to_string
         import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -73,6 +73,7 @@ class TestACMEHandler(unittest.TestCase):
         self.csr_pubkey_get = csr_pubkey_get
         self.build_pem_file = build_pem_file
         self.b64_decode = b64_decode
+        self.b64_url_encode = b64_url_encode
         self.date_to_datestr = date_to_datestr
         self.datestr_to_date = datestr_to_date
         self.convert_byte_to_string = convert_byte_to_string
@@ -2552,6 +2553,14 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
         self.order.dbstore.order_update.return_value = None
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
+
+    def test_340_b64encode(self):
+        """ test b64_url_encode of string """
+        self.assertEqual(b'c3RyaW5n', self.b64_url_encode(self.logger, 'string'))
+
+    def test_341_b64encode(self):
+        """ test b64_url_encode of byte """
+        self.assertEqual(b'Ynl0ZQ', self.b64_url_encode(self.logger, b'byte'))
 
 if __name__ == '__main__':
     unittest.main()
