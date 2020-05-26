@@ -54,7 +54,7 @@ def b64_url_encode(logger, string):
     """ encode a bytestream in base64 url and remove padding """
     logger.debug('b64_url_encode()')
     encoded = base64.urlsafe_b64encode(string)
-    return encoded.rstrip("=")
+    return encoded.rstrip(b"=")
 
 def b64_url_recode(logger, string):
     """ recode base64_url to base64 """
