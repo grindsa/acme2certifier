@@ -5,9 +5,10 @@ from __future__ import print_function
 import textwrap
 import requests
 from OpenSSL import crypto
-from acme.helper import load_config, b64_decode, b64_url_recode
+from OpenSSL.crypto import _lib, _ffi, X509
+from acme.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string
 
-def get_certificates(self):
+def _get_certificates(self):
     """
     https://github.com/pyca/pyopenssl/pull/367/files#r67300900
 
@@ -19,7 +20,6 @@ def get_certificates(self):
         there are none.
     :rtype: :class:`tuple` of :class:`X509` or :const:`None`
     """
-    from OpenSSL.crypto import _lib, _ffi, X509
     certs = _ffi.NULL
     if self.type_is_signed():
         certs = self._pkcs7.d.sign.cert
@@ -49,51 +49,30 @@ class CAhandler(object):
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.est_host:
-            self.load_config()
+            self._config_load()
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def cacerts_get(self):
+    def _cacerts_get(self):
         """ get ca certs from cerver """
-        self.logger.debug('CAhandler.cacerts_get()')
+        self.logger.debug('CAhandler._cacerts_get()')
         error = None
         try:
             response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
             response.raise_for_status()
-            pem = self.pkcs7_to_pem(b64_decode(self.logger, response.text))
-        except BaseException as error:
+            pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
+        except BaseException as err_:
+            error = err_
             pem = None
 
-        self.logger.debug('CAhandler.cacerts_get() ended with err: {0}'.format(error))
+        self.logger.debug('CAhandler._cacerts_get() ended with err: {0}'.format(error))
         return(error, pem)
 
-    def enroll(self, csr):
-        """ enroll certificate from NCLM """
-        self.logger.debug('CAhandler.enroll()')
-        cert_bundle = None
-        error = None
-        cert_raw = None
-
-        # recode csr
-        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
-
-        if self.est_host:
-            (error, ca_pem) = self.cacerts_get()
-            if not error:
-                (error, cert_raw) = self.simpleenroll(csr)
-                if not error:
-                    cert_bundle = cert_raw + ca_pem
-                    cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
-                    cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
-                    cert_raw = cert_raw.replace('\n', '')
-        self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
-
-    def load_config(self):
+    def _config_load(self):
         """" load config from file """
-        self.logger.debug('CAhandler.load_config()')
+        self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
         if 'est_host' in config_dic['CAhandler']:
             self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
@@ -107,11 +86,12 @@ class CAhandler(object):
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-        self.logger.debug('CAhandler.load_config() ended')
 
-    def pkcs7_to_pem(self, pkcs7_content, outform='string'):
+        self.logger.debug('CAhandler._config_load() ended')
+
+    def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
         """ convert pkcs7 to pem """
-        self.logger.debug('CAhandler.pkcs7_to_pem()')
+        self.logger.debug('CAhandler._pkcs7_to_pem()')
         for filetype in (crypto.FILETYPE_PEM, crypto.FILETYPE_ASN1):
             try:
                 pkcs7 = crypto.load_pkcs7_data(filetype, pkcs7_content)
@@ -123,38 +103,93 @@ class CAhandler(object):
         cert_pem_list = []
         if pkcs7:
             # convert cert pkcs#7 to pem
-            cert_list = get_certificates(pkcs7)
+            cert_list = _get_certificates(pkcs7)
             for cert in cert_list:
-                cert_pem_list.append(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+                cert_pem_list.append(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)))
 
         # define output format
         if outform == 'string':
-            return ''.join(cert_pem_list)
+            result = ''.join(cert_pem_list)
         elif outform == 'list':
-            return cert_pem_list
+            result = cert_pem_list
         else:
-            return None
+            result = None
 
-    def simpleenroll(self, csr):
+        self.logger.debug('Certificate._pkcs7_to_pem() ended')
+        return result
+
+    def _simpleenroll(self, csr):
         """EST /simpleenroll request."""
-        # print(csr)
+        self.logger.debug('CAhandler._simpleenroll()')
         error = None
         try:
             headers = {'Content-Type': 'application/pkcs10'}
             response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle)
             response.raise_for_status()
-            pem = self.pkcs7_to_pem(b64_decode(self.logger, response.text))
-        except BaseException as error:
+            pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
+        except BaseException as err_:
+            error = err_
             pem = None
+
+        self.logger.debug('CAhandler._simpleenroll() ended with err: {0}'.format(error))
         return(error, pem)
+
+    def enroll(self, csr):
+        """ enroll certificate from NCLM """
+        self.logger.debug('CAhandler.enroll()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        # recode csr
+        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+
+        if self.est_host:
+            (error, ca_pem) = self._cacerts_get()
+            if not error:
+                if ca_pem:
+                    (error, cert_raw) = self._simpleenroll(csr)
+                    if not error:
+                        cert_bundle = cert_raw + ca_pem
+                        cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
+                        cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
+                        cert_raw = cert_raw.replace('\n', '')
+                else:
+                    error = 'no CA certificates found'
+
+        self.logger.debug('Certificate.enroll() ended')
+        return(error, cert_bundle, cert_raw, None)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
         self.logger.debug('CAhandler.tsg_id_lookup()')
-        # get serial from pem file and convert to formated hex
 
         code = 500
         message = 'urn:ietf:params:acme:error:serverInternal'
         detail = 'Revocation is not supported.'
 
+        self.logger.debug('CAhandler.revoke() ended')
         return(code, message, detail)
+
+    def poll(self, _cert_name, poll_identifier, _csr):
+        """ poll status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
+
+        error = 'Method not implemented.'
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+
+        self.logger.debug('CAhandler.poll() ended')
+        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def trigger(self, _payload):
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = 'Method not implemented.'
+        cert_bundle = None
+        cert_raw = None
+
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        return (error, cert_bundle, cert_raw)
