@@ -59,14 +59,16 @@ class CAhandler(object):
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_chain_verify()')
 
+        error = None
         pem_file = build_pem_file(self.logger, None, b64_url_recode(self.logger, cert), True)
+
         try:
             cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-        except BaseException:
+        except BaseException as err_:
             cert = None
+            error = err_
 
-        if cert:
-            error = None
+        if not error:
             #Create a certificate store and add ca cert(s)
             try:
                 store = crypto.X509Store()
@@ -90,8 +92,8 @@ class CAhandler(object):
                 # Verify the certificate, returns None if it can validate the certificate
                 try:
                     result = store_ctx.verify_certificate()
-                except BaseException as err:
-                    result = str(err)
+                except BaseException as err_:
+                    result = str(err_)
             else:
                 result = error
         else:
@@ -178,10 +180,12 @@ class CAhandler(object):
         sn_match = False
         serial = convert_string_to_byte(serial)
         if crl and serial:
-            for rev in crl.get_revoked():
-                if serial == rev.get_serial().lower():
-                    sn_match = True
-                    break
+            crl_list = crl.get_revoked()
+            if crl_list:
+                for rev in crl_list:
+                    if serial == rev.get_serial().lower():
+                        sn_match = True
+                        break
         self.logger.debug('CAhandler._crl_check() with:{0}'.format(sn_match))
         return sn_match
 
@@ -230,14 +234,13 @@ class CAhandler(object):
                 cert.set_pubkey(req.get_pubkey())
                 cert.set_serial_number(uuid.uuid4().int)
                 cert.set_version(2)
-                # cert.set_serial_number(uts_now())
                 cert.add_extensions(req.get_extensions())
                 cert.add_extensions([
                     crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
                     crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
                     crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
                     crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
                 ])
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
@@ -273,7 +276,9 @@ class CAhandler(object):
         if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
             # load ca cert and key
             (ca_key, ca_cert) = self._ca_load()
-            result = self._certificate_chain_verify(cert, ca_cert)
+            # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
+            # result = self._certificate_chain_verify(cert, ca_cert)
+            result = None
             # proceed if the cert and ca-cert belong together
             if not result:
                 serial = cert_serial_get(self.logger, cert)
