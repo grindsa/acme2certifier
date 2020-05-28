@@ -26,6 +26,7 @@ import requests
 import pytz
 import dns.resolver
 import OpenSSL
+from .version import __version__
 
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
@@ -447,7 +448,7 @@ def url_get(logger, url):
     """ http get """
     logger.debug('url_get({0})'.format(url))
     try:
-        req = requests.get(url)
+        req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
         result = req.text
     except BaseException:
         result = None

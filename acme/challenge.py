@@ -31,18 +31,18 @@ class Challenge(object):
 
     def _check(self, challenge_name, payload):
         """ challene check """
-        self.logger.debug('challenge._check({0})'.format(challenge_name))
+        self.logger.debug('Challenge._check({0})'.format(challenge_name))
         challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
             pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
             if  pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                    result = self._validate_http_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    result = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                    result = self._validate_dns_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    result = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                    result = self._validate_tkauth_challenge(challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+                    result = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
                     self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                     result = False
@@ -141,9 +141,9 @@ class Challenge(object):
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
 
-    def _validate_dns_challenge(self, fqdn, token, jwk_thumbprint):
+    def _validate_dns_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
-        self.logger.debug('Challenge._validate_dns_challenge()')
+        self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
         # rewrite fqdn
         fqdn = '_acme-challenge.{0}'.format(fqdn)
@@ -154,31 +154,40 @@ class Challenge(object):
         txt = txt_get(self.logger, fqdn)
 
         # compare computed hash with result from DNS query
+        self.logger.debug('response_got: {0} response_expected: {1}'.format(txt, _hash))
         if _hash == txt:
+            self.logger.debug('validation successful')
             result = True
         else:
+            self.logger.debug('validation not successful')
             result = False
         self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
         return result
 
-    def _validate_http_challenge(self, fqdn, token, jwk_thumbprint):
+    def _validate_http_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
         """ validate http challenge """
-        self.logger.debug('Challenge._validate_http_challenge()')
-
+        self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
         req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
+
         if req:
-            if req.splitlines()[0] == '{0}.{1}'.format(token, jwk_thumbprint):
+            response_got = req.splitlines()[0]
+            response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
+            self.logger.debug('response_got: {0} response_expected: {1}'.format(response_got, response_expected))
+            if response_got == response_expected:
+                self.logger.debug('validation successful')
                 result = True
             else:
+                self.logger.debug('validation not successful')
                 result = False
         else:
+            self.logger.debug('validation not successfull.. no request object')
             result = False
         self.logger.debug('Challenge._validate_http_challenge() ended with: {0}'.format(result))
         return result
 
-    def _validate_tkauth_challenge(self, tnauthlist, _token, _jwk_thumbprint, payload):
+    def _validate_tkauth_challenge(self, challenge_name, tnauthlist, _token, _jwk_thumbprint, payload):
         """ validate tkauth challenge """
-        self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1})'.format(tnauthlist, payload))
+        self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1}:{2})'.format(challenge_name, tnauthlist, payload))
 
         result = True
         self.logger.debug('Challenge._validate_tkauth_challenge() ended with: {0}'.format(result))
@@ -258,10 +267,18 @@ class Challenge(object):
                             (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
 
                         if code == 200:
-                            # update challenge state to 'processing' - i am not so sure about this
-                            # self.update({'name' : challenge_name, 'status' : 4})
                             # start validation
-                            _validation = self._validate(challenge_name, payload)
+                            if 'status' in challenge_dic:
+                                if challenge_dic['status'] != 'valid':
+                                    _validation = self._validate(challenge_name, payload)
+                                    # query challenge again (bcs. it could get updated by self._validate)
+                                    challenge_dic = self._info(challenge_name)
+                            else:
+                                # rather unlikely that we run in this situation but you never know
+                                _validation = self._validate(challenge_name, payload)
+                                # query challenge again (bcs. it could get updated by self._validate)
+                                challenge_dic = self._info(challenge_name)
+
                             response_dic['data'] = {}
                             challenge_dic['url'] = protected['url']
                             code = 200

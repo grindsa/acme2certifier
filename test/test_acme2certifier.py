@@ -1693,19 +1693,19 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
     def test_226_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
         mock_url.return_value = 'foo'
-        self.assertFalse(self.challenge._validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
+        self.assertFalse(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.url_get')
     def test_227_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() with a correct challenge """
         mock_url.return_value = 'token.jwk_thumbprint'
-        self.assertTrue(self.challenge._validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
+        self.assertTrue(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.url_get')
     def test_228_validate_http_challenge(self, mock_url):
         """ test Chalölenge.validate_http_challenge() without response """
         mock_url.return_value = None
-        self.assertFalse(self.challenge._validate_http_challenge('fqdn', 'token', 'jwk_thumbprint'))
+        self.assertFalse(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
@@ -1715,7 +1715,7 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
-        self.assertFalse(self.challenge._validate_dns_challenge('fqdn', 'token', 'jwk_thumbprint'))
+        self.assertFalse(self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
@@ -1725,11 +1725,11 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
-        self.assertTrue(self.challenge._validate_dns_challenge('fqdn', 'token', 'jwk_thumbprint'))
+        self.assertTrue(self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     def test_231_validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
-        self.assertTrue(self.challenge._validate_tkauth_challenge('fqdn', 'token', 'jwk_thumbprint', 'payload'))
+        self.assertTrue(self.challenge._validate_tkauth_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint', 'payload'))
 
     def test_232_challenge_check(self):
         """ challenge check with incorrect challenge-dictionary """
