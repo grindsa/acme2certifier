@@ -311,15 +311,15 @@ class Certificate(object):
         if 'order__status_id' in certificate_dic:
             if certificate_dic['order__status_id'] == 5:
                 # oder status is valid - download certificate
-                if 'cert' in certificate_dic:
+                if 'cert' in certificate_dic and certificate_dic['cert']:
                     response_dic['code'] = 200
                     # filter certificate and decode it
                     response_dic['data'] = certificate_dic['cert']
                     response_dic['header'] = {}
                     response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
                 else:
-                    response_dic['code'] = 403
-                    response_dic['data'] = 'NotFound'
+                    response_dic['code'] = 500
+                    response_dic['data'] = 'urn:ietf:params:acme:error:serverInternal'
             elif certificate_dic['order__status_id'] == 4:
                 # order status is processing - ratelimiting
                 response_dic['header'] = {'Retry-After':  '{0}'.format(self.retry_after)}
@@ -329,8 +329,8 @@ class Certificate(object):
                 response_dic['code'] = 403
                 response_dic['data'] = 'urn:ietf:params:acme:error:orderNotReady'
         else:
-            response_dic['code'] = 403
-            response_dic['data'] = 'NotFound'
+            response_dic['code'] = 500
+            response_dic['data'] = 'urn:ietf:params:acme:error:serverInternal'
 
         self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic['code']))
 
@@ -346,7 +346,7 @@ class Certificate(object):
         if code == 200:
             if 'url' in protected:
                 response_dic = self.new_get(protected['url'])
-                if response_dic['code'] == 403:
+                if response_dic['code'] in (400, 403, 400, 500):
                     code = response_dic['code']
                     message = response_dic['data']
                     detail = None
