@@ -119,10 +119,10 @@ class DBstore(object):
 
     def _db_close(self):
         """ commit and close """
-        self.logger.debug('DBStore._db_close()')
+        # self.logger.debug('DBStore._db_close()')
         self.dbs.commit()
         self.dbs.close()
-        self.logger.debug('DBStore._db_close() ended')
+        # self.logger.debug('DBStore._db_close() ended')
 
     def _db_create(self):
         """ create the database if dos not exist """
@@ -168,11 +168,11 @@ class DBstore(object):
 
     def _db_open(self):
         """ opens db and sets cursor """
-        self.logger.debug('DBStore._db_open()')
+        # self.logger.debug('DBStore._db_open()')
         self.dbs = sqlite3.connect(self.db_name)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
-        self.logger.debug('DBStore._db_open() ended')
+        # self.logger.debug('DBStore._db_open() ended')
 
     def _order_search(self, column, string):
         """ search order table for a certain key/value pair """
@@ -441,7 +441,6 @@ class DBstore(object):
                             INNER JOIN account on account.id = orders.account_id
                             WHERE {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [string])
-
         rows = self.cursor.fetchall()
 
         cert_list = []
@@ -458,6 +457,47 @@ class DBstore(object):
         self._db_close()
         self.logger.debug('DBStore.certificates_search() ended')
         return cert_list
+
+    def challenges_search(self, column, string, vlist=('name', 'type', 'cert', 'status__name', 'token')):
+        """ search challenge table for a certain key/value pair """
+        self.logger.debug('DBStore._challenge_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+
+        pre_statement = '''
+            SELECT
+                challenge.*,
+                status.id as status__id,
+                status.name as status__name,
+                authorization.id as authorization__id,
+                authorization.name as authorization__name,
+                authorization.type as authorization__type,
+                authorization.value as authorization__value,
+                authorization.token as authorization__token,
+                orders.name as authorization__order__name,
+                account.name as authorization__order__account__name
+            from challenge
+            INNER JOIN status on status.id = challenge.status_id
+            INNER JOIN authorization on authorization.id = challenge.authorization_id
+            INNER JOIN orders on orders.id = authorization.order_id
+            INNER JOIN account on account.id = orders.account_id
+            WHERE {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [string])
+        rows = self.cursor.fetchall()
+
+        challenge_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+                    if ele == 'status__name':
+                        result['status'] = lookup[ele]
+            challenge_list.append(result)
+
+        self._db_close()
+        self.logger.debug('DBStore._challenge_search() ended')
+        return challenge_list
 
     def challenge_add(self, data_dic):
         """ add challenge to database """
@@ -479,7 +519,7 @@ class DBstore(object):
 
     def challenge_lookup(self, column, string, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
-        self.logger.debug('challenge_lookup({0}:{1})'.format(column, string))
+        self.logger.debug('DBStore.challenge_lookup({0}:{1})'.format(column, string))
 
         try:
             lookup = dict_from_row(self._challenge_search(column, string))
@@ -502,7 +542,7 @@ class DBstore(object):
 
     def challenge_update(self, data_dic):
         """ update challenge """
-        self.logger.debug('challenge_update({0})'.format(data_dic))
+        self.logger.debug('DBStore.challenge_update({0})'.format(data_dic))
         lookup = self._challenge_search('name', data_dic['name'])
         lookup = dict_from_row(lookup)
 
