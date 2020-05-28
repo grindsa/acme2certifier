@@ -332,7 +332,7 @@ class Certificate(object):
             response_dic['code'] = 403
             response_dic['data'] = 'NotFound'
 
-        self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic))
+        self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic['code']))
 
         return response_dic
 
@@ -364,7 +364,13 @@ class Certificate(object):
         if isinstance(response_dic['data'], dict):
             response_dic['data'] = json.dumps(response_dic['data'])
 
-        self.logger.debug('Certificate.new_post() ended with: {0}'.format(response_dic))
+        # cover cornercase - not sure if we ever run into such situation
+        if 'code' in response_dic:
+            result = response_dic['code']
+        else:
+            result = 'no code found'
+
+        self.logger.debug('Certificate.new_post() ended with: {0}'.format(result))
         return response_dic
 
     def revoke(self, content):
