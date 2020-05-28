@@ -29,6 +29,30 @@ class Challenge(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
+    def _challengelist_search(self, key, value, vlist=('name', 'type', 'status__name', 'token')):
+        """ get exsting challegnes for a given authorization """
+        self.logger.debug('Challenge._challengelist_search()')
+
+        challenge_list = self.dbstore.challenges_search(key, value, vlist)
+
+        challenge_dic = {}
+        for challenge in challenge_list:
+            if challenge['type'] not in challenge_dic:
+                challenge_dic[challenge['type']] = {}
+
+            challenge_dic[challenge['type']]['token'] = challenge['token']
+            challenge_dic[challenge['type']]['type'] = challenge['type']
+            challenge_dic[challenge['type']]['url'] = challenge['name']
+            challenge_dic[challenge['type']]['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge['name'])
+            challenge_dic[challenge['type']]['name'] = challenge['name']
+
+        challenge_list = []
+        for challenge in challenge_dic:
+            challenge_list.append(challenge_dic[challenge])
+
+        self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
+        return challenge_list
+
     def _check(self, challenge_name, payload):
         """ challene check """
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
@@ -52,6 +76,12 @@ class Challenge(object):
             result = False
         self.logger.debug('challenge._check() ended with: {0}'.format(result))
         return result
+
+    def _existing_challenge_validate(self, challenge_list):
+        """ validate an existing challenge set """
+        self.logger.debug('Challenge._existing_challenge_validate()')
+        for challenge in challenge_list:
+            _challenge_check = self._validate(challenge, {})
 
     def _info(self, challenge_name):
         """ get challenge details """
@@ -168,7 +198,8 @@ class Challenge(object):
         """ validate http challenge """
         self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
         req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token))
-
+        # make challenge validation unsuccessful
+        # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
         if req:
             response_got = req.splitlines()[0]
             response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
@@ -226,9 +257,32 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
 
+    def challengeset_get(self, authz_name, auth_status, token, tnauth):
+        """ get the challengeset for an authorization """
+        self.logger.debug('Challenge.challengeset_get() for auth: {0}'.format(authz_name))
+        # check database if there are exsting challenges for a particular authorization
+        challenge_list = self._challengelist_search('authorization__name', authz_name)
+
+        if challenge_list:
+            self.logger.debug('Challenges found.')
+            # trigger challenge validation
+            challenge_name_list = []
+            for challenge in challenge_list:
+                challenge_name_list.append(challenge.pop('name'))
+            if auth_status == 'pending':
+                self._existing_challenge_validate(challenge_name_list)
+
+        else:
+            # new challenges to be created
+            self.logger.debug('Challenges not found. Create a new set.')
+            challenge_list = self.new_set(authz_name, token, tnauth)
+
+
+        return challenge_list
+
     def get(self, url):
         """ get challenge details based on get request """
-        self.logger.debug('challenge.get({0})'.format(url))
+        self.logger.debug('Challenge.get({0})'.format(url))
         challenge_name = self._name_get(url)
         response_dic = {}
         response_dic['code'] = 200

@@ -184,7 +184,7 @@ class DBstore(object):
 
     def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
-        self.logger.debug('challenge_lookup({0}:{1})'.format(mkey, value))
+        self.logger.debug('DBStore.challenge_lookup({0}:{1})'.format(mkey, value))
         challenge_list = Challenge.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if challenge_list:
             result = challenge_list[0]
@@ -197,6 +197,11 @@ class DBstore(object):
         else:
             result = None
         return result
+
+    def challenges_search(self, mkey, value, vlist=('name', 'type', 'cert', 'status__name', 'token')):
+        """ search challenges based on "something" """
+        self.logger.debug('DBStore.challenges_search({0}:{1})'.format(mkey, value))
+        return Challenge.objects.filter(**{mkey: value}).values(*vlist)
 
     def challenge_update(self, data_dic):
         """ update challenge """

@@ -450,8 +450,9 @@ def url_get(logger, url):
     try:
         req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
         result = req.text
-    except BaseException:
+    except BaseException as err_:
         result = None
+        logger.debug('url_get error: {0}'.format(err_))
     logger.debug('url_get() ended with: {0}'.format(result))
     return result
 
