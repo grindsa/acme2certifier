@@ -37,13 +37,14 @@ LOGGER = logger_setup(DEBUG)
 sys.excepthook = handle_exception
 
 HTTP_CODE_DIC = {
-    200 : 'Created',
-    201 : 'OK',
-    400 : 'Bad Request',
-    401 : 'Unauthorized',
-    403 : 'Forbidden',
-    404 : 'Not Found',
-    405 : 'Method Not Allowed'
+    200: 'Created',
+    201: 'OK',
+    400: 'Bad Request',
+    401: 'Unauthorized',
+    403: 'Forbidden',
+    404: 'Not Found',
+    405: 'Method Not Allowed',
+    500: 'serverInternal ' 
 }
 
 def create_header(response_dic, add_json_header=True):
