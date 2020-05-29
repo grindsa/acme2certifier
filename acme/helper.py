@@ -311,6 +311,7 @@ def load_config(logger=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/
     if logger:
         logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
     config = configparser.RawConfigParser()
+    config.optionxform = str 
     config.read(cfg_file)
     return config
 
