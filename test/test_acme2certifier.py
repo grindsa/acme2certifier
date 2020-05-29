@@ -1070,7 +1070,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate._info')
-    def test_147_new_get(self, mock_info):
+    def test_123_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) and empty certificate field"""
         mock_info.return_value = {'order__status_id': 5, 'cert': None}
         self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))

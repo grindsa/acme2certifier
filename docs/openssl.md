@@ -35,6 +35,7 @@ issuing_ca_crl: acme/ca/crl.pem
 cert_validity_days: 30
 cert_save_path: acme/ca/certs
 ca_cert_chain_list: []
+openssl_conf: acme/ca/openssl.conff
 ```
     - issuing_ca_key - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
     - issuing_ca_key_passphrase - password to access the private key
@@ -43,15 +44,23 @@ ca_cert_chain_list: []
     - cert_validity_days - certificate lifetime in days (default 365)
     - cert_save_path - directory to store then enrolled certificates (optional)
     - ca_cert_chain_list - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
+    - openssl_conf: file in openssl.conf format containing certificate extensions to be applied
+
+The openssl_conf file allows customization of the certificate profile and must contain a section ´[extensions]´ containing the certificate extensions to be inserted.
+If not specified  the following extensions will be applied.
+
+```
+[extensions]
+subjectKeyIdentifier    = hash, issuer:always
+keyUsage                = digitalSignature, keyEncipherment
+basicConstraints        = critical, CA:FALSEerr
+authorityKeyIdentifier  = keyid:always, issuer:always
+extendedKeyUsage        = critical, clientAuth, serverAuth
+```
 
  - enjoy enrolling and revoking certificates
 
 some remarks:
  - certificates and CRls will be signed with sha256
  - during enrollment all extensions included in the csr will be copied to the certificate. Don’t tell me that this is a bad idea. Read the first two sentences of this page instead.
- - if not available in csr the following extensions will be added to a certificate
-    - authorityKeyIdentifier: False
-    - keyid: always
-    - extendedKeyUsage: False
-    - clientAuth
  - the CRL "next update interval" is 7days
