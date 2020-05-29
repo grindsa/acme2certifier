@@ -46,7 +46,7 @@ openssl_conf: acme/ca/openssl.conff
     - ca_cert_chain_list - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
     - openssl_conf: file in openssl.conf format containing certificate extensions to be applied
 
-The openssl_conf file allows customization of the certificate profile and must contain a section ´[extensions]´ containing the certificate extensions to be inserted.
+The openssl_conf file allows customization of the certificate profile and must contain a section `[extensions]` containing the certificate extensions to be inserted.
 If not specified  the following extensions will be applied.
 
 ```
