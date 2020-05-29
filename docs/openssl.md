@@ -58,7 +58,7 @@ authorityKeyIdentifier  = keyid:always, issuer:always
 extendedKeyUsage        = critical, clientAuth, serverAuth
 ```
 
- - enjoy enrolling and revoking certificates
+Enjoy enrolling and revoking certificates
 
 some remarks:
  - certificates and CRls will be signed with sha256
