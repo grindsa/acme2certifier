@@ -147,7 +147,7 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account._inner_jws_check() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_jws_check() ended with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
     def _inner_payload_check(self, aname, outer_protected, inner_payload):
@@ -177,7 +177,7 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'kid is missing in outer header'
 
-        self.logger.debug('Account._inner_payload_check() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_payload_check() ended with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
     def _key_change_validate(self, aname, outer_protected, inner_protected, inner_payload):
@@ -200,7 +200,7 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account._key_change_validate() endet with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._key_change_validate() ended with: {0}:{1}'.format(code, detail))
         return(code, message, detail)
 
     def _key_change(self, aname, payload, protected):
