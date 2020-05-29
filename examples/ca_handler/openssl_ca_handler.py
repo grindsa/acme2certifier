@@ -134,7 +134,7 @@ class CAhandler(object):
             # combine the remaining items and put them in as values
             cert_extention_dic[extension]['value'] = ','.join(parameters)
 
-        self.logger.debug('CAhandler._certificate_extensions_load() endet')
+        self.logger.debug('CAhandler._certificate_extensions_load() ended')
         return cert_extention_dic
 
     def _config_check(self):
