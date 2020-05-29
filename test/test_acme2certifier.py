@@ -1049,7 +1049,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_144_new_get(self, mock_info):
         """ test Certificate.new_get() without certificate"""
         mock_info.return_value = {}
-        self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
+        self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate._info')
     def test_145_new_get(self, mock_info):
@@ -1067,7 +1067,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_147_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) but no certificate in"""
         mock_info.return_value = {'order__status_id': 5}
-        self.assertEqual({'code': 403, 'data': 'NotFound'}, self.certificate.new_get('url'))
+        self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
+
+    @patch('acme.certificate.Certificate._info')
+    def test_147_new_get(self, mock_info):
+        """ test Certificate.new_get() without order_status_id 5 (valid) and empty certificate field"""
+        mock_info.return_value = {'order__status_id': 5, 'cert': None}
+        self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
     @patch('acme.certificate.Certificate._info')
     def test_148_new_get(self, mock_info):
