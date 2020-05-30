@@ -37,7 +37,7 @@ cert_save_path: acme/ca/certs
 ca_cert_chain_list: []
 openssl_conf: acme/ca/openssl.conf
 whitelist: ["foo.bar$", "foo1.bar.local"]
-blacklist: ["google.com.foo.bar$", "host.foo.bar$", "*.foo.bar"]
+blacklist: ["google.com.foo.bar$", "host.foo.bar$", "\*.foo.bar"]
 ```
     - issuing_ca_key - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
     - issuing_ca_key_passphrase - password to access the private key
