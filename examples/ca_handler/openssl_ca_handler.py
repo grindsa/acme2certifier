@@ -31,7 +31,7 @@ class CAhandler(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         if not self.issuer_dict['issuing_ca_key']:
-            self._config_load()          
+            self._config_load()
         return self
 
     def __exit__(self, *args):
@@ -212,7 +212,7 @@ class CAhandler(object):
         if 'whitelist' in config_dic['CAhandler']:
             self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
         if 'blacklist' in config_dic['CAhandler']:
-            self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])            
+            self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])
         self.logger.debug('CAhandler._config_load() ended')
 
     def _crl_check(self, crl, serial):
@@ -232,48 +232,52 @@ class CAhandler(object):
 
     def _csr_check(self, csr):
         """ check CSR against definied whitelists """
-        self.logger.debug('CAhandler._csr_check()')        
+        self.logger.debug('CAhandler._csr_check()')
 
         # SAN list must be modified/filtered)
-        if self.whitelist or self.backlist:
+        if self.whitelist or self.blacklist:
             result = False
-            
+
             # get sans and build a list
             _san_list = csr_san_get(self.logger, csr)
             san_list = []
             for san in _san_list:
                 try:
-                    (san_type, san_type) = san.lower().split(':')
-                    san_list.append(san_type)
+                    (_san_type, san_value) = san.lower().split(':')
+                    san_list.append(san_value)
                 except BaseException:
                     pass
-            
+
             # get common name and atttach it to san_list
-            cn_ = csr_cn_get(self.logger, csr).lower()
-            if cn_ and cn_ not in san_list:
-                # append cn to san_list
-                self.logger.debug('append cn to san_list')                  
-                san_list.append(cn_)
-                
+            cn_ = csr_cn_get(self.logger, csr)
+            if cn_:
+                cn_ = cn_.lower()
+                if cn_ not in san_list:
+                    # append cn to san_list
+                    self.logger.debug('append cn to san_list')
+                    san_list.append(cn_)
+
             check_list = []
-            
+
             # go over the san list and check each entry
             for san in san_list:
                 check_list.append(self._string_wlbl_check(san, self.whitelist, self.blacklist))
-            
+
             if False in check_list:
                 result = False
             else:
                 result = True
-                
+
         else:
             result = True
 
-        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))   
+        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
+        return result
 
     def _list_check(self, entry, list_, toggle=False):
         """ check string against list """
         self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
+        self.logger.debug('check against list: {0}'.format(list_))
 
         # default setting
         check_result = False
@@ -315,11 +319,11 @@ class CAhandler(object):
 
     def _string_wlbl_check(self, entry, white_list, black_list):
         """ check single against whitelist and blacklist """
-        self.logger.debug('CAhandler._string_check({0})'.format(entry))    
-        
+        self.logger.debug('CAhandler._string_check({0})'.format(entry))
+
         # default setting
         chk_result = False
-        
+
         # check if entry is in white_list
         wl_check = self._list_check(entry, white_list)
         if wl_check:
@@ -327,15 +331,15 @@ class CAhandler(object):
             if black_list:
                 # we need to check blacklist if there is a blacklist and wl check passed
                 if self._list_check(entry, black_list):
-                    self.logger.debug('{0} in black_list'.format(entry))  
+                    self.logger.debug('{0} in black_list'.format(entry))
                 else:
-                    self.logger.debug('{0} not in black_list'.format(entry))                  
+                    self.logger.debug('{0} not in black_list'.format(entry))
                     chk_result = True
             else:
                 chk_result = wl_check
         else:
-            self.logger.debug('{0} not in white_list'.format(entry))            
-        
+            self.logger.debug('{0} not in white_list'.format(entry))
+
         self.logger.debug('CAhandler._string_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
@@ -349,88 +353,86 @@ class CAhandler(object):
         error = self._config_check()
 
         if not error:
-            # try:
             if True:
-            
+            # try:
+
                 # check CN and SAN against black/whitlist
                 result = self._csr_check(csr)
-                import sys
-                sys.exit()            
-            
-                # prepare the CSR
-                csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-                # print(csr)
-                # import sys
-                # sys.exit()  
+                print(result)
+                if result:
+                    # prepare the CSR
+                    csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
 
-                # load ca cert and key
-                (ca_key, ca_cert) = self._ca_load()
+                    # load ca cert and key
+                    (ca_key, ca_cert) = self._ca_load()
 
-                # load certificate_profile (if applicable)
-                if self.openssl_conf:
-                    cert_extension_dic = self._certificate_extensions_load()
-                else:
-                    cert_extension_dic = []
+                    # load certificate_profile (if applicable)
+                    if self.openssl_conf:
+                        cert_extension_dic = self._certificate_extensions_load()
+                    else:
+                        cert_extension_dic = []
 
-                # creating a rest form CSR
-                req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
-                # sign csr
-                cert = crypto.X509()
-                cert.gmtime_adj_notBefore(0)
-                cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
-                cert.set_issuer(ca_cert.get_subject())
-                cert.set_subject(req.get_subject())
-                cert.set_pubkey(req.get_pubkey())
-                cert.set_serial_number(uuid.uuid4().int)
-                cert.set_version(2)
-                cert.add_extensions(req.get_extensions())
+                    # creating a rest form CSR
+                    req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+                    # sign csr
+                    cert = crypto.X509()
+                    cert.gmtime_adj_notBefore(0)
+                    cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
+                    cert.set_issuer(ca_cert.get_subject())
+                    cert.set_subject(req.get_subject())
+                    cert.set_pubkey(req.get_pubkey())
+                    cert.set_serial_number(uuid.uuid4().int)
+                    cert.set_version(2)
+                    cert.add_extensions(req.get_extensions())
 
-                default_extension_list = [
-                    crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                    crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-                    crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-                    crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-                ]
+                    default_extension_list = [
+                        crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+                        crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
+                        crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+                        crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+                        crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+                    ]
 
-                if cert_extension_dic:
-                    try:
-                        # add extensins from config file
-                        _tmp_list = []
-                        for extension in cert_extension_dic:
-                            if extension == 'subjectKeyIdentifier':
-                                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-                            elif 'subject' in cert_extension_dic[extension]:
-                                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-                            elif 'issuer' in cert_extension_dic[extension]:
-                                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
-                            else:
-                                _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
-                        cert.add_extensions(_tmp_list)
-                    except BaseException as err_:
-                        self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
+                    if cert_extension_dic:
+                        try:
+                            # add extensins from config file
+                            _tmp_list = []
+                            for extension in cert_extension_dic:
+                                if extension == 'subjectKeyIdentifier':
+                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
+                                elif 'subject' in cert_extension_dic[extension]:
+                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
+                                elif 'issuer' in cert_extension_dic[extension]:
+                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
+                                else:
+                                    _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
+                            cert.add_extensions(_tmp_list)
+                        except BaseException as err_:
+                            self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
+                            cert.add_extensions(default_extension_list)
+                    else:
+                        # add default extensions
                         cert.add_extensions(default_extension_list)
+
+                    cert.sign(ca_key, 'sha256')
+                    serial = cert.get_serial_number()
+                    # save cert if needed
+                    if self.cert_save_path and self.cert_save_path is not None:
+                        # create cert-store dir if not existing
+                        if not os.path.isdir(self.cert_save_path):
+                            self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
+                            os.mkdir(self.cert_save_path)
+
+                        with open('{0}/{1}.pem'.format(self.cert_save_path, str(serial)), 'wb') as fso:
+                            fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+
+                    # create bundle and raw cert
+                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
+                    cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
                 else:
-                    # add default extensions
-                    cert.add_extensions(default_extension_list)
+                    error = 'urn:ietf:params:acme:badCSR'
 
-                cert.sign(ca_key, 'sha256')
-                serial = cert.get_serial_number()
-                # save cert if needed
-                if self.cert_save_path and self.cert_save_path is not None:
-                    # create cert-store dir if not existing
-                    if not os.path.isdir(self.cert_save_path):
-                        self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
-                        os.mkdir(self.cert_save_path)
-
-                    with open('{0}/{1}.pem'.format(self.cert_save_path, str(serial)), 'wb') as fso:
-                        fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
-
-                # create bundle and raw cert
-                cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
-                cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
-
-            #except BaseException as err:
+            # except BaseException as err:
             #    self.logger.error('CAhandler.enroll() error: {0}'.format(err))
 
         self.logger.debug('CAhandler.enroll() ended')
