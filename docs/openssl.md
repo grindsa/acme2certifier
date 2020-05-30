@@ -40,16 +40,16 @@ whitelist: ["foo.bar$", "foo1.bar.local"]
 blacklist: ["google.com.foo.bar$", "host.foo.bar$", "\*.foo.bar"]
 ```
 
-    - issuing_ca_key - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
-    - issuing_ca_key_passphrase - password to access the private key
-    - issuing_ca_cert - Certificate of issuing CA in PEM format
-    - issuing_ca_crl - CRL of issuing CA in PEM format
-    - cert_validity_days - certificate lifetime in days (default 365)
-    - cert_save_path - directory to store then enrolled certificates (optional)
-    - ca_cert_chain_list - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
-    - openssl_conf: file in openssl.conf format containing certificate extensions to be applied
-    - whitelist: list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)
-    - blacklist: list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)
+- `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
+- `issuing_ca_key_passphrase` - password to access the private key
+- `issuing_ca_cert` - Certificate of issuing CA in PEM format
+- `issuing_ca_crl` - CRL of issuing CA in PEM format
+- `cert_validity_days` - certificate lifetime in days (default 365)
+- `cert_save_path` - directory to store then enrolled certificates (optional)
+- `ca_cert_chain_list` - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
+- `openssl_conf` -  file in openssl.conf format containing certificate extensions to be applied
+- `whitelist` - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)
+- `blacklist` - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)
 
 The openssl_conf file allows customization of the certificate profile and must contain a section `[extensions]` containing the certificate extensions to be inserted.
 If not specified  the following extensions will be applied.
