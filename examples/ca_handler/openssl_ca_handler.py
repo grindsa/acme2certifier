@@ -1,13 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca hanlder for Insta Certifier via REST-API class """
+""" handler for an openssl ca """
 from __future__ import print_function
 import os
 import json
 import base64
 import uuid
+import re
 from OpenSSL import crypto
-from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string
+from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 class CAhandler(object):
     """ CA  handler """
@@ -24,11 +25,13 @@ class CAhandler(object):
         self.cert_validity_days = 365
         self.openssl_conf = None
         self.cert_save_path = None
+        self.whitelist = []
+        self.blacklist = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         if not self.issuer_dict['issuing_ca_key']:
-            self._config_load()
+            self._config_load()          
         return self
 
     def __exit__(self, *args):
@@ -206,7 +209,10 @@ class CAhandler(object):
             self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
         if 'openssl_conf' in config_dic['CAhandler']:
             self.openssl_conf = config_dic['CAhandler']['openssl_conf']
-
+        if 'whitelist' in config_dic['CAhandler']:
+            self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
+        if 'blacklist' in config_dic['CAhandler']:
+            self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])            
         self.logger.debug('CAhandler._config_load() ended')
 
     def _crl_check(self, crl, serial):
@@ -223,6 +229,72 @@ class CAhandler(object):
                         break
         self.logger.debug('CAhandler._crl_check() with:{0}'.format(sn_match))
         return sn_match
+
+    def _csr_check(self, csr):
+        """ check CSR against definied whitelists """
+        self.logger.debug('CAhandler._csr_check()')        
+
+        # SAN list must be modified/filtered)
+        if self.whitelist or self.backlist:
+            result = False
+            
+            # get sans and build a list
+            _san_list = csr_san_get(self.logger, csr)
+            san_list = []
+            for san in _san_list:
+                try:
+                    (san_type, san_type) = san.lower().split(':')
+                    san_list.append(san_type)
+                except BaseException:
+                    pass
+            
+            # get common name and atttach it to san_list
+            cn_ = csr_cn_get(self.logger, csr).lower()
+            if cn_ and cn_ not in san_list:
+                # append cn to san_list
+                self.logger.debug('append cn to san_list')                  
+                san_list.append(cn_)
+                
+            check_list = []
+            
+            # go over the san list and check each entry
+            for san in san_list:
+                check_list.append(self._string_wlbl_check(san, self.whitelist, self.blacklist))
+            
+            if False in check_list:
+                result = False
+            else:
+                result = True
+                
+        else:
+            result = True
+
+        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))   
+
+    def _list_check(self, entry, list_, toggle=False):
+        """ check string against list """
+        self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
+
+        # default setting
+        check_result = False
+
+        if entry:
+            if list_:
+                for regex in list_:
+                    regex_compiled = re.compile(regex)
+                    if bool(regex_compiled.search(entry)):
+                        # parameter is in set flag accordingly and stop loop
+                        check_result = True
+            else:
+                # empty list, flip parameter to make the check successful
+                check_result = True
+
+        if toggle:
+            # toggle result if this is a blacklist
+            check_result = not check_result
+
+        self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
+        return check_result
 
     def _pemcertchain_generate(self, ee_cert, issuer_cert):
         """ build pem chain """
@@ -241,6 +313,32 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pemcertchain_generate() ended')
         return pem_chain
 
+    def _string_wlbl_check(self, entry, white_list, black_list):
+        """ check single against whitelist and blacklist """
+        self.logger.debug('CAhandler._string_check({0})'.format(entry))    
+        
+        # default setting
+        chk_result = False
+        
+        # check if entry is in white_list
+        wl_check = self._list_check(entry, white_list)
+        if wl_check:
+            self.logger.debug('{0} in white_list'.format(entry))
+            if black_list:
+                # we need to check blacklist if there is a blacklist and wl check passed
+                if self._list_check(entry, black_list):
+                    self.logger.debug('{0} in black_list'.format(entry))  
+                else:
+                    self.logger.debug('{0} not in black_list'.format(entry))                  
+                    chk_result = True
+            else:
+                chk_result = wl_check
+        else:
+            self.logger.debug('{0} not in white_list'.format(entry))            
+        
+        self.logger.debug('CAhandler._string_check({0}) ended with: {1}'.format(entry, chk_result))
+        return chk_result
+
     def enroll(self, csr):
         """ enroll certificate """
         self.logger.debug('CAhandler.enroll()')
@@ -251,9 +349,19 @@ class CAhandler(object):
         error = self._config_check()
 
         if not error:
-            try:
+            # try:
+            if True:
+            
+                # check CN and SAN against black/whitlist
+                result = self._csr_check(csr)
+                import sys
+                sys.exit()            
+            
                 # prepare the CSR
                 csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+                # print(csr)
+                # import sys
+                # sys.exit()  
 
                 # load ca cert and key
                 (ca_key, ca_cert) = self._ca_load()
@@ -322,8 +430,8 @@ class CAhandler(object):
                 cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
                 cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
 
-            except BaseException as err:
-                self.logger.error('CAhandler.enroll() error: {0}'.format(err))
+            #except BaseException as err:
+            #    self.logger.error('CAhandler.enroll() error: {0}'.format(err))
 
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
