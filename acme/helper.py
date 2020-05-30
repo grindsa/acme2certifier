@@ -177,6 +177,8 @@ def csr_cn_get(logger, csr):
     result = None
     if 'CN' in components:
         result = components['CN']
+    elif b'CN' in components:
+        result = convert_byte_to_string(components[b'CN'])
 
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
