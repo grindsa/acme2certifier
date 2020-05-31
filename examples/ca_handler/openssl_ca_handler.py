@@ -234,19 +234,23 @@ class CAhandler(object):
         """ check CSR against definied whitelists """
         self.logger.debug('CAhandler._csr_check()')
 
-        # SAN list must be modified/filtered)
         if self.whitelist or self.blacklist:
             result = False
-
             # get sans and build a list
             _san_list = csr_san_get(self.logger, csr)
+
             san_list = []
+            check_list = []
+
             for san in _san_list:
                 try:
+                    # SAN list must be modified/filtered)
                     (_san_type, san_value) = san.lower().split(':')
                     san_list.append(san_value)
                 except BaseException:
-                    pass
+                    # force check to fail as something went wrong during parsing
+                    check_list.append(False)
+                    self.logger.debug('san_list parsing failed at entry: {0}'.format(san))
 
             # get common name and atttach it to san_list
             cn_ = csr_cn_get(self.logger, csr)
@@ -257,16 +261,16 @@ class CAhandler(object):
                     self.logger.debug('append cn to san_list')
                     san_list.append(cn_)
 
-            check_list = []
-
             # go over the san list and check each entry
             for san in san_list:
                 check_list.append(self._string_wlbl_check(san, self.whitelist, self.blacklist))
 
-            if False in check_list:
-                result = False
-            else:
-                result = True
+            if check_list:
+                # cover a cornercase with empty checklist (no san, no cn)
+                if False in check_list:
+                    result = False
+                else:
+                    result = True
 
         else:
             result = True
