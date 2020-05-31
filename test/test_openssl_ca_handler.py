@@ -577,7 +577,6 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         self.assertFalse(self.cahandler._csr_check(csr))
 
-    # @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_077_csr_check(self, mock_san, mock_cn):
@@ -586,10 +585,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.blacklist = []
         mock_san.return_value = []
         mock_cn.return_value = None
-        # mock_lcheck.side_effect = [True, True]
         csr = 'csr'
         self.assertFalse(self.cahandler._csr_check(csr))
-
 
 if __name__ == '__main__':
 
