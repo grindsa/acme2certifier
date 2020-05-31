@@ -422,114 +422,174 @@ class TestACMEHandler(unittest.TestCase):
     def test_056_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty lists"""
         white_list = []
-        black_list = []        
+        black_list = []
         entry = 'host.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))       
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_057_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist but match in blacklist """
         white_list = []
-        black_list = ['host.bar.foo$']        
+        black_list = ['host.bar.foo$']
         entry = 'host.bar.foo'
-        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))   
+        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_058_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist but no match in blacklist """
         white_list = []
-        black_list = ['faulty.bar.foo$']        
+        black_list = ['faulty.bar.foo$']
         entry = 'host.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))   
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_060_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist wildcard check does not hit """
         white_list = []
-        black_list = ['\*.bar.foo$']        
+        black_list = ['\*.bar.foo$']
         entry = 'host.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))   
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_061_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist wildcard check hit """
         white_list = []
-        black_list = ['\*.bar.foo$']        
+        black_list = ['\*.bar.foo$']
         entry = '*.bar.foo'
-        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))   
+        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_062_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check successful wl check with empty bl"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = []        
+        black_list = []
         entry = 'host.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_063_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful empty bl """
         white_list = ['foo.foo$', 'host.bar.foo$']
-        black_list = []        
+        black_list = []
         entry = 'host.bar.foo.bar'
-        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_064_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful host in bl"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['host.bar.foo']        
+        black_list = ['host.bar.foo']
         entry = 'host.bar.foo'
-        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_065_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful host in bl but not on first position"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['foo.bar$', 'host.bar.foo', 'foo.foo']        
+        black_list = ['foo.bar$', 'host.bar.foo', 'foo.foo']
         entry = 'host.bar.foo'
-        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_066_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check successful wildcard in entry not n bl """
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['host.bar.foo']        
+        black_list = ['host.bar.foo']
         entry = '*.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_067_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check successful wildcard blacklisting - no match"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['\*.bar.foo']        
+        black_list = ['\*.bar.foo']
         entry = 'host.bar.foo'
-        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))  
+        self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_068_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check  failed wildcard black-listing """
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['\*.bar.foo']        
+        black_list = ['\*.bar.foo']
         entry = '*.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_069_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked domain"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['google.com.bar.foo']        
+        black_list = ['google.com.bar.foo']
         entry = 'foo.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_070_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked wc domain"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['google.com.bar.foo$']        
+        black_list = ['google.com.bar.foo$']
         entry = '*.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_071_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked domain"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['google.com']        
+        black_list = ['google.com']
         entry = '*.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_072_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked hostname and domain"""
         white_list = ['foo.foo', 'bar.foo$']
-        black_list = ['google.com']        
+        black_list = ['google.com']
         entry = 'www.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
+
+    def test_073_csr_check(self):
+        """ CAhandler._check_csr with empty whitelist and blacklists """
+        self.cahandler.whitelist = []
+        self.cahandler.blacklist = []
+        csr = 'csr'
+        self.assertTrue(self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_074_csr_check(self, mock_san, mock_cn, mock_lcheck):
+        """ CAhandler._check_csr with list and failed check """
+        self.cahandler.whitelist = ['foo.bar']
+        self.cahandler.blacklist = []
+        mock_san.return_value = ['DNS:host.foo.bar']
+        mock_cn.return_value = 'host2.foo.bar'
+        mock_lcheck.side_effect = [True, False]
+        csr = 'csr'
+        self.assertFalse(self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_075_csr_check(self, mock_san, mock_cn, mock_lcheck):
+        """ CAhandler._check_csr with list and successful check """
+        self.cahandler.whitelist = ['foo.bar']
+        self.cahandler.blacklist = []
+        mock_san.return_value = ['DNS:host.foo.bar']
+        mock_cn.return_value = 'host2.foo.bar'
+        mock_lcheck.side_effect = [True, True]
+        csr = 'csr'
+        self.assertTrue(self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_076_csr_check(self, mock_san, mock_cn, mock_lcheck):
+        """ CAhandler._check_csr san parsing failed """
+        self.cahandler.whitelist = ['foo.bar']
+        self.cahandler.blacklist = []
+        mock_san.return_value = ['host.google.com']
+        mock_cn.return_value = 'host2.foo.bar'
+        mock_lcheck.side_effect = [True, True]
+        csr = 'csr'
+        self.assertFalse(self.cahandler._csr_check(csr))
+
+    # @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_077_csr_check(self, mock_san, mock_cn):
+        """ CAhandler._check_csr san parsing failed """
+        self.cahandler.whitelist = ['foo.bar']
+        self.cahandler.blacklist = []
+        mock_san.return_value = []
+        mock_cn.return_value = None
+        # mock_lcheck.side_effect = [True, True]
+        csr = 'csr'
+        self.assertFalse(self.cahandler._csr_check(csr))
+
 
 if __name__ == '__main__':
 
