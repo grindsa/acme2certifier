@@ -353,12 +353,10 @@ class CAhandler(object):
         error = self._config_check()
 
         if not error:
-            if True:
-            # try:
-
+            try:
                 # check CN and SAN against black/whitlist
                 result = self._csr_check(csr)
-                print(result)
+
                 if result:
                     # prepare the CSR
                     csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
@@ -432,8 +430,8 @@ class CAhandler(object):
                 else:
                     error = 'urn:ietf:params:acme:badCSR'
 
-            # except BaseException as err:
-            #    self.logger.error('CAhandler.enroll() error: {0}'.format(err))
+            except BaseException as err:
+                self.logger.error('CAhandler.enroll() error: {0}'.format(err))
 
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
