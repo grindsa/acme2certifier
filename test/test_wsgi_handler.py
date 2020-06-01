@@ -95,23 +95,23 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_012_accout_search_alg(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('contact2'), self.dbstore.account_search('alg', 'alg2'))
+        self.assertIn(('contact2'), self.dbstore._account_search('alg', 'alg2'))
 
     def test_013_accout_search_jwk(self):
         """ test DBstore.account_seach() method for jwk """
-        self.assertIn(('contact1'), self.dbstore.account_search('jwk', '{"key11": "val11", "key12": "val12"}'))
+        self.assertIn(('contact1'), self.dbstore._account_search('jwk', '{"key11": "val11", "key12": "val12"}'))
 
     def test_014_accout_search_jwk(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('contact2'), self.dbstore.account_search('jwk', 'jwk2'))
+        self.assertIn(('contact2'), self.dbstore._account_search('jwk', 'jwk2'))
 
     def test_015_accout_search_contact(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('jwk2'), self.dbstore.account_search('contact', 'contact2'))
+        self.assertIn(('jwk2'), self.dbstore._account_search('contact', 'contact2'))
 
     def test_016_accout_search_exponent(self):
         """ test DBstore.account_seach() method for alg field"""
-        self.assertIn(('name1'), self.dbstore.account_search('name', 'name1'))
+        self.assertIn(('name1'), self.dbstore._account_search('name', 'name1'))
 
     def test_017_jkw_load(self):
         """ test DBstore.jwk_load() for an existing key"""
@@ -186,11 +186,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_033_authorization_search(self):
         """ test DBstore.authorization_search() by name """
-        self.assertIn('token1', dict_from_row(self.dbstore.authorization_search('name', 'name1')[0])['token'])
+        self.assertIn('token1', dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['token'])
 
     def test_034_authorization_search(self):
         """ test DBstore.authorization_search() by token """
-        self.assertIn('name2', dict_from_row(self.dbstore.authorization_search('type', 'type2')[0])['name'])
+        self.assertIn('name2', dict_from_row(self.dbstore._authorization_search('type', 'type2')[0])['name'])
 
     def test_035_authorization_lookup(self):
         """ test DBstore.authorization_lookup() by name """
@@ -224,11 +224,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_042_challenge_search(self):
         """ test DBstore.challenge_search() method  """
-        self.assertIn(('type1'), self.dbstore.challenge_search('name', 'challenge1'))
+        self.assertIn(('type1'), self.dbstore._challenge_search('name', 'challenge1'))
 
     def test_043_challenge_search(self):
         """ test DBstore.challenge_search() method for not existing challenges  """
-        self.assertFalse(self.dbstore.challenge_search('name', 'challenge3'))
+        self.assertFalse(self.dbstore._challenge_search('name', 'challenge3'))
 
     def test_044_challenge_lookup(self):
         """ test DBstore.challenge_lookup() method  """
@@ -272,11 +272,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_053_order_search(self):
         """ test DBstore.order_search() method (unsuccesful) """
-        self.assertEqual(None, self.dbstore.order_search('name', 'order'))
+        self.assertEqual(None, self.dbstore._order_search('name', 'order'))
 
     def test_054_order_search(self):
         """ test DBstore.order_search() method (succesful) """
-        self.assertEqual('name', dict_from_row(self.dbstore.order_search('name', 'name'))['name'])
+        self.assertEqual('name', dict_from_row(self.dbstore._order_search('name', 'name'))['name'])
 
     def test_055_certificate_add(self):
         """ test DBstore.certificate_add() method (succesful) """
@@ -300,7 +300,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_059_certificate_add(self):
         """ test DBstore.certificate_add() method existing certificate with error """
-        data_dic = {'name': 'certname2', 'error': 'error3'}
+        data_dic = {'name': 'certname2', 'error': 'error3', 'poll_identifier': None}
         self.assertEqual(2, self.dbstore.certificate_add(data_dic))
 
     def test_060_certificate_lookup(self):

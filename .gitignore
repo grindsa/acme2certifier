@@ -119,6 +119,8 @@ acme/cmp/tmp/*.pem
 acme/est-myca/*.pem
 acme/est/*.pem
 acme/msca/*.pem
+test/ca/foo-ca-crl.pem
+
 *.csr
 *.old
 /acme2certifier_wsgi.py
