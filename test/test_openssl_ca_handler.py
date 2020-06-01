@@ -16,11 +16,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         from examples.ca_handler.openssl_ca_handler import CAhandler
-        logging.basicConfig(
-            # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S",
-            level=logging.INFO)
+        logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
         self.cahandler = CAhandler(False, self.logger)
 
