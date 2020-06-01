@@ -113,7 +113,12 @@ acme/views.py
 commands.txt
 *.bat
 *.db
-*.pem
+acme/*.pem
+acme/cmp/*.pem
+acme/cmp/tmp/*.pem
+acme/est-myca/*.pem
+acme/est/*.pem
+acme/msca/*.pem
 *.csr
 *.old
 /acme2certifier_wsgi.py
