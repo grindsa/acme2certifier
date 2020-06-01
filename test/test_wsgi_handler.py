@@ -21,11 +21,7 @@ class TestACMEHandler(unittest.TestCase):
         # from acme.wsgi_handler import DBstore
         from examples.db_handler.wsgi_handler import DBstore
         import logging
-        logging.basicConfig(
-            # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S",
-            level=logging.INFO)
+        logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
         self.dbstore = DBstore(False, self.logger, 'acme_test.db')
 
