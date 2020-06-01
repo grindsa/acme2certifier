@@ -4,10 +4,7 @@
 import sys
 import os
 import unittest
-try:
-    from mock import patch #, MagicMock, Mock
-except ImportError:
-    from unittest.mock import patch #, MagicMock, Mock
+from unittest.mock import patch, mock_open 
 from OpenSSL import crypto
 
 sys.path.insert(0, '..')
@@ -36,70 +33,91 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.issuer_dict = {}
         self.assertEqual('issuing_ca_key not specfied in config_file', self.cahandler._config_check())
 
-    def test_003_check_config(self):
+    @patch('os.path.exists')
+    def test_003_check_config(self, mock_file):
         """ CAhandler._config_check with key in config_dict but not existing """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'foo.pem'}
+        mock_file.side_effect = [False]
         self.assertEqual('issuing_ca_key foo.pem does not exist', self.cahandler._config_check())
 
-    def test_004_check_config(self):
+    @patch('os.path.exists')
+    def test_004_check_config(self, mock_file):
         """ CAhandler._config_check with key in config_dict key is existing """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem'}
-        # mock_exists.return_value = True
+        mock_file.side_effect = [True]
         self.assertEqual('issuing_ca_cert must be specified in config file', self.cahandler._config_check())
 
-    def test_005_check_config(self):
+    @patch('os.path.exists')
+    def test_005_check_config(self, mock_file):
         """ CAhandler._config_check with key and cert in config_dict but cert does not exist """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'bar'}
+        mock_file.side_effect = [True, False]        
         self.assertEqual('issuing_ca_cert bar does not exist', self.cahandler._config_check())
 
-    def test_006_check_config(self):
+    @patch('os.path.exists')
+    def test_006_check_config(self, mock_file):
         """ CAhandler._config_check withoutissuing_ca_crl in config_dic """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem'}
+        mock_file.side_effect = [True, True]         
         self.assertEqual('issuing_ca_crl must be specified in config file', self.cahandler._config_check())
 
-    def test_007_check_config(self):
+    @patch('os.path.exists')
+    def test_007_check_config(self, mock_file):
         """ CAhandler._config_check with wrong CRL in config_dic """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'foo.pem'}
+        mock_file.side_effect = [True, True, False]           
         self.assertEqual('issuing_ca_crl foo.pem does not exist', self.cahandler._config_check())
 
-    def test_008_check_config(self):
+    @patch('os.path.exists')
+    def test_008_check_config(self, mock_file):
         """ CAhandler._config_check without cert save path """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
+        mock_file.side_effect = [True, True, True]         
         self.assertEqual('cert_save_path must be specified in config file', self.cahandler._config_check())
 
-    def test_009_check_config(self):
+    @patch('os.path.exists')
+    def test_009_check_config(self, mock_file):
         """ CAhandler._config_check with key and cert in config_dict """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
         self.cahandler.cert_save_path = 'foo'
+        mock_file.side_effect = [True, True, True, False]             
         self.assertEqual('cert_save_path foo does not exist', self.cahandler._config_check())
 
-    def test_010_check_config(self):
+    @patch('os.path.exists')
+    def test_010_check_config(self, mock_file):
         """ CAhandler._config_check with empty ca_chain_list """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
         self.cahandler.cert_save_path = 'ca/certs'
+        mock_file.side_effect = [True, True, True, True]               
         self.assertEqual('ca_cert_chain_list must be specified in config file', self.cahandler._config_check())
 
-    def test_011_check_config(self):
+    @patch('os.path.exists')
+    def test_011_check_config(self, mock_file):
         """ CAhandler._config_check completed """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
         self.cahandler.cert_save_path = 'ca/certs'
         self.cahandler.ca_cert_chain_list = ['foo', 'bar']
+        mock_file.side_effect = [True, True, True, True]             
         self.assertFalse(self.cahandler._config_check())
 
-    def test_012_check_config(self):
+    @patch('os.path.exists')
+    def test_012_check_config(self, mock_file):
         """ CAhandler._config_check with wrong openssl.conf """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
         self.cahandler.cert_save_path = 'ca/certs'
         self.cahandler.ca_cert_chain_list = ['foo', 'bar']
         self.cahandler.openssl_conf = 'foo'
+        mock_file.side_effect = [True, True, True, True, False]            
         self.assertEqual('openssl_conf foo does not exist', self.cahandler._config_check())
 
-    def test_013_check_config(self):
+    @patch('os.path.exists')
+    def test_013_check_config(self, mock_file):
         """ CAhandler._config_check with openssl.conf completed successfully """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'issuing_ca_cert': 'ca/sub-ca-cert.pem', 'issuing_ca_crl': 'ca/sub-ca-crl.pem'}
         self.cahandler.cert_save_path = 'ca/certs'
         self.cahandler.ca_cert_chain_list = ['foo', 'bar']
         self.cahandler.openssl_conf = 'ca/fr1.txt'
+        mock_file.side_effect = [True, True, True, True, True]          
         self.assertFalse(self.cahandler._config_check())
 
     def test_014_check_serialagainstcrl(self):
@@ -116,7 +134,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._crl_check with a serial number not in CRL"""
         with open('ca/sub-ca-crl.pem', 'r') as fso:
             crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
-            self.assertFalse(self.cahandler._crl_check(crl, 2))
+        self.assertFalse(self.cahandler._crl_check(crl, 2))
 
     def test_017_check_serialagainstcrl(self):
         """ CAhandler._crl_check with a serial number already in CRL"""
@@ -138,20 +156,30 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.ca_cert_chain_list = ['foo.pem']
         self.assertEqual('ee-certca-cert', self.cahandler._pemcertchain_generate('ee-cert', 'ca-cert'))
 
-    def test_021_generate_pem_chain(self):
+    @patch("builtins.open", mock_open(read_data='_fakeroot-cert-1'), create=True)
+    @patch('os.path.exists')
+    def test_021_generate_pem_chain(self, mock_file):
         """ CAhandler._pemcertchain_generate with EE cert ca and an valid entry in cert_cain_list cert"""
         self.cahandler.ca_cert_chain_list = ['ca/fr1.txt']
+        mock_file.return_value = True,   
+        mock_open.return_vlaue = 'foo'        
         self.assertEqual('ee-cert_ca-cert_fakeroot-cert-1', self.cahandler._pemcertchain_generate('ee-cert', '_ca-cert'))
 
-    def test_022_generate_pem_chain(self):
+    @patch("builtins.open", mock_open(read_data='_fakeroot-cert-1'), create=True)
+    @patch('os.path.exists')
+    def test_022_generate_pem_chain(self, mock_file):
         """ CAhandler._pemcertchain_generate with EE cert ca and two valid entry in cert_cain_list"""
         self.cahandler.ca_cert_chain_list = ['ca/fr1.txt', 'ca/fr2.txt']
-        self.assertEqual('ee-cert_ca-cert_fakeroot-cert-1_fakeroot-cert-2', self.cahandler._pemcertchain_generate('ee-cert', '_ca-cert'))
+        mock_file.side_effect = [True, True]        
+        self.assertEqual('ee-cert_ca-cert_fakeroot-cert-1_fakeroot-cert-1', self.cahandler._pemcertchain_generate('ee-cert', '_ca-cert'))
 
-    def test_023_generate_pem_chain(self):
+    @patch("builtins.open", mock_open(read_data='_fakeroot-cert-1'), create=True)
+    @patch('os.path.exists')
+    def test_023_generate_pem_chain(self, mock_file):
         """ CAhandler._pemcertchain_generate with EE cert ca and two valid entry in cert_cain_list and two invalid entriest"""
         self.cahandler.ca_cert_chain_list = ['ca/fr1.txt', 'foo1', 'ca/fr2.txt', 'foo2']
-        self.assertEqual('ee-cert_ca-cert_fakeroot-cert-1_fakeroot-cert-2', self.cahandler._pemcertchain_generate('ee-cert', '_ca-cert'))
+        mock_file.side_effect = [True, False, True, False]         
+        self.assertEqual('ee-cert_ca-cert_fakeroot-cert-1_fakeroot-cert-1', self.cahandler._pemcertchain_generate('ee-cert', '_ca-cert'))
 
     def test_024_load_ca_key_cert(self):
         """ CAhandler._ca_load() with empty issuer_dict """
@@ -162,35 +190,51 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._ca_load() with issuer_dict containing invalid key """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'foo.pem'}
         self.assertEqual((None, None), self.cahandler._ca_load())
-
+        
+    @patch("builtins.open", mock_open(read_data='test'), create=True)        
+    @patch('os.path.exists')
     @patch('OpenSSL.crypto.load_privatekey')
-    def test_026_load_ca_key_cert(self, mock_crypto):
+    def test_026_load_ca_key_cert(self, mock_crypto, mock_file):
         """ CAhandler._ca_load() with issuer_dict containing valid key """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem'}
         mock_crypto.return_value = 'foo'
+        mock_file.return_value = True         
         self.assertEqual(('foo', None), self.cahandler._ca_load())
 
+    @patch("builtins.open", mock_open(read_data='test'), create=True)     
+    @patch('os.path.exists')
+    @patch('OpenSSL.crypto.load_certificate')    
     @patch('OpenSSL.crypto.load_privatekey')
-    def test_027_load_ca_key_cert(self, mock_crypto):
+    def test_027_load_ca_key_cert(self, mock_crypto_key, mock_crypto_cert, mock_file):
         """ CAhandler._ca_load() with issuer_dict containing key and passphrase """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234'}
-        mock_crypto.return_value = 'foo'
-        self.assertEqual(('foo', None), self.cahandler._ca_load())
+        mock_crypto_cert.return_value = 'cert'        
+        mock_crypto_key.return_value = 'key'
+        mock_file.return_value = True        
+        self.assertEqual(('key', None), self.cahandler._ca_load())
 
+    @patch("builtins.open", mock_open(read_data='test'), create=True)     
+    @patch('os.path.exists')
+    @patch('OpenSSL.crypto.load_certificate')    
     @patch('OpenSSL.crypto.load_privatekey')
-    def test_028_load_ca_key_cert(self, mock_crypto):
+    def test_028_load_ca_key_cert(self, mock_crypto_key, mock_crypto_cert, mock_file):
         """ CAhandler._ca_load() with issuer_dict containing key and invalid cert """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'issuing_ca_cert': 'foo.pem'}
-        mock_crypto.return_value = 'foo'
-        self.assertEqual(('foo', None), self.cahandler._ca_load())
+        mock_crypto_cert.return_value = None        
+        mock_crypto_key.return_value = 'key'
+        mock_file.return_value = True        
+        self.assertEqual(('key', None), self.cahandler._ca_load())
 
+    @patch("builtins.open", mock_open(read_data='test'), create=True)  
+    @patch('os.path.exists')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.load_privatekey')
-    def test_029_load_ca_key_cert(self, mock_crypto_key, mock_crypto_cert):
+    def test_029_load_ca_key_cert(self, mock_crypto_key, mock_crypto_cert, mock_file):
         """ CAhandler._ca_load() with issuer_dict containing key and invalid cert """
         self.cahandler.issuer_dict = {'issuing_ca_key': 'ca/sub-ca-key.pem', 'passphrase': 'Test1234', 'issuing_ca_cert': 'ca/sub-ca-cert.pem'}
         mock_crypto_key.return_value = 'foo'
         mock_crypto_cert.return_value = 'bar'
+        mock_file.return_value = True
         self.assertEqual(('foo', 'bar'), self.cahandler._ca_load())
 
     def test_030_verifycertificatechain(self):
