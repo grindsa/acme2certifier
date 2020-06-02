@@ -149,10 +149,14 @@ class CAhandler(object):
         row_id = None
         if csr_dic:
             if 'item' in csr_dic and 'signed' in csr_dic and 'request' in csr_dic:
-                self._db_open()
-                self.cursor.execute('''INSERT INTO REQUESTS(item, signed, request) VALUES(:item, :signed, :request)''', csr_dic)
-                row_id = self.cursor.lastrowid
-                self._db_close()
+                # item and signed must be integer
+                if isinstance(csr_dic['item'], int) and isinstance(csr_dic['signed'], int):
+                    self._db_open()
+                    self.cursor.execute('''INSERT INTO REQUESTS(item, signed, request) VALUES(:item, :signed, :request)''', csr_dic)
+                    row_id = self.cursor.lastrowid
+                    self._db_close()
+                else:
+                    self.logger.error('CAhandler._csr_insert() aborted. wrong datatypes: {}'.format(csr_dic))                  
             else:                
                 self.logger.error('CAhandler._csr_insert() aborted. dataset incomplete: {}'.format(csr_dic))                
         else:
@@ -198,28 +202,29 @@ class CAhandler(object):
         # insert
         if item_dic:
             if 'name' in item_dic and 'type' in item_dic and 'source' in item_dic and 'date' in item_dic and 'comment' in item_dic:
-                self._db_open()
-                self.cursor.execute('''INSERT INTO ITEMS(name, type, source, date, comment) VALUES(:name, :type, :source, :date, :comment)''', item_dic)
-                row_id = self.cursor.lastrowid
-                # update stamp field
-                data_dic = {'stamp': row_id}
-                self.cursor.execute('''UPDATE ITEMS SET stamp = :stamp WHERE id = :stamp''', data_dic)
-                self._db_close()
+                if isinstance(item_dic['type'], int) and isinstance(item_dic['source'], int):  
+                    self._db_open()
+                    self.cursor.execute('''INSERT INTO ITEMS(name, type, source, date, comment) VALUES(:name, :type, :source, :date, :comment)''', item_dic)
+                    row_id = self.cursor.lastrowid
+                    # update stamp field
+                    data_dic = {'stamp': row_id}
+                    self.cursor.execute('''UPDATE ITEMS SET stamp = :stamp WHERE id = :stamp''', data_dic)
+                    self._db_close()
+                else:                
+                    self.logger.error('CAhandler._insert_insert() aborted. wrong datatypes: {}'.format(item_dic))     
             else:                
-                self.logger.error('CAhandler._insert_insert() aborted. dataset incomplete: {}'.format(item_dic))                
+                self.logger.error('CAhandler._item_insert() aborted. dataset incomplete: {}'.format(item_dic))                       
         else:
             self.logger.error('CAhandler._insert_insert() aborted. dataset empty')    
             
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-
     def _stub_func(self, parameter):
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
 
         self.logger.debug('CAhandler._stub_func() ended')
-
 
     def enroll(self, csr):
         """ enroll certificate  """

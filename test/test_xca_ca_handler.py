@@ -138,6 +138,20 @@ class TestACMEHandler(unittest.TestCase):
         csr_dic =  {'item': 2, 'signed': 0, 'request': 'request'}
         self.assertEqual(2, self.cahandler._csr_insert(csr_dic)) 
 
+    def test_010_csr_insert(self):
+        """ CAhandler._csr_insert full item dic item has wrong datatype """
+        self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_name = 'sub-ca'
+        csr_dic =  {'item': '2', 'signed': 0, 'request': 'request'}
+        self.assertFalse(self.cahandler._csr_insert(csr_dic)) 
+
+    def test_011_csr_insert(self):
+        """ CAhandler._csr_insert full item dic item has wrong datatype """
+        self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_name = 'sub-ca'
+        csr_dic =  {'item': 2, 'signed': '0', 'request': 'request'}
+        self.assertFalse(self.cahandler._csr_insert(csr_dic)) 
+
     def test_019_csr_insert(self):
         """ CAhandler._csr_insert item dic without item """
         self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
@@ -170,7 +184,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._item_insert full item dic """
         self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'type': 'a', 'source': 0 , 'date': 'date', 'comment': 'comment'}
+        item_dic = {'name': 'name', 'type': 2, 'source': 0 , 'date': 'date', 'comment': 'comment'}
         self.assertEqual(8, self.cahandler._item_insert(item_dic)) 
 
     def test_024_item_insert(self):
@@ -198,14 +212,28 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._item_insert no date  """
         self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'type': 2, 'source': 0 , 'comment': 'comment'}
+        item_dic = {'name': 'name', 'type': 2, 'source': 0, 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic)) 
 
     def test_028_item_insert(self):
         """ CAhandler._item_insert no date  """
         self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'type': 2, 'source': 0 , 'date': 'date'}
+        item_dic = {'name': 'name', 'type': 2, 'source': 0, 'date': 'date'}
+        self.assertFalse(self.cahandler._item_insert(item_dic)) 
+
+    def test_029_item_insert(self):
+        """ CAhandler._item_insert full item dic type has wrong datatype """
+        self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_name = 'sub-ca'
+        item_dic = {'name': 'name', 'type': '2', 'source': 0, 'date': 'date', 'comment': 'comment'}
+        self.assertFalse(self.cahandler._item_insert(item_dic)) 
+
+    def test_030_item_insert(self):
+        """ CAhandler._item_insert full item dic source has wrong datatype """
+        self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_name = 'sub-ca'
+        item_dic = {'name': 'name', 'type': 2, 'source': '0', 'date': 'date', 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic)) 
 
 
