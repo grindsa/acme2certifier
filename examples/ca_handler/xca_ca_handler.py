@@ -4,8 +4,9 @@
 from __future__ import print_function
 import os
 import sqlite3
+import uuid
 from OpenSSL import crypto
-from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
+from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
 def dict_from_row(row):
@@ -21,6 +22,7 @@ class CAhandler(object):
         self.xdb_file = None
         self.passphrase = 'i_dont_know'
         self.issuing_ca_name = None
+        self.cert_validity_days = 365
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -46,12 +48,15 @@ class CAhandler(object):
         self._db_close()
 
         ca_cert = None
+        ca_id = None
+
         if 'cert' in db_result:
             try:
                 ca_cert = crypto.load_certificate(crypto.FILETYPE_ASN1, b64_decode(self.logger, db_result['cert']))
+                ca_id = db_result['id']
             except BaseException as err_:
                 self.logger.error('CAhandler._ca_key_load() failed with error: {0}'.format(err_))
-        return ca_cert
+        return (ca_cert, ca_id)
 
     def _ca_key_load(self):
         """ load ca key from database """
@@ -80,10 +85,10 @@ class CAhandler(object):
         """ load ca key and cert """
         self.logger.debug('CAhandler._ca_load()')
         ca_key = self._ca_key_load()
-        ca_cert = self._ca_cert_load()
+        (ca_cert, ca_id) = self._ca_cert_load()
 
         self.logger.debug('CAhandler._ca_load() ended')
-        return(ca_key, ca_cert)
+        return(ca_key, ca_cert, ca_id)
 
     def _config_check(self):
         """ check config for consitency """
@@ -120,7 +125,7 @@ class CAhandler(object):
         if 'issuing_ca_name' in config_dic['CAhandler']:
             self.issuing_ca_name = config_dic['CAhandler']['issuing_ca_name']
 
-    def _csr_import(self, csr):
+    def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
         self.logger.debug('CAhandler._csr_insert()')
 
@@ -128,20 +133,40 @@ class CAhandler(object):
 
         if not csr_info:
 
-            # try to get cn for a name in database
-            request_name = csr_cn_get(self.logger, csr)
-            if not request_name:
-                san_list = csr_san_get(self.logger, csr)
-                (_identifiier, request_name,) = san_list[0].split(':')
-
             # csr does not exist in db - lets import it
             insert_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
             item_dic = {'type': 2, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': request_name}
             row_id = self._item_insert(item_dic)
 
             # insert csr
-            csr_dic = {'item': row_id, 'signed': 0, 'request': csr}
+            csr_dic = {'item': row_id, 'signed': 1, 'request': csr}
             self._csr_insert(csr_dic)
+
+        self.logger.debug('CAhandler._csr_insert()')
+        return csr_info
+
+    def _cert_insert(self, cert_dic):
+        """ insert new entry to request table """
+        self.logger.debug('CAhandler._cert_insert()')
+
+        row_id = None
+        if cert_dic:
+            if 'item' in cert_dic and 'serial' in cert_dic and 'issuer' in cert_dic and 'ca' in cert_dic and 'cert' in cert_dic:
+                # item and signed must be integer
+                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int):
+                    self._db_open()
+                    self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert) VALUES(:item, :serial, :issuer, :ca, :cert)''', cert_dic)
+                    row_id = self.cursor.lastrowid
+                    self._db_close()
+                else:
+                    self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
+            else:
+                self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
+        else:
+            self.logger.error('CAhandler._cert_insert() aborted. dataset empty')
+
+        self.logger.debug('CAhandler._cert_insert() ended with row_id: {0}'.format(row_id))
+        return row_id
 
     def _csr_insert(self, csr_dic):
         """ insert new entry to request table """
@@ -156,13 +181,13 @@ class CAhandler(object):
                     row_id = self.cursor.lastrowid
                     self._db_close()
                 else:
-                    self.logger.error('CAhandler._csr_insert() aborted. wrong datatypes: {}'.format(csr_dic))                  
-            else:                
-                self.logger.error('CAhandler._csr_insert() aborted. dataset incomplete: {}'.format(csr_dic))                
+                    self.logger.error('CAhandler._csr_insert() aborted. wrong datatypes: {}'.format(csr_dic))
+            else:
+                self.logger.error('CAhandler._csr_insert() aborted. dataset incomplete: {}'.format(csr_dic))
         else:
             self.logger.error('CAhandler._csr_insert() aborted. dataset empty')
-            
-        self.logger.debug('CAhandler._csr_insert() ended with row_id: {0}'.format(row_id))                
+
+        self.logger.debug('CAhandler._csr_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
     def _csr_search(self, column, value):
@@ -202,7 +227,7 @@ class CAhandler(object):
         # insert
         if item_dic:
             if 'name' in item_dic and 'type' in item_dic and 'source' in item_dic and 'date' in item_dic and 'comment' in item_dic:
-                if isinstance(item_dic['type'], int) and isinstance(item_dic['source'], int):  
+                if isinstance(item_dic['type'], int) and isinstance(item_dic['source'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO ITEMS(name, type, source, date, comment) VALUES(:name, :type, :source, :date, :comment)''', item_dic)
                     row_id = self.cursor.lastrowid
@@ -210,15 +235,44 @@ class CAhandler(object):
                     data_dic = {'stamp': row_id}
                     self.cursor.execute('''UPDATE ITEMS SET stamp = :stamp WHERE id = :stamp''', data_dic)
                     self._db_close()
-                else:                
-                    self.logger.error('CAhandler._insert_insert() aborted. wrong datatypes: {}'.format(item_dic))     
-            else:                
-                self.logger.error('CAhandler._item_insert() aborted. dataset incomplete: {}'.format(item_dic))                       
+                else:
+                    self.logger.error('CAhandler._insert_insert() aborted. wrong datatypes: {}'.format(item_dic))
+            else:
+                self.logger.error('CAhandler._item_insert() aborted. dataset incomplete: {}'.format(item_dic))
         else:
-            self.logger.error('CAhandler._insert_insert() aborted. dataset empty')    
-            
+            self.logger.error('CAhandler._insert_insert() aborted. dataset empty')
+
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
+
+    def _requestname_get(self, csr):
+        """ enroll certificate  """
+        self.logger.debug('CAhandler._request_name_get()')
+
+        # try to get cn for a name in database
+        request_name = csr_cn_get(self.logger, csr)
+        if not request_name:
+            san_list = csr_san_get(self.logger, csr)
+            (_identifiier, request_name,) = san_list[0].split(':')
+
+        self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
+        return request_name
+
+    def _store_cert(self, ca_id, cert_name, serial, cert):
+        """ store certificate to database """
+        self.logger.debug('CAhandler._store_cert()')
+
+        # insert certificate into item table
+        insert_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
+
+        item_dic = {'type': 3, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': cert_name}
+        row_id = self._item_insert(item_dic)
+
+        # insert certificate to cert table
+        cert_dic = {'item': row_id, 'serial': serial, 'issuer': ca_id, 'ca': 0, 'cert': cert}
+        row_id = self._cert_insert(cert_dic)
+
+        self.logger.debug('CAhandler._store_cert() ended')
 
     def _stub_func(self, parameter):
         """" load config from file """
@@ -237,13 +291,52 @@ class CAhandler(object):
 
         if not error:
 
+            request_name = self._requestname_get(csr)
 
-            self._csr_import(csr)
-            # prepare the CSR
-            # csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+            # import CSR to database
+            _csr_info = self._csr_import(csr, request_name)
+
+            # prepare the CSR to be signed
+            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
 
             # load ca cert and key
-            # (ca_key, ca_cert) = self._ca_load()
+            (ca_key, ca_cert, ca_id) = self._ca_load()
+
+            # load request
+            req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+
+            # copy cn of request
+            subject = req.get_subject()
+            # rewrite CN if required
+            if not subject.CN:
+                self.logger.debug('rewrite CN to {0}'.format(request_name))
+                subject.CN = request_name
+
+            cert = crypto.X509()
+            cert.gmtime_adj_notBefore(0)
+            cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
+            cert.set_issuer(ca_cert.get_subject())
+            cert.set_subject(subject)
+            cert.set_pubkey(req.get_pubkey())
+            cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
+            cert.set_version(2)
+            cert.add_extensions(req.get_extensions())
+            default_extension_list = [
+                crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+                crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
+                crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+                crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+                crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+            ]
+
+            # add default extensions
+            cert.add_extensions(default_extension_list)
+            # sign csr
+            cert.sign(ca_key, 'sha256')
+            serial = cert.get_serial_number()
+
+            # store certificate
+            self._store_cert(ca_id, request_name, serial, convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))))
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
