@@ -64,32 +64,32 @@ class TestACMEHandler(unittest.TestCase):
     def test_008_ca_load(self, mock_key, mock_cert):
         """ CAhandler._ca_load for both cert and key """
         mock_key.return_value = 'key'
-        mock_cert.return_value = 'cert'
-        self.assertEqual(('key', 'cert'), self.cahandler._ca_load())
+        mock_cert.return_value = ('cert', 1)
+        self.assertEqual(('key', 'cert', 1), self.cahandler._ca_load())
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_cert_load')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
     def test_009_ca_load(self, mock_key, mock_cert):
         """ CAhandler._ca_load for cert only """
         mock_key.return_value = None
-        mock_cert.return_value = 'cert'
-        self.assertEqual((None, 'cert'), self.cahandler._ca_load())
+        mock_cert.return_value = ('cert', 1)
+        self.assertEqual((None, 'cert', 1), self.cahandler._ca_load())
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_cert_load')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
     def test_010_ca_load(self, mock_key, mock_cert):
         """ CAhandler._ca_load for cert only """
         mock_key.return_value = 'key'
-        mock_cert.return_value = None
-        self.assertEqual(('key', None), self.cahandler._ca_load())
+        mock_cert.return_value = (None, None)
+        self.assertEqual(('key', None, None), self.cahandler._ca_load())
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_cert_load')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
     def test_011_ca_load(self, mock_key, mock_cert):
         """ CAhandler._ca_load without key and cert """
         mock_key.return_value = None
-        mock_cert.return_value = None
-        self.assertEqual((None, None), self.cahandler._ca_load())
+        mock_cert.return_value = (None, None)
+        self.assertEqual((None, None, None), self.cahandler._ca_load())
         
     def test_012_ca_cert_load(self):
         """ CAhandler._ca_cert_load """
@@ -101,7 +101,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._ca_cert_load for non existing cert """
         self.cahandler.xdb_file = 'ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'bar'       
-        self.assertFalse(self.cahandler._ca_cert_load()) 
+        self.assertEqual((None, None), self.cahandler._ca_cert_load()) 
 
     def test_014_ca_key_load(self):
         """ CAhandler._ca_key_load """
