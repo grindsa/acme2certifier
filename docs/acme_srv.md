@@ -1,4 +1,4 @@
-# acme-srv.cfg
+# acme_srv.cfg
 
 ## configuration options for acme2certifier
 
@@ -23,4 +23,3 @@ The options for the `CAHandler` section depend on the CA handler.
 Instructions for [Insta Certifier](certifier.md)
 
 Instructions for [NetGuard Certificate Lifecycle Manager](nclm.md)
-
