@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 import json
 from OpenSSL import crypto
-from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
+from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
 def dict_from_row(row):
@@ -308,6 +308,28 @@ class CAhandler(object):
         self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
         return request_name
 
+    def _revocation_insert(self, rev_dic):
+        """ insert new entry to into revocation_table """
+        self.logger.debug('CAhandler._revocation_insert()')
+        row_id = None
+        # insert
+        if rev_dic:
+            if 'caID' in rev_dic and 'serial' in rev_dic and 'date' in rev_dic and 'invaldate' in rev_dic and 'reasonBit' in rev_dic:
+                if isinstance(rev_dic['caID'], int) and isinstance(rev_dic['reasonBit'], int):
+                    self._db_open()
+                    self.cursor.execute('''INSERT INTO REVOCATIONS(caID, serial, date, invaldate, reasonBit) VALUES(:caID, :serial, :date, :invaldate, :reasonBit)''', rev_dic)
+                    row_id = self.cursor.lastrowid
+                    self._db_close()
+                else:
+                    self.logger.error('CAhandler._revocation_insert() aborted. wrong datatypes: {}'.format(rev_dic))
+            else:
+                self.logger.error('CAhandler._revocation_insert() aborted. dataset incomplete: {}'.format(rev_dic))
+        else:
+            self.logger.error('CAhandler._revocation_insert() aborted. dataset empty')
+
+        self.logger.debug('CAhandler._revocation_insert() ended with row_id: {0}'.format(row_id))
+        return row_id
+
     def _store_cert(self, ca_id, cert_name, serial, cert):
         """ store certificate to database """
         self.logger.debug('CAhandler._store_cert()')
@@ -384,13 +406,13 @@ class CAhandler(object):
             # sign csr
             cert.sign(ca_key, 'sha256')
             serial = cert.get_serial_number()
-
+            issuer = cert.get_issuer()
             # store certificate
             self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))))
 
             cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
             cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
-            
+
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
@@ -407,13 +429,27 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
-        code = 500
-        message = 'urn:ietf:params:acme:error:serverInternal'
-        detail = 'Revocation is not supported.'
+        # overwrite revocation date - we ignore what has been submitted
+        rev_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
+        rev_reason = 0
+
+        if self.xdb_file:
+            # load ca cert and key
+            (_ca_key, _ca_cert, ca_id) = self._ca_load()
+
+            serial = '{:X}'.format(cert_serial_get(self.logger, cert))
+
+            if ca_id and serial:
+                rev_dic = {'caID': ca_id, 'serial': serial, 'date': rev_date, 'invaldate': rev_date, 'reasonBit': rev_reason}
+                self._revocation_insert(rev_dic)
+
+        code = None
+        message = None
+        detail = None
 
         self.logger.debug('Certificate.revoke() ended')
         return(code, message, detail)
