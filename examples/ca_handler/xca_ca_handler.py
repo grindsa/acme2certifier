@@ -156,11 +156,10 @@ class CAhandler(object):
 
         row_id = None
         if cert_dic:
-            if 'item' in cert_dic and 'serial' in cert_dic and 'issuer' in cert_dic and 'ca' in cert_dic and 'cert' in cert_dic:
-                # item and signed must be integer
-                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int):
+            if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
+                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int):
                     self._db_open()
-                    self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert) VALUES(:item, :serial, :issuer, :ca, :cert)''', cert_dic)
+                    self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
                     row_id = self.cursor.lastrowid
                     self._db_close()
                 else:
@@ -205,7 +204,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_insert()')
         row_id = None
         if csr_dic:
-            if 'item' in csr_dic and 'signed' in csr_dic and 'request' in csr_dic:
+            if all(key in csr_dic for key in ('item', 'signed', 'request')):
                 # item and signed must be integer
                 if isinstance(csr_dic['item'], int) and isinstance(csr_dic['signed'], int):
                     self._db_open()
@@ -258,7 +257,7 @@ class CAhandler(object):
         row_id = None
         # insert
         if item_dic:
-            if 'name' in item_dic and 'type' in item_dic and 'source' in item_dic and 'date' in item_dic and 'comment' in item_dic:
+            if all(key in item_dic for key in ('name', 'type', 'source', 'date', 'comment')):
                 if isinstance(item_dic['type'], int) and isinstance(item_dic['source'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO ITEMS(name, type, source, date, comment) VALUES(:name, :type, :source, :date, :comment)''', item_dic)
@@ -314,7 +313,7 @@ class CAhandler(object):
         row_id = None
         # insert
         if rev_dic:
-            if 'caID' in rev_dic and 'serial' in rev_dic and 'date' in rev_dic and 'invaldate' in rev_dic and 'reasonBit' in rev_dic:
+            if all(key in rev_dic for key in ('caID', 'serial', 'date', 'invaldate', 'reasonBit')):
                 if isinstance(rev_dic['caID'], int) and isinstance(rev_dic['reasonBit'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO REVOCATIONS(caID, serial, date, invaldate, reasonBit) VALUES(:caID, :serial, :date, :invaldate, :reasonBit)''', rev_dic)
@@ -346,7 +345,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_search() ended')
         return db_result
 
-    def _store_cert(self, ca_id, cert_name, serial, cert):
+    def _store_cert(self, ca_id, cert_name, serial, cert, name_hash, issuer_hash):
         """ store certificate to database """
         self.logger.debug('CAhandler._store_cert()')
 
@@ -355,7 +354,7 @@ class CAhandler(object):
         item_dic = {'type': 3, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': cert_name}
         row_id = self._item_insert(item_dic)
         # insert certificate to cert table
-        cert_dic = {'item': row_id, 'serial': serial, 'issuer': ca_id, 'ca': 0, 'cert': cert}
+        cert_dic = {'item': row_id, 'serial': serial, 'issuer': ca_id, 'ca': 0, 'cert': cert, 'iss_hash': issuer_hash, 'hash': name_hash}
         row_id = self._cert_insert(cert_dic)
 
         self.logger.debug('CAhandler._store_cert() ended')
@@ -419,9 +418,13 @@ class CAhandler(object):
             # sign csr
             cert.sign(ca_key, 'sha256')
             serial = cert.get_serial_number()
-            issuer = cert.get_issuer()
+
+            # get hsshes
+            issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
+            name_hash = cert.subject_name_hash() & 0x7fffffff
+
             # store certificate
-            self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))))
+            self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
 
             cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
             cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
@@ -473,7 +476,6 @@ class CAhandler(object):
                     code = 400
                     message = 'urn:ietf:params:acme:error:alreadyRevoked'
                     detail = 'Certificate has already been revoked'
-
             else:
                 code = 500
                 message = 'urn:ietf:params:acme:error:serverInternal'
