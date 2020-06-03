@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import sqlite3
 import uuid
+import json
 from OpenSSL import crypto
 from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
@@ -23,6 +24,7 @@ class CAhandler(object):
         self.passphrase = 'i_dont_know'
         self.issuing_ca_name = None
         self.cert_validity_days = 365
+        self.ca_cert_chain_list = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -125,6 +127,9 @@ class CAhandler(object):
         if 'issuing_ca_name' in config_dic['CAhandler']:
             self.issuing_ca_name = config_dic['CAhandler']['issuing_ca_name']
 
+        if 'ca_cert_chain_list' in config_dic['CAhandler']:
+            self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
+
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
         self.logger.debug('CAhandler._csr_insert()')
@@ -167,6 +172,33 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._cert_insert() ended with row_id: {0}'.format(row_id))
         return row_id
+
+    def _cert_search(self, column, value):
+        """ load ca key from database """
+        self.logger.debug('CAhandler._cert_search()')
+
+        # query database for key
+        self._db_open()
+        pre_statement = '''SELECT * from items WHERE type == 3 and {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [value])
+
+        try:
+            item_result = dict_from_row(self.cursor.fetchone())
+        except BaseException:
+            item_result = {}
+
+        if item_result:
+            item_id = item_result['id']
+            pre_statement = '''SELECT * from certs WHERE item LIKE ?'''
+            self.cursor.execute(pre_statement, [item_id])
+            try:
+                cert_result = dict_from_row(self.cursor.fetchone())
+            except BaseException:
+                cert_result = {}
+
+        self._db_close()
+        self.logger.debug('CAhandler._cert_search() ended')
+        return cert_result
 
     def _csr_insert(self, csr_dic):
         """ insert new entry to request table """
@@ -244,6 +276,24 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
+
+    def _pemcertchain_generate(self, ee_cert, issuer_cert):
+        """ build pem chain """
+        self.logger.debug('CAhandler._pemcertchain_generate()')
+
+        if issuer_cert:
+            pem_chain = '{0}{1}'.format(ee_cert, issuer_cert)
+        else:
+            pem_chain = ee_cert
+
+        for cert in self.ca_cert_chain_list:
+            cert_dic = self._cert_search('items.name', cert)
+            if 'cert' in cert_dic:
+                ca_cert = crypto.load_certificate(crypto.FILETYPE_ASN1, b64_decode(self.logger, cert_dic['cert']))
+                pem_chain = '{0}{1}'.format(pem_chain, convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
+
+        self.logger.debug('CAhandler._pemcertchain_generate() ended')
+        return pem_chain
 
     def _requestname_get(self, csr):
         """ enroll certificate  """
@@ -338,6 +388,9 @@ class CAhandler(object):
             # store certificate
             self._store_cert(ca_id, request_name, serial, convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))))
 
+            cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
+            cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
+            
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
