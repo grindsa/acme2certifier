@@ -14,7 +14,7 @@ You can download them by using the link below.
 
 `root@docker-test:~# curl https://raw.githubusercontent.com/grindsa/acme2certifier/master/examples/docker_wsgi.tgz --output docker_wsgi.tgz`
 
-After download the archive must be enpackted
+After download the archive must be unpacked.
 
 `root@docker-test:~# tar xvfz docker_wsgi.tgz`
 
@@ -53,7 +53,7 @@ root@ub18-04:~# curl http://192.168.14.133/directory
 {"newAuthz": "http://192.168.14.133/acme/new-authz", "newNonce": "http://192.168.14.133/acme/newnonce", "newAccount": "http://192.168.14.133/acme/newaccount", "newOrder": "http://192.168.14.133/acme/neworders", "revokeCert": "http://192.168.14.133/acme/revokecert", "keyChange": "http://192.168.14.133/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.8"}, "09e7bda62ca443cfb495ca6e36469556": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"}root@ub18-04:~#
 ```
 
-Both configuration file and ca_handler must be modified according to your setup. 
+Both configuration file and ca_handler must be modified according to your setup.
 
 In case you would like to enable ssl-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
 - the private key
