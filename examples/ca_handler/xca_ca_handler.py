@@ -236,7 +236,7 @@ class CAhandler(object):
         except BaseException:
             db_result = {}
         self._db_close()
-
+        self.logger.debug('CAhandler._csr_search() ended')
         return db_result
 
     def _db_open(self):
@@ -330,16 +330,30 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
+    def _revocation_search(self, column, value):
+        """ load ca key from database """
+        self.logger.debug('CAhandler._revocation_search()')
+        # query database for key
+        self._db_open()
+        pre_statement = '''SELECT * from revocations WHERE {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [value])
+
+        try:
+            db_result = dict_from_row(self.cursor.fetchone())
+        except BaseException:
+            db_result = {}
+        self._db_close()
+        self.logger.debug('CAhandler._revocation_search() ended')
+        return db_result
+
     def _store_cert(self, ca_id, cert_name, serial, cert):
         """ store certificate to database """
         self.logger.debug('CAhandler._store_cert()')
 
         # insert certificate into item table
         insert_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
-
         item_dic = {'type': 3, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': cert_name}
         row_id = self._item_insert(item_dic)
-
         # insert certificate to cert table
         cert_dic = {'item': row_id, 'serial': serial, 'issuer': ca_id, 'ca': 0, 'cert': cert}
         row_id = self._cert_insert(cert_dic)
@@ -349,7 +363,6 @@ class CAhandler(object):
     def _stub_func(self, parameter):
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
-
         self.logger.debug('CAhandler._stub_func() ended')
 
     def enroll(self, csr):
@@ -444,12 +457,31 @@ class CAhandler(object):
             serial = '{:X}'.format(cert_serial_get(self.logger, cert))
 
             if ca_id and serial:
-                rev_dic = {'caID': ca_id, 'serial': serial, 'date': rev_date, 'invaldate': rev_date, 'reasonBit': rev_reason}
-                self._revocation_insert(rev_dic)
+                # check if certificate has alreay been revoked:
+                if not self._revocation_search('serial', serial):
+                    rev_dic = {'caID': ca_id, 'serial': serial, 'date': rev_date, 'invaldate': rev_date, 'reasonBit': rev_reason}
+                    row_id = self._revocation_insert(rev_dic)
+                    if row_id:
+                        code = 200
+                        message = None
+                        detail = None
+                    else:
+                        code = 500
+                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        detail = 'database update failed'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                    detail = 'Certificate has already been revoked'
 
-        code = None
-        message = None
-        detail = None
+            else:
+                code = 500
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = 'certificate lookup failed'
+        else:
+            code = 500
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'configuration error'
 
         self.logger.debug('Certificate.revoke() ended')
         return(code, message, detail)
