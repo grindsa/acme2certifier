@@ -12,7 +12,8 @@ CONTEXT=wsgi
 ```
 
 Building the docker-compose:
-```user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache
+```
+user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache
 Building srv
 Step 1/17 : FROM ubuntu:20.04
  ---> 1d622ef86b13
