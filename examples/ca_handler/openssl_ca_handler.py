@@ -323,7 +323,7 @@ class CAhandler(object):
 
     def _string_wlbl_check(self, entry, white_list, black_list):
         """ check single against whitelist and blacklist """
-        self.logger.debug('CAhandler._string_check({0})'.format(entry))
+        self.logger.debug('CAhandler._string_wlbl_check({0})'.format(entry))
 
         # default setting
         chk_result = False
@@ -344,7 +344,7 @@ class CAhandler(object):
         else:
             self.logger.debug('{0} not in white_list'.format(entry))
 
-        self.logger.debug('CAhandler._string_check({0}) ended with: {1}'.format(entry, chk_result))
+        self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
     def enroll(self, csr):
