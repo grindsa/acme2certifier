@@ -137,3 +137,7 @@ acme/xca/*
 acme/fixture
 *.dll
 acme/cmp/WindowsCMPOpenSSL/openssl.exe
+
+# Docker data content
+examples/Docker/data/*
+!examples/Docker/.env
