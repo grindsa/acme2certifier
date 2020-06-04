@@ -24,7 +24,14 @@ Releasenotes and ChangLog can be found at [https://github.com/grindsa/acme2certi
 ## Disclaimer
 I am running this project as my RnD guys told me that it won’t be possible :-)
 
-I am using [acme.sh](https://github.com/Neilpang/acme.sh), [Certbot](https://certbot.eff.org/) and [acmeshell](https://github.com/cpu/acmeshell/) to test the server functionality. Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
+Following acme-clients are used for regular testing of server functionality
+- [acme.sh](https://github.com/Neilpang/acme.sh) 
+- [Certbot](https://certbot.eff.org/)
+- [lego](https://github.com/go-acme/lego)
+- [acmeshell](https://github.com/cpu/acmeshell/) 
+
+
+Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
 [Command-line parameters used for testing](docs/acme-clients.md)
 
