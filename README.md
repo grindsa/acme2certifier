@@ -66,8 +66,7 @@ The proxy can run either as plain wsgi-script on either apache or ngix or as dja
 
 The fastest and most convenient way to install acme2certifier is to use docker containers. I am not providing prepared images (I am to lazy to do continuous patch management) but instructions and ready-made scripts to build your own container.
 
-- [Containerized wsgi installation using apache2](docs/install_docker_apache_wsgi.md)
-- [Containerized django project using apache2](docs/install_docker_apache_django.md)
+- [Containerized installation using apache2 as webserver and wsgi or django](examples/Docker/)
 - [Installation as wsgi-script running on apache2](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX](docs/install_nginx_wsgi.md)
 
