@@ -144,8 +144,8 @@ class CAhandler(object):
             row_id = self._item_insert(item_dic)
 
             # insert csr
-            csr_dic = {'item': row_id, 'signed': 1, 'request': csr}
-            self._csr_insert(csr_dic)
+            csr_info = {'item': row_id, 'signed': 1, 'request': csr}
+            self._csr_insert(csr_info)
 
         self.logger.debug('CAhandler._csr_insert()')
         return csr_info
@@ -157,12 +157,12 @@ class CAhandler(object):
         row_id = None
         if cert_dic:
             if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
-                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int):
+                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
                     row_id = self.cursor.lastrowid
                     self._db_close()
-                else:
+                else:              
                     self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
             else:
                 self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
@@ -287,7 +287,7 @@ class CAhandler(object):
 
         for cert in self.ca_cert_chain_list:
             cert_dic = self._cert_search('items.name', cert)
-            if 'cert' in cert_dic:
+            if cert_dic and 'cert' in cert_dic:
                 ca_cert = crypto.load_certificate(crypto.FILETYPE_ASN1, b64_decode(self.logger, cert_dic['cert']))
                 pem_chain = '{0}{1}'.format(pem_chain, convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
 

@@ -236,6 +236,143 @@ class TestACMEHandler(unittest.TestCase):
         item_dic = {'name': 'name', 'type': 2, 'source': '0', 'date': 'date', 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic)) 
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_search')
+    def test_031_csr_import(self, mock_search):
+        """ CAhandler._csr_import with existing cert_dic """
+        mock_search.return_value = {'foo', 'bar'}
+        self.assertEqual({'foo', 'bar'}, self.cahandler._csr_import('csr', 'request_name')) 
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._item_insert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_insert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_search')
+    def test_032_csr_import(self, mock_search, mock_csr_insert, mock_item_insert):
+        """ CAhandler._csr_import with existing cert_dic """
+        mock_search.return_value = {}
+        mock_csr_insert.return_value = 5
+        mock_item_insert.return_value = 10       
+        self.assertEqual({'item': 10, 'signed': 1, 'request': 'csr'}, self.cahandler._csr_import('csr', 'request_name')) 
+
+    def test_033_cert_insert(self):
+        """ CAhandler._csr_import with empty cert_dic """
+        cert_dic = {}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+        
+    def test_034_cert_insert(self):
+        """ CAhandler._csr_import item missing """
+        cert_dic = {'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic))         
+
+    def test_035_cert_insert(self):
+        """ CAhandler._csr_import serial missing """
+        cert_dic = {'item': 'item', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+
+    def test_036_cert_insert(self):
+        """ CAhandler._csr_import issuer missing """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+
+    def test_037_cert_insert(self):
+        """ CAhandler._csr_import ca missing """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'issuer': 'issuer', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+
+    def test_038_cert_insert(self):
+        """ CAhandler._csr_import cert missing """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+        
+    def test_039_cert_insert(self):
+        """ CAhandler._csr_import iss_hash missing """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic))         
+
+    def test_040_cert_insert(self):
+        """ CAhandler._csr_import hash missing """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic))   
+
+    def test_041_cert_insert(self):
+        """ CAhandler._csr_import with item not int """
+        cert_dic = {'item': 'item', 'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+
+    def test_042_cert_insert(self):
+        """ CAhandler._csr_import with issuer not int """
+        cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 'issuer', 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+
+    def test_043_cert_insert(self):
+        """ CAhandler._csr_import with ca not int """
+        cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 1, 'ca': 'ca', 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic)) 
+        
+    def test_044_cert_insert(self):
+        """ CAhandler._csr_import with iss_hash not int """
+        cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 2, 'ca': 3, 'cert': 'cert', 'iss_hash': 'iss_hash', 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic))         
+
+    def test_045_cert_insert(self):
+        """ CAhandler._csr_import with hash not int """
+        cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 2, 'ca': 3, 'cert': 'cert', 'iss_hash': 4, 'hash': 'hash'}
+        self.assertFalse(self.cahandler._cert_insert(cert_dic))   
+
+    def test_046_pemcertchain_generate(self):
+        """ CAhandler._pemcertchain_generate no certificates """
+        ee_cert = None
+        issuer_cert = None
+        self.cahandler.ca_cert_chain_list = []       
+        self.assertFalse(self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
+    def test_047_pemcertchain_generate(self):
+        """ CAhandler._pemcertchain_generate no issuer """
+        ee_cert = 'ee_cert'
+        issuer_cert = None
+        self.cahandler.ca_cert_chain_list = []       
+        self.assertEqual('ee_cert', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
+    def test_048_pemcertchain_generate(self):
+        """ CAhandler._pemcertchain_generate no ca chain """
+        ee_cert = 'ee_cert'
+        issuer_cert = 'issuer_cert'
+        self.cahandler.ca_cert_chain_list = []       
+        self.assertEqual('ee_certissuer_cert', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_search')
+    @patch('OpenSSL.crypto.load_certificate')    
+    def test_049_pemcertchain_generate(self, mock_cert, mock_search):
+        """ CAhandler._pemcertchain_generate empty cert dic in ca_chain """
+        ee_cert = 'ee_cert'
+        issuer_cert = 'issuer_cert'
+        self.cahandler.ca_cert_chain_list = ['foo_bar'] 
+        mock_search.return_value = None
+        mock_cert.side_effect = ['foo', 'bar']        
+        self.assertEqual('ee_certissuer_cert', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_search')
+    @patch('OpenSSL.crypto.load_certificate')    
+    def test_050_pemcertchain_generate(self, mock_cert, mock_search):
+        """ CAhandler._pemcertchain_generate empty no cert key in chain """
+        ee_cert = 'ee_cert'
+        issuer_cert = 'issuer_cert'
+        self.cahandler.ca_cert_chain_list = ['foo_bar'] 
+        mock_search.return_value = {'foo', 'bar'}
+        mock_cert.side_effect = ['foo', 'bar']        
+        self.assertEqual('ee_certissuer_cert', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_decode')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_search')
+    @patch('OpenSSL.crypto.load_certificate')    
+    def test_051_pemcertchain_generate(self, mock_cert, mock_search, mock_b64dec):
+        """ CAhandler._pemcertchain_generate empty no cert key in chain """
+        ee_cert = 'ee_cert'
+        issuer_cert = 'issuer_cert'
+        self.cahandler.ca_cert_chain_list = ['foo_bar'] 
+        mock_search.return_value = {'cert': 'foo'}
+        mock_cert.return_value = 'foo'    
+        mock_b64dec.return_value ='b64dec'        
+        self.assertEqual('ee_certissuer_cert', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))  
+
 
 if __name__ == '__main__':
 
