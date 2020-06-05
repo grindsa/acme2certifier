@@ -33,9 +33,12 @@ class DBstore(object):
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
-        pre_statement = 'SELECT * from account WHERE {0} LIKE ?'.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
+        try:
+            pre_statement = 'SELECT * from account WHERE {0} LIKE ?'.format(column)
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except BaseException as err:
+            self.logger.error('DBStore._account_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
         self.logger.debug('DBStore._account_search() ended')
         return result
@@ -59,8 +62,11 @@ class DBstore(object):
                         INNER JOIN status on status.id = authorization.status_id
                         INNER JOIN account on account.id = orders.account_id
                         WHERE {0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchall()
+        try:                        
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchall()
+        except BaseException as err:
+            self.logger.error('DBStore._authorization_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))            
         self._db_close()
         self.logger.debug('DBStore._authorization_search() ended')
         return result
@@ -111,8 +117,11 @@ class DBstore(object):
             INNER JOIN orders on orders.id = authorization.order_id
             INNER JOIN account on account.id = orders.account_id
             WHERE challenge.{0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
+        try:
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except BaseException as err:
+            self.logger.error('DBStore._challenge_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))               
         self._db_close()
         self.logger.debug('DBStore._challenge_search() ended')
         return result
@@ -178,6 +187,7 @@ class DBstore(object):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore._order_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
+
         pre_statement = '''
                     SELECT
                         orders.*,
@@ -189,8 +199,11 @@ class DBstore(object):
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id
                     WHERE orders.{0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [string])
-        result = self.cursor.fetchone()
+        try:                
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except BaseException as err:
+            self.logger.error('DBStore._order_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))      
         self._db_close()
         self.logger.debug('DBStore._order_search() ended')
         return result
@@ -246,7 +259,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
         try:
             result = dict_from_row(self._account_search(column, string))
-        except BaseException:
+        except BaseException as err:
             result = {}
         if 'created_at' in result:
             result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')

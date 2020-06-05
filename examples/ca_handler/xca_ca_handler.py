@@ -162,7 +162,7 @@ class CAhandler(object):
                     self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
                     row_id = self.cursor.lastrowid
                     self._db_close()
-                else:              
+                else:
                     self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
             else:
                 self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
@@ -302,7 +302,10 @@ class CAhandler(object):
         request_name = csr_cn_get(self.logger, csr)
         if not request_name:
             san_list = csr_san_get(self.logger, csr)
-            (_identifiier, request_name,) = san_list[0].split(':')
+            try:
+                (_identifiier, request_name,) = san_list[0].split(':')
+            except:
+                pass
 
         self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
         return request_name
@@ -457,7 +460,9 @@ class CAhandler(object):
             # load ca cert and key
             (_ca_key, _ca_cert, ca_id) = self._ca_load()
 
-            serial = '{:X}'.format(cert_serial_get(self.logger, cert))
+            serial = cert_serial_get(self.logger, cert)
+            if serial:
+                serial = '{:X}'.format(serial)
 
             if ca_id and serial:
                 # check if certificate has alreay been revoked:

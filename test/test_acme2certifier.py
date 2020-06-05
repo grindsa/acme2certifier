@@ -10,7 +10,8 @@ try:
 except ImportError:
     from unittest.mock import patch, MagicMock
 import sys
-sys.path.insert(0, '..')
+sys.path.insert(0, '.')
+sys.path.insert(1, '..')
 
 class FakeDBStore(object):
     """ face DBStore class needed for mocking """
