@@ -23,3 +23,13 @@ The options for the `CAHandler` section depend on the CA handler.
 Instructions for [Insta Certifier](certifier.md)
 
 Instructions for [NetGuard Certificate Lifecycle Manager](nclm.md)
+
+Instructions for [Microsoft Certification Authority Web Enrollment Service](mscertsrv.md)
+
+Instructions for the [generic EST handler](est.md)
+
+Instructions for the [generic CMPv2 handler](cmp.md)
+
+Instructions for [XCA handler](xca.md)
+
+Instructions for [Openssl based CA handler](openssl.md)
