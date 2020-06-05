@@ -31,4 +31,5 @@ jobs:
          cp examples/acme_srv.cfg acme/
     - name: Python test
       run: |
-        python setup.py test
+        pytest
+        # python setup.py test
