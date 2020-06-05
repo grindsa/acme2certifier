@@ -25,6 +25,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Test with pytest
+    - name: cp
+      run: |
+         cp examples/ca_handler/skeleton_ca_handler.py acme/ca_handler.py
+    - name: Python test
       run: |
         python setup.py test
