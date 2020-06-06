@@ -39,7 +39,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, decode_message, decode_deserialize, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, convert_byte_to_string
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get
         import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -79,6 +79,8 @@ class TestACMEHandler(unittest.TestCase):
         self.date_to_datestr = date_to_datestr
         self.datestr_to_date = datestr_to_date
         self.convert_byte_to_string = convert_byte_to_string
+        self.convert_string_to_byte = convert_string_to_byte
+        self.get_url = get_url
         self.dkeys_lower = dkeys_lower
         self.maxDiff = None
 
@@ -2593,7 +2595,77 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_346_wcd_manipulate(self):
         """ get fqdn wc manipulation """
         fqdn = 'foo*.foo.bar'
-        self.assertEqual('foo*.foo.bar', self.challenge._wcd_manipulate(fqdn))        
+        self.assertEqual('foo*.foo.bar', self.challenge._wcd_manipulate(fqdn))
+
+    def test_347_convert_string_to_byte(self):
+        """ convert string value to byte """
+        value = 'foo.bar'
+        self.assertEqual(b'foo.bar', self.convert_string_to_byte(value))
+
+    def test_348_convert_string_to_byte(self):
+        """ convert string value to byte """
+        value = b'foo.bar'
+        self.assertEqual(b'foo.bar', self.convert_string_to_byte(value))
+
+    def test_349_convert_string_to_byte(self):
+        """ convert string value to byte """
+        value = b''
+        self.assertEqual(b'', self.convert_string_to_byte(value))
+
+    def test_350_convert_string_to_byte(self):
+        """ convert string value to byte """
+        value = ''
+        self.assertEqual(b'', self.convert_string_to_byte(value))
+
+    def test_351_convert_string_to_byte(self):
+        """ convert string value to byte """
+        value = None
+        self.assertFalse(self.convert_string_to_byte(value))
+
+    def test_352_get_url(self):
+        """ get_url https """
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        self.assertEqual('https://http_host', self.get_url(data_dic, False))
+
+    def test_353_get_url(self):
+        """ get_url http """
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        self.assertEqual('http://http_host', self.get_url(data_dic, False))
+
+    def test_354_get_url(self):
+        """ get_url http wsgi.scheme """
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
+        self.assertEqual('wsgi.url_scheme://http_host', self.get_url(data_dic, False))
+
+    def test_355_get_url(self):
+        """ get_url https include_path true bot no pathinfo"""
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443}
+        self.assertEqual('https://http_host', self.get_url(data_dic, True))
+
+    def test_356_get_url(self):
+        """ get_url https and path info"""
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        self.assertEqual('https://http_hostpath_info', self.get_url(data_dic, True))
+
+    def test_357_get_url(self):
+        """ get_url wsgi.url and pathinfo """
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
+        self.assertEqual('wsgi.url_scheme://http_hostpath_info', self.get_url(data_dic, True))
+
+    def test_358_get_url(self):
+        """ get_url http and pathinfo"""
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        self.assertEqual('http://http_hostpath_info', self.get_url(data_dic, True))
+
+    def test_359_get_url(self):
+        """ get_url without hostinfo """
+        data_dic = {'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        self.assertEqual('http://localhost', self.get_url(data_dic, False))
+
+    def test_360_get_url(self):
+        """ get_url without SERVER_PORT """
+        data_dic = {'HTTP_HOST': 'http_host'}
+        self.assertEqual('http://http_host', self.get_url(data_dic, True))
 
 if __name__ == '__main__':
     unittest.main()
