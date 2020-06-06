@@ -313,7 +313,7 @@ def load_config(logger=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/
     if logger:
         logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
     config = configparser.RawConfigParser()
-    config.optionxform = str 
+    config.optionxform = str
     config.read(cfg_file)
     return config
 
@@ -459,13 +459,20 @@ def url_get(logger, url):
     logger.debug('url_get() ended with: {0}'.format(result))
     return result
 
-def txt_get(logger, fqdn):
+def txt_get(logger, fqdn, dns_srv=None):
     """ dns query to get the TXt record """
-    logger.debug('txt_get({0})'.format(fqdn))
+    logger.debug('txt_get({0}: {1})'.format(fqdn, dns_srv))
+
+    # rewrite dns resolver if configured
+    if dns_srv:
+        dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
+        dns.resolver.default_resolver.nameservers = dns_srv
+
     try:
         result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
-    except BaseException:
+    except BaseException as err:
         result = None
+        print(err)
     logger.debug('txt_get() ended with: {0}'.format(result))
     return result
 
