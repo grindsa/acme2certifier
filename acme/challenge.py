@@ -175,6 +175,9 @@ class Challenge(object):
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
+        # handle wildcard domain
+        fqdn = self._wcd_manipulate(fqdn)
+
         # rewrite fqdn
         fqdn = '_acme-challenge.{0}'.format(fqdn)
 
@@ -256,6 +259,14 @@ class Challenge(object):
 
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
         return(code, message, detail)
+
+    def _wcd_manipulate(self, fqdn):
+        """ wildcard domain handling """
+        self.logger.debug('Challenge._wc_manipulate() for fqdn: {0}'.format(fqdn))
+        if fqdn.startswith('*.'):
+            fqdn = fqdn[2:]
+        self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
+        return fqdn
 
     def challengeset_get(self, authz_name, auth_status, token, tnauth):
         """ get the challengeset for an authorization """
