@@ -20,6 +20,7 @@ class Challenge(object):
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.tnauthlist_support = False
+        self.dns_server_list = None
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -95,6 +96,12 @@ class Challenge(object):
         config_dic = load_config()
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
+            if 'dns_server_list' in config_dic['Challenge']:
+                try:
+                    self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
+                except BaseException as err_:
+                    self.logger.error('Challenge._config_load() failed with error: {0}'.format(err_))
+
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
         self.logger.debug('Challenge._config_load() ended.')
@@ -184,7 +191,7 @@ class Challenge(object):
         # compute sha256 hash
         _hash = b64_url_encode(self.logger, sha256_hash(self.logger, '{0}.{1}'.format(token, jwk_thumbprint)))
         # query dns
-        txt = txt_get(self.logger, fqdn)
+        txt = txt_get(self.logger, fqdn, self.dns_server_list)
 
         # compare computed hash with result from DNS query
         self.logger.debug('response_got: {0} response_expected: {1}'.format(txt, _hash))
