@@ -66,9 +66,10 @@ def b64_url_recode(logger, string):
     string += "="*padding_factor
     # differ between py2 and py3
     if sys.version_info[0] >= 3:
-        return str(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+        result = str(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
     else:
-        return unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+        result = unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+    return result
 
 def build_pem_file(logger, existing, certificate, wrap, csr=False):
     """ construct pem_file """
@@ -163,9 +164,10 @@ def convert_byte_to_string(value):
 def convert_string_to_byte(value):
     """ convert a variable to byte if needed """
     if hasattr(value, 'encode'):
-        return value.encode()
+        result = value.encode()
     else:
-        return value
+        result = value
+    return result
 
 def csr_cn_get(logger, csr):
     """ get cn from certificate request """
@@ -279,12 +281,12 @@ def decode_message(logger, message):
 def dkeys_lower(tree):
     """ lower characters in payload string """
     if isinstance(tree, dict):
-        return {k.lower() : dkeys_lower(v) for k, v in tree.items()}
-    if isinstance(tree, list):
-        return [dkeys_lower(ele) for ele in tree]
+        result = {k.lower() : dkeys_lower(v) for k, v in tree.items()}
+    elif isinstance(tree, list):
+        result = [dkeys_lower(ele) for ele in tree]
     else:
-        return tree
-
+        result = tree
+    return result
 
 def generate_random_string(logger, length):
     """ generate random string to be used as name """
@@ -294,8 +296,16 @@ def generate_random_string(logger, length):
 
 def get_url(environ, include_path=False):
     """ get url """
-    server_name = environ['HTTP_HOST']
-    port = environ['SERVER_PORT']
+    if 'HTTP_HOST' in environ:
+        server_name = environ['HTTP_HOST']
+    else:
+        server_name = 'localhost'
+
+    if 'SERVER_PORT' in environ:
+        port = environ['SERVER_PORT']
+    else:
+        port = 80
+
     if 'wsgi.url_scheme' in environ:
         proto = environ['wsgi.url_scheme']
     elif port == 443:
@@ -303,10 +313,11 @@ def get_url(environ, include_path=False):
     else:
         proto = 'http'
 
-    if include_path:
-        return '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])
+    if include_path and 'PATH_INFO' in environ:
+        result = '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])
     else:
-        return '{0}://{1}'.format(proto, server_name)
+        result = '{0}://{1}'.format(proto, server_name)
+    return result
 
 def load_config(logger=None, mfilter=None, cfg_file=os.path.dirname(__file__)+'/'+'acme_srv.cfg'):
     """ small configparser wrappter to load a config file """
