@@ -1,0 +1,29 @@
+name: Docker Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+
+jobs:
+  docker-build_wsgi:
+    name: Docker build - wsgi
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker/build-push-action@v1
+      with:
+        push: false
+        path: examples/Docker/wsgi/
+        build_args: BRANCH=devel
+
+  docker-build_django:
+    name: Docker build - Django
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker/build-push-action@v1
+      with:
+        push: false
+        path: examples/Docker/django/
+        build_args: BRANCH=devel
