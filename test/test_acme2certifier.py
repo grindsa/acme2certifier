@@ -39,13 +39,9 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load
         import logging
-        logging.basicConfig(
-            # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
-            datefmt="%Y-%m-%d %H:%M:%S",
-            level=logging.INFO)
+        logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
         self.directory = Directory(False, 'http://tester.local', self.logger)
         self.account = Account(False, 'http://tester.local', self.logger)
@@ -81,6 +77,9 @@ class TestACMEHandler(unittest.TestCase):
         self.convert_byte_to_string = convert_byte_to_string
         self.convert_string_to_byte = convert_string_to_byte
         self.get_url = get_url
+        self.url_get = url_get
+        self.url_get_with_own_dns = url_get_with_own_dns
+        self.dns_server_list_load = dns_server_list_load
         self.dkeys_lower = dkeys_lower
         self.maxDiff = None
 
@@ -286,10 +285,10 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"protected": "eyJub25jZSI6ICI3N2M3MmViMDE5NDc0YzBjOWIzODk5MmU4ZjRkMDIzYSIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYWNjdC8xIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYWNjdC8xIn0","payload": "eyJzdGF0dXMiOiJkZWFjdGl2YXRlZCJ9","signature": "QYbMYZ1Dk8dHKqOwWBQHvWdnGD7donGZObb2Ry_Y5PsHpcTrj8Y2CM57SNVAR9V0ePg4vhK3-IbwYAKbhZV8jF7E-ylZaYm4PSQcumKLI55qvDiEvDiZ0gmjf_GAcsC40TwBa11lzR1u0dQYxOlQ_y9ak6705c5bM_V4_ttQeslJXCfVIQoV-sZS0Z6tJfy5dPVDR7JYG77bZbD3K-HCCaVbT7ilqcf00rA16lvw13zZnIgbcZsbW-eJ2BM_QxE24PGqc_vMfAxIiUG0VY7DqrKumLs91lHHTEie8I-CapH6AetsBhGtRcB6EL_Rn6qGQZK9YBpvoXANv_qF2-zQkQ"}'
 
         if int('%i%i' % (sys.version_info[0], sys.version_info[1])) <= 36:
-            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed {InvalidSignature()}\',)]"]')    
+            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed {InvalidSignature()}\',)]"]')
         else:
             result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed {InvalidSignature()}\')]"]')
-        
+
         self.assertEqual(result, self.signature_check(self.logger, message, mkey))
 
     def test_044_validate_sig_fail(self):
@@ -2672,6 +2671,67 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ get_url without SERVER_PORT """
         data_dic = {'HTTP_HOST': 'http_host'}
         self.assertEqual('http://http_host', self.get_url(data_dic, True))
+
+    @patch('acme.helper.requests.get')
+    def test_361_url_get(self, mock_request):
+        """ successful url get without dns servers """
+        mock_request.return_value.text = 'foo'
+        self.assertEqual('foo', self.url_get(self.logger, 'url'))
+
+    @patch('acme.helper.requests.get')
+    def test_362_url_get(self, mock_request):
+        """ unsuccessful url get without dns servers """
+        # this is stupid but triggrs an expeption
+        mock_request.return_value = {'foo': 'foo'}
+        self.assertFalse(self.url_get(self.logger, 'url'))
+
+    @patch('acme.helper.url_get_with_own_dns')
+    def test_363_url_get(self, mock_request):
+        """ successful url get with dns servers """
+        mock_request.return_value = 'foo'
+        self.assertEqual('foo', self.url_get(self.logger, 'url', 'dns'))
+
+    @patch('acme.helper.requests.get')
+    def test_364_url_get(self, mock_request):
+        """ successful url_get_with_own_dns get with dns servers """
+        mock_request.return_value.text = 'foo'
+        self.assertEqual('foo', self.url_get_with_own_dns(self.logger, 'url'))
+
+    @patch('acme.helper.requests.get')
+    def test_365_url_get(self, mock_request):
+        """ successful url_get_with_own_dns get with dns servers """
+        mock_request.return_value = {'foo': 'foo'}
+        self.assertFalse(self.url_get_with_own_dns(self.logger, 'url'))
+
+    @patch('acme.helper.load_config')
+    def test_366_dns_server_list_load(self, mock_load_config):
+        """ successful dns_server_list_load with empty config file """
+        mock_load_config.return_value = {}
+        self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
+
+    @patch('acme.helper.load_config')
+    def test_367_dns_server_list_load(self, mock_load_config):
+        """ successful dns_server_list_load with empty Challenge section """
+        mock_load_config.return_value = {'Challenge': {}}
+        self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
+
+    @patch('acme.helper.load_config')
+    def test_368_dns_server_list_load(self, mock_load_config):
+        """ successful dns_server_list_load with wrong Challenge section """
+        mock_load_config.return_value = {'Challenge': {'foo': 'bar'}}
+        self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
+
+    @patch('acme.helper.load_config')
+    def test_369_dns_server_list_load(self, mock_load_config):
+        """ successful dns_server_list_load with wrong json format """
+        mock_load_config.return_value = {'Challenge': {'dns_server_list': 'bar'}}
+        self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
+
+    @patch('acme.helper.load_config')
+    def test_370_dns_server_list_load(self, mock_load_config):
+        """ successful dns_server_list_load with wrong json format """
+        mock_load_config.return_value = {'Challenge': {'dns_server_list': '["foo", "bar"]'}}
+        self.assertEqual(['foo', 'bar'], self.dns_server_list_load())
 
 if __name__ == '__main__':
     unittest.main()
