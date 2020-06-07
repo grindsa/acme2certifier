@@ -18,9 +18,9 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-from urllib3.util import connection
 import logging
 import hashlib
+from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
 import requests
@@ -28,9 +28,6 @@ import pytz
 import dns.resolver
 import OpenSSL
 from .version import __version__
-from urllib3.util import connection
-from acme.hostheaderssladapter import HostHeaderSSLAdapter
-
 
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
@@ -464,17 +461,33 @@ def signature_check(logger, message, pub_key):
 
 def patch_resolver(host, dnssrv):
     """ patch resolver to use a specific DNS server """
-    r = dns.resolver.Resolver()
-    r.nameservers = dnssrv
-    answers = r.query(host, 'A')
+    req = dns.resolver.Resolver()
+    req.nameservers = dnssrv
+    answers = req.query(host, 'A')
     for rdata in answers:
         return str(rdata)
 
+def dns_server_list_load():
+    """ load dns-server from config file """
+    config_dic = load_config()
+
+    if 'Challenge' in config_dic:
+        if 'dns_server_list' in config_dic['Challenge']:
+            try:
+                dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
+            except BaseException:
+                dns_server_list = ['9.9.9.9', '8.8.8.8']
+        else:
+            dns_server_list = ['9.9.9.9', '8.8.8.8']
+    else:
+        dns_server_list = ['9.9.9.9', '8.8.8.8']
+
+    return dns_server_list
+
 def patched_create_connection(address, *args, **kwargs):
     """ Wrap urllib3's create_connection to resolve the name elsewhere"""
-    config_dic = load_config()
     # load dns-servers from config file
-    dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
+    dns_server_list = dns_server_list_load()
     # resolve hostname to an ip address; use your own resolver
     host, port = address
     hostname = patch_resolver(host, dns_server_list)
@@ -506,7 +519,7 @@ def url_get(logger, url, dns_server_list=None):
         except BaseException as err_:
             result = None
             logger.error('url_get error: {0}'.format(err_))
-    # logger.debug('url_get() ended with: {0}'.format(result))
+    logger.debug('url_get() ended with: {0}'.format(result))
     return result
 
 def txt_get(logger, fqdn, dns_srv=None):
