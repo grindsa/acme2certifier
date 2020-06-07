@@ -2,6 +2,7 @@ setuptools
 jwcrypto
 pyOpenssl
 dnspython
+certsrv[ntlm]
 pytz
 configparser
 python-dateutil
