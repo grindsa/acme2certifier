@@ -88,6 +88,7 @@ jobs:
       - name: cp
         run: |
           cp examples/ca_handler/skeleton_ca_handler.py acme/ca_handler.py
+          cp examples/db_handler/wsgi_handler.py acme/db_handler.py
           cp examples/acme_srv.cfg acme/
       - name: "Pylint folder: acme"
         run: |
@@ -95,6 +96,9 @@ jobs:
       - name: "Pylint folder: tools"
         run: |
           pylint --rcfile=".github/pylintrc" tools/ || pylint-exit $?
-      - name: "Pylint folder: examples"
+      - name: "Pylint folder: examples/db_handler"
         run: |
-          pylint --rcfile=".github/pylintrc" examples/ || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" examples/db_handler/ || pylint-exit $?
+      - name: "Pylint folder: examples/ca_handler"
+        run: |
+          pylint --rcfile=".github/pylintrc" examples/ca_handler/ || pylint-exit $?
