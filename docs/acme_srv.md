@@ -9,6 +9,7 @@
 | `Account` | `inner_header_nonce_allow` | allow nonce header on inner JWS during key-rollover | True/False | False|
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please enable for testing/debugging purposes only. | True/False | False|
+| `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|
 | `Directory` | `supress_version` | Do not show version information when fetching the directory ressource | True/False | False|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
 | `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURTIY ISSUE bypassing security checks and allowing message manipulations during transit. Please enable for testing/debugging purposes only. | True/False | False|
