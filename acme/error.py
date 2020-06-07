@@ -26,9 +26,10 @@ class Error(object):
             'notImplementedYet' : "we are not that far. Stay tuned",
         }
         if message and message in error_dic:
-            return error_dic[message]
+            result = error_dic[message]
         else:
-            return None
+            result = None
+        return result
 
     def enrich_error(self, message, detail=None):
         """ put some more content into the error messgae """
@@ -41,5 +42,3 @@ class Error(object):
             detail = '{0}{1}'.format(error_message, detail)
 
         return detail
-
-

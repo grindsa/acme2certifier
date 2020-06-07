@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for acme2certifier """
+# pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212 
 import unittest
 import datetime
 import json
@@ -9,12 +10,12 @@ try:
     from mock import patch, MagicMock
 except ImportError:
     from unittest.mock import patch, MagicMock
-import sys
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
 class FakeDBStore(object):
     """ face DBStore class needed for mocking """
+    # pylint: disable=W0107
     pass
 
 class TestACMEHandler(unittest.TestCase):
@@ -81,7 +82,6 @@ class TestACMEHandler(unittest.TestCase):
         self.url_get_with_own_dns = url_get_with_own_dns
         self.dns_server_list_load = dns_server_list_load
         self.dkeys_lower = dkeys_lower
-        self.maxDiff = None
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -396,7 +396,7 @@ class TestACMEHandler(unittest.TestCase):
         """ Account.new() onlyReturnExisting for a non existing account """
         mock_mcheck.return_value = (200, None, None, 'protected', {"onlyreturnexisting": 'true'}, None)
         mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
-        message = {'foo' : 'bar'}
+        message = {'foo': 'bar'}
         e_result = {'code': 400, 'data': {'message': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {}}
         self.assertEqual(e_result, self.account.new(message))
 
@@ -437,7 +437,6 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_059_signature_check(self):
         """ test successful Signature.check() without account_name and use_emb_key False"""
-        protected = {'jwk' : 'jwk'}
         self.assertEqual((False, 'urn:ietf:params:acme:error:accountDoesNotExist', None), self.signature.check(None, 1, False))
 
     def test_060_signature_check(self):
@@ -710,14 +709,14 @@ class TestACMEHandler(unittest.TestCase):
     def test_093_challenge_new(self, mock_random):
         """ test challenge generation """
         mock_random.return_value = 'foo'
-        self.order.dbstore.challenge_new.return_value = 1
+        # self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge._new('authz_name', 'mtype', 'token'))
 
     @patch('acme.challenge.generate_random_string')
     def test_094_challenge_new(self, mock_random):
         """ test challenge generation for tnauthlist challenge """
         mock_random.return_value = 'foo'
-        self.order.dbstore.challenge_new.return_value = 1
+        # self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge._new('authz_name', 'tkauth-01', 'token'))
 
     @patch('acme.challenge.Challenge._new')
@@ -1933,7 +1932,7 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         mock_contact_chk.return_value = (400, 'message', 'detail')
         payload = '{"foo" : "bar"}'
         aname = 'aname'
-        self.assertEqual((400,'message', 'detail'), self.account._contacts_update(aname, payload))
+        self.assertEqual((400, 'message', 'detail'), self.account._contacts_update(aname, payload))
 
     @patch('acme.account.Account._contact_check')
     def test_261_account_contact_update(self, mock_contact_chk,):
@@ -1972,7 +1971,7 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         mock_mcheck.return_value = (200, None, None, 'protected', {"contact" : "deactivated"}, 'account_name')
         mock_contact_upd.return_value = (200, None, None)
         mock_nnonce.return_value = 'new_nonce'
-        mock_account_lookup.return_value = {'contact': ['foo@bar', 'foo1@bar'], 'jwk': '{"foo1": "bar1", "foo2": "bar2"}', 'contact': '["foo@bar", "foo1@bar"]', 'created_at': 'foo'}
+        mock_account_lookup.return_value = {'jwk': '{"foo1": "bar1", "foo2": "bar2"}', 'contact': '["foo@bar", "foo1@bar"]', 'created_at': 'foo'}
         mock_datestr.return_value = 'foo_date'
         message = 'message'
         self.assertEqual({'code': 200, 'data': {'contact': [u'foo@bar', u'foo1@bar'], 'createdAt': 'foo_date', 'key': {u'foo1': u'bar1', u'foo2': u'bar2'}, 'status': 'valid'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
@@ -2392,7 +2391,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_318_trigger_certname_lookup(self, mock_cert_pub, mock_search_list):
         """ trigger._certname_lookup() failed bcs. of empty certificate list """
         mock_cert_pub.return_value = 'foo'
-        mock_search_list = []
+        mock_search_list.return_value = []
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('acme.certificate.Certificate.certlist_search')
@@ -2518,7 +2517,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         mock_lookup.return_value = [{'cert_name': 'certificate_name', 'order_name': None}]
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
@@ -2533,7 +2532,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         mock_lookup.return_value = [{'cert_name': None, 'order_name': 'order_name'}]
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
@@ -2548,7 +2547,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         mock_lookup.return_value = [{'cert_name': 'certificate_name', 'order_name': 'order_name'}]
         self.order.dbstore.order_update.return_value = None
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
@@ -2564,7 +2563,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
         self.order.dbstore.order_update.return_value = None
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))

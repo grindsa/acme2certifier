@@ -11,6 +11,7 @@ from acme.helper import logger_setup
 class Timeconverter(object):
     """ Timeconverter """
     def __init__(self):
+        self.debug = None
         self.logger = logger_setup(self.debug)
 
     def uts_to_date_utc(self, uts, format_='%Y-%m-%dT%H:%M:%S'):

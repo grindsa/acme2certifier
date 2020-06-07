@@ -8,6 +8,7 @@ import base64
 import uuid
 import re
 from OpenSSL import crypto
+# pylint: disable=E0401
 from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 class CAhandler(object):
@@ -94,6 +95,7 @@ class CAhandler(object):
                 store_ctx = crypto.X509StoreContext(store, cert)
                 # Verify the certificate, returns None if it can validate the certificate
                 try:
+                    # pylint: disable=E1111
                     result = store_ctx.verify_certificate()
                 except BaseException as err_:
                     result = str(err_)

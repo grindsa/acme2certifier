@@ -1,5 +1,6 @@
 #!/usr/bin/python
 """ database updater """
+# pylint: disable=E0401, C0413
 import sys
 sys.path.insert(0, '..')
 sys.path.insert(1, '.')

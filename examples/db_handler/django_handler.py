@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" django handler for acmesrv.py """
+""" django handler for acme2certifier """
+# pylint: disable= C0413,  C0415, E0401
 from __future__ import print_function
 import os
 import sys

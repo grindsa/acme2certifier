@@ -7,6 +7,7 @@ import sqlite3
 import uuid
 import json
 from OpenSSL import crypto
+# pylint: disable=E0401
 from acme.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
@@ -157,6 +158,7 @@ class CAhandler(object):
         row_id = None
         if cert_dic:
             if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
+                # pylint: disable=R0916
                 if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
@@ -240,8 +242,10 @@ class CAhandler(object):
 
     def _db_open(self):
         """ opens db and sets cursor """
+        # pylint: disable=W0201
         self.dbs = sqlite3.connect(self.xdb_file)
         self.dbs.row_factory = sqlite3.Row
+        # pylint: disable=W0201
         self.cursor = self.dbs.cursor()
 
     def _db_close(self):
@@ -304,7 +308,7 @@ class CAhandler(object):
             san_list = csr_san_get(self.logger, csr)
             try:
                 (_identifiier, request_name,) = san_list[0].split(':')
-            except:
+            except BaseException:
                 pass
 
         self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
@@ -348,6 +352,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_search() ended')
         return db_result
 
+    # pylint: disable=R0913
     def _store_cert(self, ca_id, cert_name, serial, cert, name_hash, issuer_hash):
         """ store certificate to database """
         self.logger.debug('CAhandler._store_cert()')

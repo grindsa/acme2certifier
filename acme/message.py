@@ -141,7 +141,7 @@ class Message(object):
                 status_dic['detail'] = error_message.enrich_error(status_dic['message'], status_dic['detail'])
                 response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': status_dic['detail']}
             else:
-                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message']}            
+                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message']}
                 # response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': None}
         else:
             # add nonce to header

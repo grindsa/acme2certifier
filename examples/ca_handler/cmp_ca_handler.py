@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import time
 import subprocess
+# pylint: disable=E0401
 from acme.helper import load_config, csr_dn_get, csr_pubkey_get, csr_san_get
 
 class CAhandler(object):

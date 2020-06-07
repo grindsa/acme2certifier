@@ -13,15 +13,16 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
+# pylint: disable=C0330
 from django.conf.urls import include, url
 from django.contrib import admin
 from acme import views
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^$', views.directory, name='index'),      
-	url(r'^directory$',views.directory, name='directory'),        
-	url(r'^get_servername$',views.servername_get, name='servername_get'), 
-	url(r'^trigger$',views.trigger, name='trigger'),      
-    url(r'^acme/', include('acme.urls')),    
+    url(r'^$', views.directory, name='index'),
+	url(r'^directory$', views.directory, name='directory'),
+	url(r'^get_servername$', views.servername_get, name='servername_get'),
+	url(r'^trigger$', views.trigger, name='trigger'),
+    url(r'^acme/', include('acme.urls')),
 ]
