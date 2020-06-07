@@ -534,7 +534,6 @@ def txt_get(logger, fqdn, dns_srv=None):
         result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
     except BaseException as err:
         result = None
-        print(err)
     logger.debug('txt_get() ended with: {0}'.format(result))
     return result
 
