@@ -30,6 +30,8 @@ RUN mkdir -p /var/www/acme2certifier/volume && \
     chown -R www-data.www-data /var/www/acme2certifier/ && \
     rm -rf /tmp/acme2certifier
 
+RUN sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf
+
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 WORKDIR /var/www/acme2certifier/
