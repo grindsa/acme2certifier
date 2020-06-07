@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=R1705
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -44,7 +45,7 @@ HTTP_CODE_DIC = {
     403: 'Forbidden',
     404: 'Not Found',
     405: 'Method Not Allowed',
-    500: 'serverInternal ' 
+    500: 'serverInternal '
 }
 
 def create_header(response_dic, add_json_header=True):

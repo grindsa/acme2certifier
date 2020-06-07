@@ -195,9 +195,7 @@ class Certificate(object):
             # 10 : 'aACompromise'
         }
 
-        result = None
-        if reason in allowed_reasons:
-            result = allowed_reasons[reason]
+        result = allowed_reasons.get(reason, None)
         self.logger.debug('Certificate._revocation_reason_check() ended with {0}'.format(result))
         return result
 

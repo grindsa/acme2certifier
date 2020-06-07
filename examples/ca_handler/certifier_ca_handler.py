@@ -7,6 +7,7 @@ import math
 import time
 import requests
 from requests.auth import HTTPBasicAuth
+# pylint: disable=E0401
 from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
 
 class CAhandler(object):

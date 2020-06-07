@@ -1,11 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for openssl_ca_handler """
+# pylint: disable=C0415, R0904, R0913, W0212
 import sys
 import os
 import unittest
-from unittest.mock import patch, mock_open
-from OpenSSL import crypto
+from unittest.mock import patch
+# from OpenSSL import crypto
 import shutil
 
 sys.path.insert(0, '.')
@@ -21,7 +22,7 @@ def _cleanup(dir_path):
     """ cleanup function """
     # remove old db
     if os.path.exists(dir_path + '/ca/acme2certifier.xdb'):
-         os.remove(dir_path + '/ca/acme2certifier.xdb')
+        os.remove(dir_path + '/ca/acme2certifier.xdb')
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -147,49 +148,49 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._csr_insert empty item dic """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {}
+        csr_dic = {}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_018_csr_insert(self):
         """ CAhandler._csr_insert full item dic """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'item': 2, 'signed': 0, 'request': 'request'}
+        csr_dic = {'item': 2, 'signed': 0, 'request': 'request'}
         self.assertEqual(2, self.cahandler._csr_insert(csr_dic))
 
     def test_010_csr_insert(self):
         """ CAhandler._csr_insert full item dic item has wrong datatype """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'item': '2', 'signed': 0, 'request': 'request'}
+        csr_dic = {'item': '2', 'signed': 0, 'request': 'request'}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_011_csr_insert(self):
         """ CAhandler._csr_insert full item dic item has wrong datatype """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'item': 2, 'signed': '0', 'request': 'request'}
+        csr_dic = {'item': 2, 'signed': '0', 'request': 'request'}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_019_csr_insert(self):
         """ CAhandler._csr_insert item dic without item """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'signed': 0, 'request': 'request'}
+        csr_dic = {'signed': 0, 'request': 'request'}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_020_csr_insert(self):
         """ CAhandler._csr_insert item dic without signed """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'item': 2, 'request': 'request'}
+        csr_dic = {'item': 2, 'request': 'request'}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_021_csr_insert(self):
         """ CAhandler._csr_insert item dic without request """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        csr_dic =  {'item': 2, 'signed': 0}
+        csr_dic = {'item': 2, 'signed': 0}
         self.assertFalse(self.cahandler._csr_insert(csr_dic))
 
     def test_022_item_insert(self):
@@ -203,28 +204,28 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._item_insert full item dic """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'type': 2, 'source': 0 , 'date': 'date', 'comment': 'comment'}
+        item_dic = {'name': 'name', 'type': 2, 'source': 0, 'date': 'date', 'comment': 'comment'}
         self.assertEqual(8, self.cahandler._item_insert(item_dic))
 
     def test_024_item_insert(self):
         """ CAhandler._item_insert no name """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'type': 2, 'source': 0 , 'date': 'date', 'comment': 'comment'}
+        item_dic = {'type': 2, 'source': 0, 'date': 'date', 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic))
 
     def test_025_item_insert(self):
         """ CAhandler._item_insert no type """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'source': 0 , 'date': 'date', 'comment': 'comment'}
+        item_dic = {'name': 'name', 'source': 0, 'date': 'date', 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic))
 
     def test_026_item_insert(self):
         """ CAhandler._item_insert no siurce """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
-        item_dic = {'name': 'name', 'item': 2 , 'date': 'date', 'comment': 'comment'}
+        item_dic = {'name': 'name', 'item': 2, 'date': 'date', 'comment': 'comment'}
         self.assertFalse(self.cahandler._item_insert(item_dic))
 
     def test_027_item_insert(self):
@@ -391,7 +392,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_search.return_value = {'cert': 'foo'}
         mock_load.return_value = 'foo'
         mock_dump.side_effect = ['foo1']
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         self.assertEqual('ee_certissuer_certfoo1', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))
 
     @patch('examples.ca_handler.xca_ca_handler.b64_decode')
@@ -406,7 +407,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_search.return_value = {'cert': 'foo'}
         mock_load.return_value = 'foo'
         mock_dump.side_effect = ['foo1', 'foo2']
-        mock_b64dec.return_value ='b64dec'
+        mock_b64dec.return_value = 'b64dec'
         self.assertEqual('ee_certissuer_certfoo1foo2', self.cahandler._pemcertchain_generate(ee_cert, issuer_cert))
 
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
@@ -417,7 +418,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
-    def test_054_requestname_get(self, mock_cn,  mock_san):
+    def test_054_requestname_get(self, mock_cn, mock_san):
         """ CAhandler._requestname_get empty cn empty san"""
         mock_cn.return_value = None
         mock_san.return_value = []
@@ -425,7 +426,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
-    def test_055_requestname_get(self, mock_cn,  mock_san):
+    def test_055_requestname_get(self, mock_cn, mock_san):
         """ CAhandler._requestname_get empty cn empty dsmaged san"""
         mock_cn.return_value = None
         mock_san.return_value = ['foo']
@@ -433,7 +434,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
-    def test_056_requestname_get(self, mock_cn,  mock_san):
+    def test_056_requestname_get(self, mock_cn, mock_san):
         """ CAhandler._requestname_get empty cn empty dsmaged san"""
         mock_cn.return_value = None
         mock_san.return_value = ['dns:foo']
@@ -441,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
-    def test_057_requestname_get(self, mock_cn,  mock_san):
+    def test_057_requestname_get(self, mock_cn, mock_san):
         """ CAhandler._requestname_get empty cn empty dsmaged san"""
         mock_cn.return_value = None
         mock_san.return_value = ['dns:foo', 'bar']
@@ -490,7 +491,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.uts_to_date_utc')
     def test_066_revoke(self, mock_date):
         """ CAhandler.revocation without xdb file """
-        mock_date = 'foo'
+        mock_date.return_value = 'foo'
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'configuration error'), self.cahandler.revoke('cert', 'reason', None))
 
     @patch('examples.ca_handler.xca_ca_handler.cert_serial_get')
@@ -563,5 +564,3 @@ class TestACMEHandler(unittest.TestCase):
 if __name__ == '__main__':
 
     unittest.main()
-
-

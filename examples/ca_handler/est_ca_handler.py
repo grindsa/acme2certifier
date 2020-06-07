@@ -6,6 +6,7 @@ import textwrap
 import requests
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
+# pylint: disable=E0401
 from acme.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string
 
 def _get_certificates(self):
@@ -22,13 +23,16 @@ def _get_certificates(self):
     """
     certs = _ffi.NULL
     if self.type_is_signed():
+        # pylint: disable=W0212
         certs = self._pkcs7.d.sign.cert
     elif self.type_is_signedAndEnveloped():
+        # pylint: disable=W0212    
         certs = self._pkcs7.d.signed_and_enveloped.cert
 
     pycerts = []
     for i in range(_lib.sk_X509_num(certs)):
         pycert = X509.__new__(X509)
+        # pylint: disable=W0212         
         pycert._x509 = _lib.sk_X509_value(certs, i)
         pycerts.append(pycert)
 
