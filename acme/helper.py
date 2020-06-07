@@ -18,6 +18,7 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
+from urllib3.util import connection
 import logging
 import hashlib
 from jwcrypto import jwk, jws
@@ -27,6 +28,9 @@ import pytz
 import dns.resolver
 import OpenSSL
 from .version import __version__
+from urllib3.util import connection
+from acme.hostheaderssladapter import HostHeaderSSLAdapter
+
 
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
@@ -458,16 +462,51 @@ def signature_check(logger, message, pub_key):
     # return result
     return(result, error)
 
-def url_get(logger, url):
-    """ http get """
-    logger.debug('url_get({0})'.format(url))
+def patch_resolver(host, dnssrv):
+    """ patch resolver to use a specific DNS server """
+    r = dns.resolver.Resolver()
+    r.nameservers = dnssrv
+    answers = r.query(host, 'A')
+    for rdata in answers:
+        return str(rdata)
+
+def patched_create_connection(address, *args, **kwargs):
+    """ Wrap urllib3's create_connection to resolve the name elsewhere"""
+    config_dic = load_config()
+    # load dns-servers from config file
+    dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
+    # resolve hostname to an ip address; use your own resolver
+    host, port = address
+    hostname = patch_resolver(host, dns_server_list)
+    return connection._orig_create_connection((hostname, port), *args, **kwargs)
+
+def url_get_with_own_dns(logger, url):
+    """ request by using an own dns resolver """
+    logger.debug('url_get_with_own_dns({0})'.format(url))
+    # patch an own connection handler into URL lib
+    connection._orig_create_connection = connection.create_connection
+    connection.create_connection = patched_create_connection
     try:
         req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
         result = req.text
     except BaseException as err_:
         result = None
-        logger.debug('url_get error: {0}'.format(err_))
-    logger.debug('url_get() ended with: {0}'.format(result))
+        logger.error('url_get error: {0}'.format(err_))
+    return result
+
+def url_get(logger, url, dns_server_list=None):
+    """ http get """
+    logger.debug('url_get({0})'.format(url))
+    if dns_server_list:
+        result = url_get_with_own_dns(logger, url)
+    else:
+        try:
+            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+            result = req.text
+        except BaseException as err_:
+            result = None
+            logger.error('url_get error: {0}'.format(err_))
+    # logger.debug('url_get() ended with: {0}'.format(result))
     return result
 
 def txt_get(logger, fqdn, dns_srv=None):
@@ -478,7 +517,6 @@ def txt_get(logger, fqdn, dns_srv=None):
     if dns_srv:
         dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
         dns.resolver.default_resolver.nameservers = dns_srv
-
     try:
         result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
     except BaseException as err:
