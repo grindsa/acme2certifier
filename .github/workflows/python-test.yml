@@ -71,3 +71,30 @@ jobs:
       - name: Python test
         run: |
           pytest
+  pylint:
+    runs-on: ubuntu-latest
+    name: Pylint test
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint pylint-exit
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: cp
+        run: |
+          cp examples/ca_handler/skeleton_ca_handler.py acme/ca_handler.py
+          cp examples/acme_srv.cfg acme/
+      - name: "Pylint folder: acme"
+        run: |
+          pylint acme/ || pylint-exit $?
+      - name: "Pylint folder: tools"
+        run: |
+          pylint tools/ || pylint-exit $?
+      - name: "Pylint folder: examples"
+        run: |
+          pylint examples/ || pylint-exit $?
