@@ -1,32 +1,32 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for acme2certifier """
+# pylint: disable= C0415, W0212
 import unittest
 import sys
 import os
-import unittest
 import requests
-from requests.exceptions import HTTPError
 
 try:
-    from mock import patch, MagicMock, Mock
+    from mock import patch
 except ImportError:
-    from unittest.mock import patch, MagicMock, Mock
-sys.path.insert(0, '..')
+    from unittest.mock import patch
+sys.path.insert(0, '.')
+sys.path.insert(1, '..')
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
 
     def setUp(self):
         """ setup unittest """
-        import logging    
+        import logging
         logging.basicConfig(
             # format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             format='%(asctime)s - acme2certifier - %(levelname)s - %(message)s',
             datefmt="%Y-%m-%d %H:%M:%S",
             level=logging.INFO)
-        self.logger = logging.getLogger('test_acme2certifier')        
-        from examples.ca_handler.certifier_ca_handler import CAhandler        
+        self.logger = logging.getLogger('test_acme2certifier')
+        from examples.ca_handler.certifier_ca_handler import CAhandler
         self.cahandler = CAhandler(False, self.logger)
         self.cahandler.api_host = 'api_host'
         self.cahandler.auth = 'auth'

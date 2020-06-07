@@ -90,8 +90,8 @@ class Order(object):
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             if 'retry_after_timeout' in config_dic['Order']:
-                self.retry_after = config_dic['Order']['retry_after_timeout']        
-  
+                self.retry_after = config_dic['Order']['retry_after_timeout']
+
         self.logger.debug('Order._config_load() ended.')
 
     def _name_get(self, url):
@@ -176,6 +176,7 @@ class Order(object):
                 cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
                 if cert_dic:
                     # we found a cert in the database
+                    # pylint: disable=R1715
                     if 'name' in cert_dic:
                         certificate_name = cert_dic['name']
         else:

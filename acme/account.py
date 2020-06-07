@@ -276,10 +276,11 @@ class Account(object):
         self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
         return self.dbstore.account_lookup(field, value)
 
+    # pylint: disable=W0212
     def _name_get(self, content):
         """ get id for account depricated"""
         self.logger.debug('Account._name_get()')
-        deprecated = True
+        _deprecated = True
         return self.message._name_get(content)
 
     def _onlyreturnexisting(self, protected, payload):

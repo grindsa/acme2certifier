@@ -66,6 +66,7 @@ def b64_url_recode(logger, string):
     string = convert_byte_to_string(string)
     string += "="*padding_factor
     # differ between py2 and py3
+    # pylint: disable=E0602
     if sys.version_info[0] >= 3:
         result = str(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
     else:
@@ -491,12 +492,14 @@ def patched_create_connection(address, *args, **kwargs):
     # resolve hostname to an ip address; use your own resolver
     host, port = address
     hostname = patch_resolver(host, dns_server_list)
+    # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
 def url_get_with_own_dns(logger, url):
     """ request by using an own dns resolver """
     logger.debug('url_get_with_own_dns({0})'.format(url))
     # patch an own connection handler into URL lib
+    # pylint: disable=W0212
     connection._orig_create_connection = connection.create_connection
     connection.create_connection = patched_create_connection
     try:
@@ -532,7 +535,8 @@ def txt_get(logger, fqdn, dns_srv=None):
         dns.resolver.default_resolver.nameservers = dns_srv
     try:
         result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
-    except BaseException as err:
+    except BaseException as err_:
+        logger.error('txt_get() error: {0}'.format(err_))
         result = None
     logger.debug('txt_get() ended with: {0}'.format(result))
     return result

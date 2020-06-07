@@ -6,7 +6,7 @@ from django.db import models
 # Create your models here.
 class Nonce(models.Model):
     """ nonce table """
-    nonce = models.CharField(max_length=30)
+    nonce = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
     def __unicode__(self):
         return self.nonce
@@ -74,7 +74,7 @@ class Certificate(models.Model):
     cert = models.TextField(blank=True, null=True)
     cert_raw = models.TextField(blank=True, null=True)
     error = models.TextField(blank=True, null=True)
-    poll_identifier = models.TextField(blank=True, null=True)    
+    poll_identifier = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     def __unicode__(self):
         return self.name
