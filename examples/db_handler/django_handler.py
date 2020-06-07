@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ django handler for acme2certifier """
-# pylint: disable= C0413,  C0415, E0401
+# pylint: disable=C0413, C0415, E0401
 from __future__ import print_function
 import os
 import sys
@@ -11,6 +11,7 @@ def initialize():
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
     import django
+    # pylint: disable=E1101
     django.setup()
 initialize()
 from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
