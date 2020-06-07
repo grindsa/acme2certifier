@@ -91,10 +91,10 @@ jobs:
           cp examples/acme_srv.cfg acme/
       - name: "Pylint folder: acme"
         run: |
-          pylint acme/ || pylint-exit $?
+          pylint --rcfile=".github\pylintrc" acme/ || pylint-exit $?
       - name: "Pylint folder: tools"
         run: |
-          pylint tools/ || pylint-exit $?
+          pylint --rcfile=".github\pylintrc" tools/ || pylint-exit $?
       - name: "Pylint folder: examples"
         run: |
-          pylint examples/ || pylint-exit $?
+          pylint --rcfile=".github\pylintrc" examples/ || pylint-exit $?
