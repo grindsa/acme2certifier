@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=R1705
+# pylint: disable=E0401, R1705
 """ wsgi based acme server """
 from __future__ import print_function
 import re

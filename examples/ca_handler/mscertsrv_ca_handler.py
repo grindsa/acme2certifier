@@ -3,6 +3,7 @@
 """ ca handler for  Microsoft Webenrollment service (certsrv) """
 from __future__ import print_function
 import textwrap
+# pylint: disable=E0401
 from certsrv import Certsrv
 # pylint: disable=E0401
 from acme.helper import load_config, b64_url_recode
