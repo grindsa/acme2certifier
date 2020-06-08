@@ -7,7 +7,7 @@ on:
 
 jobs:
   docker-build_wsgi:
-    name: Docker build - wsgi
+    name: "Docker build - wsgi"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -16,9 +16,8 @@ jobs:
         push: false
         path: examples/Docker/wsgi/
         build_args: BRANCH=devel
-
   docker-build_django:
-    name: Docker build - Django
+    name: "Docker build - Django"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -27,3 +26,32 @@ jobs:
         push: false
         path: examples/Docker/django/
         build_args: BRANCH=devel
+  docker-compose_wsgi:
+    name: "Docker compose - wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: "Build the stack"
+      run: |
+        cd examples/Docker/
+        sed -i "s/master/devel/g" .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+  docker-compose_django:
+    name: "Docker compose - Django"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: "Build the stack"
+      run: |
+        cd examples/Docker/
+        sed -i "s/master/devel/g" .env
+        sed -i "s/wsgi/django/g" .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
