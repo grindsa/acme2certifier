@@ -37,6 +37,7 @@ jobs:
         sed -i "s/master/devel/g" .env
         docker network create acme
         docker-compose up -d
+        docker-compose logs
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   docker-compose_django:
@@ -51,7 +52,6 @@ jobs:
         sed -i "s/wsgi/django/g" .env
         docker network create acme
         docker-compose up -d
-        sed -i "s/ALLOWED_HOSTS = \['127.0.0.1'\]/ALLOWED_HOSTS = \['127.0.0.1','*'\]/g" data/settings.py
-        docker-compose restart
+        docker-compose logs
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
