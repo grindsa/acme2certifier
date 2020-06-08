@@ -7,17 +7,17 @@ root@rlh:~# acme.sh --server http://<server address> --register-account --accoun
 
 ## deactivate account
 ```
-root@rlh:~# acme.sh --server http://<server address> --deactivate-account --accountemail <email address> --debug 2 --output-insecure
+root@rlh:~# acme.sh --server http://<server address> --deactivate-account --debug 2 --output-insecure
 ```
 
 ## cert enrollment
 ```
-root@rlh:~# acme.sh --server http://<server address>  --issue -d acme-1.example.com -d acme-2.example.com --standalone -w /tmp --accountemail <email address> --debug 2 --output-insecure --force
+root@rlh:~# acme.sh --server http://<server address>  --issue -d acme-1.example.com -d acme-2.example.com --standalone --debug 2 --output-insecure --force
 ```
 
 ## cert revocation
 ```
-acme.sh --server http://<server address> --revoke -d acme-1.example.com -d acme-2.example.com -w /tmp --debug 2 --output-insecure
+acme.sh --server http://<server address> --revoke -d acme-1.example.com -d acme-2.example.com --debug 2 --output-insecure
 ```
 
 # Certbot
