@@ -29,6 +29,7 @@ Following acme-clients are used for regular testing of server functionality
 - [Certbot](https://certbot.eff.org/)
 - [lego](https://github.com/go-acme/lego)
 - [acmeshell](https://github.com/cpu/acmeshell/) 
+- [win-acme](https://www.win-acme.com/)
 
 
 Other clients are on my list for later testing. In case you are bored, feel free to test other came ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
