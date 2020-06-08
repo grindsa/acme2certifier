@@ -22,6 +22,7 @@ RUN mkdir -p /var/www/acme2certifier/volume && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
     cp -R /tmp/acme2certifier/examples/django/* /var/www/acme2certifier/ && \
+    cp -R /tmp/acme2certifier/examples/django/ /var/www/acme2certifier/examples/ && \
     rm /var/www/acme2certifier/acme2certifier/settings.py && \
     cp -R /tmp/acme2certifier/tools /var/www/acme2certifier/ && \
     cp -R /tmp/acme2certifier/examples/ca_handler /var/www/acme2certifier/examples/ && \
