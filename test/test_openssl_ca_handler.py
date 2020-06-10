@@ -140,7 +140,14 @@ class TestACMEHandler(unittest.TestCase):
         # crl = crypto.load_crl(crypto.FILETYPE_PEM, open(self.dir_path + '/ca/sub-ca-crl.pem').read())
         with open(self.dir_path + '/ca/sub-ca-crl.pem', 'r') as fso:
             crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
-        self.assertTrue(self.cahandler._crl_check(crl, '5d0e9535'))
+        self.assertTrue(self.cahandler._crl_check(crl, '0BCC30C544EF26A4'))
+
+    def test_018_check_serialagainstcrl(self):
+        """ CAhandler._crl_check with a serial number already in CRL"""
+        # crl = crypto.load_crl(crypto.FILETYPE_PEM, open(self.dir_path + '/ca/sub-ca-crl.pem').read())
+        with open(self.dir_path + '/ca/sub-ca-crl.pem', 'r') as fso:
+            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
+        self.assertTrue(self.cahandler._crl_check(crl, '0bcc30c544ef26a4'))
 
     def test_018_generate_pem_chain(self):
         """ CAhandler._pemcertchain_generate with EE cert but no ca cert"""
