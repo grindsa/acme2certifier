@@ -1,0 +1,116 @@
+name: Application Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+
+jobs:
+  docker-build_wsgi:
+    name: "Docker build - wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker/build-push-action@v1
+      with:
+        push: false
+        path: examples/Docker/wsgi/
+        build_args: BRANCH=devel
+  docker-build_django:
+    name: "Docker build - Django"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: docker/build-push-action@v1
+      with:
+        push: false
+        path: examples/Docker/django/
+        build_args: BRANCH=devel
+  docker-compose_wsgi:
+    name: "Docker compose - wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: "Build the stack"
+      run: |
+        cd examples/Docker/
+        sed -i "s/master/devel/g" .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+  docker-compose_django:
+    name: "Docker compose - Django"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: "Build the stack"
+      run: |
+        cd examples/Docker/
+        sed -i "s/master/devel/g" .env
+        sed -i "s/wsgi/django/g" .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+  acme_sh:
+    name: "acme.sh"
+    needs: [docker-build_wsgi, docker-compose_wsgi]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        accountkeylength: [2048, 3072]
+        keylength: [2048, 3072, 4096, 8192, ec-256, ec-384, ec-521]
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+    - name: "[ PREPARE ] Build docker-compose (wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        echo "COMPOSE_PROJECT_NAME=acme2certifier"  >   .env
+        echo "BRANCH=devel"                         >>  .env
+        echo "CONTEXT=wsgi"                         >>  .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv.cfg examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/${{ matrix.accountkeylength }}.acme-sh":/acme.sh --network acme --name=${{ matrix.accountkeylength }}.acme-sh neilpang/acme.sh daemon
+    - name: "[ #1 TEST ] register using acme.sh default account key ${{ matrix.accountkeylength }}"
+      run: |
+        docker exec -i ${{ matrix.accountkeylength }}.acme-sh acme.sh --server http://acme-srv --register-account --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --debug 2 --output-insecure
+    - name: "[ #1 TEST ] failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: docker-compose logs
+    - name: "[ #2 TEST ][HTTP-01] enroll cert with key lenght ${{ matrix.keylength }} - account key: acme.sh - ${{ matrix.accountkeylength }}"
+      run: |
+        docker exec -i ${{ matrix.accountkeylength }}.acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d ${{ matrix.accountkeylength }}.acme-sh.acme --standalone --debug 2 --output-insecure --force
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme_ecc/${{ matrix.accountkeylength }}.acme-sh.acme.cer
+        else
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme/${{ matrix.accountkeylength }}.acme-sh.acme.cer
+        fi
+    - name: "[ #2 TEST ] failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        docker-compose logs
+        echo "acme issued cert..."
+        cat ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme/${{ matrix.accountkeylength }}.acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        cat examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        cat examples/Docker/data/acme_ca/sub-ca-cert.pem
