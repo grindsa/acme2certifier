@@ -221,11 +221,11 @@ class CAhandler(object):
         """ check if CRL already contains serial """
         self.logger.debug('CAhandler._crl_check()')
         sn_match = False
-
+        
         # convert to lower case
         if isinstance(serial, str):
-            serial = serial.lower()
-
+            serial = serial.lower()        
+        
         serial = convert_string_to_byte(serial)
         if crl and serial:
             crl_list = crl.get_revoked()
@@ -396,7 +396,6 @@ class CAhandler(object):
 
                     default_extension_list = [
                         crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                        crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
                         crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
                         crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
                         crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
@@ -420,6 +419,14 @@ class CAhandler(object):
                             self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
                             cert.add_extensions(default_extension_list)
                     else:
+                        # add keyUsage if it does not exist in CSR
+                        ku_is_in = False
+                        for ext in req.get_extensions():
+                            if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
+                                ku_is_in = True
+                        if not ku_is_in:
+                            default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
+
                         # add default extensions
                         cert.add_extensions(default_extension_list)
 
