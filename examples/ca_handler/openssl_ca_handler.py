@@ -221,6 +221,11 @@ class CAhandler(object):
         """ check if CRL already contains serial """
         self.logger.debug('CAhandler._crl_check()')
         sn_match = False
+
+        # convert to lower case
+        if isinstance(serial, str):
+            serial = serial.lower()
+
         serial = convert_string_to_byte(serial)
         if crl and serial:
             crl_list = crl.get_revoked()
