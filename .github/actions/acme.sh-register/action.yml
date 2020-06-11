@@ -1,0 +1,24 @@
+name: 'acme.sh - register account'
+description: 'registering account via ACME protocol using acme.sh'
+branding:
+  icon: check-square
+  color: green
+inputs:
+  accountkeylength:
+    description: "Specifies the account key length: 2048, 3072, 4096"
+    required: true
+    default: 2048
+  server:
+    description: "ACME Directory Resource URI. (default: https://acme-v02.api.letsencrypt.org/directory)"
+    required: true
+    default:
+runs:
+  using: 'docker'
+  image: 'docker://neilpang/acme.sh'
+  args:
+    - "--server ${{ inputs.server }}"
+    - "--accountkeylength ${{ inputs.accountkeylength }}"
+    - "--register-account"
+    - "--debug 2"
+    - "--output-insecure"
+    - "--accountemail ${{ inputs.accountkeylength }}-acme.sh@example.com"
