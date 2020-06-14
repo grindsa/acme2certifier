@@ -108,6 +108,26 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certificate_chain_verify() ended with {0}'.format(result))
         return result
 
+    def _certificate_extensions_add(self, cert_extension_dic, cert, ca_cert):
+        """ verify certificate chain """
+        self.logger.debug('CAhandler._certificate_extensions_add()')
+
+        _tmp_list = []
+        # add extensins from config file
+        for extension in cert_extension_dic:
+            self.logger.debug('adding extension: {0}: {1}: {2}'.format(extension, cert_extension_dic[extension]['critical'], cert_extension_dic[extension]['value']))
+            if extension == 'subjectKeyIdentifier':
+                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
+            elif 'subject' in cert_extension_dic[extension]:
+                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
+            elif 'issuer' in cert_extension_dic[extension]:
+                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
+            else:
+                _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
+
+        self.logger.debug('CAhandler._certificate_extensions_add() ended')
+        return _tmp_list
+
     def _certificate_extensions_load(self):
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_extensions_load()')
@@ -142,6 +162,26 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._certificate_extensions_load() ended')
         return cert_extention_dic
+
+    def _certificate_store(self, cert):
+        """ store certificate on disk """
+        self.logger.debug('CAhandler._certificate_store()')
+        serial = cert.get_serial_number()
+        # save cert if needed
+        if self.cert_save_path and self.cert_save_path is not None:
+            # create cert-store dir if not existing
+            if not os.path.isdir(self.cert_save_path):
+                self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
+                os.mkdir(self.cert_save_path)
+
+            # determine filename
+            if self.save_cert_as_hex:
+                cert_file = '{:X}'.format(serial)
+            else:
+                cert_file = str(serial)
+            with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
+                fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+        self.logger.debug('CAhandler._certificate_store() ended')
 
     def _config_check(self):
         """ check config for consitency """
@@ -405,18 +445,7 @@ class CAhandler(object):
 
                     if cert_extension_dic:
                         try:
-                            # add extensins from config file
-                            _tmp_list = []
-                            for extension in cert_extension_dic:
-                                if extension == 'subjectKeyIdentifier':
-                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-                                elif 'subject' in cert_extension_dic[extension]:
-                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-                                elif 'issuer' in cert_extension_dic[extension]:
-                                    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
-                                else:
-                                    _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
-                            cert.add_extensions(_tmp_list)
+                            cert.add_extensions(self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
                         except BaseException as err_:
                             self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
                             cert.add_extensions(default_extension_list)
@@ -433,21 +462,9 @@ class CAhandler(object):
                         cert.add_extensions(default_extension_list)
 
                     cert.sign(ca_key, 'sha256')
-                    serial = cert.get_serial_number()
-                    # save cert if needed
-                    if self.cert_save_path and self.cert_save_path is not None:
-                        # create cert-store dir if not existing
-                        if not os.path.isdir(self.cert_save_path):
-                            self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
-                            os.mkdir(self.cert_save_path)
 
-                        # determine filename
-                        if self.save_cert_as_hex:
-                            cert_file = '{:X}'.format(serial)
-                        else:
-                            cert_file = str(serial)
-                        with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
-                            fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+                    # store certifiate
+                    self._certificate_store(cert)
 
                     # create bundle and raw cert
                     cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
