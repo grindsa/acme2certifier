@@ -26,6 +26,7 @@ class CAhandler(object):
         self.cert_validity_days = 365
         self.openssl_conf = None
         self.cert_save_path = None
+        self.save_cert_as_hex = False
         self.whitelist = []
         self.blacklist = []
 
@@ -215,17 +216,18 @@ class CAhandler(object):
             self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
         if 'blacklist' in config_dic['CAhandler']:
             self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])
+        self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
 
     def _crl_check(self, crl, serial):
         """ check if CRL already contains serial """
         self.logger.debug('CAhandler._crl_check()')
         sn_match = False
-        
+
         # convert to lower case
         if isinstance(serial, str):
-            serial = serial.lower()        
-        
+            serial = serial.lower()
+
         serial = convert_string_to_byte(serial)
         if crl and serial:
             crl_list = crl.get_revoked()
@@ -439,7 +441,12 @@ class CAhandler(object):
                             self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
                             os.mkdir(self.cert_save_path)
 
-                        with open('{0}/{1}.pem'.format(self.cert_save_path, str(serial)), 'wb') as fso:
+                        # determine filename
+                        if self.save_cert_as_hex:
+                            cert_file = '{:X}'.format(serial)
+                        else:
+                            cert_file = str(serial)
+                        with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
                             fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
                     # create bundle and raw cert
