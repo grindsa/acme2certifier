@@ -38,6 +38,7 @@ ca_cert_chain_list: []
 openssl_conf: acme/ca/openssl.conf
 whitelist: ["foo.bar\\$", "foo1.bar.local"]
 blacklist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
+save_cert_as_hex: True
 ```
 
 - `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
@@ -50,7 +51,7 @@ blacklist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
 - `openssl_conf` -  *optional* - file in openssl.conf format containing certificate extensions to be applied
 - `whitelist` - *optional* - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)- To be stored in json format
 - `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
-
+- `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates
 
 `whitelist` and `blecklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes presendence over the posivite result of a whitelist check.
 
