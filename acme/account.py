@@ -16,11 +16,13 @@ class Account(object):
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path' : '/acme/acct/'}
+        self.ecc_only = False
         self.inner_header_nonce_allow = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
+        print(self.ecc_only)
         return self
 
     def __exit__(self, *args):
@@ -32,23 +34,30 @@ class Account(object):
         account_name = generate_random_string(self.logger, 12)
         # check request
         if 'alg' in content and 'jwk' in content and contact:
-            # check jwk
-            data_dic = {
-                'name': account_name,
-                'alg': content['alg'],
-                'jwk': json.dumps(content['jwk']),
-                'contact': json.dumps(contact),
-            }
 
-            (db_name, new) = self.dbstore.account_add(data_dic)
-            self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
-            if new:
-                code = 201
-                message = account_name
+            # ecc_only check
+            if self.ecc_only and not content['alg'].startswith('ES'):
+                code = 403
+                message = 'urn:ietf:params:acme:error:badPublicKey'
+                detail = 'Only ECC keys are supported'
             else:
-                code = 200
-                message = db_name
-            detail = None
+                # check jwk
+                data_dic = {
+                    'name': account_name,
+                    'alg': content['alg'],
+                    'jwk': json.dumps(content['jwk']),
+                    'contact': json.dumps(contact),
+                }
+
+                (db_name, new) = self.dbstore.account_add(data_dic)
+                self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
+                if new:
+                    code = 201
+                    message = account_name
+                else:
+                    code = 200
+                    message = db_name
+                detail = None
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
@@ -270,6 +279,7 @@ class Account(object):
         config_dic = load_config()
         if 'Account' in config_dic:
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
+            self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
 
     def _lookup(self, value, field='name'):
         """ lookup account """

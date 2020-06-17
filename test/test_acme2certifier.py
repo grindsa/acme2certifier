@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for acme2certifier """
-# pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212 
+# pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import datetime
 import json
@@ -2731,6 +2731,24 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ successful dns_server_list_load with wrong json format """
         mock_load_config.return_value = {'Challenge': {'dns_server_list': '["foo", "bar"]'}}
         self.assertEqual(['foo', 'bar'], self.dns_server_list_load())
+
+    @patch('acme.account.generate_random_string')
+    def test_371_account_add_new(self, mock_name):
+        """ test failed account add due to ecc mandated """
+        # self.account.dbstore.account_add.return_value = (2, True)
+        self.account.ecc_only = True
+        mock_name.return_value = 'randowm_string'
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((403, 'urn:ietf:params:acme:error:badPublicKey', 'Only ECC keys are supported'), self.account._add(dic, 'foo@example.com'))
+
+    @patch('acme.account.generate_random_string')
+    def test_372_account_add_new(self, mock_name):
+        """ test successful account add for a new account"""
+        self.account.dbstore.account_add.return_value = (2, True)
+        self.account.ecc_only = True
+        mock_name.return_value = 'randowm_string'
+        dic = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((201, 'randowm_string', None), self.account._add(dic, 'foo@example.com'))
 
 if __name__ == '__main__':
     unittest.main()
