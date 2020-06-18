@@ -6,7 +6,7 @@ import textwrap
 # pylint: disable=E0401
 from certsrv import Certsrv
 # pylint: disable=E0401
-from acme.helper import load_config, b64_url_recode
+from acme.helper import load_config, b64_url_recode, convert_byte_to_string
 
 class CAhandler(object):
     """ EST CA  handler """
@@ -47,8 +47,8 @@ class CAhandler(object):
                 csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
 
                 # get ca_chain
-                ca_pem = ca_server.get_chain(encoding='b64')
-                cert_raw = ca_server.get_cert(csr, self.template)
+                ca_pem = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
+                cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
                 if cert_raw:
                     cert_bundle = cert_raw + ca_pem
                     cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
