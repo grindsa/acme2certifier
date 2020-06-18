@@ -7,7 +7,8 @@
 | :-------| :------| :-----------| :------| :------|
 | `DEFAULT` | `debug`  | Debug mode| True/False| False|
 | `Account` | `inner_header_nonce_allow` | allow nonce header on inner JWS during key-rollover | True/False | False|
-| `Account` | `ecc_only` | madantes the usage of ECC for account key generation | True/False | False|
+| `Account` | `ecc_only` | mandantes the usage of ECC for account key generation | True/False | False|
+| `Account` | `tos_check_disable` | turn off "Terms of Service" acceptance check  | True/False | False|
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please enable for testing/debugging purposes only. | True/False | False|
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|

@@ -17,6 +17,7 @@ class Account(object):
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path' : '/acme/acct/'}
         self.ecc_only = False
+        self.tos_check_disable = False
         self.inner_header_nonce_allow = False
 
     def __enter__(self):
@@ -280,6 +281,7 @@ class Account(object):
         if 'Account' in config_dic:
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
+            self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
 
     def _lookup(self, value, field='name'):
         """ lookup account """
@@ -365,7 +367,8 @@ class Account(object):
                 (code, message, detail) = self._onlyreturnexisting(protected, payload)
             else:
                 # tos check
-                (code, message, detail) = self._tos_check(payload)
+                if not self.tos_check_disable:
+                    (code, message, detail) = self._tos_check(payload)
 
                 # contact check
                 if code == 200:
