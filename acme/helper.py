@@ -508,6 +508,8 @@ def url_get_with_own_dns(logger, url):
     except BaseException as err_:
         result = None
         logger.error('url_get error: {0}'.format(err_))
+    # cleanup
+    connection.create_connection = connection._orig_create_connection
     return result
 
 def url_get(logger, url, dns_server_list=None):
