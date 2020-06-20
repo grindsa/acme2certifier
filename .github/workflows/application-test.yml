@@ -6,35 +6,26 @@ on:
     branches: [ devel ]
 
 jobs:
-  docker-build_wsgi:
-    name: "Docker build - wsgi"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: docker/build-push-action@v1
-      with:
-        push: false
-        path: examples/Docker/wsgi/
-        build_args: BRANCH=devel
-  docker-build_django:
-    name: "Docker build - Django"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: docker/build-push-action@v1
-      with:
-        push: false
-        path: examples/Docker/django/
-        build_args: BRANCH=devel
   docker-compose_wsgi:
     name: "Docker compose - wsgi"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: "Build the stack"
+      working-directory: examples/Docker/
+      if: ${{ github.event_name == 'push' }}
       run: |
-        cd examples/Docker/
-        sed -i "s/master/devel/g" .env
+        sed -i "s/master/${GITHUB_REF##*/}/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./wsgi/Dockerfile
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Build the stack"
+      working-directory: examples/Docker/
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        sed -i "s/master/${{ github.head_ref }}/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./wsgi/Dockerfile
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -46,10 +37,22 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: "Build the stack"
+      working-directory: examples/Docker/
+      if: ${{ github.event_name == 'push' }}
       run: |
-        cd examples/Docker/
-        sed -i "s/master/devel/g" .env
+        sed -i "s/master/${GITHUB_REF##*/}/g" .env
         sed -i "s/wsgi/django/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./django/Dockerfile
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Build the stack"
+      working-directory: examples/Docker/
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        sed -i "s/master/${{ github.head_ref }}/g" .env
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./django/Dockerfile
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -57,22 +60,31 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   acme_sh:
     name: "acme.sh"
-    needs: [docker-build_wsgi, docker-compose_wsgi]
+    needs: [docker-compose_wsgi]
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: false
     strategy:
       matrix:
-        accountkeylength: [2048, 3072]
-        keylength: [2048, 3072, 4096, 8192, ec-256, ec-384, ec-521]
+        accountkeylength: [2048, ec-256]
+        keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
     - name: "[ PREPARE ] Build docker-compose (wsgi)"
       working-directory: examples/Docker/
+      if: ${{ github.event_name == 'push' }}
       run: |
-        echo "COMPOSE_PROJECT_NAME=acme2certifier"  >   .env
-        echo "BRANCH=devel"                         >>  .env
-        echo "CONTEXT=wsgi"                         >>  .env
+        sed -i "s/master/${GITHUB_REF##*/}/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./wsgi/Dockerfile
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "[ PREPARE ] Build docker-compose (wsgi)"
+      working-directory: examples/Docker/
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        sed -i "s/master/${{ github.head_ref }}/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./wsgi/Dockerfile
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -87,30 +99,233 @@ jobs:
         docker-compose logs
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/${{ matrix.accountkeylength }}.acme-sh":/acme.sh --network acme --name=${{ matrix.accountkeylength }}.acme-sh neilpang/acme.sh daemon
-    - name: "[ #1 TEST ] register using acme.sh default account key ${{ matrix.accountkeylength }}"
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh -v $(pwd)/.github/dnsserver_container/dnsmasq.new:/dnsmasq.new:rw -v $(pwd)/.github/dnsserver_container/dns_acme2certifier.sh:/root/.acme.sh/dnsapi/dns_acme2certifier.sh --network acme --name=acme-sh neilpang/acme.sh daemon
+    - name: "register using acme.sh account key length: ${{ matrix.accountkeylength }}"
       run: |
-        docker exec -i ${{ matrix.accountkeylength }}.acme-sh acme.sh --server http://acme-srv --register-account --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --debug 2 --output-insecure
-    - name: "[ #1 TEST ] failed ... collecting details"
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --debug 2 --output-insecure
+    - name: "prev. step failed ... collecting details"
       working-directory: examples/Docker/
       if: ${{ failure() }}
-      run: docker-compose logs
-    - name: "[ #2 TEST ][HTTP-01] enroll cert with key lenght ${{ matrix.keylength }} - account key: acme.sh - ${{ matrix.accountkeylength }}"
       run: |
-        docker exec -i ${{ matrix.accountkeylength }}.acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d ${{ matrix.accountkeylength }}.acme-sh.acme --standalone --debug 2 --output-insecure --force
+        docker logs acme-sh
+        docker-compose logs
+    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme --standalone --debug 2 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme_ecc/${{ matrix.accountkeylength }}.acme-sh.acme.cer
-        else
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme/${{ matrix.accountkeylength }}.acme-sh.acme.cer
+          ECC="_ecc"
         fi
-    - name: "[ #2 TEST ] failed ... collecting details"
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "[HTTP-01] revoke cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "[HTTP-01] enroll cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 2 --output-insecure
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "[HTTP-01] revoke cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme.sh --standalone --debug 2 --output-insecure
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "*[DNS-01] enroll cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        #docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --test --issue --dns dns_acme2certifier --yes-I-know-dns-manual-mode-enough-go-ahead-please -d acme-sh.acme --standalone --debug 2 --output-insecure
+        echo "testcase still to be created"
+    - name: "[DNS-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        cat .github/dnsserver_container/dnsmasq.new
+    - name: "[DNS-01] revoke cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        echo "testcase still to be created"
+    - name: "[DNS-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "*[DNS-01] enroll cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        echo "testcase still to be created"
+    - name: "[DNS-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "*[DNS-01] revoke cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+      run: |
+        echo "testcase still to be created"
+    - name: "[DNS-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        docker logs acme-sh
+        docker-compose logs
+        echo "acme issued cert..."
+        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        echo "acme sub-ca-cert"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+        echo "acme root-ca"
+        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "deactivate account using acme.sh account key length: ${{ matrix.accountkeylength }}"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
+    - name: "prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        docker logs acme-sh
+        docker-compose logs
+  certbot:
+    name: "certbot"
+    needs: [docker-compose_wsgi]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        accountkeylength: [2048]
+        keylength: [2048, 3072, 4096]
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+    - name: "[ PREPARE ] Build docker-compose (wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/master/${GITHUB_REF##*/}/g" .env
+        sed -i "s/grindsa/${{ github.repository_owner }}/g" ./wsgi/Dockerfile
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv.cfg examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+    - name: "create letsencrypt folder"
+      run: |
+        mkdir letsencrypt
+    - name: "register using certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    - name: "prev. step failed ... collecting details"
       working-directory: examples/Docker/
       if: ${{ failure() }}
       run: |
         docker-compose logs
-        echo "acme issued cert..."
-        cat ${{ matrix.accountkeylength }}.acme-sh/${{ matrix.accountkeylength }}.acme-sh.acme/${{ matrix.accountkeylength }}.acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        cat examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        cat examples/Docker/data/acme_ca/sub-ca-cert.pem
+    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }}"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem letsencrypt/live/certbot/cert.pem
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        docker-compose logs
+    - name: "[HTTP-01] revoke cert single DNS with key: ${{ matrix.keylength }}"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    - name: "[HTTP-01] prev. step failed ... collecting details"
+      working-directory: examples/Docker/
+      if: ${{ failure() }}
+      run: |
+        docker-compose logs

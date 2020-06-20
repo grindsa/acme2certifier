@@ -22,6 +22,8 @@ services:
     ports:
       - "22280:80"
       - "22443:443"
+    dns:
+      - $DNSSERVER
     restart: always
 
 networks:
