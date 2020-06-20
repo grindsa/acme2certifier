@@ -1,5 +1,7 @@
 """ build script for acme2certifier """
 from setuptools import setup
+import sys
+import os
 exec(open('acme/version.py').read())
 setup(name='acme2certifier',
       version=__version__,
@@ -8,7 +10,7 @@ setup(name='acme2certifier',
       author='grindsa',
       author_email='grindelsack@gmail.com',
       license='GPL',
-      packages=['acme', 
+      packages=['acme',
                 'examples', 
                 'examples.ca_handler', 
                 'examples.db_handler', 
@@ -25,6 +27,9 @@ setup(name='acme2certifier',
           'examples.nginx': ['*.conf', '*.ini', '*.service'],
           'examples.django.acme.fixture': ['*.yaml'],          
       },
+
+      data_files = [('tools', ['docs/certifier.md'])],
+      
       platforms='any',
       classifiers=[
           'Programming Language :: Python',
