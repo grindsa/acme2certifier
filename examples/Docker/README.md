@@ -45,7 +45,7 @@ acme2certifier_srv_1   /docker-entrypoint.sh /usr ...   Up      0.0.0.0:22443->4
 
 Its should already be possible to access the directory Resources of our acme2certifer container:
 ```
-user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network acme curlimages/curl http://acme2certifier_srv_1/directory | python -m json.tool
+user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network acme curlimages/curl http://acme-srv/directory | python -m json.tool
 {
     "6a01d6abe3a84de2831d24aa5451b3a2": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
     "keyChange": "http://acme2certifier_srv_1/acme/key-change",

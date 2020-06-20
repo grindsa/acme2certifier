@@ -2,10 +2,9 @@ version: '3.2'
 services:
   acme-srv:
     build:
-      context: $CONTEXT/.
-      args:
-        BRANCH: $BRANCH
-    image: acme2certifier/$CONTEXT:$BRANCH
+      context: ../../.
+      dockerfile: examples/Docker/$CONTEXT/Dockerfile
+    image: acme2certifier/$CONTEXT
     volumes:
       - type: bind
         source: ./data
