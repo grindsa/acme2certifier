@@ -240,6 +240,8 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_037_account_add_failed6(self):
         """ test account add without contact """
+        self.account.tos_check_disable = False
+        self.account.contact_check_disable = False
         dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protected payload'), self.account._add(dic, None))
 
@@ -2749,6 +2751,68 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_name.return_value = 'randowm_string'
         dic = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
         self.assertEqual((201, 'randowm_string', None), self.account._add(dic, 'foo@example.com'))
+
+    @patch('acme.account.generate_random_string')
+    def test_373_account_add_new(self, mock_name):
+        """ test account add without contact """
+        self.account.contact_check_disable = True
+        self.account.dbstore.account_add.return_value = ('foo', False)
+        mock_name.return_value = 'randowm_string'
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        self.assertEqual((200, 'foo', None), self.account._add(dic, None))
+
+    @patch('acme.message.Message.check')
+    def test_374_account_new(self, mock_mcheck):
+        """ Account.new() tos required"""
+        mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : [u'mailto: foo@bar.com']}, None)
+        self.account.tos_check_disable = False
+        message = {'foo' : 'bar'}
+        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'message': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._add')
+    @patch('acme.account.Account._contact_check')
+    @patch('acme.message.Message.check')
+    def test_375_account_new(self, mock_mcheck, mock_contact, mock_aad, mock_nnonce):
+        """ Account.new() successful tos disabled """
+        mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : [u'mailto: foo@bar.com']}, None)
+        self.account.tos_check_disable = True
+        mock_contact.return_value = (200, None, None)
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._add')
+    @patch('acme.message.Message.check')
+    def test_376_account_new(self, mock_mcheck, mock_aad, mock_nnonce):
+        """ Account.new() successful tos/email checks_disabled"""
+        mock_mcheck.return_value = (200, None, None, 'protected', {}, None)
+        self.account.tos_check_disable = True
+        self.account.contact_check_disable = True
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.account.Account._tos_check')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._add')
+    @patch('acme.message.Message.check')
+    def test_377_account_new(self, mock_mcheck, mock_aad, mock_nnonce, mock_tos):
+        """ Account.new() successful email checks_disabled"""
+        mock_mcheck.return_value = (200, None, None, 'protected', {}, None)
+        self.account.contact_check_disable = True
+        mock_tos.return_value = (200, None, None)
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        self.assertEqual(e_result, self.account.new(message))
 
 if __name__ == '__main__':
     unittest.main()

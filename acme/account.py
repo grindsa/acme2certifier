@@ -17,13 +17,13 @@ class Account(object):
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path' : '/acme/acct/'}
         self.ecc_only = False
+        self.contact_check_disable = False
         self.tos_check_disable = False
         self.inner_header_nonce_allow = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
-        print(self.ecc_only)
         return self
 
     def __exit__(self, *args):
@@ -33,32 +33,38 @@ class Account(object):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._add()')
         account_name = generate_random_string(self.logger, 12)
+
         # check request
-        if 'alg' in content and 'jwk' in content and contact:
+        if 'alg' in content and 'jwk' in content:
 
-            # ecc_only check
-            if self.ecc_only and not content['alg'].startswith('ES'):
-                code = 403
-                message = 'urn:ietf:params:acme:error:badPublicKey'
-                detail = 'Only ECC keys are supported'
+            if not self.contact_check_disable and not contact:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'incomplete protected payload' 
             else:
-                # check jwk
-                data_dic = {
-                    'name': account_name,
-                    'alg': content['alg'],
-                    'jwk': json.dumps(content['jwk']),
-                    'contact': json.dumps(contact),
-                }
-
-                (db_name, new) = self.dbstore.account_add(data_dic)
-                self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
-                if new:
-                    code = 201
-                    message = account_name
+                # ecc_only check
+                if self.ecc_only and not content['alg'].startswith('ES'):
+                    code = 403
+                    message = 'urn:ietf:params:acme:error:badPublicKey'
+                    detail = 'Only ECC keys are supported'
                 else:
-                    code = 200
-                    message = db_name
-                detail = None
+                    # check jwk
+                    data_dic = {
+                        'name': account_name,
+                        'alg': content['alg'],
+                        'jwk': json.dumps(content['jwk']),
+                        'contact': json.dumps(contact),
+                    }
+
+                    (db_name, new) = self.dbstore.account_add(data_dic)
+                    self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
+                    if new:
+                        code = 201
+                        message = account_name
+                    else:
+                        code = 200
+                        message = db_name
+                    detail = None
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:malformed'
@@ -282,6 +288,7 @@ class Account(object):
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
             self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
+            self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
 
     def _lookup(self, value, field='name'):
         """ lookup account """
@@ -371,21 +378,27 @@ class Account(object):
                     (code, message, detail) = self._tos_check(payload)
 
                 # contact check
-                if code == 200:
+                if code == 200 and not self.contact_check_disable:
                     (code, message, detail) = self._contact_check(payload)
 
                 # add account to database
                 if code == 200:
-                    (code, message, detail) = self._add(protected, payload['contact'])
+                    if 'contact' in payload:
+                        contact_list = payload['contact']
+                    else:
+                        contact_list = []
+                    (code, message, detail) = self._add(protected, contact_list)
 
         if code in (200, 201):
             response_dic['data'] = {}
             if code == 201:
                 response_dic['data'] = {
                     'status': 'valid',
-                    'contact': payload['contact'],
                     'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path_dic['acct_path'], message),
                 }
+                if 'contact' in payload:
+                    response_dic['data']['contact'] = payload['contact']
+
             response_dic['header'] = {}
             response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
         else:
