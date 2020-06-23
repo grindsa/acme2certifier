@@ -13,6 +13,8 @@ class Directory(object):
         self.server_name = srv_name
         self.logger = logger
         self.supress_version = False
+        self.tos_url = None
+        self.version = __version__
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -29,8 +31,9 @@ class Directory(object):
         if 'Directory' in config_dic:
             if 'supress_version' in config_dic['Directory']:
                 self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
+            if 'tos_url' in config_dic['Directory']:
+                self.tos_url = config_dic['Directory']['tos_url']
         self.logger.debug('CAhandler._config_load() ended')
-
 
     def directory_get(self):
         """ return response to ACME directory call """
@@ -52,7 +55,11 @@ class Directory(object):
 
         # show version information in meta tags if not disabled....
         if not self.supress_version:
-            d_dic['meta']['version'] = __version__
+            d_dic['meta']['version'] = self.version
+
+        # add terms of service
+        if self.tos_url:
+            d_dic['meta']['termsOfService'] = self.tos_url
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'

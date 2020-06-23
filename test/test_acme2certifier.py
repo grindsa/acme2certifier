@@ -2814,5 +2814,23 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
+    def test_378_get_dir_meta(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.tos_url = 'foo'
+        self.directory.supress_version = True        
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'termsOfService': 'foo'}}, self.directory.directory_get())
+
+    def test_379_get_dir_meta(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.version = '0.1'  
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}}, self.directory.directory_get())
+
+    def test_380_get_dir_meta(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.version = '0.1'  
+        self.directory.tos_url = 'foo'        
+        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'termsOfService': 'foo'}}, self.directory.directory_get())
+
+
 if __name__ == '__main__':
     unittest.main()
