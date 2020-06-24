@@ -371,7 +371,6 @@ class Account(object):
         response_dic = {}
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
-
         if code == 200:
             # onlyReturnExisting check
             if 'onlyreturnexisting' in payload:
