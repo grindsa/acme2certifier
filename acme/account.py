@@ -20,6 +20,7 @@ class Account(object):
         self.contact_check_disable = False
         self.tos_check_disable = False
         self.inner_header_nonce_allow = False
+        self.tos_url = None
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -289,7 +290,10 @@ class Account(object):
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
             self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
             self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
-
+        if 'Directory' in config_dic:            
+            if 'tos_url' in config_dic['Directory']:
+                self.tos_url = config_dic['Directory']['tos_url']
+                
     def _lookup(self, value, field='name'):
         """ lookup account """
         self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
@@ -374,7 +378,7 @@ class Account(object):
                 (code, message, detail) = self._onlyreturnexisting(protected, payload)
             else:
                 # tos check
-                if not self.tos_check_disable:
+                if self.tos_url and not self.tos_check_disable:
                     (code, message, detail) = self._tos_check(payload)
 
                 # contact check
