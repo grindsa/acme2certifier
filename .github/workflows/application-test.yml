@@ -37,20 +37,22 @@ jobs:
     name: "acme.sh"
     needs: [docker-compose_wsgi]
     runs-on: ubuntu-latest
-    continue-on-error: false
     strategy:
+      fail-fast: false
       matrix:
         accountkeylength: [2048, ec-256]
         keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
+
     - name: "[ PREPARE ] Build docker-compose (wsgi)"
       working-directory: examples/Docker/
       run: |
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -60,198 +62,103 @@ jobs:
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh -v $(pwd)/.github/dnsserver_container/dnsmasq.new:/dnsmasq.new:rw -v $(pwd)/.github/dnsserver_container/dns_acme2certifier.sh:/root/.acme.sh/dnsapi/dns_acme2certifier.sh --network acme --name=acme-sh neilpang/acme.sh daemon
-    - name: "register using acme.sh account key length: ${{ matrix.accountkeylength }}"
+
+    - name: "[ ENROLL ] HTTP-01 single domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --debug 2 --output-insecure
-    - name: "prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        docker logs acme-sh
-        docker-compose logs
-    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme --standalone --debug 2 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 2 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
+
+    - name: "[ RENEW ] HTTP-01 single domain acme.sh"
       run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "[HTTP-01] revoke cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+
+    - name: "[ REVOKE ] HTTP-01 single domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "[HTTP-01] enroll cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+
+    - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 2 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
+
+    - name: "[ RENEW ] HTTP-01 2x domain acme.sh"
       run: |
+        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 2 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "[HTTP-01] revoke cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+
+    - name: "[ REVOKE ] HTTP-01 2x domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme.sh --standalone --debug 2 --output-insecure
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "*[DNS-01] enroll cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
-      run: |
-        #docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --test --issue --dns dns_acme2certifier --yes-I-know-dns-manual-mode-enough-go-ahead-please -d acme-sh.acme --standalone --debug 2 --output-insecure
-        echo "testcase still to be created"
-    - name: "[DNS-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        cat .github/dnsserver_container/dnsmasq.new
-    - name: "[DNS-01] revoke cert single DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
-      run: |
-        echo "testcase still to be created"
-    - name: "[DNS-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "*[DNS-01] enroll cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
-      run: |
-        echo "testcase still to be created"
-    - name: "[DNS-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "*[DNS-01] revoke cert multiple DNS with key: ${{ matrix.keylength }} - acc. key: ${{ matrix.accountkeylength }}"
-      run: |
-        echo "testcase still to be created"
-    - name: "[DNS-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
-          ECC="_ecc"
-        fi
-        docker logs acme-sh
-        docker-compose logs
-        echo "acme issued cert..."
-        openssl x509 -text -in acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
-        echo "acme sub-ca-cert"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-        echo "acme root-ca"
-        openssl x509 -text -in examples/Docker/data/acme_ca/sub-ca-cert.pem
-    - name: "deactivate account using acme.sh account key length: ${{ matrix.accountkeylength }}"
+
+    - name: "[ DEACTIVATE ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
-    - name: "prev. step failed ... collecting details"
-      working-directory: examples/Docker/
+
+    - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
-        docker logs acme-sh
-        docker-compose logs
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
+
+    - name: "[ * ] uploading artifacts"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
   certbot:
     name: "certbot"
     needs: [docker-compose_wsgi]
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         keylength: [2048, 3072, 4096]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
+
     - name: "[ PREPARE ] Build docker-compose (wsgi)"
       working-directory: examples/Docker/
       run: |
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -261,51 +168,79 @@ jobs:
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
-    - name: "create letsencrypt folder"
+
+    - name: "[ PREPARE ] create letsencrypt folder"
       run: |
-        mkdir letsencrypt
-    - name: "register using certbot"
+        mkdir certbot
+
+    - name: "[ REGISTER] certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-    - name: "prev. step failed ... collecting details"
-      working-directory: examples/Docker/
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ RENEW ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ REVOKE ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+
+    - name: "[ ENROLL ] HTTP-01 2x domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ RENEW ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ REVOKE ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot --cert-name certbot
+
+    - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker-compose logs
-    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }}"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem letsencrypt/live/certbot/cert.pem
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data certbot
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
       if: ${{ failure() }}
-      run: |
-        docker-compose logs
-    - name: "[HTTP-01] revoke cert single DNS with key: ${{ matrix.keylength }}"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/letsencrypt:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        docker-compose logs
+      with:
+        name: certbot_key-${{ matrix.keylength }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
   lego:
     name: "lego"
     needs: [docker-compose_wsgi]
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         keylength: [rsa2048, rsa4096, ec384]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
+
     - name: "[ PREPARE ] Build docker-compose (wsgi)"
       working-directory: examples/Docker/
       run: |
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -315,32 +250,52 @@ jobs:
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+
     - name: "create lego folder"
       run: |
         mkdir lego
-    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }}"
+
+    - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        docker-compose logs
-    - name: "[HTTP-01] enroll cert single DNS with key: ${{ matrix.keylength }}"
+
+    - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
-      if: ${{ failure() }}
-      run: |
-        docker-compose logs
-    - name: "[HTTP-01] revoke cert single DNS with key: ${{ matrix.keylength }}"
+
+    - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
-    - name: "[HTTP-01] prev. step failed ... collecting details"
-      working-directory: examples/Docker/
+
+    - name: "[ ENROLL ] HTTP-01 2x domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d lego --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ RENEW ] HTTP-01 2x domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d lego --http renew
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ REVOKE ] HTTP-01 2x domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker-compose logs
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: lego_key-${{ matrix.keylength }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
