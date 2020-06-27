@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_tnauthlist_get
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -123,7 +123,7 @@ class Certificate(object):
                         identifiers = []
 
                     # get list of certextensions in base64 format
-                    tnauthlist = csr_tnauthlist_get(self.logger, csr)
+                    tnauthlist = csr_extensions_get(self.logger, csr)
 
                     for identifier in identifiers:
                         # get the tnauthlist identifier
@@ -134,7 +134,7 @@ class Certificate(object):
                             else:
                                 identifier_status.append(False)
                 else:
-                    # get sans
+                    # get sans and compare identifiers against san
                     san_list = csr_san_get(self.logger, csr)
                     identifier_status = self._identifer_status_list(identifiers, san_list)
 
@@ -163,12 +163,13 @@ class Certificate(object):
 
             if cert_type and cert_value:
                 for identifier in identifiers:
-                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                        san_is_in = True
-                        break
+                    if 'type' in identifier:
+                        if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                            san_is_in = True
+                            break
             self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
             identifier_status.append(san_is_in)
-
+            
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
@@ -255,13 +256,13 @@ class Certificate(object):
     def _tnauth_identifier_check(self, identifier_dic):
         """ check if we have an tnauthlist_identifier """
         self.logger.debug('Certificate._tnauth_identifier_check()')
-
         # check if we have a tnauthlist identifier
         tnauthlist_identifer_in = False
-        for identifier in identifier_dic:
-            if 'type' in identifier:
-                if identifier['type'].lower() == 'tnauthlist':
-                    tnauthlist_identifer_in = True
+        if identifier_dic:
+            for identifier in identifier_dic:
+                if 'type' in identifier:
+                     if identifier['type'].lower() == 'tnauthlist':
+                         tnauthlist_identifer_in = True
         self.logger.debug('Certificate._tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
         return tnauthlist_identifer_in
 
