@@ -210,23 +210,23 @@ def csr_pubkey_get(logger, csr):
 def csr_san_get(logger, csr):
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     san = []
-    for ext in req.get_extensions():
-        if 'subjectAltName' in str(ext.get_short_name()):
-            san_list = ext.__str__().split(',')
-            for san_name in san_list:
-                san_name = san_name.rstrip()
-                san_name = san_name.lstrip()
-                san.append(san_name)
-
+    if csr:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
+        req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+        for ext in req.get_extensions():
+            if 'subjectAltName' in str(ext.get_short_name()):
+                san_list = ext.__str__().split(',')
+                for san_name in san_list:
+                    san_name = san_name.rstrip()
+                    san_name = san_name.lstrip()
+                    san.append(san_name)
     logger.debug('cert_san_get() ended with: {0}'.format(str(san)))
     return san
 
-def csr_tnauthlist_get(logger, csr):
-    """ get subject alternate names from certificate """
-    logger.debug('csr_tnauthlist_get()')
+def csr_extensions_get(logger, csr):
+    """ get extensions from certificate """
+    logger.debug('csr_extensions_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
     req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
 
@@ -238,7 +238,7 @@ def csr_tnauthlist_get(logger, csr):
         else:
             extension_list.append(base64.b64encode(ext.get_data()))
 
-    logger.debug('csr_tnauthlist_get() ended with: {0}'.format(extension_list))
+    logger.debug('csr_extensions_get() ended with: {0}'.format(extension_list))
     return extension_list
 
 def decode_deserialize(logger, string):

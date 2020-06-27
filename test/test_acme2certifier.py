@@ -40,7 +40,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load, csr_san_get, csr_extensions_get
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
@@ -82,6 +82,8 @@ class TestACMEHandler(unittest.TestCase):
         self.url_get_with_own_dns = url_get_with_own_dns
         self.dns_server_list_load = dns_server_list_load
         self.dkeys_lower = dkeys_lower
+        self.csr_san_get = csr_san_get
+        self.csr_extensions_get = csr_extensions_get
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -2856,6 +2858,169 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         message = {'foo' : 'bar'}
         e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'message': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {}}
         self.assertEqual(e_result, self.account.new(message))
+
+    def test_384_tnauth_identifier_check(self):
+        """ identifier check empty """
+        identifier_dic = []
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_385_tnauth_identifier_check(self):
+        """ identifier check none input"""
+        identifier_dic = None
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_386_tnauth_identifier_check(self):
+        """ identifier check none input"""
+        identifier_dic = 'foo'
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_387_tnauth_identifier_check(self):
+        """ identifier check one identifier """
+        identifier_dic = [{'foo': 'bar'}]
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_388_tnauth_identifier_check(self):
+        """ identifier check two identifiers """
+        identifier_dic = [{'foo': 'bar'}, {'foo': 'bar'}]
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_389_tnauth_identifier_check(self):
+        """ identifier check hit first identifiers """
+        identifier_dic = [{'type': 'bar'}, {'foo': 'bar'}]
+        self.assertFalse(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_390_tnauth_identifier_check(self):
+        """ identifier check hit first identifiers """
+        identifier_dic = [{'type': 'TNAUTHLIST'}, {'foo': 'bar'}]
+        self.assertTrue(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_391_tnauth_identifier_check(self):
+        """ identifier check hit first identifiers """
+        identifier_dic = [{'type': 'tnauthlist'}, {'foo': 'bar'}]
+        self.assertTrue(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_392_tnauth_identifier_check(self):
+        """ identifier check hit 2nd identifiers """
+        identifier_dic = [{'type': 'bar'}, {'type': 'tnauthlist'}]
+        self.assertTrue(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_393_tnauth_identifier_check(self):
+        """ identifier check hit 2nd identifiers """
+        identifier_dic = [{'type': 'bar'}, {'type': 'TNAUTHLIST'}]
+        self.assertTrue(self.certificate._tnauth_identifier_check(identifier_dic))
+
+    def test_394__identifer_status_list(self):
+        """ failed check identifiers against san """
+        identifier_dic = [{'foo': 'bar'}, {'foo': 'bar'}]
+        san_list = ['foo:bar', 'foo:bar']
+        self.assertEqual([False, False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_395__identifer_status_list(self):
+        """ failed check no sans """
+        identifier_dic = [{'foo': 'bar'}]
+        san_list = []
+        self.assertEqual([], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_396__identifer_status_list(self):
+        """ failed check no identifiers """
+        identifier_dic = []
+        san_list = ['foo:bar']
+        self.assertEqual([False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_397__identifer_status_list(self):
+        """ failed check no identifiers """
+        identifier_dic = []
+        san_list = ['bar']
+        self.assertEqual([False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_398__identifer_status_list(self):
+        """ succ check no identifiers """
+        identifier_dic = [{'type': 'dns', 'value': 'bar'}]
+        san_list = ['dns:bar']
+        self.assertEqual([True], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_399__identifer_status_list(self):
+        """ failed check san in identifier """
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}]
+        san_list = ['dns:bar']
+        self.assertEqual([False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_400__identifer_status_list(self):
+        """ failed check identifier in san """
+        identifier_dic = [{'type': 'dns', 'value': 'bar'}]
+        san_list = ['dns:bar1']
+        self.assertEqual([False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_401__identifer_status_list(self):
+        """ failed check identifier one identifier two sans"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar'}]
+        san_list = ['dns:bar', 'dns:bar2']
+        self.assertEqual([True, False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_402__identifer_status_list(self):
+        """ failed check identifier two identifier one san"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}, {'type': 'dns', 'value': 'bar2'}]
+        san_list = ['dns:bar1']
+        self.assertEqual([True], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_403__identifer_status_list(self):
+        """ failed check identifier both ok"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}, {'type': 'dns', 'value': 'bar2'}]
+        san_list = ['dns:bar1', 'dns:bar2']
+        self.assertEqual([True, True], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_404__identifer_status_list(self):
+        """ failed check identifier both ok - wrong order"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}, {'type': 'dns', 'value': 'bar2'}]
+        san_list = ['dns:bar2', 'dns:bar1']
+        self.assertEqual([True, True], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_405__identifer_status_list(self):
+        """ failed check identifier first ok 2nd nok"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}, {'type': 'dns', 'value': 'bar'}]
+        san_list = ['dns:bar1', 'dns:bar2']
+        self.assertEqual([True, False], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_406__identifer_status_list(self):
+        """ failed check identifier first nook 2nd ok"""
+        identifier_dic = [{'type': 'dns', 'value': 'bar1'}, {'type': 'dns', 'value': 'bar2'}]
+        san_list = ['dns:bar', 'dns:bar2']
+        self.assertEqual([False, True], self.certificate._identifer_status_list(identifier_dic, san_list))
+
+    def test_407_csr_san_get(self):
+        """ get sans but no csr """
+        csr = None
+        self.assertEqual([], self.csr_san_get(self.logger, csr))
+
+    def test_408_csr_san_get(self):
+        """ get sans but one san with == """
+        csr = 'MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEANAXOIkv0CovmdzyoAv1dsiK0TK2XHBdBTEPFDsrT7MnrIXOFS4FnDrg8zpn7QBzBRTl3HaKN8fnpIHkA/6ZRDqaEJq0AeskjxIg9LKDBBx5TEdgPh1CwruRWLlXtrqU7XXQmk0wLIo/kfaDRcTjyJ3yHTEK06mCAaws0sTKlTw2D4pIiDRp8zbLHeSEUX5UKOSGbLSSUY/F2XwgPB8nC2BCD/gkvHRR+dMQSdOCiS9GLwZdYAAyESw6WhmGPjmVbeTRgSt/9//yx3JKQgkFYmpSMLKR2G525M+l1qfku/4b0iMOa4vQjFRj5AXZH0SBpAKtvnFxUpP6P9mTE7+akOQ=='
+        self.assertEqual(['DNS:foo1.bar.local'], self.csr_san_get(self.logger, csr))
+
+    def test_409_csr_san_get(self):
+        """ get sans but one san without == """
+        csr = 'MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEANAXOIkv0CovmdzyoAv1dsiK0TK2XHBdBTEPFDsrT7MnrIXOFS4FnDrg8zpn7QBzBRTl3HaKN8fnpIHkA/6ZRDqaEJq0AeskjxIg9LKDBBx5TEdgPh1CwruRWLlXtrqU7XXQmk0wLIo/kfaDRcTjyJ3yHTEK06mCAaws0sTKlTw2D4pIiDRp8zbLHeSEUX5UKOSGbLSSUY/F2XwgPB8nC2BCD/gkvHRR+dMQSdOCiS9GLwZdYAAyESw6WhmGPjmVbeTRgSt/9//yx3JKQgkFYmpSMLKR2G525M+l1qfku/4b0iMOa4vQjFRj5AXZH0SBpAKtvnFxUpP6P9mTE7+akOQ'
+        self.assertEqual(['DNS:foo1.bar.local'], self.csr_san_get(self.logger, csr))
+
+    def test_410_csr_san_get(self):
+        """ get sans but two sans """
+        csr = 'MIICpzCCAY8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgSTBHBgkqhkiG9w0BCQ4xOjA4MAsGA1UdDwQEAwIF4DApBgNVHREEIjAggg5mb28xLmJhci5sb2NhbIIOZm9vMi5iYXIubG9jYWwwDQYJKoZIhvcNAQELBQADggEBADeuf4J8Xziw2OuvLNnLOSgHQl2HdMFtRdgJoun7zPobsP3L3qyXLvvhJcQsIJggu5ZepnHGrCxroSbtRSO65GtLQA0Rq3DCGcPIC1fe9AYrqoynx8bWt2Hd+PyDrBppHVoQzj6yNCt6XNSDs04BMtjs9Pu4DD6DDHmxFMVNdHXea2Rms7C5nLQvXgw7yOF3Zk1vEu7Kue7d3zZMhN+HwwrNEA7RGAEzHHlCv5LL4Mw+kf6OJ8nf/WDiLDKEQIh6bnOuB42Y2wUMpzui8Uur0VJO+twY46MvjiVMMBZE3aPJU33eNPAQVC7GinStn+zQIJA5AADdcO8Lk1qdtaDiGp8'
+        self.assertEqual(['DNS:foo1.bar.local', 'DNS:foo2.bar.local'], self.csr_san_get(self.logger, csr))
+
+    def test_411_csr_san_get(self):
+        """ get sans but three sans """
+        csr = 'MIICtzCCAZ8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgWTBXBgkqhkiG9w0BCQ4xSjBIMAsGA1UdDwQEAwIF4DA5BgNVHREEMjAwgg5mb28xLmJhci5sb2NhbIIOZm9vMi5iYXIubG9jYWyCDmZvbzMuYmFyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4IBAQAQRkub6G4uijaXOYpCkoz40I+SVRsbRDgnMNjsooZz1+7DVglFjrr6Pb0PPTOvOxtmbHP2KK0WokDn4LqOD2t0heuI+KPQy7m/ROpOB/YZOzTWEB8yS4vjkf/RFiJ7fnCAc8vA+3K/mBVb+89F8w/KlyPmpg1GK7UNgjEa5bnznTox8q12CocCJVykPEiC8AT/VPWUOPfg6gs+V6LO8R73VRPMVy0ttYKGX80ob+KczDTMUhoxXg8OG+G+bXXU+4Tu4l+nQWf2lFejECi/vNKzUT90IbcGJwyk7rc4Q7BJ/t/5nMo+vuV9f+2HI7qakHcw6u9RGylL4OYDf1CrqF1R'
+        self.assertEqual(['DNS:foo1.bar.local', 'DNS:foo2.bar.local', 'DNS:foo3.bar.local'], self.csr_san_get(self.logger, csr))
+
+    def test_412_csr_extensions_get(self):
+        """ get sans but three sans """
+        csr = 'MIIClzCCAX8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgOTA3BgkqhkiG9w0BCQ4xKjAoMAsGA1UdDwQEAwIF4DAZBgNVHREEEjAQgg5mb28xLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEANAXOIkv0CovmdzyoAv1dsiK0TK2XHBdBTEPFDsrT7MnrIXOFS4FnDrg8zpn7QBzBRTl3HaKN8fnpIHkA/6ZRDqaEJq0AeskjxIg9LKDBBx5TEdgPh1CwruRWLlXtrqU7XXQmk0wLIo/kfaDRcTjyJ3yHTEK06mCAaws0sTKlTw2D4pIiDRp8zbLHeSEUX5UKOSGbLSSUY/F2XwgPB8nC2BCD/gkvHRR+dMQSdOCiS9GLwZdYAAyESw6WhmGPjmVbeTRgSt/9//yx3JKQgkFYmpSMLKR2G525M+l1qfku/4b0iMOa4vQjFRj5AXZH0SBpAKtvnFxUpP6P9mTE7+akOQ'
+        self.assertEqual(['AwIF4A==', 'MBCCDmZvbzEuYmFyLmxvY2Fs'], self.csr_extensions_get(self.logger, csr))
+
+    def test_413_csr_extensions_get(self):
+        """ get sans but three sans """
+        csr = 'MIICuzCCAaMCAQAwHjEcMBoGA1UEAwwTY2VydC5zdGlyLmJhci5sb2NhbDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALsLm4zgkl2lEx2EHy1ENfh3cYB79Xb5sD3ehkY+1pXphIWoM9KYVqHKOurModjsh75YjRBSilRfTFSk6kCUahTJyeCbM6Vzl75CcZy7poUxiK+u80JMU/xymUsrqY4GZlh2/XtFMxXHUSf3bhKZAIjBNugsvR/sHtEvJ6RJiuYqHMWUzZ/Vby5L0ywNl+LPSY7AVTUAZ0lKrnUCP4dHnbjwjf+nPi7vT6G0yrEg0qPOYXtJOXdf7vvjLi8J+ap758NtG2qapLdbToIPr0uOEvMO6zs8z1bIyjOHU3kzlpKHzDsPYy8txxKC/3Rae7sKB9gWm8WUxFBmuA7gaFDGQAECAwEAAaBYMFYGCSqGSIb3DQEJDjFJMEcwCwYDVR0PBAQDAgXgMB4GA1UdEQQXMBWCE2NlcnQuc3Rpci5iYXIubG9jYWwwGAYIKwYBBQUHARoEDDAKoAgWBjEyMzQ1NjANBgkqhkiG9w0BAQsFAAOCAQEAjyhJfgb/zJBMYp6ylRtEXgtBpsX9ePUL/iLgIDMcGtwaFm3pkQOSBr4xiTxftnqN77SlC8UEu7PDR73JX6iqLNJWucPlhAXVrr367ygO8GGLrtGddClZmo0lhRBRErgpagWB/jFkbL8afPGJwgQQXF0KWFMcajAPiIl1l6M0w11KqJ23Pwrmi7VJHzIgh4ys0D2UrX7KuV4PIOOmG0s7jTfBSB+yUH2zwVzOAzbr3wrD1WubD7hRaHDUi4bn4DRbquQOzbqfTI6QhetUcNpq4DwhBRcnZwUMJUIcxLAsFnDgGSW+dmJe6JH8MsS+8ZmOLllyQxWzYEVquQQvxFVTZA'
+        self.assertEqual(['AwIF4A==', 'MBWCE2NlcnQuc3Rpci5iYXIubG9jYWw=', 'MAqgCBYGMTIzNDU2'], self.csr_extensions_get(self.logger, csr))
 
 if __name__ == '__main__':
     unittest.main()
