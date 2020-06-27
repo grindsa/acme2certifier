@@ -116,14 +116,14 @@ class Certificate(object):
                 tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
 
                 if self.tnauthlist_support and tnauthlist_identifer_in:
+                    # get list of certextensions in base64 format
+                    tnauthlist = csr_extensions_get(self.logger, csr)
+                
                     # reload identifiers (case senetive)
                     try:
                         identifiers = json.loads(identifier_dic['identifiers'])
                     except BaseException:
                         identifiers = []
-
-                    # get list of certextensions in base64 format
-                    tnauthlist = csr_extensions_get(self.logger, csr)
 
                     for identifier in identifiers:
                         # get the tnauthlist identifier
