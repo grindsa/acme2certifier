@@ -3022,5 +3022,53 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         csr = 'MIICuzCCAaMCAQAwHjEcMBoGA1UEAwwTY2VydC5zdGlyLmJhci5sb2NhbDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALsLm4zgkl2lEx2EHy1ENfh3cYB79Xb5sD3ehkY+1pXphIWoM9KYVqHKOurModjsh75YjRBSilRfTFSk6kCUahTJyeCbM6Vzl75CcZy7poUxiK+u80JMU/xymUsrqY4GZlh2/XtFMxXHUSf3bhKZAIjBNugsvR/sHtEvJ6RJiuYqHMWUzZ/Vby5L0ywNl+LPSY7AVTUAZ0lKrnUCP4dHnbjwjf+nPi7vT6G0yrEg0qPOYXtJOXdf7vvjLi8J+ap758NtG2qapLdbToIPr0uOEvMO6zs8z1bIyjOHU3kzlpKHzDsPYy8txxKC/3Rae7sKB9gWm8WUxFBmuA7gaFDGQAECAwEAAaBYMFYGCSqGSIb3DQEJDjFJMEcwCwYDVR0PBAQDAgXgMB4GA1UdEQQXMBWCE2NlcnQuc3Rpci5iYXIubG9jYWwwGAYIKwYBBQUHARoEDDAKoAgWBjEyMzQ1NjANBgkqhkiG9w0BAQsFAAOCAQEAjyhJfgb/zJBMYp6ylRtEXgtBpsX9ePUL/iLgIDMcGtwaFm3pkQOSBr4xiTxftnqN77SlC8UEu7PDR73JX6iqLNJWucPlhAXVrr367ygO8GGLrtGddClZmo0lhRBRErgpagWB/jFkbL8afPGJwgQQXF0KWFMcajAPiIl1l6M0w11KqJ23Pwrmi7VJHzIgh4ys0D2UrX7KuV4PIOOmG0s7jTfBSB+yUH2zwVzOAzbr3wrD1WubD7hRaHDUi4bn4DRbquQOzbqfTI6QhetUcNpq4DwhBRcnZwUMJUIcxLAsFnDgGSW+dmJe6JH8MsS+8ZmOLllyQxWzYEVquQQvxFVTZA'
         self.assertEqual(['AwIF4A==', 'MBWCE2NlcnQuc3Rpci5iYXIubG9jYWw=', 'MAqgCBYGMTIzNDU2'], self.csr_extensions_get(self.logger, csr))
 
+    def test_414_identifer_tnauth_list(self):
+        """ empty identifier dic but tnauth exists """
+        identifier_dic = []
+        tnauthlist = 'foo'
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_414_identifer_tnauth_list(self):
+        """ identifier dic but no tnauth """
+        identifier_dic = {'foo': 'bar'}
+        tnauthlist = None
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_415_identifer_tnauth_list(self):
+        """ wrong identifier """
+        identifier_dic = {'identifiers': '[{"foo": "bar"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_416_identifer_tnauth_list(self):
+        """ wrong type """
+        identifier_dic = {'identifiers': '[{"type": "bar"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_417_identifer_tnauth_list(self):
+        """ correct type but no value"""
+        identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_418_identifer_tnauth_list(self):
+        """ correct type but wrong value"""
+        identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "bar"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_419_identifer_tnauth_list(self):
+        """ correct type but wrong value"""
+        identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "foo"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([True], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    def test_420_identifer_tnauth_list(self):
+        """ correct type but wrong value"""
+        identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "foo"}, {"type": "dns", "value": "foo"}]'}
+        tnauthlist = 'foo'
+        self.assertEqual([True, False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
 if __name__ == '__main__':
     unittest.main()

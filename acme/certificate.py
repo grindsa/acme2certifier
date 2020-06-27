@@ -132,29 +132,6 @@ class Certificate(object):
         self.logger.debug('Certificate._csr_check() ended with {0}'.format(csr_check_result))
         return csr_check_result
 
-    def _identifer_tnauth_list(self, identifier_dic, tnauthlist):
-        """ compare identifiers and check if each san is in identifer list """
-        self.logger.debug('Certificate._identifer_tnauth_list()')
-
-        identifier_status = []
-        # reload identifiers (case senetive)
-        try:
-            identifiers = json.loads(identifier_dic['identifiers'])
-        except BaseException:
-            identifiers = []
-
-        for identifier in identifiers:
-            # get the tnauthlist identifier
-            if identifier['type'].lower() == 'tnauthlist':
-                # check if tnauthlist extension is in extension list
-                if identifier['value'] in tnauthlist:
-                    identifier_status.append(True)
-                else:
-                    identifier_status.append(False)
-
-        self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
-        return identifier_status
-
     def _identifer_status_list(self, identifiers, san_list):
         """ compare identifiers and check if each san is in identifer list """
         self.logger.debug('Certificate._identifer_status_list()')
@@ -176,6 +153,36 @@ class Certificate(object):
                             break
             self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
             identifier_status.append(san_is_in)
+
+        self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
+        return identifier_status
+
+    def _identifer_tnauth_list(self, identifier_dic, tnauthlist):
+        """ compare identifiers and check if each san is in identifer list """
+        self.logger.debug('Certificate._identifer_tnauth_list()')
+
+        identifier_status = []
+        # reload identifiers (case senetive)
+        try:
+            identifiers = json.loads(identifier_dic['identifiers'])
+        except BaseException:
+            identifiers = []
+
+        if tnauthlist and not identifier_dic:
+            identifier_status.append(False)
+        elif identifiers and tnauthlist:
+            for identifier in identifiers:
+                # get the tnauthlist identifier
+                if 'type' in identifier and identifier['type'].lower() == 'tnauthlist':
+                    # check if tnauthlist extension is in extension list
+                    if 'value' in identifier and identifier['value'] in tnauthlist:
+                        identifier_status.append(True)
+                    else:
+                        identifier_status.append(False)
+                else:
+                    identifier_status.append(False)
+        else:
+            identifier_status.append(False)
 
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
