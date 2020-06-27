@@ -113,33 +113,17 @@ class Certificate(object):
                 except BaseException:
                     identifiers = []
 
+                # do we need to check for tnauth
                 tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
 
                 if self.tnauthlist_support and tnauthlist_identifer_in:
                     # get list of certextensions in base64 format
                     tnauthlist = csr_extensions_get(self.logger, csr)
-                
-                    # reload identifiers (case senetive)
-                    try:
-                        identifiers = json.loads(identifier_dic['identifiers'])
-                    except BaseException:
-                        identifiers = []
-
-                    for identifier in identifiers:
-                        # get the tnauthlist identifier
-                        if identifier['type'].lower() == 'tnauthlist':
-                            # check if tnauthlist extension is in extension list
-                            if identifier['value'] in tnauthlist:
-                                identifier_status.append(True)
-                            else:
-                                identifier_status.append(False)
+                    identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                 else:
                     # get sans and compare identifiers against san
                     san_list = csr_san_get(self.logger, csr)
                     identifier_status = self._identifer_status_list(identifiers, san_list)
-
-        # else:
-        #    result = 'error'
 
         csr_check_result = False
         if identifier_status and False not in identifier_status:
@@ -147,6 +131,29 @@ class Certificate(object):
 
         self.logger.debug('Certificate._csr_check() ended with {0}'.format(csr_check_result))
         return csr_check_result
+
+    def _identifer_tnauth_list(self, identifier_dic, tnauthlist):
+        """ compare identifiers and check if each san is in identifer list """
+        self.logger.debug('Certificate._identifer_tnauth_list()')
+
+        identifier_status = []
+        # reload identifiers (case senetive)
+        try:
+            identifiers = json.loads(identifier_dic['identifiers'])
+        except BaseException:
+            identifiers = []
+
+        for identifier in identifiers:
+            # get the tnauthlist identifier
+            if identifier['type'].lower() == 'tnauthlist':
+                # check if tnauthlist extension is in extension list
+                if identifier['value'] in tnauthlist:
+                    identifier_status.append(True)
+                else:
+                    identifier_status.append(False)
+
+        self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
+        return identifier_status
 
     def _identifer_status_list(self, identifiers, san_list):
         """ compare identifiers and check if each san is in identifer list """
@@ -169,7 +176,7 @@ class Certificate(object):
                             break
             self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
             identifier_status.append(san_is_in)
-            
+
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
@@ -261,8 +268,8 @@ class Certificate(object):
         if identifier_dic:
             for identifier in identifier_dic:
                 if 'type' in identifier:
-                     if identifier['type'].lower() == 'tnauthlist':
-                         tnauthlist_identifer_in = True
+                    if identifier['type'].lower() == 'tnauthlist':
+                        tnauthlist_identifer_in = True
         self.logger.debug('Certificate._tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
         return tnauthlist_identifer_in
 
