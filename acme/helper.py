@@ -130,9 +130,9 @@ def cert_san_get(logger, certificate):
     logger.debug('cert_san_get() ended')
     return san
 
-def cert_tnauthlist_get(logger, certificate):
-    """ get subject alternate names from certificate """
-    logger.debug('cert_tnauthlist_get()')
+def cert_extensions_get(logger, certificate):
+    """ get extenstions from certificate certificate """
+    logger.debug('cert_extensions_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
 
@@ -140,9 +140,9 @@ def cert_tnauthlist_get(logger, certificate):
     ext_count = cert.get_extension_count()
     for i in range(0, ext_count):
         ext = cert.get_extension(i)
-        extension_list.append(base64.b64encode(ext.get_data()))
+        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
 
-    logger.debug('cert_tnauthlist_get() ended with: {0}'.format(extension_list))
+    logger.debug('cert_extensions_get() ended with: {0}'.format(extension_list))
     return extension_list
 
 def cert_serial_get(logger, certificate):
