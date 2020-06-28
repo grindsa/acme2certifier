@@ -42,7 +42,7 @@ class DBstore(object):
         except BaseException as err:
             self.logger.error('DBStore._account_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
-        self.logger.debug('DBStore._account_search() ended')
+        self.logger.debug('DBStore._account_search() ended with: {0}'.format(bool(result)))
         return result
 
     def _authorization_search(self, column, string):
@@ -599,7 +599,7 @@ class DBstore(object):
         if account_list:
             jwk_dict = json.loads(account_list[3])
             jwk_dict['alg'] = account_list[2]
-        self.logger.debug('DBStore.jwk_load() ended')
+        self.logger.debug('DBStore.jwk_load() ended with: {0}'.format(jwk_dict))
         return jwk_dict
 
     def nonce_add(self, nonce):
