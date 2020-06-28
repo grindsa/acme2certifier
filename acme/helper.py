@@ -441,6 +441,7 @@ def signature_check(logger, message, pub_key):
         try:
             jwkey = jwk.JWK(**pub_key)
         except BaseException as err:
+            logger.error('load key failed {0}'.format(err))
             jwkey = None
             result = False
             error = str(err)
@@ -453,6 +454,7 @@ def signature_check(logger, message, pub_key):
                 jwstoken.verify(jwkey)
                 result = True
             except BaseException as err:
+                logger.error('verify failed {0}'.format(err))
                 error = str(err)
     else:
         error = 'No key specified.'
