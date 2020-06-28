@@ -55,14 +55,21 @@ class Certificate(object):
             tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
 
             if self.tnauthlist_support and tnauthlist_identifer_in:
-                # get list of certextensions in base64 format and identifier status
-                tnauthlist = cert_extensions_get(self.logger, certificate)
-                identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
-                
+                try:
+                    # get list of certextensions in base64 format and identifier status
+                    tnauthlist = cert_extensions_get(self.logger, certificate)
+                    identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
+                except BaseException as err_:
+                    identifier_status = []
+                    self.logger.error('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
             else:
-                # get sans
-                san_list = cert_san_get(self.logger, certificate)
-                identifier_status = self._identifer_status_list(identifiers, san_list)
+                try:
+                    # get sans
+                    san_list = cert_san_get(self.logger, certificate)
+                    identifier_status = self._identifer_status_list(identifiers, san_list)
+                except BaseException as err_:
+                    identifier_status = []
+                    self.logger.error('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
 
         result = False
         if identifier_status and False not in identifier_status:

@@ -3227,5 +3227,141 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
+    def test_436_authorization_check(self):
+        """ _authorization_check order lookup failed """
+        self.certificate.dbstore.order_lookup.return_value = {}
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
+
+    def test_437_authorization_check(self):
+        """ _authorization_check order lookup returns rubbish """
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
+
+    def test_438_authorization_check(self):
+        """ _authorization_check order lookup returns an identifier """
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
+
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_439_authorization_check(self, mock_tnauthin):
+        """ _authorization_check no tnauth """
+        mock_tnauthin.return_value = False
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_440_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check no tnauth  status true """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_441_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check no tnauth  status true """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_442_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check no tnauth  status False """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [False]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_443_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check no tnauth  status True, False """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True, False]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_444_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check no tnauth  status True, False, True """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True, False, True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_san_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_445_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check tnauth  but tnauthlist_support off  """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_446_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check tnauth  but tnauthlist_support on and returns true  """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_447_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check tnauth  but tnauthlist_support on and returns true  """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [False]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_448_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check tnauth  but tnauthlist_support on and returns True, False  """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True, False]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
+    @patch('acme.certificate.cert_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    def test_449_authorization_check(self, mock_tnauthin, mock_status, mock_san):
+        """ _authorization_check tnauth  but tnauthlist_support on and returns True, False  """
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True, False, True]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+
 if __name__ == '__main__':
     unittest.main()
