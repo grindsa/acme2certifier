@@ -3028,47 +3028,204 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         tnauthlist = 'foo'
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_414_identifer_tnauth_list(self):
+    def test_415_identifer_tnauth_list(self):
         """ identifier dic but no tnauth """
         identifier_dic = {'foo': 'bar'}
         tnauthlist = None
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_415_identifer_tnauth_list(self):
+    def test_416_identifer_tnauth_list(self):
         """ wrong identifier """
         identifier_dic = {'identifiers': '[{"foo": "bar"}]'}
         tnauthlist = 'foo'
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_416_identifer_tnauth_list(self):
+    def test_417_identifer_tnauth_list(self):
         """ wrong type """
         identifier_dic = {'identifiers': '[{"type": "bar"}]'}
         tnauthlist = 'foo'
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_417_identifer_tnauth_list(self):
+    def test_418_identifer_tnauth_list(self):
         """ correct type but no value"""
         identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt"}]'}
         tnauthlist = 'foo'
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_418_identifer_tnauth_list(self):
+    def test_419_identifer_tnauth_list(self):
         """ correct type but wrong value"""
         identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "bar"}]'}
         tnauthlist = 'foo'
         self.assertEqual([False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_419_identifer_tnauth_list(self):
+    def test_420_identifer_tnauth_list(self):
         """ correct type but wrong value"""
         identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "foo"}]'}
         tnauthlist = 'foo'
         self.assertEqual([True], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    def test_420_identifer_tnauth_list(self):
+    def test_421_identifer_tnauth_list(self):
         """ correct type but wrong value"""
         identifier_dic = {'identifiers': '[{"type": "TnAuThLiSt", "value": "foo"}, {"type": "dns", "value": "foo"}]'}
         tnauthlist = 'foo'
         self.assertEqual([True, False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
+
+    @patch('acme.certificate.Certificate._info')
+    def test_422_csr_check(self, mock_certinfo):
+        """ csr-check certname lookup failed """
+        mock_certinfo.return_value = {}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.Certificate._info')
+    def test_423_csr_check(self, mock_certinfo):
+        """ csr-check order lookup failed """
+        mock_certinfo.return_value = {'order': 'order'}
+        self.certificate.dbstore.order_lookup.return_value = {}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.Certificate._info')
+    def test_424_csr_check(self, mock_certinfo):
+        """ csr-check order lookup returns rubbish """
+        mock_certinfo.return_value = {'order': 'order'}
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.Certificate._info')
+    def test_425_csr_check(self, mock_certinfo):
+        """ csr-check order lookup returns an identifier """
+        mock_certinfo.return_value = {'order': 'order'}
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_426_csr_check(self, mock_certinfo, mock_tnauthin):
+        """ csr-check no tnauth """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_tnauthin.return_value = False
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_427_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check no tnauth  status true """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertTrue(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_428_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check no tnauth  status False """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [False]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_429_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check no tnauth  status True, False """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True, False]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_san_get')
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_430_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check no tnauth  status True, False, True """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = False
+        mock_status.return_value = [True, False, True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_san_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_431_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check tnauth  but tnauthlist_support off  """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True]
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_432_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check tnauth  but tnauthlist_support on and returns true  """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertTrue(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_433_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check tnauth  but tnauthlist_support on and returns true  """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [False]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_434_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check tnauth  but tnauthlist_support on and returns True, False  """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True, False]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
+
+    @patch('acme.certificate.csr_extensions_get')
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.Certificate._info')
+    def test_435_csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
+        """ csr-check tnauth  but tnauthlist_support on and returns True, False  """
+        mock_certinfo.return_value = {'order': 'order'}
+        mock_san.return_value = ['foo']
+        mock_tnauthin.return_value = True
+        mock_status.return_value = [True, False, True]
+        self.certificate.tnauthlist_support = True
+        self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
+        self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
 if __name__ == '__main__':
     unittest.main()
