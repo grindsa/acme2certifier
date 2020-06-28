@@ -55,22 +55,10 @@ class Certificate(object):
             tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
 
             if self.tnauthlist_support and tnauthlist_identifer_in:
-                # reload identifiers (case senetive)
-                try:
-                    identifiers = json.loads(identifier_dic['identifiers'])
-                except BaseException:
-                    identifiers = []
-                # get list of certextensions in base64 format
+                # get list of certextensions in base64 format and identifier status
                 tnauthlist = cert_tnauthlist_get(self.logger, certificate)
-
-                for identifier in identifiers:
-                    # get the tnauthlist identifier
-                    if identifier['type'].lower() == 'tnauthlist':
-                        # check if tnauthlist extension is in extension list
-                        if identifier['value'] in tnauthlist:
-                            identifier_status.append(True)
-                        else:
-                            identifier_status.append(False)
+                identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
+                
             else:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
@@ -118,14 +106,23 @@ class Certificate(object):
 
                 if self.tnauthlist_support and tnauthlist_identifer_in:
                     # get list of certextensions in base64 format
-                    tnauthlist = csr_extensions_get(self.logger, csr)
-                    identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
+                    try:
+                        tnauthlist = csr_extensions_get(self.logger, csr)
+                        identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
+                    except BaseException as err_:
+                        identifier_status = []
+                        self.logger.error('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
                 else:
                     # get sans and compare identifiers against san
-                    san_list = csr_san_get(self.logger, csr)
-                    identifier_status = self._identifer_status_list(identifiers, san_list)
+                    try:
+                        san_list = csr_san_get(self.logger, csr)
+                        identifier_status = self._identifer_status_list(identifiers, san_list)
+                    except BaseException as err_:
+                        identifier_status = []
+                        self.logger.error('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
 
         csr_check_result = False
+
         if identifier_status and False not in identifier_status:
             csr_check_result = True
 
