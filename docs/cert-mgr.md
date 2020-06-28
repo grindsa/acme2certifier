@@ -1,9 +1,9 @@
 # Using cert-manager to enroll certificate in Kubernetes environments
 
-I don not really have a full kubernets environment. Thus i was using [https://microk8s.io/](https://microk8s.io/) for testing.
+I don not really have a full kubernets environment. Thus, I was using [https://microk8s.io/](https://microk8s.io/) for testing.
 
 ## Prerequisites
- - cert-manager must be installed. See [instructions](https://cert-manager.io/docs/installation/kubernetes/) for furhter information. (I was installing with regular manifest)
+ - cert-manager must be installed. See [instructions](https://cert-manager.io/docs/installation/kubernetes/) for further information. (I was installing with regular manifest)
 
 ## Issuer configuration
 The below steps based on instructions taken from [cert-manager documention](https://cert-manager.io/docs/configuration/acme/)
@@ -82,3 +82,4 @@ Events:
 ```
 - the certificate details can be checked by using the command `microk8s.kubectl get certificate acme-cert -o yaml -n cert-manager-acme`
 - You can check the private key with `microk8s.kubectl get secret acme-cert-key -o yaml -n cert-manager-acme`. You should see a base64 encoded key in the `tls.key` field.
+- certificate, issuer and namespace can be deleted with `microk8s.kubectl delete -f acme2certifier.yaml`
