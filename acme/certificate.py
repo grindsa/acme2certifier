@@ -3,7 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_tnauthlist_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
+from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
 from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
 from acme.message import Message
@@ -56,7 +56,7 @@ class Certificate(object):
 
             if self.tnauthlist_support and tnauthlist_identifer_in:
                 # get list of certextensions in base64 format and identifier status
-                tnauthlist = cert_tnauthlist_get(self.logger, certificate)
+                tnauthlist = cert_extensions_get(self.logger, certificate)
                 identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                 
             else:
