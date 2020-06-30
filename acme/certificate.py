@@ -309,6 +309,7 @@ class Certificate(object):
                     # store error message for later analysis
                     self._store_cert_error(certificate_name, error, poll_identifier)
                     detail = poll_identifier
+                    error = 'urn:ietf:params:acme:error:serverInternal'
         else:
             result = None
             error = 'urn:ietf:params:acme:badCSR'
