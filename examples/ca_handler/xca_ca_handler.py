@@ -68,9 +68,12 @@ class CAhandler(object):
         # query database for key
         self._db_open()
         pre_statement = '''SELECT * from view_private WHERE name LIKE ?'''
-        self.logger.debug('pre_statement: {0}'.format(pre_statement))
+        self.logger.debug('pre_statement: {0}:{1}'.format(pre_statement, self.issuing_ca_name))
         self.cursor.execute(pre_statement, [self.issuing_ca_name])
-        db_result = dict_from_row(self.cursor.fetchone())
+        try:
+            db_result = dict_from_row(self.cursor.fetchone())
+        except BaseException as err_:
+            self.logger.error('key lookup failed: {0}'.format(self.cursor.fetchone()))
         self._db_close()
 
         ca_key = None
