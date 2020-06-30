@@ -583,7 +583,7 @@ def validate_email(logger, contact_list):
     """ validate contact against RFC608"""
     logger.debug('validate_email()')
     result = True
-    pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
+    pattern = r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$"
     # check if we got a list or single address
     if isinstance(contact_list, list):
         for contact in contact_list:

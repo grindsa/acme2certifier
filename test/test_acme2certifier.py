@@ -3363,5 +3363,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
+    def test_450_validate_email(self):
+        """ validate email containing "-" in domain """
+        self.assertTrue(self.validate_email(self.logger, 'foo@example-example.com'))
+
+    def test_451_validate_email(self):
+        """ validate email containing "-" in user"""
+        self.assertTrue(self.validate_email(self.logger, 'foo-foo@example.com'))
+
 if __name__ == '__main__':
     unittest.main()
