@@ -209,6 +209,8 @@ class Order(object):
                     else:
                         code = 400
                         message = error
+                        if message == 'urn:ietf:params:acme:error:serverInternal':
+                            code = 500
                 else:
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'

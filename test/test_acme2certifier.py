@@ -3371,5 +3371,15 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ validate email containing "-" in user"""
         self.assertTrue(self.validate_email(self.logger, 'foo-foo@example.com'))
 
+    @patch('acme.certificate.Certificate.enroll_and_store')
+    @patch('acme.certificate.Certificate.store_csr')
+    @patch('acme.order.Order._info')
+    def test_452_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
+        """ test order prcoess_csr with failed cert enrollment with internal error (response code must be corrected by 500)"""
+        mock_oinfo.return_value = {'foo', 'bar'}
+        mock_certname.return_value = 'foo'
+        mock_enroll.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr'))
+
 if __name__ == '__main__':
     unittest.main()
