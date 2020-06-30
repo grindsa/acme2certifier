@@ -308,7 +308,9 @@ def get_url(environ, include_path=False):
     else:
         port = 80
 
-    if 'wsgi.url_scheme' in environ:
+    if 'HTTP_X_FORWARDED_PROTO' in environ:
+        proto = environ['HTTP_X_FORWARDED_PROTO']
+    elif 'wsgi.url_scheme' in environ:
         proto = environ['wsgi.url_scheme']
     elif port == 443:
         proto = 'https'

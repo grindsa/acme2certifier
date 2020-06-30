@@ -3381,5 +3381,15 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_enroll.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr'))
 
+    def test_453_get_url(self):
+        """ get_url with xforwarded https """
+        data_dic = {'HTTP_X_FORWARDED_PROTO': 'https', 'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        self.assertEqual('https://http_host', self.get_url(data_dic, False))
+
+    def test_454_get_url(self):
+        """ get_url with xforwarded http """
+        data_dic = {'HTTP_X_FORWARDED_PROTO': 'http', 'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        self.assertEqual('http://http_host', self.get_url(data_dic, False))
+
 if __name__ == '__main__':
     unittest.main()
