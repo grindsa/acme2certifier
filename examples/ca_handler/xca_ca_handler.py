@@ -68,6 +68,7 @@ class CAhandler(object):
         # query database for key
         self._db_open()
         pre_statement = '''SELECT * from view_private WHERE name LIKE ?'''
+        self.logger.debug('pre_statement: {0}'.format(pre_statement))
         self.cursor.execute(pre_statement, [self.issuing_ca_name])
         db_result = dict_from_row(self.cursor.fetchone())
         self._db_close()
@@ -80,6 +81,8 @@ class CAhandler(object):
 
             except BaseException as err_:
                 self.logger.error('CAhandler._ca_key_load() failed with error: {0}'.format(err_))
+        else:
+            self.logger.error('CAhandler._ca_key_load() failed to load key: {0}'.format(db_result))
 
         self.logger.debug('CAhandler._ca_key_load() ended')
         return ca_key
