@@ -107,6 +107,7 @@ class CAhandler(object):
         if self.xdb_file:
             if not os.path.exists(self.xdb_file):
                 error = 'xdb_file {0} does not exist'.format(self.xdb_file)
+                self.xdb_file = None                
         else:
             error = 'xdb_file must be specified in config file'
 
