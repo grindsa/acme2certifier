@@ -83,6 +83,18 @@ class CAhandler(object):
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         self.logger.debug('CAhandler.load_config() ended')
 
+    def poll(self, cert_name, poll_identifier, _csr):
+        """ poll status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+        self._stub_func(cert_name)
+
+        self.logger.debug('CAhandler.poll() ended')
+        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -94,3 +106,15 @@ class CAhandler(object):
         detail = 'Revocation is not supported.'
 
         return(code, message, detail)
+
+    def trigger(self, payload):
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        self._stub_func(payload)
+
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        return (error, cert_bundle, cert_raw)
