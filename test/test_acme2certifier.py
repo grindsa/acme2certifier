@@ -3391,5 +3391,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         data_dic = {'HTTP_X_FORWARDED_PROTO': 'http', 'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
         self.assertEqual('http://http_host', self.get_url(data_dic, False))
 
+    def test_455_validate_email(self):
+        """ validate email containing first letter of domain cannot be a number"""
+        self.assertFalse(self.validate_email(self.logger, 'foo@1example.com'))
+
+    def test_456_validate_email(self):
+        """ validate email containing last letter of domain cannot - """
+        self.assertFalse(self.validate_email(self.logger, 'foo@example-.com'))
+
 if __name__ == '__main__':
     unittest.main()
