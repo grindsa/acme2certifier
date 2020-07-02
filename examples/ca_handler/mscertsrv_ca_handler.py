@@ -56,12 +56,16 @@ class CAhandler(object):
                 # get ca_chain
                 try:
                     ca_pem = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
+                    # replace crlf with lf
+                    ca_pem = ca_pem.replace('\r\n', '\n')
                 except BaseException as err_:
                     ca_pem = None
                     self.logger.error('ca_server.get_chain() failed with error: {0}'.format(err_))
 
                 try:
                     cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
+                    # replace crlf with lf                    
+                    cert_raw = cert_raw.replace('\r\n', '\n')
                 except BaseException as err_:
                     cert_raw = None
                     self.logger.error('ca_server.get_cert() failed with error: {0}'.format(err_))
