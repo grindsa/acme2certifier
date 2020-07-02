@@ -184,16 +184,18 @@ class CAhandler(object):
 
     def _cert_search(self, column, value):
         """ load ca key from database """
-        self.logger.debug('CAhandler._cert_search()')
+        self.logger.debug('CAhandler._cert_search({0}:{1})'.format(column, value))
 
         # query database for key
         self._db_open()
         pre_statement = '''SELECT * from items WHERE type == 3 and {0} LIKE ?'''.format(column)
         self.cursor.execute(pre_statement, [value])
 
+        cert_result = {}
         try:
             item_result = dict_from_row(self.cursor.fetchone())
         except BaseException:
+            self.logger.error('CAhandler._cert_search(): item search failed: {0}'.format(self.cursor.fetchone()))
             item_result = {}
 
         if item_result:
@@ -203,7 +205,7 @@ class CAhandler(object):
             try:
                 cert_result = dict_from_row(self.cursor.fetchone())
             except BaseException:
-                cert_result = {}
+                self.logger.error('CAhandler._cert_search(): cert search failed: item: {0}'.format(item_id))
 
         self._db_close()
         self.logger.debug('CAhandler._cert_search() ended')
