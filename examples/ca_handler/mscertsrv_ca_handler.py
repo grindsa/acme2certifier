@@ -29,9 +29,16 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _check_credentials(self, ca_server):
+        """ check creadentials """
+        self.logger.debug('CAhandler.__check_credentials()')
+        auth_check = ca_server.check_credentials()
+        self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
+        return auth_check
+
     def enroll(self, csr):
         """ enroll certificate from via MS certsrv """
-        self.logger.debug('CAhandler.enroll()')
+        self.logger.debug('CAhandler.enroll({0})'.format(self.template))
         cert_bundle = None
         error = None
         cert_raw = None
@@ -41,24 +48,37 @@ class CAhandler(object):
             ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle)
 
             # check connection and credentials
-            auth_check = ca_server.check_credentials()
+            auth_check = self._check_credentials(ca_server)
             if auth_check:
                 # recode csr
                 csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
 
                 # get ca_chain
-                ca_pem = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
-                cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
-                if cert_raw:
+                try:
+                    ca_pem = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
+                except BaseException as err_:
+                    ca_pem = None
+                    self.logger.error('ca_server.get_chain() failed with error: {0}'.format(err_))
+
+                try:
+                    cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
+                except BaseException as err_:
+                    cert_raw = None
+                    self.logger.error('ca_server.get_cert() failed with error: {0}'.format(err_))
+
+                if ca_pem and cert_raw:
                     cert_bundle = cert_raw + ca_pem
                     cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
                     cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
                     cert_raw = cert_raw.replace('\n', '')
                 else:
-                    error = 'Enrollment failed'
+                    self.logger.error('cert bundling failed')
+                    error = 'cert bundling failed'
             else:
+                self.logger.error('Connection or Credentialcheck failed')
                 error = 'Connection or Credentialcheck failed.'
         else:
+            self.logger.error('Config incomplete')
             error = 'Config incomplete'
 
         self.logger.debug('Certificate.enroll() ended')
@@ -83,7 +103,7 @@ class CAhandler(object):
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         self.logger.debug('CAhandler.load_config() ended')
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -91,7 +111,6 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         rejected = False
-        self._stub_func(cert_name)
 
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
@@ -107,14 +126,13 @@ class CAhandler(object):
 
         return(code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, _payload):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
         error = None
         cert_bundle = None
         cert_raw = None
-        self._stub_func(payload)
 
         self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw)
