@@ -229,7 +229,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [rsa2048, rsa4096, ec384]
+        keylength: [rsa2048, rsa4096, rsa8192, ec256, ec384]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -257,31 +257,31 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http renew
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ ENROLL ] HTTP-01 2x domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d lego --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 2x domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d lego --http renew
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http renew
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 2x domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
