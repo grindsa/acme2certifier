@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        accountkeylength: [2048, ec-256]
+        accountkeylength: [2048]
         keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
