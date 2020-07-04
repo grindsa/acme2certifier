@@ -3399,5 +3399,37 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ validate email containing last letter of domain cannot - """
         self.assertFalse(self.validate_email(self.logger, 'foo@example-.com'))
 
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order._process')
+    @patch('acme.order.Order._lookup')
+    @patch('acme.order.Order._name_get')
+    @patch('acme.message.Message.check')
+    def test_457_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process, mock_nnonce):
+        """ Order.parse() succ, oder process returned 200 and certname processing status default retry after-header """
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = {'foo': 'bar', 'status': 'processing'}
+        mock_process.return_value = (200, 'message', 'detail', 'certname')
+        mock_nnonce.return_value = 'nonce'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce',  'Retry-After': '600'}}, self.order.parse(message))
+
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.order.Order._process')
+    @patch('acme.order.Order._lookup')
+    @patch('acme.order.Order._name_get')
+    @patch('acme.message.Message.check')
+    def test_458_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process, mock_nnonce):
+        """ Order.parse() succ, oder process returned 200 and certname processing status configurable retry after-header """
+        self.order.retry_after = 60
+        mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
+        mock_oname.return_value = 'foo'
+        mock_lookup.return_value = {'foo': 'bar', 'status': 'processing'}
+        mock_process.return_value = (200, 'message', 'detail', 'certname')
+        mock_nnonce.return_value = 'nonce'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce',  'Retry-After': '60'}}, self.order.parse(message))
+
+
 if __name__ == '__main__':
     unittest.main()
