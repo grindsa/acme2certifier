@@ -3430,6 +3430,5 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce',  'Retry-After': '60'}}, self.order.parse(message))
 
-
 if __name__ == '__main__':
     unittest.main()
