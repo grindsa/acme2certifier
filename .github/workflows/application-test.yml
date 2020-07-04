@@ -21,7 +21,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   docker-compose_django:
     name: "Docker compose - Django"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
     - name: "Build the stack"
@@ -36,7 +36,7 @@ jobs:
   acme_sh:
     name: "acme.sh"
     needs: [docker-compose_wsgi]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
