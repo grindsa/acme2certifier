@@ -1,7 +1,6 @@
 """ build script for acme2certifier """
 from setuptools import setup
-import sys
-import os
+from glob import glob
 exec(open('acme/version.py').read())
 setup(name='acme2certifier',
       version=__version__,
@@ -10,26 +9,26 @@ setup(name='acme2certifier',
       author='grindsa',
       author_email='grindelsack@gmail.com',
       license='GPL',
-      packages=['acme',
-                'examples', 
-                'examples.ca_handler', 
-                'examples.db_handler', 
-                'examples.django.acme', 
-                'examples.django.acme.migrations', 
-                'examples.django.acme.fixture',
-                'examples.django.acme2certifier', 
-                'examples.django', 
-                'examples.nginx',
-                'tools',                 
-      ],
-      package_data={
-          'examples': ['*.py', '*.conf', '*.cfg'],
-          'examples.nginx': ['*.conf', '*.ini', '*.service'],
-          'examples.django.acme.fixture': ['*.yaml'],          
-      },
+      # packages=['docs', 'acme', 'examples'],
+      include_package_data = True,
+      data_files=[('/usr/share/doc/acme2certifier/', glob('docs/*')),
+                  ('/var/lib/acme2certifier/acme/', glob('acme/*.py')),
+                  ('/var/lib/acme2certifier/examples', glob('examples/*.*')),
+                  ('/var/lib/acme2certifier/examples/ca_handler', glob('examples/ca_handler/*.py')),
+                  ('/var/lib/acme2certifier/examples/db_handler', glob('examples/db_handler/*.py')),
+                  ('/var/lib/acme2certifier/examples/django', glob('examples/django/*.py')),
+                  ('/var/lib/acme2certifier/examples/django/acme2certifier', glob('examples/django/acme2certifier/*.py')),
+                  ('/var/lib/acme2certifier/examples/django/acme', glob('examples/django/acme/*.py')),
+                  ('/var/lib/acme2certifier/examples/django/acme/fixture', glob('examples/django/acme/fixture/*')),
+                  ('/var/lib/acme2certifier/examples/django/acme/migrations', glob('examples/django/acme/migrations/*.py')),
+                  ('/var/lib/acme2certifier/examples/nginx', glob('examples/nginx/*')),
+                  ('/var/lib/acme2certifier/examples/trigger', glob('examples/trigger/*')),
+                  ('/var/lib/acme2certifier/tools', glob('tools/*.py')),
+                  ('/var/lib/acme2certifier/examples/Docker', glob('examples/Docker/*.*')),
+                  ('/var/lib/acme2certifier/examples/Docker/wsgi', glob('examples/Docker/wsgi/*')),                  
+                  ('/var/lib/acme2certifier/examples/Docker/django', glob('examples/Docker/django/*')),
+                 ],
 
-      data_files = [('tools', ['docs/certifier.md'])],
-      
       platforms='any',
       classifiers=[
           'Programming Language :: Python',
