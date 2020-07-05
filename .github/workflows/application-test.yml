@@ -8,7 +8,7 @@ on:
 jobs:
   docker-compose_wsgi:
     name: "Docker compose - wsgi"
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: "Build the stack"
@@ -21,7 +21,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   docker-compose_django:
     name: "Docker compose - Django"
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: "Build the stack"
@@ -36,7 +36,7 @@ jobs:
   acme_sh:
     name: "acme.sh"
     needs: [docker-compose_wsgi]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +143,7 @@ jobs:
   certbot:
     name: "certbot"
     needs: [docker-compose_wsgi]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -225,7 +225,7 @@ jobs:
   lego:
     name: "lego"
     needs: [docker-compose_wsgi]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
