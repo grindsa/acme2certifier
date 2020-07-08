@@ -65,7 +65,7 @@ jobs:
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh -v $(pwd)/.github/dnsserver_container/dnsmasq.new:/dnsmasq.new:rw -v $(pwd)/.github/dnsserver_container/dns_acme2certifier.sh:/root/.acme.sh/dnsapi/dns_acme2certifier.sh --network acme --name=acme-sh neilpang/acme.sh daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
 
     - name: "[ ENROLL ] HTTP-01 single domain acme.sh"
       run: |
