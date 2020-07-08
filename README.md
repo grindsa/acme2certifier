@@ -12,7 +12,7 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
     - [NetGuard Certificate Manager/Insta certifier](docs/certifier.md)
     - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
     - [Generic EST protocol handler](docs/est.md)
-    - [Generic CMPv2 protocol handler](docs/cmp.md) 
+    - [Generic CMPv2 protocol handler](docs/cmp.md)
     - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
     - [XCA](docs/xca.md)
 
@@ -25,10 +25,10 @@ Releasenotes and ChangLog can be found at [https://github.com/grindsa/acme2certi
 I am running this project as my RnD guys told me that it won’t be possible :-)
 
 Following acme-clients are used for regular testing of server functionality
-- [acme.sh](https://github.com/Neilpang/acme.sh) 
+- [acme.sh](https://github.com/Neilpang/acme.sh)
 - [Certbot](https://certbot.eff.org/)
 - [lego](https://github.com/go-acme/lego)
-- [acmeshell](https://github.com/cpu/acmeshell/) 
+- [acmeshell](https://github.com/cpu/acmeshell/)
 - [cert-manager](docs/cert-mgr.md)
 - [win-acme](https://www.win-acme.com/)
 
@@ -59,7 +59,7 @@ As of today acme2certifier supports the below ACME functions only:
 
 Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
-Starting from version 0.8 acme2certifier supports [certificate polling](doc/poll.md) and [call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA servers,
+Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md) and [call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA servers,
 
 Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
