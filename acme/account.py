@@ -41,7 +41,7 @@ class Account(object):
             if not self.contact_check_disable and not contact:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'incomplete protected payload' 
+                detail = 'incomplete protected payload'
             else:
                 # ecc_only check
                 if self.ecc_only and not content['alg'].startswith('ES'):
@@ -290,10 +290,10 @@ class Account(object):
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
             self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
             self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
-        if 'Directory' in config_dic:            
+        if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
-                
+
     def _lookup(self, value, field='name'):
         """ lookup account """
         self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
