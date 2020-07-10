@@ -75,6 +75,8 @@ class Certificate(models.Model):
     cert_raw = models.TextField(blank=True, null=True)
     error = models.TextField(blank=True, null=True)
     poll_identifier = models.TextField(blank=True, null=True)
+    expire_uts = models.IntegerField(default=0)
+    issue_uts = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     def __unicode__(self):
         return self.name
