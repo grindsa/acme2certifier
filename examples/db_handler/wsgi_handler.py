@@ -171,7 +171,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0)
         ''')
 
         self._db_close()
@@ -587,6 +587,14 @@ class DBstore(object):
         if 'poll_identifier' not in certificate_column_list:
             self.logger.debug('alter certificate table - add poll_identifier')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
+
+        if 'issue_uts' not in certificate_column_list:
+            self.logger.debug('alter certificate table - add issue_uts')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN issue_uts integer DEFAULT 0''')
+
+        if 'expire_uts' not in certificate_column_list:
+            self.logger.debug('alter certificate table - add expire_uts')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
 
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
