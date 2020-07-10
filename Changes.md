@@ -32,7 +32,7 @@ This is a high-level summary of the most important changes. For a full list of c
 - empty CRL handling
 - string parsing in `b64_url_encode()`
 - py3 support for est_handler
-- #9 - base64-parsing of dns challenge
+- [#9 - base64-parsing of dns challenge]((https://github.com/grindsa/acme2certifier/issues/9)
 - openssl_handler: set correct x509 version
 - openssl_handler: mandentory cert-extensions
 - harmonization of apache config files
