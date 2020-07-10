@@ -11,10 +11,10 @@ This is a high-level summary of the most important changes. For a full list of c
 - option to disable tos check
 
 **Bugfixes**:
-- mscertsrv_ca_handler: [#37 - pkcs#7 to pem conversion](#37)
+- mscertsrv_ca_handler: [#37 - pkcs#7 to pem conversion] #37
 - mscertsrv_ca_handler: CRLF to LF conversion
-- [#35 rfc608  compliant contact checking](#35)
-- xca_handler: [#38 - prevent error message leakage to client](#38)
+- [#35 rfc608  compliant contact checking] #35
+- xca_handler: [#38 - prevent error message leakage to client] #38
 
 ## Changes in 0.9
 
