@@ -42,7 +42,7 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **Features**:
 - Challenge polling
-- Support for CA polling and callbacks
+- Support for CA polling and call-backs
 - Certificate profiling in openssl handler
 - Ssl support
 - Container deployments
@@ -70,4 +70,4 @@ This is a high-level summary of the most important changes. For a full list of c
 
 **Features**:
 - experimental TNAuthList identifier and tkauth-01 challenge support
-- compability with Python3
+- compatibility with Python3
