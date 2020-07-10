@@ -2,7 +2,7 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
-## Changes between 0.9 and 0.10
+## Changes in 0.10
 
 **Features**:
 - http_x_forward header support
@@ -16,7 +16,7 @@ This is a high-level summary of the most important changes. For a full list of c
 - #35 rfc608  compliant contact checking
 - xca_handler: #38 - prevent error message leakage to client
 
-## Changes between 0.8 and 0.9
+## Changes in 0.9
 
 **Features**:
 - option to mandate the usage of ecc keys
@@ -38,12 +38,36 @@ This is a high-level summary of the most important changes. For a full list of c
 - harmonization of apache config files
 - migration support for docker_django deployment
 
-## Changes between 0.7 and 0.8
+## Changes in 0.8
 
 **Features**:
 - Challenge polling
 - Support for CA polling and callbacks
-- Certifiate profiling in openssl handler
+- Certificate profiling in openssl handler
 - Ssl support
 - Container deployments
 - Django project with mysql as backend database
+
+## Changes in 0.7
+
+**Features**:
+- support ECC keys
+- key update and key roll-over support
+- generic CMPv2 handler
+
+
+## Changes in 0.6
+
+**Features**:
+- EST and certsrv support
+
+## Changes in 0.5
+
+**Features**:
+- CSR validation against order identifiers
+
+## Changes in 0.4
+
+**Features**:
+- experimental TNAuthList identifier and tkauth-01 challenge support
+- compability with Python3
