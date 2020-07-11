@@ -392,7 +392,11 @@ class DBstore(object):
             if 'error' in data_dic:
                 self.cursor.execute('''UPDATE Certificate SET error = :error, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
             else:
-                self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw WHERE name = :name''', data_dic)
+                if 'expire_uts' not in data_dic:
+                    data_dic['expire_uts'] = 0
+                if 'issue_uts' not in data_dic:
+                    data_dic['issue_uts'] = 0
+                self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts WHERE name = :name''', data_dic)
             self._db_close()
             rid = dict_from_row(exists)['id']
         else:
