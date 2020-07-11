@@ -19,19 +19,18 @@ class CAhandler(object):
         self.tsg_info_dic = {'name' : None, 'id' : None}
         self.headers = None
         self.ca_name = None
+        self.error = None
         self.ca_id_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.api_host:
             self._config_load()
-
-        if not self.headers:
+            self._config_check()
+        if not self.headers and not self.error:
             self._login()
-
-        if not self.tsg_info_dic['id']:
+        if not self.tsg_info_dic['id'] and not self.error:
             self._tsg_id_lookup()
-
         return self
 
     def __exit__(self, *args):
@@ -115,6 +114,43 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._cert_id_lookup() ended with: {0}'.format(cert_id))
         return cert_id
+
+    def _config_check(self):
+        """ check config for consitency """
+        self.logger.debug('CAhandler._config_check()')
+
+        if not self.api_host:
+            self.logger.error('"api_host" to be set in config file')
+            self.error = 'api_host to be set in config file'
+
+        if not self.error:
+            if 'api_user' in self.credential_dic and bool(self.credential_dic['api_user']):
+                pass
+            else:
+                self.logger.error('"api_user" to be set in config file')
+                self.error = 'api_user to be set in config file'
+
+        if not self.error:
+            if 'api_password' in self.credential_dic and bool(self.credential_dic['api_password']):
+                pass
+            else:
+                self.logger.error('"api_password" to be set in config file')
+                self.error = 'api_password to be set in config file'
+
+        if not self.error:
+            if 'name' in self.tsg_info_dic and bool(self.tsg_info_dic['name']):
+                pass
+            else:
+                self.logger.error('"tsg_name" to be set in config file')
+                self.error = 'tsg_name to be set in config file'
+
+        if not self.error and not self.ca_name:
+            self.logger.error('"ca_name" to be set in config file')
+            self.error = 'ca_name to be set in config file'
+
+        if not self.error and not self.ca_id_list:
+            self.logger.error('"ca_id_list" to be set in config file')
+            self.error = 'ca_id_list to be set in config file'
 
     def _config_load(self):
         """" load config from file """
@@ -263,34 +299,37 @@ class CAhandler(object):
         # recode csr
         csr = b64_url_recode(self.logger, csr)
 
-        if self.tsg_info_dic['id']:
+        if not self.error:
+            if self.tsg_info_dic['id']:
 
-            ca_id = self._ca_id_lookup()
-            # get common name of CSR
-            csr_cn = csr_cn_get(self.logger, csr)
-            csr_san_list = csr_san_get(self.logger, csr)
+                ca_id = self._ca_id_lookup()
+                # get common name of CSR
+                csr_cn = csr_cn_get(self.logger, csr)
+                csr_san_list = csr_san_get(self.logger, csr)
 
-            # import csr to NCLM
-            self._request_import(csr)
-            # lookup csr id
-            csr_id = self._csr_id_lookup(csr_cn, csr_san_list)
+                # import csr to NCLM
+                self._request_import(csr)
+                # lookup csr id
+                csr_id = self._csr_id_lookup(csr_cn, csr_san_list)
 
-            if ca_id and csr_id and self.tsg_info_dic['id']:
-                data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
-                self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
-                # wait for certificate enrollment to get finished
-                time.sleep(5)
-                cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
-                if cert_id:
-                    (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+                if ca_id and csr_id and self.tsg_info_dic['id']:
+                    data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
+                    self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
+                    # wait for certificate enrollment to get finished
+                    time.sleep(5)
+                    cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
+                    if cert_id:
+                        (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+                    else:
+                        error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
+                        self.logger.error('certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
                 else:
-                    error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
-                    self.logger.error('certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
+                    error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
+                    self.logger.error('enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
             else:
-                error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
-                self.logger.error('enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
+                error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
         else:
-            error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
+            self.logger.error(self.error)
 
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
