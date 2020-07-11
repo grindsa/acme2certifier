@@ -24,33 +24,33 @@ class CAhandler(object):
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.api_host:
-            self.load_config()
+            self._config_load()
 
         if not self.headers:
-            self.login()
+            self._login()
 
         if not self.tsg_info_dic['id']:
-            self.tsg_id_lookup()
+            self._tsg_id_lookup()
 
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def api_post(self, url, data):
+    def _api_post(self, url, data):
         """  generic wrapper for an API post call """
-        self.logger.debug('CAhandler.api_post()')
+        self.logger.debug('CAhandler._api_post()')
         try:
             api_response = requests.post(url=url, json=data, headers=self.headers, verify=False).json()
         except BaseException as err:
             api_response = err
 
-        self.logger.debug('CAhandler.api_post() ended with: {0}'.format(api_response))
+        self.logger.debug('CAhandler._api_post() ended with: {0}'.format(api_response))
         return api_response
 
-    def ca_id_lookup(self):
+    def _ca_id_lookup(self):
         """ lookup CA ID based on CA_name """
-        self.logger.debug('CAhandler.ca_id_lookup()')
+        self.logger.debug('CAhandler._ca_id_lookup()')
         # query CAs
         ca_list = requests.get(self.api_host + '/ca?freeText=' + str(self.ca_name), headers=self.headers, verify=False).json()
         ca_id = None
@@ -65,13 +65,34 @@ class CAhandler(object):
 
         if not ca_id:
             # log error
-            self.logger.error('ca_id_lookup(): no ca id found for {0}'.format(self.ca_name))
-        self.logger.debug('CAhandler.ca_id_lookup() ended with: {0}'.format(ca_id))
+            self.logger.error('_ca_id_lookup(): no ca id found for {0}'.format(self.ca_name))
+        self.logger.debug('CAhandler._ca_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
-    def cert_id_lookup(self, csr_cn, san_list=None):
+    def _cert_bundle_build(self, cert_id):
+        """ download cert and create bundle """
+        self.logger.debug('CAhandler._cert_bundle_build()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=False).json()
+        if 'certificate' in cert_dic:
+            cert_raw = cert_dic['certificate']['der']
+            cert_bundle = cert_dic['certificate']['pem']
+            for ca_id in self.ca_id_list:
+                cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=False).json()
+                if 'certificate' in cert_dic:
+                    cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
+        else:
+            error = 'no certificate returned for id: {0}'.format(cert_id)
+            self.logger.error('no certificate returned for id: {0}'.format(cert_id))
+
+        self.logger.debug('CAhandler._cert_bundle_build() ended')
+        return(error, cert_bundle, cert_raw)
+
+    def _cert_id_lookup(self, csr_cn, san_list=None):
         """ lookup cert id based on CN """
-        self.logger.debug('CAhandler.cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
+        self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
 
         # get certificates
         if csr_cn:
@@ -84,25 +105,43 @@ class CAhandler(object):
             for cert in cert_list['certificates']:
                 # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
                 if san_list and 'subjectAltName' in cert:
-                    result = self.san_compare(san_list, cert['subjectAltName'])
+                    result = self._san_compare(san_list, cert['subjectAltName'])
                     if result:
                         cert_id = cert['certificateId']
                         break
                 # print(cert['certificateId'], cert['sortedSubjectName'], cert['subjectAltName'], cert['sortedIssuerSubjectName'])
         else:
-            self.logger.error('cert_id_lookup(): no certificates found for {0}'.format(csr_cn))
+            self.logger.error('_cert_id_lookup(): no certificates found for {0}'.format(csr_cn))
 
-        self.logger.debug('CAhandler.cert_id_lookup() ended with: {0}'.format(cert_id))
+        self.logger.debug('CAhandler._cert_id_lookup() ended with: {0}'.format(cert_id))
         return cert_id
 
-    def csr_id_lookup(self, csr_cn, csr_san_list):
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('CAhandler._config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+        if 'api_host' in config_dic['CAhandler']:
+            self.api_host = config_dic['CAhandler']['api_host']
+        if 'api_user' in config_dic['CAhandler']:
+            self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+        if 'api_password' in config_dic['CAhandler']:
+            self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
+        if 'ca_name' in config_dic['CAhandler']:
+            self.ca_name = config_dic['CAhandler']['ca_name']
+        if 'tsg_name' in config_dic['CAhandler']:
+            self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
+        if 'ca_id_list' in config_dic['CAhandler']:
+            self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
+        self.logger.debug('CAhandler._config_load() ended')
+
+    def _csr_id_lookup(self, csr_cn, csr_san_list):
         """ lookup CSR based on CN """
-        self.logger.debug('CAhandler.csr_id_lookup()')
+        self.logger.debug('CAhandler._csr_id_lookup()')
 
         uts_n = uts_now()
 
         # get unused requests from NCLM
-        request_list = self.unusedrequests_get()
+        request_list = self._unusedrequests_get()
 
         req_id = None
         # check every CSR
@@ -134,75 +173,12 @@ class CAhandler(object):
                             req_id = _req['requestID']
                             break
 
-        self.logger.debug('CAhandler.csr_id_lookup() ended with: {0}'.format(req_id))
+        self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
 
-    def cert_bundle_build(self, cert_id):
-        """ download cert and create bundle """
-        self.logger.debug('CAhandler.cert_bundle_build()')
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=False).json()
-        if 'certificate' in cert_dic:
-            cert_raw = cert_dic['certificate']['der']
-            cert_bundle = cert_dic['certificate']['pem']
-            for ca_id in self.ca_id_list:
-                cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=False).json()
-                if 'certificate' in cert_dic:
-                    cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
-        else:
-            error = 'no certificate returned for id: {0}'.format(cert_id)
-            self.logger.error('no certificate returned for id: {0}'.format(cert_id))
-
-        self.logger.debug('CAhandler.cert_bundle_build() ended')
-        return(error, cert_bundle, cert_raw)
-
-    def enroll(self, csr):
-        """ enroll certificate from NCLM """
-        self.logger.debug('CAhandler.enroll()')
-        cert_bundle = None
-        error = None
-        cert_raw = None
-
-        # recode csr
-        csr = b64_url_recode(self.logger, csr)
-
-        if self.tsg_info_dic['id']:
-
-            ca_id = self.ca_id_lookup()
-            # get common name of CSR
-            csr_cn = csr_cn_get(self.logger, csr)
-            csr_san_list = csr_san_get(self.logger, csr)
-
-            # import csr to NCLM
-            self.request_import(csr)
-            # lookup csr id
-            csr_id = self.csr_id_lookup(csr_cn, csr_san_list)
-
-            if ca_id and csr_id and self.tsg_info_dic['id']:
-                data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
-                self.api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
-                # wait for certificate enrollment to get finished
-                time.sleep(5)
-                cert_id = self.cert_id_lookup(csr_cn, csr_san_list)
-                if cert_id:
-                    (error, cert_bundle, cert_raw) = self.cert_bundle_build(cert_id)
-                else:
-                    error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
-                    self.logger.error('certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
-            else:
-                error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
-                self.logger.error('enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
-        else:
-            error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
-
-        self.logger.debug('CAhandler.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
-
-    def login(self):
-        """ login into NCLM API """
-        self.logger.debug('CAhandler.login()')
+    def _login(self):
+        """ _login into NCLM API """
+        self.logger.debug('CAhandler._login()')
         # check first if API is reachable
         api_response = requests.get(self.api_host)
         self.logger.debug('api response code:{0}'.format(api_response.status_code))
@@ -227,40 +203,21 @@ class CAhandler(object):
             self.logger.error(api_response.raise_for_status())
             sys.exit(0)
 
-    def load_config(self):
-        """" load config from file """
-        self.logger.debug('CAhandler.load_config()')
-        config_dic = load_config(self.logger, 'CAhandler')
-        if 'api_host' in config_dic['CAhandler']:
-            self.api_host = config_dic['CAhandler']['api_host']
-        if 'api_user' in config_dic['CAhandler']:
-            self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
-        if 'api_password' in config_dic['CAhandler']:
-            self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
-        if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-        if 'tsg_name' in config_dic['CAhandler']:
-            self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
-        if 'ca_id_list' in config_dic['CAhandler']:
-            self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
-
-        self.logger.debug('CAhandler.load_config() ended')
-
-    def request_import(self, csr):
+    def _request_import(self, csr):
         """ import certificate request to NCLM """
-        self.logger.debug('CAhandler.request_import()')
+        self.logger.debug('CAhandler._request_import()')
         data_dic = {'pkcs10' : csr}
-        result = self.api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
+        result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
         return result
 
-    def unusedrequests_get(self):
+    def _unusedrequests_get(self):
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
         return requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=False).json()
 
-    def san_compare(self, csr_san, cert_san):
+    def _san_compare(self, csr_san, cert_san):
         """ compare sans from csr with san in cert """
-        self.logger.debug('CAhandler.san_compare({0}, {1})'.format(csr_san, cert_san))
+        self.logger.debug('CAhandler._san_compare({0}, {1})'.format(csr_san, cert_san))
         # convert csr_sans to lower case
         csr_san_lower = []
         for ele in csr_san:
@@ -278,12 +235,12 @@ class CAhandler(object):
         if sorted(csr_san_lower) == sorted(cert_san_lower):
             result = True
 
-        self.logger.debug('CAhandler.san_compare() ended with: {0}'.format(result))
+        self.logger.debug('CAhandler._san_compare() ended with: {0}'.format(result))
         return result
 
-    def tsg_id_lookup(self):
+    def _tsg_id_lookup(self):
         """ get target system id based on name """
-        self.logger.debug('CAhandler.tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
+        self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
         tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=False).json()
         if 'targetSystemGroups' in tsg_list:
             for tsg in tsg_list['targetSystemGroups']:
@@ -293,12 +250,54 @@ class CAhandler(object):
                         break
 
         else:
-            self.logger.error('tsg_id_lookup() no target-system-groups found for filter: {0}....'.format(self.tsg_info_dic['name']))
-        self.logger.debug('CAhandler.tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
+            self.logger.error('_tsg_id_lookup() no target-system-groups found for filter: {0}....'.format(self.tsg_info_dic['name']))
+        self.logger.debug('CAhandler._tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
+
+    def enroll(self, csr):
+        """ enroll certificate from NCLM """
+        self.logger.debug('CAhandler.enroll()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        # recode csr
+        csr = b64_url_recode(self.logger, csr)
+
+        if self.tsg_info_dic['id']:
+
+            ca_id = self._ca_id_lookup()
+            # get common name of CSR
+            csr_cn = csr_cn_get(self.logger, csr)
+            csr_san_list = csr_san_get(self.logger, csr)
+
+            # import csr to NCLM
+            self._request_import(csr)
+            # lookup csr id
+            csr_id = self._csr_id_lookup(csr_cn, csr_san_list)
+
+            if ca_id and csr_id and self.tsg_info_dic['id']:
+                data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
+                self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
+                # wait for certificate enrollment to get finished
+                time.sleep(5)
+                cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
+                if cert_id:
+                    (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+                else:
+                    error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
+                    self.logger.error('certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
+            else:
+                error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
+                self.logger.error('enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
+        else:
+            error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
+
+        self.logger.debug('CAhandler.enroll() ended')
+        return(error, cert_bundle, cert_raw, None)
 
     def revoke(self, cert, rev_reason, rev_date):
         """ revoke certificate """
-        self.logger.debug('CAhandler.tsg_id_lookup()')
+        self.logger.debug('CAhandler.revoke()')
         # get serial from pem file and convert to formated hex
         serial = '0{:x}'.format(cert_serial_get(self.logger, cert))
         hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
@@ -310,7 +309,7 @@ class CAhandler(object):
             try:
                 cert_id = cert_list['certificates'][0]['certificateId']
                 data_dic = {'reason': rev_reason, 'time': rev_date}
-                detail = self.api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
+                detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
                 code = 200
                 message = None
             except IndexError:
