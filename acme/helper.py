@@ -93,15 +93,32 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
                 pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(certificate))
     return pem_file
 
-def cert_pem2der(pem_file):
-    """ convert certificate pem to der """
-    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, certobj)
+def cert_dates_get(logger, certificate):
+    """ get serial number form certificate """
+    logger.debug('cert_dates_get()')
+    issue_date = 0
+    expiration_date = 0
+    try:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+        cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+        issue_date = date_to_uts_utc(cert.get_notBefore(), _tformat='%Y%m%dT%H%M%SZ')
+        expiration_date = date_to_uts_utc(cert.get_notAfter(), _tformat='%Y%m%dT%H%M%SZ')
+    except BaseException:
+        issue_date = 0
+        expiration_date = 0
+
+    logger.debug('cert_dates_get() ended with: {0}/{1}'.format(issue_date, expiration_date))
+    return (issue_date, expiration_date)
 
 def cert_der2pem(pem_file):
     """ convert certificate der to pem """
     certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, pem_file)
     return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, certobj)
+
+def cert_pem2der(pem_file):
+    """ convert certificate pem to der """
+    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, certobj)
 
 def cert_pubkey_get(logger, cert):
     """ get public key from certificate  """
