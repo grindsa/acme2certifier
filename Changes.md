@@ -2,6 +2,13 @@
 
 This is a high-level summary of the most important changes. For a full list of changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits) and pick the appropriate release branch.
 
+## Changes in 0.11
+
+database scheme gets updated. Please run either `tools/db_update.py` or `py manage.py makemigrations && py manage.py migrate` after updating the files.
+
+**Features**
+- issuing date and expiration date will be stored in the `certificate` table
+
 ## Changes in 0.10
 
 **Features**:
