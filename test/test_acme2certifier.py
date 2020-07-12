@@ -1015,7 +1015,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = None
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')        
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order._csr_process('order_name', 'csr'))
 
     @patch('importlib.import_module')
@@ -1027,7 +1027,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = ('error', 'detail')
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual((400, 'error', 'detail'), self.order._csr_process('order_name', 'csr'))
 
     @patch('importlib.import_module')
@@ -1039,7 +1039,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = (None, None)
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual((200, 'foo', None), self.order._csr_process('order_name', 'csr'))
 
     def test_140_decode_message(self):
@@ -1603,7 +1603,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (200, 'reason')
         mock_nnonce.return_value = 'new_nonce'
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.certificate.cahandler = ca_handler_module.CAhandler
         self.certificate.cahandler.revoke = Mock(return_value=(200, 'message', 'detail'))
         self.assertEqual({'code': 200, 'header': {'Replay-Nonce': 'new_nonce'}}, self.certificate.revoke('content'))
@@ -2406,7 +2406,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of empty certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = []
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('importlib.import_module')
@@ -2416,7 +2416,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of wrong certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'foo': 'bar'}]
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('importlib.import_module')
@@ -2426,7 +2426,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ trigger._certname_lookup() failed bcs. of emty csr field """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': None}]
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('importlib.import_module')
@@ -2438,7 +2438,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo1'
         mock_search_list.return_value = [{'csr': None}]
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
     @patch('importlib.import_module')
@@ -2450,7 +2450,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': 'csr', 'name': 'cert_name', 'order__name': 'order_name'}]
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.assertEqual([{'cert_name': 'cert_name', 'order_name': 'order_name'}], self.trigger._certname_lookup('cert_pem'))
 
     def test_324_convert_byte_to_string(self):
@@ -2506,7 +2506,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_333__payload_process(self):
         """ Trigger._payload_process() without payload"""
         payload = {}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', None, None))
         self.assertEqual((400, 'payload malformed', None), self.trigger._payload_process(payload))
@@ -2514,7 +2514,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_334__payload_process(self):
         """ Trigger._payload_process() without certbunde and cert_raw"""
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', None, None))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
@@ -2522,7 +2522,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_335__payload_process(self):
         """ Trigger._payload_process() with bundle and without cart_raw"""
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', None))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
@@ -2530,7 +2530,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_336__payload_process(self):
         """ Trigger._payload_process() with bundle and without cart_raw"""
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', None, 'raw'))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
@@ -2542,7 +2542,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_337__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() with certificae_name"""
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
@@ -2558,7 +2558,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_338__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
@@ -2574,7 +2574,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_339__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
@@ -2591,7 +2591,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_340__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
         self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
@@ -3406,7 +3406,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ test order prcoess_csr with failed cert enrollment with internal error (response code must be corrected by 500)"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
-        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         mock_enroll.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr'))
 
