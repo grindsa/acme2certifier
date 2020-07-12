@@ -3,10 +3,10 @@
 """ Challenge class """
 from __future__ import print_function
 import json
+import importlib
 from acme.certificate import Certificate
-from acme.ca_handler import CAhandler
 from acme.db_handler import DBstore
-from acme.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode
+from acme.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode, load_config, ca_handler_get
 
 class Trigger(object):
     """ Challenge handler """
@@ -14,12 +14,14 @@ class Trigger(object):
     def __init__(self, debug=None, srv_name=None, logger=None):
         self.debug = debug
         self.server_name = srv_name
+        self.cahandler = None
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
+        self.tnauthlist_support = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
-        # self._config_load()
+        self._config_load()
         return self
 
     def __exit__(self, *args):
@@ -47,12 +49,27 @@ class Trigger(object):
 
         return result_list
 
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Certificate._config_load()')
+        config_dic = load_config()
+        if 'Order' in config_dic:
+            self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
+            try:
+                ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
+            except BaseException:
+                ca_handler_module = importlib.import_module('acme.ca_handler')
+        else:
+            ca_handler_module = importlib.import_module('acme.ca_handler')
+        self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
+        # store handler in variable
+        self.cahandler = ca_handler_module.CAhandler
+
     def _payload_process(self, payload):
         """ process payload """
         self.logger.debug('Trigger._payload_process()')
-
-        with CAhandler(self.debug, self.logger) as ca_handler:
-
+        with  self.cahandler(self.debug, self.logger) as ca_handler:
             if payload:
                 (error, cert_bundle, cert_raw) = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:

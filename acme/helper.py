@@ -93,6 +93,15 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
                 pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(certificate))
     return pem_file
 
+def ca_handler_get(logger, ca_handler_name):
+    """ turn handler-filename into a python path """
+    logger.debug('Certificate._ca_handler_get({0})'.format(ca_handler_name))
+    ca_handler_name = ca_handler_name.rstrip('.py')
+    ca_handler_name = ca_handler_name.replace('/', '.')
+    ca_handler_name = ca_handler_name.replace('\\', '.')
+    logger.debug('Certificate._ca_handler_get() ended with: {0}'.format(ca_handler_name))
+    return ca_handler_name
+
 def cert_dates_get(logger, certificate):
     """ get serial number form certificate """
     logger.debug('cert_dates_get()')
