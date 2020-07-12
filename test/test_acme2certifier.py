@@ -3,13 +3,14 @@
 """ unittests for acme2certifier """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import importlib
 import datetime
 import json
 import sys
 try:
-    from mock import patch, MagicMock
+    from mock import patch, MagicMock, Mock
 except ImportError:
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch, MagicMock, Mock
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
@@ -25,8 +26,6 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         models_mock = MagicMock()
         models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
-        # models_mock.acme.ca_handler.CAhandler.return_value = FakeDBStore
-        # modules = {'acme.db_handler': models_mock, 'acme.ca_handler': models_mock}
         modules = {'acme.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
@@ -40,7 +39,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load, csr_san_get, csr_extensions_get
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load, csr_san_get, csr_extensions_get
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
@@ -80,6 +79,7 @@ class TestACMEHandler(unittest.TestCase):
         self.convert_string_to_byte = convert_string_to_byte
         self.get_url = get_url
         self.url_get = url_get
+        self.ca_handler_get = ca_handler_get
         self.url_get_with_own_dns = url_get_with_own_dns
         self.dns_server_list_load = dns_server_list_load
         self.dkeys_lower = dkeys_lower
@@ -1008,32 +1008,38 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order._csr_process('order_name', 'csr'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order._info')
-    def test_137_csr_process(self, mock_oinfo, mock_certname):
+    def test_137_csr_process(self, mock_oinfo, mock_certname, mock_import):
         """ test order prcoess_csr with failed csr dbsave"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = None
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')        
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order._csr_process('order_name', 'csr'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order._info')
-    def test_138_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
+    def test_138_csr_process(self, mock_oinfo, mock_certname, mock_enroll, mock_import):
         """ test order prcoess_csr with failed cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = ('error', 'detail')
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual((400, 'error', 'detail'), self.order._csr_process('order_name', 'csr'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order._info')
-    def test_139_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
+    def test_139_csr_process(self, mock_oinfo, mock_certname, mock_enroll, mock_import):
         """ test order prcoess_csr with successful cert enrollment"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = (None, None)
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual((200, 'foo', None), self.order._csr_process('order_name', 'csr'))
 
     def test_140_decode_message(self):
@@ -1590,15 +1596,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'error'}}, self.certificate.revoke('content'))
 
     @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.ca_handler.CAhandler.revoke')
     @patch('acme.certificate.Certificate._revocation_request_validate')
     @patch('acme.message.Message.check')
-    def test_209_revoke(self, mock_mcheck, mock_validate, mock_ca_handler, mock_nnonce):
+    def test_209_revoke(self, mock_mcheck, mock_validate, mock_nnonce):
         """ test Certificate.revoke with sucessful request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (200, 'reason')
-        mock_ca_handler.return_value = (200, 'message', 'detail')
         mock_nnonce.return_value = 'new_nonce'
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.revoke = Mock(return_value=(200, 'message', 'detail'))
         self.assertEqual({'code': 200, 'header': {'Replay-Nonce': 'new_nonce'}}, self.certificate.revoke('content'))
 
     def test_210_name_get(self):
@@ -2392,48 +2399,58 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 """
         self.assertEqual(pub_key, self.csr_pubkey_get(self.logger, csr))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
-    def test_319_trigger_certname_lookup(self, mock_cert_pub, mock_search_list):
+    def test_319_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_import):
         """ trigger._certname_lookup() failed bcs. of empty certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = []
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
-    def test_320_trigger_certname_lookup(self, mock_cert_pub, mock_search_list):
+    def test_320_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_import):
         """ trigger._certname_lookup() failed bcs. of wrong certificate list """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'foo': 'bar'}]
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
-    def test_321_trigger_certname_lookup(self, mock_cert_pub, mock_search_list):
+    def test_321_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_import):
         """ trigger._certname_lookup() failed bcs. of emty csr field """
         mock_cert_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': None}]
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
+    @patch('importlib.import_module')
     @patch('acme.trigger.csr_pubkey_get')
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
-    def test_322_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_csr_pub):
+    def test_322_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_csr_pub, mock_import):
         """ trigger._certname_lookup() failed bcs. of emty csr field """
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo1'
         mock_search_list.return_value = [{'csr': None}]
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual([], self.trigger._certname_lookup('cert_pem'))
 
+    @patch('importlib.import_module')
     @patch('acme.trigger.csr_pubkey_get')
     @patch('acme.certificate.Certificate.certlist_search')
     @patch('acme.trigger.cert_pubkey_get')
-    def test_323_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_csr_pub):
+    def test_323_trigger_certname_lookup(self, mock_cert_pub, mock_search_list, mock_csr_pub, mock_import):
         """ trigger._certname_lookup() failed bcs. of emty csr field """
         mock_cert_pub.return_value = 'foo'
         mock_csr_pub.return_value = 'foo'
         mock_search_list.return_value = [{'csr': 'csr', 'name': 'cert_name', 'order__name': 'order_name'}]
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         self.assertEqual([{'cert_name': 'cert_name', 'order_name': 'order_name'}], self.trigger._certname_lookup('cert_pem'))
 
     def test_324_convert_byte_to_string(self):
@@ -2489,38 +2506,45 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_333__payload_process(self):
         """ Trigger._payload_process() without payload"""
         payload = {}
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', None, None))
         self.assertEqual((400, 'payload malformed', None), self.trigger._payload_process(payload))
 
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_334__payload_process(self, mock_cat_trigger):
+    def test_334__payload_process(self):
         """ Trigger._payload_process() without certbunde and cert_raw"""
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', None, None)
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', None, None))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
 
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_335__payload_process(self, mock_cat_trigger):
+    def test_335__payload_process(self):
         """ Trigger._payload_process() with bundle and without cart_raw"""
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', 'bundle', None)
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', None))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
 
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_336__payload_process(self, mock_cat_trigger):
+    def test_336__payload_process(self):
         """ Trigger._payload_process() with bundle and without cart_raw"""
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', None, 'raw')
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', None, 'raw'))
         self.assertEqual((400, 'error', None), self.trigger._payload_process(payload))
 
     @patch('acme.trigger.Trigger._certname_lookup')
     @patch('acme.trigger.b64_decode')
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_337__payload_process(self, mock_cat_trigger, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+    def test_337__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() with certificae_name"""
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value = 'b64dec'
@@ -2531,11 +2555,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     @patch('acme.trigger.b64_decode')
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_338__payload_process(self, mock_cat_trigger, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+    def test_338__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value = 'b64dec'
@@ -2546,11 +2571,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     @patch('acme.trigger.b64_decode')
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_339__payload_process(self, mock_cat_trigger, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+    def test_339__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value = 'b64dec'
@@ -2562,16 +2588,16 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     @patch('acme.trigger.b64_decode')
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
-    @patch('acme.ca_handler.CAhandler.trigger')
-    def test_340__payload_process(self, mock_cat_trigger, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+    def test_340__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
-        mock_cat_trigger.return_value = ('error', 'bundle', 'raw')
+        ca_handler_module = importlib.import_module('examples.ca_handler.openssl_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
         mock_der2pem.return_value = 'der2pem'
         mock_cobystr.return_value = 'cert_pem'
         mock_b64dec.return_value = 'b64dec'
         mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
-        self.order.dbstore.order_update.return_value = None
         self.assertEqual((200, 'OK', None), self.trigger._payload_process(payload))
 
     def test_341_b64encode(self):
@@ -3372,13 +3398,15 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ validate email containing "-" in user"""
         self.assertTrue(self.validate_email(self.logger, 'foo-foo@example.com'))
 
+    @patch('importlib.import_module')
     @patch('acme.certificate.Certificate.enroll_and_store')
     @patch('acme.certificate.Certificate.store_csr')
     @patch('acme.order.Order._info')
-    def test_452_csr_process(self, mock_oinfo, mock_certname, mock_enroll):
+    def test_452_csr_process(self, mock_oinfo, mock_certname, mock_enroll, mock_import):
         """ test order prcoess_csr with failed cert enrollment with internal error (response code must be corrected by 500)"""
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = 'foo'
+        mock_import.return_value = importlib.import_module('examples.ca_handler.openssl_ca_handler')
         mock_enroll.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr'))
 
@@ -3450,6 +3478,26 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ get issuing and expiration date ecc certificate """
         cert = 'MIIDozCCAYugAwIBAgIIMMxkE7mRR+YwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMDA3MTEwNDUzMTFaFw0yMTA3MTEwNDUzMTFaMBkxFzAVBgNVBAMMDmZvbzEuYmFyLmxvY2FsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAER/KMoV5+zQgegqYue2ztPK2nZVpK2vxb02UzwyHw4ebhJ2gBobI23lSBRa1so1ug0kej7U+ohm5aGFdNxLM0G6OBqDCBpTALBgNVHQ8EBAMCBeAwGQYDVR0RBBIwEIIOZm9vMS5iYXIubG9jYWwwHQYDVR0OBBYEFCSaU743wU8jMETIO381r13tVLdMMA4GA1UdDwEB/wQEAwIFoDAfBgNVHSMEGDAWgBS/3o6OBiIiq61DyN3UT6irSEE+1TAMBgNVHRMBAf8EAjAAMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATANBgkqhkiG9w0BAQsFAAOCAgEAmmhHuBhXNM2Azv53rCKY72yTQIoDVHjYrAvTmS6NsJzYflEOMkI7FCes64dWp54BerSD736Yax67b4XmLXc/+T41d7QAcnhY5xvLJiMpSsW37icHcLZpjlOrYDoRmny2U7n6t1aQ03nwgV+BgdaUQYLkUZuczs4kdqH1c9Ot9CCRTHpqSWlmWzGeRgt2uT4gKhFESP9lzx37YwKBHulBGthv1kcAaz8w8iPXBg01OEDiraXCBZFoYDEpDi2w2Y6ChCr7sNsY7aJ3a+2iHGYlktXEntk78S+g00HW61G9oLoRgeqEH3L6qVIpnswPAU/joub0YhNBIUFenCj8c3HMBgMcczzdZL+qStdymhpVkZetzXtMTKtgmxhkRzAOQUBBcHFc+wM97FqC0S4HJAuoHQ4EJ46MxwZH0jBVqcqCPMSaJ88uV902+VGGXrnxMR8RbGWLoCmsYb1ISmBUt+31PjMCYbXKwLmzvbRpO7XAQimvtOqoufl5yeRUJRLcUS6Let0QzU196/nZ789d7Etep7RjDYQm7/QhiWH197yKZ5/mUxqfyHDQ3hk5iX7S/gbo1jQXElEv5tB8Ozs+zVQmB2bXpN8c+8XUaZnwvYC2y+0LAQN4z7xilReCaasxQSsEOLCrlsannkGV704HYnnaKBS2tI948QotHnADHdfHl3o'
         self.assertEqual((1594443191, 1625979191), self.cert_dates_get(self.logger, cert))
+
+    def test_463_ca_handler_get(self):
+        """ identifier check none input"""
+        file_name = 'foo'
+        self.assertEqual('foo', self.ca_handler_get(self.logger, file_name))
+
+    def test_464_ca_handler_get(self):
+        """ identifier check none input"""
+        file_name = 'foo.py'
+        self.assertEqual('foo', self.ca_handler_get(self.logger, file_name))
+
+    def test_465_ca_handler_get(self):
+        """ identifier check none input"""
+        file_name = 'foo/foo.py'
+        self.assertEqual('foo.foo', self.ca_handler_get(self.logger, file_name))
+
+    def test_466_ca_handler_get(self):
+        """ identifier check none input"""
+        file_name = 'foo\\foo.py'
+        self.assertEqual('foo.foo', self.ca_handler_get(self.logger, file_name))
 
 if __name__ == '__main__':
     unittest.main()
