@@ -3,8 +3,8 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, cert_san_get, cert_dates_get, cert_extensions_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
-from acme.ca_handler import CAhandler
+import importlib
+from acme.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_dates_get, cert_extensions_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -15,6 +15,7 @@ class Certificate(object):
         self.debug = debug
         self.server_name = srv_name
         self.logger = logger
+        self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path' : '/acme/cert/'}
@@ -84,6 +85,17 @@ class Certificate(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+        if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
+            try:
+                ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
+            except BaseException:
+                ca_handler_module = importlib.import_module('acme.ca_handler')
+        else:
+            ca_handler_module = importlib.import_module('acme.ca_handler')
+        self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
+        # store handler in variable
+        self.cahandler = ca_handler_module.CAhandler
+
         self.logger.debug('Certificate._config_load() ended.')
 
     def _csr_check(self, certificate_name, csr):
@@ -300,7 +312,7 @@ class Certificate(object):
 
         # only continue if self.csr_check returned True
         if csr_check_result:
-            with CAhandler(self.debug, self.logger) as ca_handler:
+            with self.cahandler(self.debug, self.logger) as ca_handler:
                 (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
                 if certificate:
                     (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
@@ -407,7 +419,7 @@ class Certificate(object):
                     # revocation starts here
                     # revocation reason is stored in error variable
                     rev_date = uts_to_date_utc(uts_now())
-                    with CAhandler(self.debug, self.logger) as ca_handler:
+                    with self.cahandler(self.debug, self.logger) as ca_handler:
                         (code, message, detail) = ca_handler.revoke(payload['certificate'], error, rev_date)
                 else:
                     message = error
@@ -430,11 +442,11 @@ class Certificate(object):
         """ try to fetch a certificate from CA and store it into database """
         self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
 
-        with CAhandler(self.debug, self.logger) as ca_handler:
+        with self.cahandler(self.debug, self.logger) as ca_handler:
             (error, certificate, certificate_raw, poll_identifier, rejected) = ca_handler.poll(certificate_name, poll_identifier, csr)
             if certificate:
                 # get issuing and expiration date
-                (issue_uts, expire_uts) = cert_dates_get(self.logger, certifiate_raw)
+                (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
                 # update certificate record in database
                 _result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts)
                 # update order status to 5 (valid)
