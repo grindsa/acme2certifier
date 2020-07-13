@@ -7,7 +7,12 @@ This is a high-level summary of the most important changes. For a full list of c
 database scheme gets updated. Please run either `tools/db_update.py` or `py manage.py makemigrations && py manage.py migrate` after updating the files.
 
 **Features**
+- ca_handler kann be specified in `acme_srv.cfg`
 - issuing date and expiration date will be stored in the `certificate` table
+
+**Bugfixes***
+- Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)
+
 
 ## Changes in 0.10
 
