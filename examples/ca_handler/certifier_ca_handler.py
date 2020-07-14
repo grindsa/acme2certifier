@@ -333,9 +333,13 @@ class CAhandler(object):
         cert_raw = None
 
         # decode payload
-        cert_pem = b64_decode(self.logger, payload)
-        # cert raw is a base64 encoded der file
-        cert_raw = b64_encode(self.logger, cert_pem2der(cert_pem))
+        cert = b64_decode(self.logger, payload)
+        try:
+            # cert is a base64 encoded pem object
+            cert_raw = b64_encode(self.logger, cert_pem2der(cert))
+        except BaseException:
+            # cert is a binary der encoded object
+            cert_raw = b64_encode(self.logger, cert)
 
         # lookup REST-PATH of issuing CA
         ca_dic = self._ca_get_properties('name', self.ca_name)
