@@ -3499,5 +3499,54 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         file_name = 'foo\\foo.py'
         self.assertEqual('foo.foo', self.ca_handler_get(self.logger, file_name))
 
+    @patch('acme.certificate.Certificate._csr_check')
+    def test_467_enroll_and_store(self, mock_csr):
+        """ Certificate.enroll_and_store() csr_check failed """
+        mock_csr.return_value = False
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual(('urn:ietf:params:acme:badCSR', 'CSR validation failed'), self.certificate.enroll_and_store(certificate_name, csr))
+
+    @patch('acme.certificate.Certificate._store_cert_error')
+    @patch('acme.certificate.Certificate._csr_check')
+    def test_468_enroll_and_store(self, mock_csr, mock_store):
+        """ Certificate.enroll_and_store() enrollment failed without polling_identifier """
+        mock_csr.return_value = True
+        mock_store.return_value = True
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=('error', None, None, None))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual(('urn:ietf:params:acme:error:serverInternal', None), self.certificate.enroll_and_store(certificate_name, csr))
+
+    @patch('acme.certificate.Certificate._store_cert_error')
+    @patch('acme.certificate.Certificate._csr_check')
+    def test_469_enroll_and_store(self, mock_csr, mock_store):
+        """ Certificate.enroll_and_store() enrollment with polling_identifier"""
+        mock_csr.return_value = True
+        mock_store.return_value = True
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=('error', None, None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual(('error', 'poll_identifier'), self.certificate.enroll_and_store(certificate_name, csr))
+
+    @patch('acme.certificate.cert_dates_get')
+    @patch('acme.certificate.Certificate._store_cert')
+    @patch('acme.certificate.Certificate._csr_check')
+    def test_470_enroll_and_store(self, mock_csr, mock_store, mock_dates):
+        """ Certificate.enroll_and_store() enrollment with polling_identifier"""
+        mock_csr.return_value = True
+        mock_store.return_value = True
+        mock_dates.return_value = (1, 2)
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=(None, 'certificate', None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual((None, None), self.certificate.enroll_and_store(certificate_name, csr))
+
 if __name__ == '__main__':
     unittest.main()
