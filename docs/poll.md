@@ -9,7 +9,7 @@ It is further assumed that if a CSR gets into “pending” state the CA server 
 used to lookup the status of the request. This information gets returned by ```ca.handler.enroll()``` method (variable ```poll_identifier)```
 and will be stored in the database along with the CSR (table ```certificate``` field ```poll_identifier```).
 
-There is a script [cert_poll.py](/tools/cert_poll.py) in the tools directory which can be called via cron. It scans the ```orders``` table for orders in
+There is a script [`cert_poll.py`](../tools/cert_poll.py) in the tools directory which can be called via cron. It scans the ```orders``` table for orders in
 status ```processing (4)``` and passes the poll_identifier along with other information via the ```certificate.poll()``` method.
 
 ```ca_handler.poll()```  checks the status of the CSR on CA server and downloads the certificate (if available). It further builds
