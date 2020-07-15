@@ -41,7 +41,7 @@ acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -
 |-extracertsout | ca_certs.pem | file containing the ca certificates extracted from the CMMPv2 response |
 |-certout | test-cert.pem | file containing the certificate returned from ca server |
 
-The latest version of the documentation for the openssl cmp CLI can be found [here](https://github.com/mpeylo/cmpossl/blob/cmp/doc/man1/cmp.pod)
+The latest version of the documentation for the openssl cmp CLI can be found [here](https://github.com/mpeylo/cmpossl/blob/cmp/doc/man1/openssl-cmp.pod)
 
 
 ## Installation and Configuration
@@ -53,11 +53,11 @@ The latest version of the documentation for the openssl cmp CLI can be found [he
 root@rlh:~# cp example/cmp_ca_handler.py acme/ca_handler.py
 ```
 
-- modify the server configuration (/acme/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler 
+- modify the server configuration (/acme/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler
 section. The entry is the name of the openssl parameter with the prefix "cmp_", value is the parameter value used in the openssl CLI command. In addtion you need to specify the
 path to the openssl binary supporting CMPv2 (`cmp_openssl_bin`) and a temporary directory to store files (`cmp_tmp_dir`).
 
-The above mentioned CLI commend will result in the below configuration to be inserted in acme_srv.cfg 
+The above mentioned CLI commend will result in the below configuration to be inserted in acme_srv.cfg
 ```
 [CAhandler]
 cmp_openssl_bin: acme/cmp/WindowsCMPOpenSSL/openssl.exe
@@ -65,7 +65,7 @@ cmp_tmp_dir: acme/cmp/tmp
 cmp_server: 192.168.14.137:8080
 cmp_path: pkix/
 cmp_cert: acme/cmp/ra_cert.pem
-cmp_ref: 1234 
+cmp_ref: 1234
 cmp_secret: pass:xxx
 cmp_trusted: acme/cmp/capubs.pem
 cmp_recipient: C=DE, CN=tst_sub_ca
@@ -74,4 +74,3 @@ cmp_ignore_keyusage: True
 
 The parameters `-cmp ir`, `-popo 0` are set by the ca-handler. There is not need to specify these in the config. Same applies for `-subject`, `-extracertsout`, `-newkey` and `-certout` options.
 They will be set by the handler at runtime.
-
