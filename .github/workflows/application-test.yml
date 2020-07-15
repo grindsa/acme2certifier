@@ -58,7 +58,7 @@ jobs:
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -164,7 +164,7 @@ jobs:
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -243,10 +243,10 @@ jobs:
 
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        # sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
