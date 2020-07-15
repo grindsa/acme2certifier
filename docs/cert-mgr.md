@@ -24,7 +24,7 @@ metadata:
 spec:
   acme:
     email: foo@bar.local
-    server: http://192.168.14.1/directory
+    server: <acme2certifier address>
     privateKeySecretRef:
       # Secret resource that will be used to store the account's private key.
       name: acme-cert
