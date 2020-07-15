@@ -1,12 +1,12 @@
 # CA handler for Microsoft Certification Authority Web Enrollment Service
 
-This CA handler uses Microsofts [certsrv](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649) for certificate enrollment 
+This CA handler uses Microsofts [Certification Authority Web Enrollment service](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649(v=ws.11)) for certificate enrollment 
 and the python library [magnuswatn](https://github.com/magnuswatn/)/[certsrv](https://github.com/magnuswatn/certsrv) for communication with the enrollment service.
 
 When using the handler please be aware of the following limitations:
 
 - Authentication towards Web Enrollment Service is limited to "basic" or "ntlm". There is currently no support for ClientAuth
-- Communication is limited to https 
+- Communication is limited to https
 - Revocation operations are not supported
 
 ## Preparation
@@ -61,4 +61,3 @@ template: <name>
     - ca_bundle - CA certificate bundle in pem format needed to valiate the server certificate
     - auth_method - authentication method (either "basic" or "ntlm")
     - template - certificate template used for enrollment
-    
