@@ -27,9 +27,9 @@ root@rlh:~# a2ensite acme2certifier_ssl.conf
 9. create a directory /var/www/acme2certifier/acme
 10. copy the content of the acme -directory to /var/www/acme2certifier/acme
 11. create a configuration file 'acme_srv.cfg' in /var/www/acme2certfier/acme or use the example stored in the example directory
-12. modify the [configuration file](/docs/acme_srv.md) according to you needs
+12. modify the [configuration file](../docs/acme_srv.md) according to you needs
 13. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
-14. configure the connection to your ca server. [Example for Insta Certifier](/docs/certifier.md)
+14. configure the connection to your ca server. [Example for Insta Certifier](../docs/certifier.md)
 15. activate the wsgi database handler
 ```
 root@rlh:~# cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme/acme2certfier/db_handler.py
