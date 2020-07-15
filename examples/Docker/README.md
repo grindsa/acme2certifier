@@ -32,8 +32,8 @@ Whenever changes in `.env` are made, another build is required:
 
 The entry-point script will check during the start process if a configuration file and a ca_handler in data/. If these files do not exist the below examples will be copied to the docker image.
 
-- [acme_srv.cfg file](../examples/acme_srv.cfg) from the example directory
-- [stub_handler](../examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
+- [acme_srv.cfg file](../../examples/acme_srv.cfg) from the example directory
+- [stub_handler](../../examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
 
 The container should be visible in the list of active containers
 ```
@@ -85,4 +85,4 @@ To reload the modified files the container should be restarted.
 
 `user@docker-host:~/acme2certifier/examples/Docker$ docker-compose restart`
 
-Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](../docs/acme_srv.md) in acme2certifier for further investigation.
+Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](../../docs/acme_srv.md) in acme2certifier for further investigation.
