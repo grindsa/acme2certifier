@@ -126,7 +126,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_014_ca_key_load(self):
         """ CAhandler._ca_key_load """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
-        self.cahandler.issuing_ca_name = 'sub-ca'
+        self.cahandler.issuing_ca_key = 'sub-ca'
         self.cahandler.passphrase = 'test1234'
         self.assertTrue(self.cahandler._ca_key_load())
 
