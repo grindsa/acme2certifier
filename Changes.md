@@ -10,6 +10,7 @@ database scheme gets updated. Please run either `tools/db_update.py` or `py mana
 - ca_handler kann be specified in `acme_srv.cfg`
 - certifier_ca_handler.py - handling of der encoded certificates in trigger() method
 - issuing date and expiration date will be stored in the `certificate` table
+- `xca_ca_handler`: new variable `issuing_ca_key`
 
 **Bugfixes***
 - Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)

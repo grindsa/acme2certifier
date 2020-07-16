@@ -24,6 +24,7 @@ class CAhandler(object):
         self.xdb_file = None
         self.passphrase = 'i_dont_know'
         self.issuing_ca_name = None
+        self.issuing_ca_key = None
         self.cert_validity_days = 365
         self.ca_cert_chain_list = []
 
@@ -64,12 +65,12 @@ class CAhandler(object):
 
     def _ca_key_load(self):
         """ load ca key from database """
-        self.logger.debug('CAhandler._ca_key_load({0})'.format(self.issuing_ca_name))
+        self.logger.debug('CAhandler._ca_key_load({0})'.format(self.issuing_ca_key))
 
         # query database for key
         self._db_open()
         pre_statement = '''SELECT * from view_private WHERE name LIKE ?'''
-        self.cursor.execute(pre_statement, [self.issuing_ca_name])
+        self.cursor.execute(pre_statement, [self.issuing_ca_key])
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except BaseException as err_:
@@ -119,6 +120,10 @@ class CAhandler(object):
         if error:
             self.logger.debug('CAhandler config error: {0}'.format(error))
 
+        if not self.issuing_ca_key:
+            self.logger.debug('use self.issuing_ca_name as self.issuing_ca_key: {0}'.format(self.issuing_ca_name))
+            self.issuing_ca_key = self.issuing_ca_name
+
         self.logger.debug('CAhandler._config_check() ended'.format())
         return error
 
@@ -135,6 +140,9 @@ class CAhandler(object):
 
         if 'issuing_ca_name' in config_dic['CAhandler']:
             self.issuing_ca_name = config_dic['CAhandler']['issuing_ca_name']
+
+        if 'issuing_ca_key' in config_dic['CAhandler']:
+            self.issuing_ca_key = config_dic['CAhandler']['issuing_ca_key']
 
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
