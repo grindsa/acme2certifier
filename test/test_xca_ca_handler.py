@@ -205,7 +205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
         item_dic = {'name': 'name', 'type': 2, 'source': 0, 'date': 'date', 'comment': 'comment'}
-        self.assertEqual(10, self.cahandler._item_insert(item_dic))
+        self.assertEqual(11, self.cahandler._item_insert(item_dic))
 
     def test_024_item_insert(self):
         """ CAhandler._item_insert no name """
@@ -560,6 +560,22 @@ class TestACMEHandler(unittest.TestCase):
         mock_rev_insert.return_value = 20
         mock_serial.return_value = 1000
         self.assertEqual((200, None, None), self.cahandler.revoke('cert', 'reason', None))
+
+    def test_072_cert_search(self):
+        """ CAhandler._cert_sarch cert can be found """
+        self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
+        search_result = {'item': 6, 'hash': 1675584264, 'iss_hash': 1339028853, 'serial': '0BCC30C544EF26A4', 'issuer': 4, 'ca': 0, 'cert': 'MIIEQTCCAimgAwIBAgIIC8wwxUTvJqQwDQYJKoZIhvcNAQELBQAwETEPMA0GA1UEAxMGc3ViLWNhMB4XDTIwMDYwOTE3MTkwMFoXDTIxMDYwOTE3MTkwMFowGzEZMBcGA1UEAxMQY2xpZW50LmJhci5sb2NhbDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJps2tk/d5pqv1gSeLnDBFQSzznY/iSBtzRNLlRWm6J7yOAERgGsbMBW7s5AhYRbuHuberlBtsyFyKenWvijo6r7DTOGiv2oBf7iCoCXYbNAqlvnP5inzp6ZmmgmxigLFbdlTfPQBkaytDzLAav1KLCmCof4DpQunsxdDjW0kBm8jRC7HY5bauxeFKQb2NcGmjlB3kQjZNHF52xG/GgkMIH7E0NJUhmsVfItSezkmFUQFhP2VqYYsiPRtvXlZqpzPISxn2InGcUaaBzJFO7RWif0IIsgzcyzqXvt8KEqeoI15gmd1G4lXPeyadXG8kzE8L+8f4J+gGgQSA1eR4VMkOMCAwEAAaOBkjCBjzAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBRjovc4aaN6LCIE5E/ZgsLBH+3/WDAOBgNVHQ8BAf8EBAMCA+gwIAYDVR0lAQH/BBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMBsGA1UdEQQUMBKCEGNsaWVudC5iYXIubG9jYWwwEQYJYIZIAYb4QgEBBAQDAgZAMA0GCSqGSIb3DQEBCwUAA4ICAQCZm5d3jc9oopD193bGwJFo8NNo1wzYvvqbK/lONy/JsisX1pERxN+EZyTB2CLxQ4yKZU9Xnx0fmcJExqoPLEva6hAMdOiSEsEs52yyL6gjMLHxJJfdXBiqMZetp+BCPf23rc96ONzyjURDCfsN4VMg7090e9yKpuyHKIOHStqMT+ZLvPcd+YiU4jMazoagauEW2mdpqyA8mN92qiphwo8QMCv3XZJWJ1PEwaCTGhBxlzMoaknWKzCD2YQ/yyGE4Ha8vBaymk1eh7txo5B53C0OpO0UT4WGUOZDP1GPySymqQfDO6R9BhBjyggsG5G9FA84tUqZJAKlGhPesQyIQBM4SZlQTJt/hP/cCoZ6BiibBdaZnLzOyH+NTJ9ou0hpmMp2LZiB8G2Igam7wdXySvQe9sxXXDDTKhxwqk7V+by2gS6asfcQjstQQeMN/iMrg3AtZt/Kl5WcHcwSjZAypHugPiwjr48WHvDS2lUKnbbDuiCxvc1TsPGG6Z+b/0aTwrps6yMeTRuDk3A8DYceHftrWZSOgg+5A2ISd58vPOHiamATVLXGJ1vnCP0Sm/Z4QCnIGfOvxltdAnrcA75MnefaOmQv9CrhwyBembugd9fPC/uFi/ESKGPuo6zLYwjFwLqwNe99UgU98iYz9rfdKNqJ6fWRolzz4AXqUHQ4Dc8eZA=='}
+        self.assertEqual(search_result, self.cahandler._cert_search('name', 'client'))
+
+    def test_073_cert_search(self):
+        """ CAhandler._cert_sarch cert failed """
+        self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
+        self.assertFalse(self.cahandler._cert_search('name', 'client_failed'))
+
+    def test_074_cert_search(self):
+        """ CAhandler._cert_sarch item search succ / cert_search failed """
+        self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
+        self.assertFalse(self.cahandler._cert_search('name', 'item_no_cert'))
 
 if __name__ == '__main__':
 
