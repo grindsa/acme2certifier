@@ -86,6 +86,8 @@ class Message(object):
                 # nonce check can be skipped by configuration and in case of key-rollover
                 if self.disable_dic['nonce_check_disable']:
                     self.logger.error('**** NONCE CHECK DISABLED!!! Security issue ****')
+                else:
+                    self.logger.debug('skip nonce check of inner payload during keyrollover')
                 code = 200
                 message = None
                 detail = None
