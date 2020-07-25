@@ -493,9 +493,9 @@ def signature_check(logger, message, pub_key):
 def fqdn_resolve(host, dnssrv=None):
     """ dns resolver """
     req = dns.resolver.Resolver()
-    
+
     # hack to cover github workflows
-    if '.' in hostname:
+    if '.' in host:
         if dnssrv:
             # add specific dns server
             req.nameservers = dnssrv
