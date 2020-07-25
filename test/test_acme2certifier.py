@@ -5,7 +5,9 @@
 import unittest
 import importlib
 import datetime
+import requests
 import json
+import dns.resolver
 import sys
 try:
     from mock import patch, MagicMock, Mock
@@ -39,7 +41,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.order import Order
         from acme.signature import Signature
         from acme.trigger import Trigger
-        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load, csr_san_get, csr_extensions_get
+        from acme.helper import b64decode_pad, b64_decode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns, dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
@@ -85,6 +87,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dkeys_lower = dkeys_lower
         self.csr_san_get = csr_san_get
         self.csr_extensions_get = csr_extensions_get
+        self.fqdn_resolve = fqdn_resolve
 
     def test_001_servername_new(self):
         """ test Directory.get_server_name() method """
@@ -1716,59 +1719,109 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
 """
         self.assertEqual(result, self.build_pem_file(self.logger, existing, csr, False, True))
 
+    @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.url_get')
-    def test_227_validate_http_challenge(self, mock_url):
+    def test_227_validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
         mock_url.return_value = 'foo'
-        self.assertFalse(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
+    @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.url_get')
-    def test_228_validate_http_challenge(self, mock_url):
+    def test_228_validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() with a correct challenge """
         mock_url.return_value = 'token.jwk_thumbprint'
-        self.assertTrue(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
+    @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.url_get')
-    def test_229_validate_http_challenge(self, mock_url):
+    def test_229_validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() without response """
         mock_url.return_value = None
-        self.assertFalse(self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
+    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme.challenge.url_get')
+    def test_230_validate_http_challenge(self, mock_url, mock_resolve):
+        """ test Challenge.validate_http_challenge() failed with NX-domain error """
+        mock_url.return_value = None
+        mock_resolve.return_value = (None, True)
+        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme.challenge.url_get')
+    def test_231_validate_http_challenge(self, mock_url, mock_resolve):
+        """ test Chalölenge.validate_http_challenge() failed with NX-domain error - non existing case but to be tested"""
+        mock_url.return_value = 'foo'
+        mock_resolve.return_value = ('foo', True)
+        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
-    def test_230_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
+    def test_230_validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with incorrect response """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
-        self.assertFalse(self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
+    @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
-    def test_231_validate_dns_challenge(self, mock_dns, mock_code, mock_hash):
+    def test_231_validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with correct response """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
-        self.assertTrue(self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme.challenge.sha256_hash')
+    @patch('acme.challenge.b64_url_encode')
+    @patch('acme.challenge.txt_get')
+    def test_232_validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
+        """ test Challenge.validate_dns_challenge() with invalid response """
+        mock_dns.return_value = 'foo'
+        mock_code.return_value = 'bar'
+        mock_hash.return_value = 'hash'
+        mock_resolve.return_value = (None, True)
+        self.assertEqual((False, True), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme.challenge.sha256_hash')
+    @patch('acme.challenge.b64_url_encode')
+    @patch('acme.challenge.txt_get')
+    def test_233_validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
+        """ test Challenge.validate_dns_challenge() with invalid but correct fqdn returned """
+        mock_dns.return_value = 'foo'
+        mock_code.return_value = 'foo'
+        mock_hash.return_value = 'hash'
+        mock_resolve.return_value = ('foo', True)
+        self.assertEqual((False, True), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     def test_232_validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
-        self.assertTrue(self.challenge._validate_tkauth_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint', 'payload'))
+        self.assertEqual((True, False), self.challenge._validate_tkauth_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint', 'payload'))
 
     def test_233_challenge_check(self):
         """ challenge check with incorrect challenge-dictionary """
         # self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'pending'}
         self.challenge.dbstore.challenge_lookup.return_value = {}
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((False, False), self.challenge._check('name', 'payload'))
 
     def test_234_challenge_check(self):
         """ challenge check with without jwk return """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'type', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = None
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((False, False), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_http_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1776,9 +1829,9 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         """ challenge check with with failed http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False
+        mock_chall.return_value = (False, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_http_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1786,9 +1839,9 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = True
+        mock_chall.return_value = (True, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge._check('name', 'payload'))
+        self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_dns_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1796,9 +1849,9 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         """ challenge check with with failed dns challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False
+        mock_chall.return_value = (True, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_dns_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1806,19 +1859,30 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = True
+        mock_chall.return_value = (True, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge._check('name', 'payload'))
+        self.assertTrue((False, 'foo'), self.challenge._check('name', 'payload'))
+
+    @patch('acme.challenge.Challenge._validate_tkauth_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
+    def test_111_challenge_check(self, mock_jwk, mock_chall):
+        """ challenge check with with failed tkauth challenge tnauthlist_support not configured """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = (False, 'foo')
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertEqual((False, True), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
     def test_239_challenge_check(self, mock_jwk, mock_chall):
-        """ challenge check with with failed tkauth challenge """
+        """ challenge check with with failed tkauth challenge tnauthlist_support True """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
-        mock_chall.return_value = False
+        self.challenge.tnauthlist_support = True
+        mock_chall.return_value = (False, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1827,9 +1891,9 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = False
-        mock_chall.return_value = True
+        mock_chall.return_value = (True, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertFalse(self.challenge._check('name', 'payload'))
+        self.assertEqual((False, True), self.challenge._check('name', 'payload'))
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
@@ -1838,9 +1902,9 @@ KxEs3JidvpZrl3o23LMGEPoJs3zIuowTa217PHwdBw4UwtD7KxJK/+344A==
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
-        mock_chall.return_value = True
+        mock_chall.return_value = (True, 'foo')
         mock_jwk.return_value = 'jwk_thumbprint'
-        self.assertTrue(self.challenge._check('name', 'payload'))
+        self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
     def test_242_order_identifier_check(self):
         """ order identifers check with empty identifer list"""
@@ -2714,7 +2778,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ unsuccessful url get without dns servers """
         # this is stupid but triggrs an expeption
         mock_request.return_value = {'foo': 'foo'}
-        self.assertFalse(self.url_get(self.logger, 'url'))
+        self.assertEqual(None, self.url_get(self.logger, 'url'))
 
     @patch('acme.helper.url_get_with_own_dns')
     def test_364_url_get(self, mock_request):
@@ -2732,7 +2796,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_366_url_get(self, mock_request):
         """ successful url_get_with_own_dns get with dns servers """
         mock_request.return_value = {'foo': 'foo'}
-        self.assertFalse(self.url_get_with_own_dns(self.logger, 'url'))
+        self.assertEqual(None, self.url_get_with_own_dns(self.logger, 'url'))
 
     @patch('acme.helper.load_config')
     def test_367_dns_server_list_load(self, mock_load_config):
@@ -3547,6 +3611,39 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         certificate_name = 'cert_name'
         csr = 'csr'
         self.assertEqual((None, None), self.certificate.enroll_and_store(certificate_name, csr))
+
+    @patch('dns.resolver.Resolver')
+    def test_471_fqdn_resolve(self, mock_resolve):
+        """ successful dns-query returning one value """
+        mock_resolve.return_value.query.return_value = ['foo']
+        self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver')
+    def test_472_fqdn_resolve(self, mock_resolve):
+        """ successful dns-query returning two values """
+        mock_resolve.return_value.query.return_value = ['bar', 'foo']
+        self.assertEqual(('bar', False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NXDOMAIN))
+    def test_473_fqdn_resolve(self, mock_resolve):
+        """ catch NXDOMAIN """
+        self.assertEqual((None, True), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NoAnswer))
+    def test_474_fqdn_resolve(self, mock_resolve):
+        """ catch NoAnswer """
+        self.assertEqual((None, True), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NoNameservers))
+    def test_475_fqdn_resolve(self, mock_resolve):
+        """ catch other dns related execption """
+        self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=Exception('foo')))
+    def test_476_fqdn_resolve(self, mock_resolve):
+        """ catch other execption """
+        self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
+
 
 if __name__ == '__main__':
     unittest.main()
