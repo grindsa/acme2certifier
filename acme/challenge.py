@@ -223,11 +223,11 @@ class Challenge(object):
     def _validate_http_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
         """ validate http challenge """
         self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
-        req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list)
-
         # resolve name
-        (_response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
+        (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
+        self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         if not invalid:
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list)
             # make challenge validation unsuccessful
             # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
             if req:
