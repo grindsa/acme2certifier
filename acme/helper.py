@@ -490,13 +490,27 @@ def signature_check(logger, message, pub_key):
     # return result
     return(result, error)
 
-def patch_resolver(host, dnssrv):
-    """ patch resolver to use a specific DNS server """
+def fqdn_resolve(host, dnssrv=None):
+    """ dns resolver """
     req = dns.resolver.Resolver()
-    req.nameservers = dnssrv
-    answers = req.query(host, 'A')
-    for rdata in answers:
-        return str(rdata)
+
+    if dnssrv:
+        # add specific dns server
+        req.nameservers = dnssrv
+    try:
+        answers = req.query(host, 'A')
+        for rdata in answers:
+            result = str(rdata)
+            invalid = False
+            break
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+        result = None
+        invalid = True
+    except BaseException:
+        result = None
+        invalid = False
+
+    return (result, invalid)
 
 def dns_server_list_load():
     """ load dns-server from config file """
@@ -521,7 +535,7 @@ def patched_create_connection(address, *args, **kwargs):
     dns_server_list = dns_server_list_load()
     # resolve hostname to an ip address; use your own resolver
     host, port = address
-    hostname = patch_resolver(host, dns_server_list)
+    (hostname, _invalid) = fqdn_resolve(host, dns_server_list)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
