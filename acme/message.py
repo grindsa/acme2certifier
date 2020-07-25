@@ -67,13 +67,12 @@ class Message(object):
         self.logger.debug('Message._name_get() returns: {0}'.format(kid))
         return kid
 
-    def check(self, content, use_emb_key=False):
+    def check(self, content, use_emb_key=False, skip_nonce_check=False):
         """ validate message """
         self.logger.debug('Message.check()')
-
         # disable signature check if paramter has been set
         if self.disable_dic['signature_check_disable']:
-            print('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
+            self.logger.error('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
             skip_signature_check = True
         else:
             skip_signature_check = False
@@ -83,12 +82,15 @@ class Message(object):
         account_name = None
         if result:
             # decoding successful - check nonce for anti replay protection
-            (code, message, detail) = self.nonce.check(protected)
-            if self.disable_dic['nonce_check_disable']:
-                print('**** NONCE CHECK DISABLED!!! Security issue ****')
+            if skip_nonce_check or self.disable_dic['nonce_check_disable']:
+                # nonce check can be skipped by configuration and in case of key-rollover
+                if self.disable_dic['nonce_check_disable']:
+                    self.logger.error('**** NONCE CHECK DISABLED!!! Security issue ****')
                 code = 200
                 message = None
                 detail = None
+            else:
+                (code, message, detail) = self.nonce.check(protected)
 
             if code == 200 and not skip_signature_check:
                 # nonce check successful - check signature
