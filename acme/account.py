@@ -227,7 +227,7 @@ class Account(object):
         if 'url' in protected:
             if 'key-change' in protected['url']:
                 # check message
-                (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), True)
+                (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), use_emb_key=True, skip_nonce_check=True)
                 if code == 200:
                     (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
                     if code == 200:
