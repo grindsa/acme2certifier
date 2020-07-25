@@ -493,20 +493,25 @@ def signature_check(logger, message, pub_key):
 def fqdn_resolve(host, dnssrv=None):
     """ dns resolver """
     req = dns.resolver.Resolver()
-
-    if dnssrv:
-        # add specific dns server
-        req.nameservers = dnssrv
-    try:
-        answers = req.query(host, 'A')
-        for rdata in answers:
-            result = str(rdata)
+    
+    # hack to cover github workflows
+    if '.' in hostname:
+        if dnssrv:
+            # add specific dns server
+            req.nameservers = dnssrv
+        try:
+            answers = req.query(host, 'A')
+            for rdata in answers:
+                result = str(rdata)
+                invalid = False
+                break
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            result = None
+            invalid = True
+        except BaseException:
+            result = None
             invalid = False
-            break
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-        result = None
-        invalid = True
-    except BaseException:
+    else:
         result = None
         invalid = False
 
