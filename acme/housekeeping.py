@@ -38,16 +38,32 @@ class Housekeeping(object):
         """ convert dates from uts to real date """
         self.logger.debug('Housekeeping._convert_dates()')
         for cert in cert_list:
-            if cert['order__expires'] > 0:
+            if 'order__expires' in cert:
                 cert['order__expires'] = uts_to_date_utc(cert['order__expires'], '%Y-%m-%d %H:%M:%S')
-            # if issue date and expiration date are 0 take values from certificate
+
+            # set uts to 0 if we do not have them in dictionary
+            if 'issue_uts' not in cert or 'expire_uts' not in cert:
+                cert['issue_uts'] = 0
+                cert['expire_uts'] = 0
+
+            # if uts is zero we try to get the dates from certificate
             if cert['issue_uts'] == 0 or cert['expire_uts'] == 0:
-                (issue_date, expire_date) = cert_dates_get(self.logger, cert['cert_raw'])
-                cert['issue_uts'] = issue_date
-                cert['expire_uts'] = expire_date
-            # convert uts into something human readable
-            cert['issue_date'] = uts_to_date_utc(cert['issue_uts'], '%Y-%m-%d %H:%M:%S')
-            cert['expire_date'] = uts_to_date_utc(cert['expire_uts'], '%Y-%m-%d %H:%M:%S')
+                # cover cases without certificate in dict
+                if 'cert_raw' in cert:
+                    (issue_date, expire_date) = cert_dates_get(self.logger, cert['cert_raw'])
+                    cert['issue_uts'] = issue_date
+                    cert['expire_uts'] = expire_date
+                else:
+                    cert['issue_uts'] = 0
+                    cert['expire_uts'] = 0
+
+            if cert['issue_uts'] > 0 and cert['expire_uts'] > 0:
+                cert['issue_date'] = uts_to_date_utc(cert['issue_uts'], '%Y-%m-%d %H:%M:%S')
+                cert['expire_date'] = uts_to_date_utc(cert['expire_uts'], '%Y-%m-%d %H:%M:%S')
+            else:
+                cert['issue_date'] = ''
+                cert['expire_date'] = ''
+
         return cert_list
 
     def _csv_dump(self, filename, content):
@@ -64,25 +80,30 @@ class Housekeeping(object):
         with open(file_name_, 'w', encoding='utf-8') as out_file:
             out_file.write(jdump)
 
-
     def _to_list(self, field_list, cert_list):
         """ convert query to csv format """
         self.logger.debug('Housekeeping._to_list()')
         csv_list = []
+
         # attach fieldlist as first row
-        csv_list.append(field_list)
+        if field_list:
+            csv_list.append(field_list)
         for cert in cert_list:
             tmp_list = []
             # enumarte fields and store them in temporary list
             for field in field_list:
-                try:
-                    # we need to deal with some errors from past
-                    value = cert[field].replace('\r\n', '\n')
-                    value = value.replace('\r', '')
-                    value = value.replace('\n', '')
-                    tmp_list.append(value)
-                except BaseException:
-                    tmp_list.append(cert[field])
+                # in case we are missing a field put empty string in
+                if field in cert:
+                    try:
+                        # we need to deal with some errors from past
+                        value = cert[field].replace('\r\n', '\n')
+                        value = value.replace('\r', '')
+                        value = value.replace('\n', '')
+                        tmp_list.append(value)
+                    except BaseException:
+                        tmp_list.append(cert[field])
+                else:
+                    tmp_list.append('')
 
             # append list to output
             csv_list.append(tmp_list)
@@ -108,6 +129,5 @@ class Housekeeping(object):
         elif report_format == 'json':
             self.logger.debug('Housekeeping.certreport_get() dump in json-format')
             self._json_dump('{0}.{1}'.format(filename, report_format), cert_list)
-
         else:
             self.logger.error('Housekeeping.certreport_get() cannot dump as format is unknown')
