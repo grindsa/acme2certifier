@@ -9,10 +9,11 @@ acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
 protocol yet. It consists of two libraries:
 
-- acme/*.py - a bunch of classes implementing ACME server functionality based on [rfc8555](https://tools.ietf.org/html/rfc8555)
+- acme/*.py - a bunch of classes implementing ACME server functionality based
+on [rfc8555](https://tools.ietf.org/html/rfc8555)
 - ca_handler.py - interface towards CA server. The intention of this library
-is to be modular that an [adaption to other CA servers](docs/ca_handler.md) should be
-straight forward. As of today the following handlers are available:
+is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
+should be straight forward. As of today the following handlers are available:
   - [Openssl](docs/openssl.md)
   - [NetGuard Certificate Manager/Insta certifier](docs/certifier.md)
   - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
@@ -21,7 +22,8 @@ straight forward. As of today the following handlers are available:
   - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
   - [XCA](docs/xca.md)
 
-For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
+For more up-to-date information and further documentation, please visit the
+project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
 
 ## ChangeLog
 
@@ -67,30 +69,41 @@ As of today acme2certifier supports the below ACME functions only:
 - "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
 
-Starting from version 0.4 acme2certifer includes experimental support for [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges. Check [tnauthlist.md](docs/tnauthlist.md) for further information.
+Starting from version 0.4 acme2certifer includes experimental support for
+[TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03)
+and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges.
+Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
-Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md) and [call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA servers,
+Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md) and [call backs](docs/trigger.md)
+from CA servers. These calls are not standardized but important to use
+acme2certifier together with classical enterprise CA servers,
 
-Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
+Additional functionality will be added over time. If you are badly missing a
+certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
 # Installation
-The proxy can run either as plain wsgi-script on either apache or ngix or as django project. Running acme2certifier as django project allows to use other database backendes than SQLite.
+The proxy can run either as plain wsgi-script on either apache or ngix or as
+django project. Running acme2certifier as django project allows to use other database backendes than SQLite.
 
-The fastest and most convenient way to install acme2certifier is to use docker containers. I am not providing prepared images (I am to lazy to do continuous patch management) but instructions and ready-made scripts to build your own container.
+The fastest and most convenient way to install acme2certifier is to use docker
+containers. I am not providing prepared images (I am to lazy to do continuous
+patch management) but instructions and ready-made scripts to build your own container.
 
 - [Containerized installation using apache2 as webserver and wsgi or django](examples/Docker/)
 - [Installation as wsgi-script running on apache2](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX](docs/install_nginx_wsgi.md)
 
-
 ## Contributing
 
-Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of conduct, and the process for submitting pull requests.
-Please note that I have a life besides programming. Thus, expect a delay in answering.
+Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of
+conduct, and the process for submitting pull requests.
+Please note that I have a life besides programming. Thus, expect a delay
+in answering.
 
 ## Versioning
 
-I use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
+I use [SemVer](http://semver.org/) for versioning. For the versions available,
+see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
 
 ## License
 
