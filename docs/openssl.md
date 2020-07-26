@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Support for an Openssl based CA stored on local file system
 The openssl CA handler is rather for testing and lab usage. I strongly recommend not to reuse it in production environments without reviewing local system configuration and hardening state
 
@@ -47,7 +48,7 @@ save_cert_as_hex: True
 - `issuing_ca_crl` - CRL of issuing CA in PEM format
 - `ca_cert_chain_list` - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
 - `cert_validity_days` - *optional* - certificate lifetime in days (default 365)
-- `cert_save_path` - *optional* - directory to store then enrolled certificates 
+- `cert_save_path` - *optional* - directory to store then enrolled certificates
 - `openssl_conf` -  *optional* - file in openssl.conf format containing certificate extensions to be applied
 - `whitelist` - *optional* - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)- To be stored in json format
 - `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format

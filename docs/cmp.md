@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Generic CMPv2 protocol handler
 
 The CMPv2 protocol handler is not bound to a specific ca server. Certificate enrollment is done by calling an [openssl binary with cmpossl support](https://github.com/mpeylo/cmpossl/wiki).
