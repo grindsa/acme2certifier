@@ -74,16 +74,19 @@ Starting from version 0.4 acme2certifer includes experimental support for
 and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges.
 Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
-Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md) and [call backs](docs/trigger.md)
-from CA servers. These calls are not standardized but important to use
-acme2certifier together with classical enterprise CA servers,
+Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md)
+and [call backs](docs/trigger.md) from CA servers. These calls are not standardized
+but important to use acme2certifier together with classical enterprise CA
+servers,
 
 Additional functionality will be added over time. If you are badly missing a
 certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
-# Installation
+## Installation
+
 The proxy can run either as plain wsgi-script on either apache or ngix or as
-django project. Running acme2certifier as django project allows to use other database backendes than SQLite.
+django project. Running acme2certifier as django project allows to use other
+database backendes than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker
 containers. I am not providing prepared images (I am to lazy to do continuous

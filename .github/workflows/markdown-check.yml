@@ -1,6 +1,6 @@
 # workflow to run the acme2certifier unittest suite
 
-name: Markdown Link check
+name: Markdown check
 
 on:
   push:
