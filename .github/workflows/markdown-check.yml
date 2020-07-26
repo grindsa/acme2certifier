@@ -11,8 +11,12 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  markdown-link-check:
+  markdown-check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
+    - name: Lint changelog file
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: '*.md'
