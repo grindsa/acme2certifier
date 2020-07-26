@@ -16,7 +16,11 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
-    - name: Lint changelog file
+    - name: Lint changelog file root
       uses: avto-dev/markdown-lint@v1
       with:
-        args: '**.md'
+        args: '*.md'
+    - name: Lint changelog file docs
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: './docs/*.md'
