@@ -7,4 +7,3 @@ pytz
 configparser
 python-dateutil
 requests
-csv
