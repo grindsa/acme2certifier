@@ -420,6 +420,53 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_add() ended with: {0}'.format(rid))
         return rid
 
+    def certificatelist_get(self):
+        """ certificatelist_get """
+        self.logger.debug('DBStore.certificatelist_get()')
+        vlist = [
+            'id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts',
+            'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers',
+            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg'
+        ]
+
+        self._db_open()
+        pre_statement = '''SELECT certificate.*,
+                            orders.id as order__id,
+                            orders.name as order__name,
+                            orders.status_id as order__status__name,
+                            orders.notbefore as order__notbefore,
+                            orders.notafter as order__notafter,
+                            orders.expires as order__expires,
+                            orders.identifiers as order__identifiers,
+                            account.name as order__account__name,
+                            account.contact as order__account__contact,
+                            account.created_at as order__account__created_at,
+                            account.jwk as order__account__jwk,
+                            account.alg as order__account__alg
+                            from certificate
+                            INNER JOIN orders on orders.id = certificate.order_id
+                            INNER JOIN account on account.id = orders.account_id
+                            WHERE certificate.cert_raw IS NOT NULL'''
+
+        self.cursor.execute(pre_statement)
+        rows = self.cursor.fetchall()
+
+        # process results
+        cert_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+                    #if ele == 'order__name':
+                    #    result['order'] = lookup[ele]
+            cert_list.append(result)
+
+        self._db_close()
+
+        return(vlist, cert_list)
+
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
         self.logger.debug('DBstore.certificate_lookup({0}:{1})'.format(column, string))
