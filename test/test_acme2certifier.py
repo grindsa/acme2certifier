@@ -32,6 +32,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         from acme.account import Account
         from acme.authorization import Authorization
+        from acme.housekeeping import Housekeeping
         from acme.certificate import Certificate
         from acme.challenge import Challenge
         from acme.directory import Directory
@@ -53,6 +54,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message = Message(False, 'http://tester.local', self.logger)
         self.nonce = Nonce(False, self.logger)
         self.error = Error(False, self.logger)
+        self.housekeeping = Housekeeping(False, self.logger)
         self.order = Order(False, 'http://tester.local', self.logger)
         self.signature = Signature(False, 'http://tester.local', self.logger)
         self.trigger = Trigger(False, 'http://tester.local', self.logger)
@@ -3657,6 +3659,123 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ catch other execption """
         self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
 
+    def test_483_certificatelist_get(self):
+       """ test Housekeeping._certificatelist_get() """
+       self.housekeeping.dbstore.certificatelist_get.return_value = 'foo'
+       self.assertEqual('foo', self.housekeeping._certificatelist_get())
+
+    def test_484_convert_dates(self):
+       """ test Housekeeping._convert_dates() - empty list"""
+       cert_list = []
+       self.assertEqual([], self.housekeeping._convert_dates(cert_list))
+
+    def test_485_convert_dates(self):
+       """ test Housekeeping._convert_dates() - orders__expire to convert """
+       cert_list = [{'foo': 'bar', 'order__expires': 1577840461}]
+       self.assertEqual([{'foo': 'bar', 'order__expires': '2020-01-01 01:01:01', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+
+    def test_486_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list containing bogus values"""
+       cert_list = [{'foo': 'bar'}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+
+    def test_487_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list contains only issue_uts """
+       cert_list = [{'foo': 'bar', 'issue_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+
+    def test_488_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list contains only expire_uts """
+       cert_list = [{'foo': 'bar', 'expire_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+
+    def test_489_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list contains both issue_uts and expire_uts """
+       cert_list = [{'foo': 'bar', 'expire_uts': 1577840461, 'issue_uts': 1577840462}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 1577840461, 'expire_date': '2020-01-01 01:01:01', 'issue_date': '2020-01-01 01:01:02', 'issue_uts': 1577840462}], self.housekeeping._convert_dates(cert_list))
+
+    def test_490_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list contains both uts with 0 """
+       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+
+    def test_491_convert_dates(self):
+       """ test Housekeeping._convert_dates() - list contains both uts with 0 and a bogus cert_raw """
+       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'cert_raw': 'cert_raw'}]
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': '', 'cert_raw': 'cert_raw'}], self.housekeeping._convert_dates(cert_list))
+
+    @patch('acme.housekeeping.cert_dates_get')
+    def test_492_convert_dates(self, mock_dates):
+       """ test Housekeeping._convert_dates() - list contains both uts with 0 and a bogus cert_raw """
+       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'cert_raw': 'cert_raw'}]
+       mock_dates.return_value = (1577840461, 1577840462)
+       self.assertEqual([{'foo': 'bar', 'expire_uts': 1577840462, 'issue_uts': 1577840461, 'expire_date': '2020-01-01 01:01:02', 'issue_date': '2020-01-01 01:01:01', 'cert_raw': 'cert_raw'}], self.housekeeping._convert_dates(cert_list))
+
+    def test_493_to_list(self):
+        """ test Housekeeping._to_list() - both lists are empty """
+        field_list = []
+        cert_list = []
+        self.assertEqual([], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_494_to_list(self):
+        """ test Housekeeping._to_list() - cert_list is empty """
+        field_list = ['foo', 'bar']
+        cert_list = []
+        self.assertEqual([['foo', 'bar']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_495_to_list(self):
+        """ test Housekeeping._to_list() - one cert in list """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'foo1', 'bar': 'bar1'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_496_to_list(self):
+        """ test Housekeeping._to_list() - one incomplete cert in list """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'foo1'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', '']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_497_to_list(self):
+        """ test Housekeeping._to_list() - two certs in list """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'foo1', 'bar': 'bar1'}, {'foo': 'foo2', 'bar': 'bar2'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1'], ['foo2', 'bar2']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_498_to_list(self):
+        """ test Housekeeping._to_list() - two certs in list but on bogus """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'foo1', 'bar': 'bar1'}, {'foo': 'foo2'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1'], ['foo2', '']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_499_to_list(self):
+        """ test Housekeeping._to_list() - one line contains LF """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'fo\no1', 'bar': 'bar1'}, {'foo': 'foo2'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1'], ['foo2', '']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_500_to_list(self):
+        """ test Housekeeping._to_list() - one line contains CRLF """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'fo\r\no1', 'bar': 'bar1'}, {'foo': 'foo2'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1'], ['foo2', '']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_501_to_list(self):
+        """ test Housekeeping._to_list() - one line contains CR """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'fo\ro1', 'bar': 'bar1'}, {'foo': 'foo2'}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 'bar1'], ['foo2', '']], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_502_to_list(self):
+        """ test Housekeeping._to_list() - integer in dictionary """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'fo\ro1', 'bar': 100}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 100]], self.housekeeping._to_list(field_list, cert_list))
+
+    def test_503_to_list(self):
+        """ test Housekeeping._to_list() - float in dictionary """
+        field_list = ['foo', 'bar']
+        cert_list = [{'foo': 'fo\ro1', 'bar': 10.23}]
+        self.assertEqual([['foo', 'bar'], ['foo1', 10.23]], self.housekeeping._to_list(field_list, cert_list))
 
 if __name__ == '__main__':
     unittest.main()
