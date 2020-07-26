@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Ca_handler.poll()
 
 The ```poll``` method has been implemented to cover use-cases in which certificate issuance needs to be manually approved by the CA administrator.

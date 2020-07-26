@@ -1,5 +1,4 @@
-
-
+<!-- markdownlint-disable  MD013 -->
 # Installation on apache2 running on Ubuntu 18.04
 
 1. check of the wsgi module is running on your apache2
