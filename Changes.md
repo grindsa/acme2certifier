@@ -79,7 +79,6 @@ database scheme gets updated. Please run either `tools/db_update.py` or
 - key update and key roll-over support
 - generic CMPv2 handler
 
-
 ## Changes in 0.6
 
 **Features**:
