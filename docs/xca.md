@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Support for an XCA based Certificate Authorities
 This handler can be used to store, certifcates and requests in an [XCA](https://github.com/chris2511/xca/) databse. Only SQLite is supported as backend database.
 
