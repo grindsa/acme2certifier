@@ -1,5 +1,5 @@
 # Support for an XCA based Certificate Authorities
-This handler can be used to store, certifcates and requests in an [XCA](https://hohnstaedt.de/xca/) databse. Only SQLite is supported as backend database.
+This handler can be used to store, certifcates and requests in an [XCA](https://github.com/chris2511/xca/) databse. Only SQLite is supported as backend database.
 
 It is also possible to fetch enrollment templates from XCA an apply them to the certificate signing request.
 
