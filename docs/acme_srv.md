@@ -1,7 +1,7 @@
+<!-- markdownlint-disable  MD013 -->
 # acme_srv.cfg
 
 ## configuration options for acme2certifier
-
 
 | Section | Option | Description | Values | default|
 | :-------| :------| :-----------| :------| :------|
@@ -20,8 +20,6 @@
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURTIY ISSUE as it exposes the API for replay attacks! Should be enabled for testing/debugging purposes only. | True/False | False|
 | `Order` | [`tnauthlist_support`](tnauthlist.md) | accept [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and challenges containing [tkauth-01 type](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) | True/False | False|
 | `Order` | `retry_after_timeout` | Retry-After value to be send to client in case a certifcate enrollment request gets pending on CA server  | Integer |120|
-
-
 
 The options for the `CAHandler` section depend on the CA handler.
 
