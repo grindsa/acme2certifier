@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Generic CMPv2 protocol handler
 
 The CMPv2 protocol handler is not bound to a specific ca server. Certificate enrollment is done by calling an [openssl binary with cmpossl support](https://github.com/mpeylo/cmpossl/wiki).
@@ -21,7 +22,7 @@ command line first and adapt the ca_handler accordingly.
 
 In my setup acme2certifier is authenticating via refnum/secred towards CMPv2 server. The later described ca-handler configuration maps to the below commandline.
 
-```
+```shell
 acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -newkey pubkey.pem -cert ra_cert.pem -trusted capubs.pem -popo 0 -subject /CN=test-cert -extracertsout ca_certs.pem -certout test-cert.pem  -ignore_keyusage -popo 0
 ```
 
@@ -43,13 +44,13 @@ acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -
 
 The latest version of the documentation for the openssl cmp CLI can be found [here](https://github.com/mpeylo/cmpossl/blob/cmp/doc/man1/openssl-cmp.pod)
 
-
 ## Installation and Configuration
 
 - note down the openssl command line for a successful certificate enrollment.
 
 - copy the ca_handler into the acme directory
-```
+
+```bash
 root@rlh:~# cp example/cmp_ca_handler.py acme/ca_handler.py
 ```
 
@@ -58,7 +59,8 @@ section. The entry is the name of the openssl parameter with the prefix "cmp_", 
 path to the openssl binary supporting CMPv2 (`cmp_openssl_bin`) and a temporary directory to store files (`cmp_tmp_dir`).
 
 The above mentioned CLI commend will result in the below configuration to be inserted in acme_srv.cfg
-```
+
+```config
 [CAhandler]
 cmp_openssl_bin: acme/cmp/WindowsCMPOpenSSL/openssl.exe
 cmp_tmp_dir: acme/cmp/tmp
