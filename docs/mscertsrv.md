@@ -48,6 +48,7 @@ X-Powered-By: ASP.NET
 ```bash
 root@rlh:~# pip install certsrv[ntlm]
 ```
+
 - copy the ca_handler into the acme directory
 
 ```bash
@@ -65,9 +66,10 @@ ca_bundle: <filename>
 auth_method: <basic|ntlm>
 template: <name>
 ```
-  - host - hostname of the system providing the Web enrollment service
-  - user - username used to access the service
-  - password - password
-  - ca_bundle - CA certificate bundle in pem format needed to valiate the server certificate
-  - auth_method - authentication method (either "basic" or "ntlm")
-  - template - certificate template used for enrollment
+
+- host - hostname of the system providing the Web enrollment service
+- user - username used to access the service
+- password - password
+- ca_bundle - CA certificate bundle in pem format needed to valiate the server certificate
+- auth_method - authentication method (either "basic" or "ntlm")
+- template - certificate template used for enrollment
