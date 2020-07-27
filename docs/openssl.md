@@ -20,6 +20,7 @@ root@rlh:~# openssl req -x509 -new -extensions v3_ca -newkey rsa:4096 -keyout ca
 ```bash
 root@rlh:~# cp example/ca_handlers/openssl_ca_handler.py acme/ca_handler.py
 ```
+
 - create a directory to store the (ca) certificate(s), key and CRL(s)
 
 ```bash
@@ -80,6 +81,7 @@ extendedKeyUsage        = critical, clientAuth, serverAuth
 Enjoy enrolling and revoking certificates
 
 some remarks:
+
 - certificates and CRls will be signed with sha256
 - during enrollment all extensions included in the csr will be copied to the certificate. Don’t tell me that this is a bad idea. Read the first two sentences of this page instead.
 - the CRL "next update interval" is 7days
