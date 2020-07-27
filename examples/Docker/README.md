@@ -25,6 +25,7 @@ Step 2/17 : LABEL maintainer="grindelsack@gmail.com"
 Removing intermediate container 03f043052bc9
 ...
 ```
+
 Start acme2certifier:
 
 `user@docker-host:~/acme2certifier/examples/Docker$ docker-compose up -d`
