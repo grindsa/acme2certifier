@@ -3,12 +3,12 @@
 
 ## Prerequisites
 
- - the Certifier needs to have the REST-service activated
- - you have a user and password to access Certifier via REST-Service
+- the Certifier needs to have the REST-service activated
+- you have a user and password to access Certifier via REST-Service
 
 ## Configuration
 
- - copy the ca_handler into the acme directory
+- copy the ca_handler into the acme directory
 
 ```bash
 root@rlh:~# cp example/ca_handlers/certifier_ca_handler.py acme/ca_handler.py
