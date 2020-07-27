@@ -24,3 +24,7 @@ jobs:
       uses: avto-dev/markdown-lint@v1
       with:
         args: './docs/*.md'
+    - name: Lint changelog file docker
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: './examples/Docker/*.md'

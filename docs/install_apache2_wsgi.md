@@ -1,4 +1,4 @@
-<!-- markdownlint-disable  MD013, MD029 -->
+<!-- markdownlint-disable  MD013 MD029 -->
 # Installation on apache2 running on Ubuntu 18.04
 
 1. check if the wsgi module is activated in your apache configuration
