@@ -13,7 +13,7 @@ You need to have a ready-made xca database with CA certificate and keys imported
 
 ## Configuration
 
- - copy the ca_handler into the acme directory
+- copy the ca_handler into the acme directory
 
 ```bash
 root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme/ca_handler.py
