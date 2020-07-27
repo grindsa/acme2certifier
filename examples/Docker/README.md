@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Containerized installation using apache2 as webserver and wsgi or django
 
 This should be the fastest and most convenient way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 20.04 container using apache2 as webserver.
@@ -5,14 +6,16 @@ This should be the fastest and most convenient way to deploy acme2certifier. Aft
 Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. In this docker-compose those files are attached to data/ folder.
 
 `.env` contains options to switch between master or devel branch as well as to choise between wsgi or django to run acme2certifier.
-```
+
+```config
 COMPOSE_PROJECT_NAME=acme2certifier
 BRANCH=master
 CONTEXT=wsgi
 ```
 
 Building the docker-compose:
-```
+
+```bash
 user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache
 Building srv
 Step 1/17 : FROM ubuntu:20.04
@@ -22,6 +25,7 @@ Step 2/17 : LABEL maintainer="grindelsack@gmail.com"
 Removing intermediate container 03f043052bc9
 ...
 ```
+
 Start acme2certifier:
 
 `user@docker-host:~/acme2certifier/examples/Docker$ docker-compose up -d`
@@ -36,7 +40,8 @@ The entry-point script will check during the start process if a configuration fi
 - [stub_handler](../../examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
 
 The container should be visible in the list of active containers
-```
+
+```bash
 user@docker-host:~/acme2certifier/examples/Docker$ docker-compose ps
         Name                      Command               State                       Ports
 -------------------------------------------------------------------------------------------------------------
@@ -44,7 +49,8 @@ acme2certifier_srv_1   /docker-entrypoint.sh /usr ...   Up      0.0.0.0:22443->4
 ```
 
 Its should already be possible to access the directory Resources of our acme2certifer container:
-```
+
+```bash
 user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network acme curlimages/curl http://acme-srv/directory | python -m json.tool
 {
     "6a01d6abe3a84de2831d24aa5451b3a2": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
@@ -62,14 +68,16 @@ user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network
     "revokeCert": "http://acme2certifier_srv_1/acme/revokecert"
 }
 ```
+
 Both configuration file and ca_handler must be modified according to your setup.
 
 In case you would like to enable ssl-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
+
 - the private key
 - the end-entity certificate
 - intermediate CA certificates, sorted from leaf to root. The root CA certificate should not be included for security reasons.
 
-```
+```key
 -----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----
