@@ -3664,52 +3664,54 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
        self.housekeeping.dbstore.certificatelist_get.return_value = 'foo'
        self.assertEqual('foo', self.housekeeping._certificatelist_get())
 
-    def test_484_convert_dates(self):
-       """ test Housekeeping._convert_dates() - empty list"""
+    def test_484_convert_data(self):
+       """ test Housekeeping._convert_data() - empty list"""
        cert_list = []
-       self.assertEqual([], self.housekeeping._convert_dates(cert_list))
+       self.assertEqual([], self.housekeeping._convert_data(cert_list))
 
-    def test_485_convert_dates(self):
-       """ test Housekeeping._convert_dates() - orders__expire to convert """
-       cert_list = [{'foo': 'bar', 'order__expires': 1577840461}]
-       self.assertEqual([{'foo': 'bar', 'order__expires': '2020-01-01 01:01:01', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+    def test_485_convert_data(self):
+       """ test Housekeeping._convert_data() - orders__expire to convert """
+       cert_list = [{'foo': 'bar', 'order.expires': 1577840461}]
+       self.assertEqual([{'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
-    def test_486_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list containing bogus values"""
+    def test_486_convert_data(self):
+       """ test Housekeeping._convert_data() - list containing bogus values"""
        cert_list = [{'foo': 'bar'}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
-    def test_487_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list contains only issue_uts """
-       cert_list = [{'foo': 'bar', 'issue_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+    def test_487_convert_data(self):
+       """ test Housekeeping._convert_data() - list contains only issue_uts """
+       cert_list = [{'foo': 'bar', 'certificate.issue_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
-    def test_488_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list contains only expire_uts """
-       cert_list = [{'foo': 'bar', 'expire_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+    def test_488_convert_data(self):
+       """ test Housekeeping._convert_data() - list contains only expire_uts """
+       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
-    def test_489_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list contains both issue_uts and expire_uts """
-       cert_list = [{'foo': 'bar', 'expire_uts': 1577840461, 'issue_uts': 1577840462}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 1577840461, 'expire_date': '2020-01-01 01:01:01', 'issue_date': '2020-01-01 01:01:02', 'issue_uts': 1577840462}], self.housekeeping._convert_dates(cert_list))
+    def test_489_convert_data(self):
+       """ test Housekeeping._convert_data() - list contains both issue_uts and expire_uts """
+       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.issue_uts': 1577840462}]
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.expire_date': '2020-01-01 01:01:01', 'certificate.issue_date': '2020-01-01 01:01:02', 'certificate.issue_uts': 1577840462}], self.housekeeping._convert_data(cert_list))
 
-    def test_490_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list contains both uts with 0 """
-       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': ''}], self.housekeeping._convert_dates(cert_list))
+    def test_490_convert_data(self):
+       """ test Housekeeping._convert_data() - list contains both uts with 0 """
+       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0}]
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
-    def test_491_convert_dates(self):
-       """ test Housekeeping._convert_dates() - list contains both uts with 0 and a bogus cert_raw """
-       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'cert_raw': 'cert_raw'}]
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'expire_date': '', 'issue_date': '', 'cert_raw': 'cert_raw'}], self.housekeeping._convert_dates(cert_list))
+    def test_491_convert_data(self):
+       """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
+       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': '', 'certificate.cert_raw': 'cert_raw', 'certificate.serial': ''}], self.housekeeping._convert_data(cert_list))
 
+    @patch('acme.housekeeping.cert_serial_get')
     @patch('acme.housekeeping.cert_dates_get')
-    def test_492_convert_dates(self, mock_dates):
-       """ test Housekeeping._convert_dates() - list contains both uts with 0 and a bogus cert_raw """
-       cert_list = [{'foo': 'bar', 'expire_uts': 0, 'issue_uts': 0, 'cert_raw': 'cert_raw'}]
+    def test_492_convert_data(self, mock_dates, mock_serial):
+       """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
+       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
        mock_dates.return_value = (1577840461, 1577840462)
-       self.assertEqual([{'foo': 'bar', 'expire_uts': 1577840462, 'issue_uts': 1577840461, 'expire_date': '2020-01-01 01:01:02', 'issue_date': '2020-01-01 01:01:01', 'cert_raw': 'cert_raw'}], self.housekeeping._convert_dates(cert_list))
+       mock_serial.return_value = 'serial'
+       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840462, 'certificate.issue_uts': 1577840461, 'certificate.serial': 'serial', 'certificate.expire_date': '2020-01-01 01:01:02', 'certificate.issue_date': '2020-01-01 01:01:01', 'certificate.cert_raw': 'cert_raw'}], self.housekeeping._convert_data(cert_list))
 
     def test_493_to_list(self):
         """ test Housekeeping._to_list() - both lists are empty """
