@@ -80,6 +80,21 @@ class DBstore(object):
         self.logger.debug('acct_id({0})'.format(obj.id))
         return obj.id
 
+    def accountlist_get(self):
+        """ certificatelist_get """
+        self.logger.debug('DBStore.certificatelist_get()')
+        vlist = [
+            'id', 'name', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
+            'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id',  'order__authorization__name',
+            'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token',
+            'order__authorization__created_at', 'order__authorization__status_id', 'order__authorization__status__id', 'order__authorization__status__name',
+            'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token',
+            'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization',
+            'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name'
+            ]
+        # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
+        return(vlist, list(Account.objects.filter(name__isnull=False).values(*vlist)))
+
     def authorization_add(self, data_dic):
         """ add authorization to database """
         self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
