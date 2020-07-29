@@ -6,7 +6,7 @@ import time
 import csv
 import json
 from acme.db_handler import DBstore
-from acme.helper import load_config, uts_to_date_utc, cert_dates_get
+from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get
 
 class Housekeeping(object):
     """ Housekeeping class """
@@ -22,6 +22,11 @@ class Housekeeping(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _accountlist_get(self):
+        """ get list of certs from database """
+        self.logger.debug('Housekeeping._certlist_get()')
+        return self.dbstore.accountlist_get()
+
     def _certificatelist_get(self):
         """ get list of certs from database """
         self.logger.debug('Housekeeping._certlist_get()')
@@ -34,35 +39,44 @@ class Housekeeping(object):
         if 'Housekeeping' in config_dic:
             pass
 
-    def _convert_dates(self, cert_list):
-        """ convert dates from uts to real date """
+    def _convert_data(self, cert_list):
+        """ convert data from uts to real date """
         self.logger.debug('Housekeeping._convert_dates()')
         for cert in cert_list:
-            if 'order__expires' in cert:
-                cert['order__expires'] = uts_to_date_utc(cert['order__expires'], '%Y-%m-%d %H:%M:%S')
+            expire_list = ('order.expires', 'authorization.expires', 'challenge.expires')
+            for ele in expire_list:
+                if ele in cert and cert[ele]:
+                    cert[ele] = uts_to_date_utc(cert[ele], '%Y-%m-%d %H:%M:%S')
 
             # set uts to 0 if we do not have them in dictionary
-            if 'issue_uts' not in cert or 'expire_uts' not in cert:
-                cert['issue_uts'] = 0
-                cert['expire_uts'] = 0
+            if 'certificate.issue_uts' not in cert or 'certificate.expire_uts' not in cert:
+                cert['certificate.issue_uts'] = 0
+                cert['certificate.expire_uts'] = 0
 
             # if uts is zero we try to get the dates from certificate
-            if cert['issue_uts'] == 0 or cert['expire_uts'] == 0:
+            if cert['certificate.issue_uts'] == 0 or cert['certificate.expire_uts'] == 0:
                 # cover cases without certificate in dict
-                if 'cert_raw' in cert:
-                    (issue_date, expire_date) = cert_dates_get(self.logger, cert['cert_raw'])
-                    cert['issue_uts'] = issue_date
-                    cert['expire_uts'] = expire_date
+                if 'certificate.cert_raw' in cert:
+                    (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['certificate.cert_raw'])
+                    cert['certificate.issue_uts'] = issue_uts
+                    cert['certificate.expire_uts'] = expire_uts
                 else:
-                    cert['issue_uts'] = 0
-                    cert['expire_uts'] = 0
+                    cert['certificate.issue_uts'] = 0
+                    cert['certificate.expire_uts'] = 0
 
-            if cert['issue_uts'] > 0 and cert['expire_uts'] > 0:
-                cert['issue_date'] = uts_to_date_utc(cert['issue_uts'], '%Y-%m-%d %H:%M:%S')
-                cert['expire_date'] = uts_to_date_utc(cert['expire_uts'], '%Y-%m-%d %H:%M:%S')
+            if cert['certificate.issue_uts'] > 0 and cert['certificate.expire_uts'] > 0:
+                cert['certificate.issue_date'] = uts_to_date_utc(cert['certificate.issue_uts'], '%Y-%m-%d %H:%M:%S')
+                cert['certificate.expire_date'] = uts_to_date_utc(cert['certificate.expire_uts'], '%Y-%m-%d %H:%M:%S')
             else:
-                cert['issue_date'] = ''
-                cert['expire_date'] = ''
+                cert['certificate.issue_date'] = ''
+                cert['certificate.expire_date'] = ''
+
+           # add serial number
+            if 'certificate.cert_raw' in cert:
+                try:
+                    cert['certificate.serial'] = cert_serial_get(self.logger, cert['certificate.cert_raw'])
+                except BaseException:
+                    cert['certificate.serial'] = ''
 
         return cert_list
 
@@ -79,6 +93,44 @@ class Housekeeping(object):
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
         with open(file_name_, 'w', encoding='utf-8') as out_file:
             out_file.write(jdump)
+
+    def _fieldlist_normalize(self, field_list, prefix):
+        """ normalize field_list """
+        self.logger.debug('Housekeeping._fieldlist_normalize()')
+        field_dic = {}
+        for field in field_list:
+            f_list = field.split('__')
+            # items from selected list to do not have a reference
+            if len(f_list) == 1:
+                new_field = '{0}.{1}'.format(prefix, field)
+            # status has one reference more
+            elif f_list[-2] == 'status':
+                new_field = '{0}.{1}.{2}'.format(f_list[-3], f_list[-2], f_list[-1])
+            else:
+                new_field = '{0}.{1}'.format(f_list[-2], f_list[-1])
+            field_dic[field] = new_field
+
+        return field_dic
+
+    def _lists_normalize(self, field_list, value_list, prefix):
+        """ normalize list """
+        self.logger.debug('Housekeeping._list_normalize()')
+
+        field_dic = self._fieldlist_normalize(field_list, prefix)
+
+        new_list = []
+        for v_list in value_list:
+            # create a temporary dictionary wiht the renamed fields
+            tmp_dic = {}
+            for field in v_list:
+                tmp_dic[field_dic[field]] = v_list[field]
+            # append dicutionary to list
+            new_list.append(tmp_dic)
+
+        # get field_list
+        field_list = list(field_dic.values())
+
+        return(field_list, new_list)
 
     def _to_list(self, field_list, cert_list):
         """ convert query to csv format """
@@ -110,16 +162,39 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._to_list() ended with {0} entries'.format(len(csv_list)))
         return csv_list
 
+    def accountreport_get(self, report_format='csv', filename='account_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S'))):
+        """ get account report """
+        self.logger.debug('Housekeeping.accountreport_get()')
+        (field_list, account_list) = self._accountlist_get()
+
+        # normalize lists
+        (field_list, account_list) = self._lists_normalize(field_list, account_list, 'account')
+
+        # convert dates into human readable format
+        account_list = self._convert_data(account_list)
+
+        self.logger.debug('output to dump: {0}.{1}'.format(filename, report_format))
+        if report_format == 'csv':
+            self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
+            csv_list = self._to_list(field_list, account_list)
+            self._csv_dump('{0}.{1}'.format(filename, report_format), csv_list)
+
     def certreport_get(self, report_format='csv', filename='cert_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S'))):
         """ get certificate report """
         self.logger.debug('Housekeeping.certreport_get()')
 
         (field_list, cert_list) = self._certificatelist_get()
+
+        # normalize lists
+        (field_list, cert_list) = self._lists_normalize(field_list, cert_list, 'certificate')
+
         # convert dates into human readable format
-        cert_list = self._convert_dates(cert_list)
+        cert_list = self._convert_data(cert_list)
 
         # extend list by additional fields to have the fileds in output
-        field_list.extend(['issue_date', 'expire_date'])
+        field_list.insert(2, 'certificate.serial')
+        field_list.insert(7,'certificate.issue_date')
+        field_list.insert(8, 'certificate.expire_date')
 
         self.logger.debug('output to dump: {0}.{1}'.format(filename, report_format))
         if report_format == 'csv':
