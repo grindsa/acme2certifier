@@ -291,6 +291,76 @@ class DBstore(object):
         self.logger.debug('DBStore.account_update() ended')
         return result
 
+    def accountlist_get(self):
+        """ certificatelist_get """
+        self.logger.debug('DBStore.certificatelist_get()')
+        vlist = [
+            'id', 'name', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
+            'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name',
+            'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token',
+            'order__authorization__created_at', 'order__authorization__status__id', 'order__authorization__status__name',
+            'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token',
+            'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization',
+            'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name'
+            ]
+
+        self._db_open()
+
+        pre_statement = '''SELECT account.*,
+                        	orders.id as order__id,
+                        	orders.name as order__name,
+                        	orders.status_id as order__status,
+                        	orders.notbefore as order__notbefore,
+                        	orders.notafter as order__notafter,
+                        	orders.expires as order__expires,
+                        	orders.identifiers as order__identifiers,
+                        	orders.created_at as order__created_at,
+                        	orders.status_id as order__status__id,
+                        	order_status.name as order__status__name,
+                        	authorization.id as order__authorization__id,
+                        	authorization.name as order__authorization__name,
+                        	authorization.type as order__authorization__type,
+                        	authorization.value as order__authorization__value,
+                        	authorization.expires as order__authorization__expires,
+                        	authorization.token as order__authorization__token,
+                        	authorization.created_at as order__authorization__created_at,
+                        	authorization.status_id as order__authorization__status__id,
+                        	auth_status.name as order__authorization__status__name,
+                        	challenge.id as order__authorization__challenge__id,
+                        	challenge.name as order__authorization__challenge__name,
+                        	challenge.token as order__authorization__challenge__token,
+                        	challenge.expires as order__authorization__challenge__expires,
+                        	challenge.type as order__authorization__challenge__type,
+                        	challenge.keyauthorization as order__authorization__challenge__keyauthorization,
+                        	challenge.created_at as order__authorization__challenge__created_at,
+                        	challenge.status_id as order__authorization__challenge__status__id,
+                        	chall_status.name as order__authorization__challenge__status__name
+                        	from account
+                        	JOIN orders on orders.account_id = account.id
+                        	JOIN authorization on authorization.order_id = orders.id
+                        	JOIN challenge on challenge.authorization_id = authorization.id
+                        	JOIN status as order_status on order_status.id = orders.status_id
+                        	JOIN status as auth_status on auth_status.id = authorization.status_id
+                        	JOIN status as chall_status on chall_status.id = challenge.status_id'''
+
+        self.cursor.execute(pre_statement)
+        rows = self.cursor.fetchall()
+
+        # process results
+        account_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+
+            account_list.append(result)
+
+        self._db_close()
+
+        return(vlist, account_list)
+
     def authorization_add(self, data_dic):
         """ add authorization to database """
         self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
