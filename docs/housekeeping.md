@@ -30,11 +30,11 @@ LOGGER = logger_setup()
 There are two methods allowing the creation of reports.
 
 - `accountreport_get(report_format, nested)`: this report contains a list of accounts and corresponding orders, authorizations and challenges
-   - report_format: `csv`/`json` - specifies the format of the report  (default `csv`)
-   - nested: `False`/`True` - creates a nested JSON report structure (default `False`)
-   - filename: name of the report file (default: account_report_YY-MM-DD-HHMM.`report_format`)
+  - report_format: `csv`/`json` - specifies the format of the report  (default `csv`)
+  - nested: `False`/`True` - creates a nested JSON report structure (default `False`)
+  - filename: name of the report file (default: account_report_YY-MM-DD-HHMM.`report_format`)
 - `certificatereport_get(report_format, nested)`: this report contains a list of certificates and corresponding accounts and orders
-   - report_format: `csv`/`json` - specifies the format of the report  (default `csv`)   
-   - filename: name of the report file (default: certificate_report_YY-MM-DD-HHMM.`report_format`)
+  - report_format: `csv`/`json` - specifies the format of the report  (default `csv`)   
+  - filename: name of the report file (default: certificate_report_YY-MM-DD-HHMM.`report_format`)
 
 Example reports and database used to create the reports can be found in the [examples/reports](../examples/reports) directory.
