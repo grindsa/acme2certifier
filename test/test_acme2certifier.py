@@ -3789,5 +3789,91 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_list = [{'foo': 'fo\ro1', 'bar': 10.23}]
         self.assertEqual([['foo', 'bar'], ['foo1', 10.23]], self.housekeeping._to_list(field_list, cert_list))
 
+    def test_504_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - empty list """
+        account_list = []
+        self.assertEqual([], self.housekeeping._to_acc_json(account_list))
+
+    def test_505_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - bogus list """
+        account_list = [{'foo': 'bar'}]
+        self.assertEqual([{'error_list': [{'foo': 'bar'}]}], self.housekeeping._to_acc_json(account_list))
+
+    def test_506_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - bogus list """
+        account_list = [{'account.name': 'account.name'}]
+        self.assertEqual([{'error_list': [{'account.name': 'account.name'}]}], self.housekeeping._to_acc_json(account_list))
+
+    def test_507_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - bogus list """
+        account_list = [{'account.name': 'account.name01', 'order.name': 'order.name01'}]
+        self.assertEqual([{'error_list': [{'account.name': 'account.name01', 'order.name': 'order.name01'}]}], self.housekeeping._to_acc_json(account_list))
+
+    def test_508_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - bogus list """
+        account_list = [{'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01'}]
+        self.assertEqual([{'error_list': [{'account.name': 'account.name01', 'authorization.name': 'authorization.name01', 'order.name': 'order.name01'}]}], self.housekeeping._to_acc_json(account_list))
+
+    def test_509_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - complete list """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_510_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - two challenges """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name02'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'},  {'challenge.name': 'challenge.name02'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_511_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - two authorizations """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name02', 'challenge.name': 'challenge.name02'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}, {'authorization.name': 'authorization.name02', 'challenges': [{'challenge.name': 'challenge.name02'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_512_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - two orders """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
+            {'account.name': 'account.name01', 'order.name': 'order.name02', 'authorization.name': 'authorization.name02', 'challenge.name': 'challenge.name02'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}]}, {'order.name': 'order.name02', 'authorizations': [{'authorization.name': 'authorization.name02', 'challenges': [{'challenge.name': 'challenge.name02'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_513_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - two accounts """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
+            {'account.name': 'account.name02', 'order.name': 'order.name02', 'authorization.name': 'authorization.name02', 'challenge.name': 'challenge.name02'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}]}]}, {'account.name': 'account.name02', 'orders': [{'order.name': 'order.name02', 'authorizations': [{'authorization.name': 'authorization.name02', 'challenges': [{'challenge.name': 'challenge.name02'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_514_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - complete list with subkeys"""
+        account_list = [
+            {'account.name': 'account.name01', 'account.foo': 'account.foo', 'order.name': 'order.name01', 'order.foo': 'order.foo', 'authorization.name': 'authorization.name01', 'authorization.foo': 'authorization.foo', 'challenge.name': 'challenge.name01', 'challenge.foo': 'challenge.foo'}
+            ]
+        result_list = [{'account.name': 'account.name01', 'account.foo': 'account.foo', 'orders': [{'order.name': 'order.name01', 'order.foo': 'order.foo', 'authorizations': [{'authorization.name': 'authorization.name01', 'authorization.foo': 'authorization.foo', 'challenges': [{'challenge.name': 'challenge.name01', 'challenge.foo': 'challenge.foo'}]}]}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_515_to_acc_json(self):
+        """ test Housekeeping._to_acc_list() - complete list """
+        account_list = [
+            {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
+            {'foo': 'bar'}]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}]}]}, {'error_list': [{'foo': 'bar'}]}]
+        self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+
 if __name__ == '__main__':
     unittest.main()
