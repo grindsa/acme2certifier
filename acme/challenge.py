@@ -166,6 +166,7 @@ class Challenge(object):
         if self.challenge_validation_disable:
             self.logger.debug('CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
             challenge_check = True
+            invalid = False
         else:
             (challenge_check, invalid) = self._check(challenge_name, payload)
 
