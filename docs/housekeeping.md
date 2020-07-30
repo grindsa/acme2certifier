@@ -37,4 +37,4 @@ There are two methods allowing the creation of reports.
    - report_format: `csv`/`json` - specifies the format of the report  (default `csv`)   
    - filename: name of the report file (default: certificate_report_YY-MM-DD-HHMM.`report_format`)
 
-Example reports and database used to create the reports can be found in the [examples/reports](./examples/reports) directory.
+Example reports and database used to create the reports can be found in the [examples/reports](../examples/reports) directory.
