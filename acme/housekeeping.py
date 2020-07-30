@@ -87,12 +87,12 @@ class Housekeeping(object):
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
 
-    def _json_dump(self, file_name_, data_):
+    def _json_dump(self, filename, data_):
         """ dump content json file """
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
-        with open(file_name_, 'w', encoding='utf-8') as out_file:
-            out_file.write(jdump)
+        with open(filename, 'w', newline='') as file_:
+            file_.write(jdump)
 
     def _fieldlist_normalize(self, field_list, prefix):
         """ normalize field_list """
@@ -132,6 +132,63 @@ class Housekeeping(object):
 
         return(field_list, new_list)
 
+    def _to_acc_json(self, account_list):
+        """ stack list to json """
+        self.logger.debug('Housekeeping._to_acc_json()')
+
+        tmp_json = {}
+        for ele in account_list:
+            # create account entry in case it does not exist
+            if ele['account.name'] not in tmp_json:
+                tmp_json[ele['account.name']] = {}
+                tmp_json[ele['account.name']]['orders_dic'] = {}
+
+            if ele['order.name'] not in tmp_json[ele['account.name']]['orders_dic']:
+                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']] = {}
+                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'] = {}
+
+            if ele['authorization.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic']:
+                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']] = {}
+                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'] = {}
+
+            if ele['challenge.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic']:
+                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']] = {}
+
+            for value in ele:
+                if value.startswith('account.'):
+                    tmp_json[ele['account.name']][value] = ele[value]
+                elif value.startswith('order.'):
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']][value] = ele[value]
+                elif value.startswith('authorization.'):
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']][value] = ele[value]
+                elif value.startswith('challenge'):
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']][value] = ele[value]
+
+        # convert nested dictionaries (challenges, authorizations and orders) into list
+        account_list = []
+        for account in tmp_json:
+            tmp_json[account]['orders'] = []
+            for order in tmp_json[account]['orders_dic']:
+                tmp_json[account]['orders_dic'][order]['authorizations'] = []
+                for authorization in tmp_json[account]['orders_dic'][order]['authorizations_dic']:
+                    tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'] = []
+                    # build list from challenges and delete dictionary
+                    for _name, challenge in tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic'].items():
+                        tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'].append(challenge)
+                    del tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic']
+                    # build list from authorizations
+                    tmp_json[account]['orders_dic'][order]['authorizations'].append(tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization])
+                # delete authorization dictionary
+                del tmp_json[account]['orders_dic'][order]['authorizations_dic']
+                # build list of orders
+                tmp_json[account]['orders'].append(tmp_json[account]['orders_dic'][order])
+            del tmp_json[account]['orders_dic']
+
+            # add entry to output list
+            account_list.append(tmp_json[account])
+
+        return account_list
+
     def _to_list(self, field_list, cert_list):
         """ convert query to csv format """
         self.logger.debug('Housekeeping._to_list()')
@@ -162,7 +219,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._to_list() ended with {0} entries'.format(len(csv_list)))
         return csv_list
 
-    def accountreport_get(self, report_format='csv', filename='account_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S'))):
+    def accountreport_get(self, report_format='csv', filename='account_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S')), nested=False):
         """ get account report """
         self.logger.debug('Housekeeping.accountreport_get()')
         (field_list, account_list) = self._accountlist_get()
@@ -178,6 +235,10 @@ class Housekeeping(object):
             self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
             csv_list = self._to_list(field_list, account_list)
             self._csv_dump('{0}.{1}'.format(filename, report_format), csv_list)
+        elif report_format == 'json':
+            if nested:
+                account_list = self._to_acc_json(account_list)
+            self._json_dump('{0}.{1}'.format(filename, report_format), account_list)
 
     def certreport_get(self, report_format='csv', filename='cert_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S'))):
         """ get certificate report """
@@ -193,7 +254,7 @@ class Housekeeping(object):
 
         # extend list by additional fields to have the fileds in output
         field_list.insert(2, 'certificate.serial')
-        field_list.insert(7,'certificate.issue_date')
+        field_list.insert(7, 'certificate.issue_date')
         field_list.insert(8, 'certificate.expire_date')
 
         self.logger.debug('output to dump: {0}.{1}'.format(filename, report_format))
