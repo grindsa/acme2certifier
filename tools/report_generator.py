@@ -18,6 +18,11 @@ if __name__ == '__main__':
     with Housekeeping(DEBUG, LOGGER) as housekeeping:
 
         # certificate report in csv format
-        report = housekeeping.certreport_get()
+        housekeeping.certreport_get()
         # certificate report in json format
-        report = housekeeping.certreport_get('json')
+        housekeeping.certreport_get(report_format='json')
+
+        # account report in csv report_format
+        housekeeping.accountreport_get()
+        # account report in json format
+        housekeeping.accountreport_get(report_format='json', nested=True)

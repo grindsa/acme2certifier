@@ -1,7 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
 # Ca_handler.trigger()
 
-The ```trigger``` method allows a CA server to invoke certain actions on acme2certifier. The actions to be exectuted will be
+The ```trigger``` method allows a CA server to invoke certain actions on acme2certifier. The actions to be executed will be
 defined by the respective CA handler. This method as been implemented to cover use-cases in which a CSR goes into pending state and CA server as the ability to trigger scripts
 after CSR approval.
 
