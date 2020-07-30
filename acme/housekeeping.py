@@ -137,32 +137,40 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._to_acc_json()')
 
         tmp_json = {}
+        error_list = []
         for ele in account_list:
-            # create account entry in case it does not exist
-            if ele['account.name'] not in tmp_json:
-                tmp_json[ele['account.name']] = {}
-                tmp_json[ele['account.name']]['orders_dic'] = {}
 
-            if ele['order.name'] not in tmp_json[ele['account.name']]['orders_dic']:
-                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']] = {}
-                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'] = {}
+            # we have to ensure that all keys we need to nest are in
+            if ele.keys() >= {'account.name', 'order.name', 'authorization.name', 'challenge.name'}:
 
-            if ele['authorization.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic']:
-                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']] = {}
-                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'] = {}
+                # create account entry in case it does not exist
+                if ele['account.name'] not in tmp_json:
+                    tmp_json[ele['account.name']] = {}
+                    tmp_json[ele['account.name']]['orders_dic'] = {}
 
-            if ele['challenge.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic']:
-                tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']] = {}
+                if ele['order.name'] not in tmp_json[ele['account.name']]['orders_dic']:
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']] = {}
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'] = {}
 
-            for value in ele:
-                if value.startswith('account.'):
-                    tmp_json[ele['account.name']][value] = ele[value]
-                elif value.startswith('order.'):
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']][value] = ele[value]
-                elif value.startswith('authorization.'):
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']][value] = ele[value]
-                elif value.startswith('challenge'):
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']][value] = ele[value]
+                if ele['authorization.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic']:
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']] = {}
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'] = {}
+
+                if ele['challenge.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic']:
+                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']] = {}
+
+                for value in ele:
+                    if value.startswith('account.'):
+                        tmp_json[ele['account.name']][value] = ele[value]
+                    elif value.startswith('order.'):
+                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']][value] = ele[value]
+                    elif value.startswith('authorization.'):
+                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']][value] = ele[value]
+                    elif value.startswith('challenge'):
+                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']][value] = ele[value]
+
+            else:
+                error_list.append(ele)
 
         # convert nested dictionaries (challenges, authorizations and orders) into list
         account_list = []
@@ -186,6 +194,10 @@ class Housekeeping(object):
 
             # add entry to output list
             account_list.append(tmp_json[account])
+            
+        # add errors
+        if error_list:
+            account_list.append({'error_list': error_list})
 
         return account_list
 
