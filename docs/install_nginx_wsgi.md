@@ -13,9 +13,9 @@ Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act
 
 2. download the archive and unpack it into `/opt/acme2certifier`.
 3. create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme/` or use the example stored in the examples directory
-4. modify the [configuration file](docs/acme_srv.md) according to you needs
+4. modify the [configuration file](acme_srv.md) according to you needs
 5. set the `handler_file` parameter in `acme_srv.cfg` or copy the correct ca handler from `/opt/acme2certifier/examples/ca_handler directory` to `/opt/acme2certifier/acme/ca_handler.py`
-6. configure the connection to your ca server. [Example for Insta Certifier](docs/certifier.md)
+6. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
 7. activate the wsgi database handler
 
 ```bash
