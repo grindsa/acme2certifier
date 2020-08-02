@@ -558,7 +558,7 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
-    def certificates_search(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
+    def certificates_search(self, column, string, vlist=('name', 'csr', 'cert', 'order__name'), operant='LIKE'):
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore.certificates_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -575,7 +575,7 @@ class DBstore(object):
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
-                            WHERE {0} LIKE ?'''.format(column)
+                            WHERE {0} {1} ?'''.format(column, operant)
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
 

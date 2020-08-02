@@ -85,7 +85,7 @@ class DBstore(object):
         self.logger.debug('DBStore.certificatelist_get()')
         vlist = [
             'id', 'name', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
-            'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id',  'order__authorization__name',
+            'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name',
             'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token',
             'order__authorization__created_at', 'order__authorization__status_id', 'order__authorization__status__id', 'order__authorization__status__name',
             'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token',
@@ -180,6 +180,11 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
 
+    def certificate_delete(self, mkey, value):
+        """ delete certificate from table """
+        self.logger.debug('DBStore.certificate_delete({0}:{1})'.format(mkey, value))
+        Certificate.objects.filter(**{mkey: value}).delete()
+
     def certificatelist_get(self):
         """ certificatelist_get """
         self.logger.debug('DBStore.certificatelist_get()')
@@ -205,9 +210,12 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
-    def certificates_search(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name')):
+    def certificates_search(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name'), operator=None):
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificates_search({0}:{1})'.format(mkey, value))
+        # quick hack
+        if operator == '<=':
+            mkey = '{0}__lte'.format(mkey)
         return Certificate.objects.filter(**{mkey: value}).values(*vlist)
 
     def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):

@@ -2,17 +2,18 @@
 # -*- coding: utf-8 -*-
 """ Housekeeping class """
 from __future__ import print_function
-import time
 import csv
 import json
 from acme.db_handler import DBstore
-from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get
+from acme.certificate import Certificate
+from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
 
 class Housekeeping(object):
     """ Housekeeping class """
     def __init__(self, debug=None, logger=None):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
+        self.debug = debug
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -194,7 +195,7 @@ class Housekeeping(object):
 
             # add entry to output list
             account_list.append(tmp_json[account])
-            
+
         # add errors
         if error_list:
             account_list.append({'error_list': error_list})
@@ -231,7 +232,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._to_list() ended with {0} entries'.format(len(csv_list)))
         return csv_list
 
-    def accountreport_get(self, report_format='csv', filename='account_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S')), nested=False):
+    def accountreport_get(self, report_format='csv', report_name=None, nested=False):
         """ get account report """
         self.logger.debug('Housekeeping.accountreport_get()')
         (field_list, account_list) = self._accountlist_get()
@@ -242,17 +243,21 @@ class Housekeeping(object):
         # convert dates into human readable format
         account_list = self._convert_data(account_list)
 
-        self.logger.debug('output to dump: {0}.{1}'.format(filename, report_format))
-        if report_format == 'csv':
-            self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
-            csv_list = self._to_list(field_list, account_list)
-            self._csv_dump('{0}.{1}'.format(filename, report_format), csv_list)
-        elif report_format == 'json':
-            if nested:
-                account_list = self._to_acc_json(account_list)
-            self._json_dump('{0}.{1}'.format(filename, report_format), account_list)
+        if report_name:
+            if account_list:
+                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
+                if report_format == 'csv':
+                    self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
+                    csv_list = self._to_list(field_list, account_list)
+                    self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                elif report_format == 'json':
+                    if nested:
+                        account_list = self._to_acc_json(account_list)
+                    self._json_dump('{0}.{1}'.format(report_name, report_format), account_list)
 
-    def certreport_get(self, report_format='csv', filename='cert_report_{0}'.format(uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S'))):
+        return account_list
+
+    def certreport_get(self, report_format='csv', report_name=None):
         """ get certificate report """
         self.logger.debug('Housekeeping.certreport_get()')
 
@@ -269,13 +274,46 @@ class Housekeeping(object):
         field_list.insert(7, 'certificate.issue_date')
         field_list.insert(8, 'certificate.expire_date')
 
-        self.logger.debug('output to dump: {0}.{1}'.format(filename, report_format))
-        if report_format == 'csv':
-            self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
-            csv_list = self._to_list(field_list, cert_list)
-            self._csv_dump('{0}.{1}'.format(filename, report_format), csv_list)
-        elif report_format == 'json':
-            self.logger.debug('Housekeeping.certreport_get() dump in json-format')
-            self._json_dump('{0}.{1}'.format(filename, report_format), cert_list)
-        else:
-            self.logger.error('Housekeeping.certreport_get() cannot dump as format is unknown')
+        if report_name:
+            if cert_list:
+                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
+                if report_format == 'csv':
+                    self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
+                    csv_list = self._to_list(field_list, cert_list)
+                    self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                elif report_format == 'json':
+                    self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+                    self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
+                else:
+                    self.logger.error('Housekeeping.certreport_get(): No dump just return report')
+
+        return cert_list
+
+    def certificates_cleanup(self, uts=None, purge=False, report_format='csv', report_name=None):
+        """ database cleanuip certificate-table """
+        self.logger.debug('Housekeeping.certificates_cleanup()')
+        if not uts:
+            uts = uts_now()
+
+        with Certificate(self.debug, None, self.logger) as certificate:
+            (field_list, cert_list) = certificate.cleanup(timestamp=uts, purge=purge)
+
+            # normalize lists
+            # (field_list, cert_list) = self._lists_normalize(field_list, cert_list, 'certificate')
+
+            if report_name:
+                if cert_list:
+                    # dump report to file
+                    if report_format == 'csv':
+                        self.logger.debug('Housekeeping.certificates_cleanup(): Dump in csv-format')
+                        csv_list = self._to_list(field_list, cert_list)
+                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                    elif report_format == 'json':
+                        self.logger.debug('Housekeeping.certificates_cleanup(): Dump in json-format')
+                        self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
+                    else:
+                        self.logger.debug('Housekeeping.certificates_cleanup():  No dump just return report')
+                else:
+                    self.logger.debug('Housekeeping.certificates_cleanup(): No certificates to dump')
+
+        return cert_list

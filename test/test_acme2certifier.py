@@ -624,6 +624,11 @@ class TestACMEHandler(unittest.TestCase):
         """ test date_to_uts_utc without format """
         self.assertEqual(1543640400, self.date_to_uts_utc('2018-12-01T05:00:00'))
 
+    def test_083_utstodate_utc(self):
+        """ test date_to_uts_utc with a datestring """
+        timestamp = datetime.datetime(2018, 12, 1, 5, 0, 1)
+        self.assertEqual(1543640401, self.date_to_uts_utc(timestamp))
+
     def test_083_generaterandomstring(self):
         """ test date_to_uts_utc without format """
         self.assertEqual(5, len(self.generate_random_string(self.logger, 5)))
@@ -3873,6 +3878,120 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             {'foo': 'bar'}]
         result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}]}]}]}, {'error_list': [{'foo': 'bar'}]}]
         self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
+
+    def test_516_invalidate_check(self):
+        """ test Certificate._invalidation_check() - empty dict """
+        cert_entry = {}
+        timestamp = 1596240000
+        self.assertEqual((True, {}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_517_invalidate_check(self):
+        """ test Certificate._invalidation_check() - wrong dict """
+        cert_entry = {'foo': 'bar'}
+        timestamp = 1596240000
+        self.assertEqual((True, {'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_518_invalidate_check(self):
+        """ test Certificate._invalidation_check() - certname in but rest ist wrong """
+        cert_entry = {'name': 'certname', 'foo': 'bar'}
+        timestamp = 1596240000
+        self.assertEqual((False, {'name': 'certname', 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_519_invalidate_check(self):
+        """ test Certificate._invalidation_check() - non zero expiry date """
+        cert_entry = {'name': 'certname', 'expire_uts': 10}
+        timestamp = 1596240000
+        self.assertEqual((True, {'expire_uts': 10, 'name': 'certname'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_520_invalidate_check(self):
+        """ test Certificate._invalidation_check() - expire_uts zero but no cert_raw """
+        cert_entry = {'name': 'certname', 'expire_uts': 0}
+        timestamp = 1596240000
+        self.assertEqual((True, {'expire_uts': 0, 'name': 'certname'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_521_invalidate_check(self):
+        """ test Certificate._invalidation_check() - expire_uts zero but no cert_raw """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.cert_dates_get')
+    def test_522_invalidate_check(self, mock_dates):
+        """ test Certificate._invalidation_check() - with expiry date lower than timestamp """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
+        mock_dates.return_value = (10, 1596200000)
+        timestamp = 1596240000
+        self.assertEqual((True, {'expire_uts': 1596200000, 'issue_uts': 10, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.cert_dates_get')
+    def test_523_invalidate_check(self, mock_dates):
+        """ test Certificate._invalidation_check() - with expiry date at timestamp """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
+        mock_dates.return_value = (10, 1596240000)
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.cert_dates_get')
+    def test_524_invalidate_check(self, mock_dates):
+        """ test Certificate._invalidation_check() - with expiry date higher than timestamp """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
+        mock_dates.return_value = (10, 1596250000)
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_525_invalidate_check(self):
+        """ test Certificate._invalidation_check() - without created_at date """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr'}
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.date_to_uts_utc')
+    def test_526_invalidate_check(self, mock_date):
+        """ test Certificate._invalidation_check() - with zero created_at date """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
+        mock_date.return_value = 0
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.date_to_uts_utc')
+    def test_527_invalidate_check(self, mock_date):
+        """ test Certificate._invalidation_check() - with zero created_at date lower than threshold"""
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
+        mock_date.return_value = 1591240000
+        timestamp = 1596240000
+        self.assertEqual((True, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    @patch('acme.certificate.date_to_uts_utc')
+    def test_528_invalidate_check(self, mock_date):
+        """ test Certificate._invalidation_check() - with zero created_at higher than threshold """
+        cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
+        mock_date.return_value = 1596220000
+        timestamp = 1596240000
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_529_invalidate_check(self):
+        """ test Certificate._invalidation_check() - removed by in cert """
+        cert_entry = {'name': 'certname', 'cert': 'removed by foo-bar', 'foo': 'bar'}
+        timestamp = 159624000
+        self.assertEqual((False, {'name': 'certname', 'cert': 'removed by foo-bar', 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_530_invalidate_check(self):
+        """ test Certificate._invalidation_check() - removed by in cert """
+        cert_entry = {'name': 'certname', 'cert': 'removed by foo-bar', 'foo': 'bar'}
+        timestamp = 159624000
+        self.assertEqual((True, {'name': 'certname', 'cert': 'removed by foo-bar', 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp, True))
+
+    def test_531_invalidate_check(self):
+        """ test Certificate._invalidation_check() - removed by in cert but in upper-cases """
+        cert_entry = {'name': 'certname', 'cert': 'ReMoved By foo-bar', 'foo': 'bar'}
+        timestamp = 159624000
+        self.assertEqual((False, {'name': 'certname', 'cert': 'ReMoved By foo-bar', 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
+
+    def test_532_invalidate_check(self):
+        """ test Certificate._invalidation_check() - cert None """
+        cert_entry = {'name': 'certname', 'cert': None, 'foo': 'bar'}
+        timestamp = 159624000
+        self.assertEqual((False, {'name': 'certname', 'cert': None, 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
 
 if __name__ == '__main__':

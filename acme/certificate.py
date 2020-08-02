@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 import importlib
-from acme.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_dates_get, cert_extensions_get, uts_now, uts_to_date_utc, load_config, csr_san_get, csr_extensions_get
+from acme.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -208,6 +208,66 @@ class Certificate(object):
         self.logger.debug('Certificate._info({0})'.format(certificate_name))
         return self.dbstore.certificate_lookup('name', certificate_name, flist)
 
+    def _invalidation_check(self, cert, timestamp, purge=False):
+        """ check if cert must be invalidated """
+        if 'name' in cert:
+            self.logger.debug('Certificate._invalidation_check({0})'.format(cert['name']))
+        else:
+            self.logger.debug('Certificate._invalidation_check()')
+
+        to_be_cleared = False
+
+        if cert and 'name' in cert:
+            if 'cert' in cert and cert['cert'] and 'removed by' in cert['cert'].lower():
+                if not purge:
+                    # skip entries which had been cleared before cert[cert] check is needed to cover corner cases
+                    to_be_cleared = False
+                else:
+                    # purge entries
+                    to_be_cleared = True
+
+            elif 'expire_uts' in cert:
+                # in case cert_expiry in table is 0 try to get it from cert
+                if cert['expire_uts'] == 0:
+                    if 'cert_raw' in cert and cert['cert_raw']:
+                        # get expiration from certificate
+                        (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
+                        if 0 < expire_uts < timestamp:
+                            # returned date is other than 0 and lower than given timestamp
+                            cert['issue_uts'] = issue_uts
+                            cert['expire_uts'] = expire_uts
+                            to_be_cleared = True
+                    else:
+                        if 'csr' in cert and cert['csr']:
+                            # cover cases for enrollments in flight
+                            # we assume that a CSR should turn int a cert within two weeks
+                            if 'created_at' in cert:
+                                created_at_uts = date_to_uts_utc(cert['created_at'])
+                                if 0 < created_at_uts < timestamp - (14 * 86400):
+                                    to_be_cleared = True
+                            else:
+                                # this scneario should never been happen so lets be careful and not clear it
+                                to_be_cleared = False
+                        else:
+                            # no csr and no cert - to be cleared
+                            to_be_cleared = True
+
+                else:
+                    # expired based on expire_uts from db
+                    to_be_cleared = True
+            else:
+                # this scneario should never been happen so lets be careful and not clear it
+                to_be_cleared = False
+        else:
+            # entries without a cert-name can be to_be_cleared
+            to_be_cleared = True
+
+        if 'name' in cert:
+            self.logger.debug('Certificate._invalidation_check({0}) ended with {1}'.format(cert['name'], to_be_cleared))
+        else:
+            self.logger.debug('Certificate._invalidation_check() ended with {0}'.format(to_be_cleared))
+        return (to_be_cleared, cert)
+
     def _revocation_reason_check(self, reason):
         """ check reason """
         self.logger.debug('Certificate._revocation_reason_check({0})'.format(reason))
@@ -300,6 +360,41 @@ class Certificate(object):
         """ get certificate from database """
         self.logger.debug('Certificate.certlist_search({0}: {1})'.format(key, value))
         return self.dbstore.certificates_search(key, value, vlist)
+
+    def cleanup(self, timestamp=None, purge=False):
+        """ cleanup routine to shrink table-size """
+        self.logger.debug('Certificate.cleanup({0},{1})'.format(timestamp, purge))
+
+        field_list = ['id', 'name', 'expire_uts', 'issue_uts', 'cert', 'cert_raw', 'csr', 'created_at', 'order__id', 'order__name']
+
+        # get expired certificates
+        certificate_list = self.dbstore.certificates_search('expire_uts', timestamp, field_list, '<=')
+
+        report_list = []
+        for cert in certificate_list:
+            (to_be_cleared, cert) = self._invalidation_check(cert, timestamp, purge)
+
+            if to_be_cleared:
+                report_list.append(cert)
+
+        if not purge:
+            # we are just modifiying data
+            for cert in report_list:
+                data_dic = {
+                    'name': cert['name'],
+                    'expire_uts': cert['expire_uts'],
+                    'issue_uts': cert['issue_uts'],
+                    'cert': 'removed by certificates.cleanup() on {0} '.format(uts_to_date_utc(timestamp)),
+                    'cert_raw': cert['cert_raw']
+                }
+                self.dbstore.certificate_add(data_dic)
+        else:
+            # delete entries from certificates table
+            for cert in report_list:
+                self.dbstore.certificate_delete('id', cert['id'])
+
+        self.logger.debug('Certificate.cleanup() ended with: {0} certs'.format(len(report_list)))
+        return (field_list, report_list)
 
     def enroll_and_store(self, certificate_name, csr):
         """ cenroll and store certificater """
