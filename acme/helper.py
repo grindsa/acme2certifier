@@ -602,8 +602,12 @@ def uts_to_date_utc(uts, tformat='%Y-%m-%dT%H:%M:%SZ'):
 
 def date_to_uts_utc(date_human, _tformat='%Y-%m-%dT%H:%M:%S'):
     """ convert date to unix timestamp """
-    # return int(time.mktime(parse(date_human).timetuple()))
-    return int(calendar.timegm(parse(date_human).timetuple()))
+    if isinstance(date_human, datetime):
+        # we already got an datetime object as input
+        result = calendar.timegm(date_human.timetuple())
+    else:
+        result = int(calendar.timegm(parse(date_human).timetuple()))
+    return result
 
 def date_to_datestr(date, tformat='%Y-%m-%dT%H:%M:%SZ'):
     """ convert dateobj to datestring """
