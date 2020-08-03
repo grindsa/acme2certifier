@@ -38,3 +38,13 @@ There are two methods allowing the creation of reports. Both methods will return
   - report_name: optional - name of the report file
 
 Example reports and database used to create the reports can be found in the [examples/reports](../examples/reports) directory.
+
+# Housekeeping
+
+There a few methods for internal database maintainance.
+
+- `certificate_cleanup(uts, purge, report_format, report_name)` - this method identifies expired certificates from `certificate` - table. It can either remove the x509 objecte to shrink the database or even delete the complete data-set.  Optionally a report of the selected certificates can be dumped in to a file.
+  - uts: optional - unix timestamp to compare the certficates with. If not specified the actual unix-timestamp will be used.
+  - purge: optional - can be either True or False. The `True` option will remove the entry from `certifcate` - table. Leaving the option on `False` will solely overwrite the x509 object with the string "removed by acme2certifer" - **please use this option carefully and take a backup of `acme_srv.db` before cleaning your database**
+  - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
+  - report_name: optional - name of the report file  
