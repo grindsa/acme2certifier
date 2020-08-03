@@ -3,12 +3,12 @@
 """ unittests for acme2certifier """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import sys
 import importlib
 import datetime
-import requests
 import json
 import dns.resolver
-import sys
+
 try:
     from mock import patch, MagicMock, Mock
 except ImportError:
@@ -3525,7 +3525,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce',  'Retry-After': '600'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '600'}}, self.order.parse(message))
 
     @patch('acme.nonce.Nonce.generate_and_add')
     @patch('acme.order.Order._process')
@@ -3541,7 +3541,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce',  'Retry-After': '60'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '60'}}, self.order.parse(message))
 
     def test_465_cert_dates_get(self):
         """ get issuing and expiration date from rsa certificate """
@@ -3665,68 +3665,68 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
 
     def test_483_certificatelist_get(self):
-       """ test Housekeeping._certificatelist_get() """
-       self.housekeeping.dbstore.certificatelist_get.return_value = 'foo'
-       self.assertEqual('foo', self.housekeeping._certificatelist_get())
+        """ test Housekeeping._certificatelist_get() """
+        self.housekeeping.dbstore.certificatelist_get.return_value = 'foo'
+        self.assertEqual('foo', self.housekeeping._certificatelist_get())
 
     def test_484_convert_data(self):
-       """ test Housekeeping._convert_data() - empty list"""
-       cert_list = []
-       self.assertEqual([], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - empty list"""
+        cert_list = []
+        self.assertEqual([], self.housekeeping._convert_data(cert_list))
 
     def test_485_convert_data(self):
-       """ test Housekeeping._convert_data() - orders__expire to convert """
-       cert_list = [{'foo': 'bar', 'order.expires': 1577840461}]
-       self.assertEqual([{'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - orders__expire to convert """
+        cert_list = [{'foo': 'bar', 'order.expires': 1577840461}]
+        self.assertEqual([{'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_472_convert_data(self):
-       """ test Housekeeping._convert_data() - orders__expires and authentication__expires to convert (not in list) """
-       cert_list = [{'foo': 'bar', 'order.expires': 1577840461, 'authentication.expires': 1577840462}]
-       self.assertEqual([{'authentication.expires': 1577840462, 'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - orders__expires and authentication__expires to convert (not in list) """
+        cert_list = [{'foo': 'bar', 'order.expires': 1577840461, 'authentication.expires': 1577840462}]
+        self.assertEqual([{'authentication.expires': 1577840462, 'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_473_convert_data(self):
-       """ test Housekeeping._convert_data() - orders__expires and authorization__expires to convert (not in list) """
-       cert_list = [{'foo': 'bar', 'order.expires': 1577840461, 'authorization.expires': 1577840462}]
-       self.assertEqual([{'authorization.expires': '2020-01-01 01:01:02', 'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - orders__expires and authorization__expires to convert (not in list) """
+        cert_list = [{'foo': 'bar', 'order.expires': 1577840461, 'authorization.expires': 1577840462}]
+        self.assertEqual([{'authorization.expires': '2020-01-01 01:01:02', 'foo': 'bar', 'order.expires': '2020-01-01 01:01:01', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_486_convert_data(self):
-       """ test Housekeeping._convert_data() - list containing bogus values"""
-       cert_list = [{'foo': 'bar'}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list containing bogus values"""
+        cert_list = [{'foo': 'bar'}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_487_convert_data(self):
-       """ test Housekeeping._convert_data() - list contains only issue_uts """
-       cert_list = [{'foo': 'bar', 'certificate.issue_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains only issue_uts """
+        cert_list = [{'foo': 'bar', 'certificate.issue_uts': 0}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_488_convert_data(self):
-       """ test Housekeeping._convert_data() - list contains only expire_uts """
-       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains only expire_uts """
+        cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_489_convert_data(self):
-       """ test Housekeeping._convert_data() - list contains both issue_uts and expire_uts """
-       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.issue_uts': 1577840462}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.expire_date': '2020-01-01 01:01:01', 'certificate.issue_date': '2020-01-01 01:01:02', 'certificate.issue_uts': 1577840462}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains both issue_uts and expire_uts """
+        cert_list = [{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.issue_uts': 1577840462}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840461, 'certificate.expire_date': '2020-01-01 01:01:01', 'certificate.issue_date': '2020-01-01 01:01:02', 'certificate.issue_uts': 1577840462}], self.housekeeping._convert_data(cert_list))
 
     def test_490_convert_data(self):
-       """ test Housekeeping._convert_data() - list contains both uts with 0 """
-       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains both uts with 0 """
+        cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': ''}], self.housekeeping._convert_data(cert_list))
 
     def test_491_convert_data(self):
-       """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
-       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': '', 'certificate.cert_raw': 'cert_raw', 'certificate.serial': ''}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
+        cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.expire_date': '', 'certificate.issue_date': '', 'certificate.cert_raw': 'cert_raw', 'certificate.serial': ''}], self.housekeeping._convert_data(cert_list))
 
     @patch('acme.housekeeping.cert_serial_get')
     @patch('acme.housekeeping.cert_dates_get')
     def test_492_convert_data(self, mock_dates, mock_serial):
-       """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
-       cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
-       mock_dates.return_value = (1577840461, 1577840462)
-       mock_serial.return_value = 'serial'
-       self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840462, 'certificate.issue_uts': 1577840461, 'certificate.serial': 'serial', 'certificate.expire_date': '2020-01-01 01:01:02', 'certificate.issue_date': '2020-01-01 01:01:01', 'certificate.cert_raw': 'cert_raw'}], self.housekeeping._convert_data(cert_list))
+        """ test Housekeeping._convert_data() - list contains both uts with 0 and a bogus cert_raw """
+        cert_list = [{'foo': 'bar', 'certificate.expire_uts': 0, 'certificate.issue_uts': 0, 'certificate.cert_raw': 'cert_raw'}]
+        mock_dates.return_value = (1577840461, 1577840462)
+        mock_serial.return_value = 'serial'
+        self.assertEqual([{'foo': 'bar', 'certificate.expire_uts': 1577840462, 'certificate.issue_uts': 1577840461, 'certificate.serial': 'serial', 'certificate.expire_date': '2020-01-01 01:01:02', 'certificate.issue_date': '2020-01-01 01:01:01', 'certificate.cert_raw': 'cert_raw'}], self.housekeeping._convert_data(cert_list))
 
     def test_493_to_list(self):
         """ test Housekeeping._to_list() - both lists are empty """
@@ -3833,7 +3833,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name01'},
             {'account.name': 'account.name01', 'order.name': 'order.name01', 'authorization.name': 'authorization.name01', 'challenge.name': 'challenge.name02'}
             ]
-        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'},  {'challenge.name': 'challenge.name02'}]}]}]}]
+        result_list = [{'account.name': 'account.name01', 'orders': [{'order.name': 'order.name01', 'authorizations': [{'authorization.name': 'authorization.name01', 'challenges': [{'challenge.name': 'challenge.name01'}, {'challenge.name': 'challenge.name02'}]}]}]}]
         self.assertEqual(result_list, self.housekeeping._to_acc_json(account_list))
 
     def test_511_to_acc_json(self):
@@ -3913,7 +3913,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ test Certificate._invalidation_check() - expire_uts zero but no cert_raw """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     @patch('acme.certificate.cert_dates_get')
     def test_522_invalidate_check(self, mock_dates):
@@ -3929,7 +3929,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
         mock_dates.return_value = (10, 1596240000)
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     @patch('acme.certificate.cert_dates_get')
     def test_524_invalidate_check(self, mock_dates):
@@ -3937,13 +3937,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
         mock_dates.return_value = (10, 1596250000)
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     def test_525_invalidate_check(self):
         """ test Certificate._invalidation_check() - without created_at date """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr'}
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     @patch('acme.certificate.date_to_uts_utc')
     def test_526_invalidate_check(self, mock_date):
@@ -3951,7 +3951,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
         mock_date.return_value = 0
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     @patch('acme.certificate.date_to_uts_utc')
     def test_527_invalidate_check(self, mock_date):
@@ -3959,7 +3959,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
         mock_date.return_value = 1591240000
         timestamp = 1596240000
-        self.assertEqual((True, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((True, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     @patch('acme.certificate.date_to_uts_utc')
     def test_528_invalidate_check(self, mock_date):
@@ -3967,7 +3967,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
         mock_date.return_value = 1596220000
         timestamp = 1596240000
-        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
+        self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
     def test_529_invalidate_check(self):
         """ test Certificate._invalidation_check() - removed by in cert """
@@ -3993,6 +3993,82 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         timestamp = 159624000
         self.assertEqual((False, {'name': 'certname', 'cert': None, 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
+    def test_533_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - empty field_list """
+        field_list = {}
+        prefix = 'prefix'
+        self.assertEqual({}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_534_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - one ele """
+        field_list = ['foo__bar']
+        prefix = 'prefix'
+        self.assertEqual({'foo__bar': 'foo.bar'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_535_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - two ele """
+        field_list = ['foo__bar', 'bar__foo']
+        prefix = 'prefix'
+        self.assertEqual({'bar__foo': 'bar.foo', 'foo__bar': 'foo.bar'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_536_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - one ele without __ """
+        field_list = ['foo']
+        prefix = 'prefix'
+        self.assertEqual({'foo': 'prefix.foo'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_537_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - two ele without __ """
+        field_list = ['foo', 'bar']
+        prefix = 'prefix'
+        self.assertEqual({'foo': 'prefix.foo', 'bar': 'prefix.bar'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_538_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - status handling """
+        field_list = ['foo__status__name']
+        prefix = 'prefix'
+        self.assertEqual({'foo__status__name': 'foo.status.name'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_539_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - status handling """
+        field_list = ['foo__bar__name']
+        prefix = 'prefix'
+        self.assertEqual({'foo__bar__name': 'bar.name'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_540_fieldlist_normalize(self):
+        """ test Certificate._fieldlist_normalize() - status handling """
+        field_list = ['status__name']
+        prefix = 'prefix'
+        self.assertEqual({'status__name': 'status.name'}, self.housekeeping._fieldlist_normalize(field_list, prefix))
+
+    def test_541_lists_normalize(self):
+        """ test Certificate._fieldlist_normalize() - one value """
+        field_list = ['foo', 'foo__bar', 'bar__foo']
+        value_list = [{'foo__bar': 'foo', 'bar__foo': 'bar', 'foo':'foobar'}]
+        prefix = 'prefix'
+        self.assertEqual((['prefix.foo', 'foo.bar', 'bar.foo'], [{'foo.bar': 'foo', 'bar.foo': 'bar', 'prefix.foo': 'foobar'}]), self.housekeeping._lists_normalize(field_list, value_list, prefix))
+
+    def test_542_lists_normalize(self):
+        """ test Certificate._fieldlist_normalize() - two values """
+        field_list = ['foo', 'foo__bar', 'bar__foo']
+        value_list = [{'foo__bar': 'foo1', 'bar__foo': 'bar1', 'foo':'foobar1'}, {'foo__bar': 'foo2', 'bar__foo': 'bar2', 'foo':'foobar2'}]
+        prefix = 'prefix'
+        result = (['prefix.foo', 'foo.bar', 'bar.foo'], [{'foo.bar': 'foo1', 'bar.foo': 'bar1', 'prefix.foo': 'foobar1'}, {'bar.foo': 'bar2', 'foo.bar': 'foo2', 'prefix.foo': 'foobar2'}])
+        self.assertEqual(result, self.housekeeping._lists_normalize(field_list, value_list, prefix))
+
+    def test_543_lists_normalize(self):
+        """ test Certificate._fieldlist_normalize() - ele in field list without being in value list """
+        field_list = ['foo', 'foo__bar', 'bar__foo']
+        value_list = [{'foo__bar': 'foo', 'bar__foo': 'bar'}]
+        prefix = 'prefix'
+        self.assertEqual((['prefix.foo', 'foo.bar', 'bar.foo'], [{'bar.foo': 'bar', 'foo.bar': 'foo'}]), self.housekeeping._lists_normalize(field_list, value_list, prefix))
+
+    def test_544_lists_normalize(self):
+        """ test Certificate._fieldlist_normalize() - ele in value list without being in field list """
+        field_list = ['foo__bar']
+        value_list = [{'foo__bar': 'foo', 'bar__foo': 'bar'}]
+        prefix = 'prefix'
+        self.assertEqual((['foo.bar'], [{'foo.bar': 'foo'}]), self.housekeeping._lists_normalize(field_list, value_list, prefix))
 
 if __name__ == '__main__':
     unittest.main()
