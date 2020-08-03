@@ -101,11 +101,11 @@ class Housekeeping(object):
         field_dic = {}
         for field in field_list:
             f_list = field.split('__')
-            # items from selected list to do not have a reference
+            # items from selected list which do not have a table reference get prefix added
             if len(f_list) == 1:
                 new_field = '{0}.{1}'.format(prefix, field)
-            # status has one reference more
-            elif f_list[-2] == 'status':
+            elif f_list[-2] == 'status' and len(f_list) >= 3:
+                # status fields have one reference more
                 new_field = '{0}.{1}.{2}'.format(f_list[-3], f_list[-2], f_list[-1])
             else:
                 new_field = '{0}.{1}'.format(f_list[-2], f_list[-1])
@@ -124,7 +124,8 @@ class Housekeeping(object):
             # create a temporary dictionary wiht the renamed fields
             tmp_dic = {}
             for field in v_list:
-                tmp_dic[field_dic[field]] = v_list[field]
+                if field in field_dic:
+                    tmp_dic[field_dic[field]] = v_list[field]
             # append dicutionary to list
             new_list.append(tmp_dic)
 
