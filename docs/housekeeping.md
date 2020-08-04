@@ -48,3 +48,8 @@ There a few methods for internal database maintainance.
   - purge: optional - can be either True or False. The `True` option will remove the entry from `certifcate` - table. Leaving the option on `False` will solely overwrite the x509 object with the string "removed by acme2certifer" - **please use this option carefully and take a backup of `acme_srv.db` before cleaning your database**
   - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
   - report_name: optional - name of the report file  
+
+- `order_invalidate(uts, report_format, report_name)` - this method sets all expired orders to "invalid" state.  Must be regularly exectued if the parameter `expiry_check_disable` has been enabled in the `[orders]` section of `acme_srv.cfg`
+  - uts: optional - unix timestamp used for order comparison. If not specified the actual unix-timestamp will be unsupportedIdentifier
+  - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
+  - report_name: optional - name of the report file  

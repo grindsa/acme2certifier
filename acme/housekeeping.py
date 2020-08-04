@@ -6,6 +6,7 @@ import csv
 import json
 from acme.db_handler import DBstore
 from acme.certificate import Certificate
+from acme.order import Order
 from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
 
 class Housekeeping(object):
@@ -318,3 +319,32 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.certificates_cleanup(): No certificates to dump')
 
         return cert_list
+
+    def orders_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
+        """ orders cleanup based on expiry date"""
+        self.logger.debug('Housekeeping.orders_invalidate({0})'.format(uts))
+
+        with Order(self.debug, None, self.logger) as order:
+            # get expired orders
+            (field_list, order_list) = order.invalidate(timestamp=uts)
+            # normalize lists
+            (field_list, order_list) = self._lists_normalize(field_list, order_list, 'order')
+            # convert dates into human readable format
+            order_list = self._convert_data(order_list)
+
+            if report_name:
+                if order_list:
+                    # dump report to file
+                    if report_format == 'csv':
+                        self.logger.debug('Housekeeping.orders_invalidate(): Dump in csv-format')
+                        csv_list = self._to_list(field_list, order_list)
+                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                    elif report_format == 'json':
+                        self.logger.debug('Housekeeping.orders_invalidate(): Dump in json-format')
+                        self._json_dump('{0}.{1}'.format(report_name, report_format), order_list)
+                    else:
+                        self.logger.debug('Housekeeping.orders_invalidate():  No dump just return report')
+                else:
+                    self.logger.debug('Housekeeping.orders_invalidate(): No orders to dump')
+
+        return order_list
