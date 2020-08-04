@@ -4070,5 +4070,35 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         prefix = 'prefix'
         self.assertEqual((['foo.bar'], [{'foo.bar': 'foo'}]), self.housekeeping._lists_normalize(field_list, value_list, prefix))
 
+    def test_545_order_invalidate(self):
+        """ test Order.invalidate() empty order list """
+        self.order.dbstore.orders_invalid_search.return_value = []
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], []), self.order.invalidate())
+
+    def test_546_order_invalidate(self):
+        """ test Certificate._fieldlist_normalize() - wrong return list (no status__name included) """
+        self.order.dbstore.orders_invalid_search.return_value = [{'foo': 'bar'}]
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], []), self.order.invalidate())
+
+    def test_547_order_invalidate(self):
+        """ test Certificate._fieldlist_normalize() - no name but status__name """
+        self.order.dbstore.orders_invalid_search.return_value = [{'foo': 'bar', 'status__name': 'foo'}]
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], []), self.order.invalidate())
+
+    def test_548_order_invalidate(self):
+        """ test Certificate._fieldlist_normalize() - name but no status__name """
+        self.order.dbstore.orders_invalid_search.return_value = [{'foo': 'bar', 'name': 'foo'}]
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], []), self.order.invalidate())
+
+    def test_549_order_invalidate(self):
+        """ test Certificate._fieldlist_normalize() - name and status__name but invalid """
+        self.order.dbstore.orders_invalid_search.return_value = [{'foo': 'bar', 'name': 'foo', 'status__name': 'invalid'}]
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], []), self.order.invalidate())
+
+    def test_550_order_invalidate(self):
+        """ test Certificate._fieldlist_normalize() - name and status__name but invalid """
+        self.order.dbstore.orders_invalid_search.return_value = [{'foo': 'bar', 'name': 'foo', 'status__name': 'foobar'}]
+        self.assertEqual((['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'], [{'foo': 'bar', 'name': 'foo', 'status__name': 'foobar'}]), self.order.invalidate())
+
 if __name__ == '__main__':
     unittest.main()
