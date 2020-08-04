@@ -11,13 +11,14 @@ from acme.message import Message
 class Order(object):
     """ class for order handling """
 
-    def __init__(self, debug=None, srv_name=None, logger=None, expiry=86400):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
         self.debug = debug
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
-        self.expiry = expiry
+        self.expiry = 86400
+        self.expiry_check_disable = False
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
@@ -89,8 +90,14 @@ class Order(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+            self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
             if 'retry_after_timeout' in config_dic['Order']:
                 self.retry_after = config_dic['Order']['retry_after_timeout']
+            if 'expiry' in config_dic['Order']:
+                try:
+                    self.expiry =  int(config_dic['Order']['expiry'])
+                except BaseException as err_:
+                    logger.error('Order._config_load(): failed to parse expiry: {0}'.format(config_dic['Order']['expiry']))
 
         self.logger.debug('Order._config_load() ended.')
 
@@ -270,13 +277,15 @@ class Order(object):
         self.logger.debug('Order._lookup() ended')
         return order_dic
 
-    def invalidate(self, timestamp=uts_now()):
+    def invalidate(self, timestamp=None):
         """ invalidate orders """
         self.logger.debug('Order.invalidate({0})'.format(timestamp))
+        if not timestamp:
+            timestamp = uts_now()
+            self.logger.debug('Order.invalidate(): set timestamp to {0}'.format(timestamp))
 
         field_list = ['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact']
-        order_list = self.dbstore.orders_search('expires', timestamp, vlist=field_list, operant='<=')
-
+        order_list = self.dbstore.orders_invalid_search('expires', timestamp, vlist=field_list, operant='<=')
         output_list = []
         for order in order_list:
             # print(order['id'])
@@ -326,6 +335,9 @@ class Order(object):
     def parse(self, content):
         """ new oder request """
         self.logger.debug('Order.parse()')
+
+        if not self.expiry_check_disable:
+            self.invalidate()
 
         response_dic = {}
         # check message

@@ -322,10 +322,10 @@ class DBstore(object):
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def orders_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def orders_invalid_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(mkey, value))
         # quick hack
         if operant == '<=':
             mkey = '{0}__lte'.format(mkey)
-        return Order.objects.filter(**{mkey: value}).values(*vlist)
+        return Order.objects.filter(**{mkey: value}, status__id__gt=1).values(*vlist)

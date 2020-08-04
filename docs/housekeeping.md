@@ -50,6 +50,6 @@ There a few methods for internal database maintainance.
   - report_name: optional - name of the report file  
 
 - `order_invalidate(uts, report_format, report_name)` - this method sets all expired orders to "invalid" state.  Must be regularly exectued if the parameter `expiry_check_disable` has been enabled in the `[orders]` section of `acme_srv.cfg`
-  - uts: optional - unix timestamp used for order comparison. If not specified the actual unix-timestamp will be unsupportedIdentifier
+  - uts: optional - unix timestamp used for order comparison. If not specified the actual unix-timestamp will be used
   - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
   - report_name: optional - name of the report file  
