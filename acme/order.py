@@ -290,7 +290,7 @@ class Order(object):
         for order in order_list:
             # print(order['id'])
             # select all orders which are not invalid
-            if order['status__name'] != 'invalid':
+            if 'name' in order and 'status__name' in order and order['status__name'] != 'invalid':
                 # change status and add to output list
                 output_list.append(order)
                 data_dic = {'name': order['name'], 'status': 'invalid'}
