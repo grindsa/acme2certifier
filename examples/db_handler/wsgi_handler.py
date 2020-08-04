@@ -490,6 +490,14 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_add() ended with: {0}'.format(rid))
         return rid
 
+    def certificate_delete(self, mkey, string):
+        """ delete certificate from table """
+        self.logger.debug('DBStore.certificate_delete({0}:{1})'.format(mkey, string))
+        self._db_open()
+        pre_statement = '''DELETE from certificate WHERE {0} = ?'''.format(mkey)
+        self.cursor.execute(pre_statement, [string])
+        self._db_close()
+
     def certificatelist_get(self):
         """ certificatelist_get """
         self.logger.debug('DBStore.certificatelist_get()')
@@ -534,7 +542,6 @@ class DBstore(object):
             cert_list.append(result)
 
         self._db_close()
-
         return(vlist, cert_list)
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
@@ -820,3 +827,36 @@ class DBstore(object):
         self.cursor.execute('''UPDATE orders SET status_id = :status WHERE name = :name''', data_dic)
         self._db_close()
         self.logger.debug('DBStore.order_update() ended')
+
+    def orders_search(self, column, string, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+        """ search order table for a certain key/value pair """
+        self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+
+        pre_statement = '''SELECT
+                                orders.*,
+                                status.name as status__name,
+                                status.id as status__id,
+                                account.name as account__name,
+                                account.contact as account__contact,
+                                account.id as account__id
+                                FROM orders
+                            LEFT JOIN status on status.id = orders.status_id
+                            LEFT JOIN account on account.id = orders.account_id
+                            WHERE orders.{0} {1} ?'''.format(column, operant)
+
+        self.cursor.execute(pre_statement, [string])
+        rows = self.cursor.fetchall()
+
+        order_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+            order_list.append(result)
+
+        self._db_close()
+        self.logger.debug('DBStore.orders_search() ended')
+        return order_list
