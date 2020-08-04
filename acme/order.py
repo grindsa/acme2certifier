@@ -270,6 +270,26 @@ class Order(object):
         self.logger.debug('Order._lookup() ended')
         return order_dic
 
+    def invalidate(self, timestamp=uts_now()):
+        """ invalidate orders """
+        self.logger.debug('Order.invalidate({0})'.format(timestamp))
+
+        field_list = ['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact']
+        order_list = self.dbstore.orders_search('expires', timestamp, vlist=field_list, operant='<=')
+
+        output_list = []
+        for order in order_list:
+            # print(order['id'])
+            # select all orders which are not invalid
+            if order['status__name'] != 'invalid':
+                # change status and add to output list
+                output_list.append(order)
+                data_dic = {'name': order['name'], 'status': 'invalid'}
+                self.dbstore.order_update(data_dic)
+
+        self.logger.debug('Order.invalidate() ended: {0} orders identified'.format(len(output_list)))
+        return (field_list, output_list)
+
     def new(self, content):
         """ new oder request """
         self.logger.debug('Order.new()')

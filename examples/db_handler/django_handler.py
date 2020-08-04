@@ -321,3 +321,11 @@ class DBstore(object):
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
+
+    def orders_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+        """ search order table for a certain key/value pair """
+        self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(mkey, value))
+        # quick hack
+        if operant == '<=':
+            mkey = '{0}__lte'.format(mkey)
+        return Order.objects.filter(**{mkey: value}).values(*vlist)

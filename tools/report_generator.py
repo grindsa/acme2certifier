@@ -19,23 +19,26 @@ if __name__ == '__main__':
     SUFFIX = uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S')
 
     # this is just for testing
-    # from shutil import copyfile
-    # copyfile('db.sqlite3.old', 'db.sqlite3')
+    from shutil import copyfile
+    copyfile('db.sqlite3.old', 'db.sqlite3')
     # copyfile('acme/acme_srv.db.old', 'acme/acme_srv.db')
 
     with Housekeeping(DEBUG, LOGGER) as housekeeping:
 
         # certificate report in json format
-        cert_report = housekeeping.certreport_get(report_name='certificate_report_{0}'.format(SUFFIX), report_format='json')
+        #cert_report = housekeeping.certreport_get(report_name='certificate_report_{0}'.format(SUFFIX), report_format='json')
         # certificate report in csv format
-        housekeeping.certreport_get(report_name='certificate_report_{0}'.format(SUFFIX))
+        #housekeeping.certreport_get(report_name='certificate_report_{0}'.format(SUFFIX))
 
         # account report in json format
-        account_report = housekeeping.accountreport_get(report_name='account_report_{0}'.format(SUFFIX), report_format='json', nested=True)
+        #account_report = housekeeping.accountreport_get(report_name='account_report_{0}'.format(SUFFIX), report_format='json', nested=True)
         # account report in csv report_format
-        housekeeping.accountreport_get(report_name='account_report_{0}'.format(SUFFIX))
+        #housekeeping.accountreport_get(report_name='account_report_{0}'.format(SUFFIX))
 
         # certifiate cleanup (no delete) dump in json
-        cleanup_report = housekeeping.certificates_cleanup(report_format='json', report_name='certificate_cleanup_{0}'.format(SUFFIX))
+        #cleanup_report = housekeeping.certificates_cleanup(report_format='json', report_name='certificate_cleanup_{0}'.format(SUFFIX))
         # certifiate cleanup (including delete) dump in csv
-        housekeeping.certificates_cleanup(report_format='csv', report_name='certificate_cleanup_{0}'.format(SUFFIX), purge=True)
+        #housekeeping.certificates_cleanup(report_format='csv', report_name='certificate_cleanup_{0}'.format(SUFFIX), purge=True)
+
+        # manual order invalidation
+        order_list = housekeeping.orders_invalidate(report_format='csv', report_name='orders_invalidate_{0}'.format(SUFFIX))
