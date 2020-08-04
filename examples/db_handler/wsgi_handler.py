@@ -828,7 +828,7 @@ class DBstore(object):
         self._db_close()
         self.logger.debug('DBStore.order_update() ended')
 
-    def orders_search(self, column, string, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def orders_invalid_search(self, column, string, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -843,7 +843,7 @@ class DBstore(object):
                                 FROM orders
                             LEFT JOIN status on status.id = orders.status_id
                             LEFT JOIN account on account.id = orders.account_id
-                            WHERE orders.{0} {1} ?'''.format(column, operant)
+                            WHERE orders.status_id > 1 AND orders.{0} {1} ?'''.format(column, operant)
 
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
