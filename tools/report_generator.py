@@ -43,5 +43,5 @@ if __name__ == '__main__':
         # manual order invalidation
         order_list = housekeeping.orders_invalidate(report_format='csv', report_name='orders_invalidate_{0}'.format(SUFFIX))
 
-        # manual order invalidation
+        # manual authorization invalidation
         authorization_list = housekeeping.authorizations_invalidate(report_format='csv', report_name='authorization_invalidate_{0}'.format(SUFFIX))
