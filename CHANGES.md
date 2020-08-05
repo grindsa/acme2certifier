@@ -10,8 +10,10 @@ and pick the appropriate release branch.
 **Upgrade notes**:
 
 - take a backup of your `acme_srv.db` before doing the upgrade
-- database scheme gets updated. Please run either `tools/db_update.py` or
-`py manage.py makemigrations && py manage.py migrate` after updating the files.
+- update your `db_handler.py` with the latest version from the `examples/db_handler` directory
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django.handler
 - orders and authorization expire based on (pre)configured timers
 - default expiration timer is 86400 seconds and can be adjusted in `acme_srv.cfg`.
 - auto expiration can be disabled in `acme_srv.cfg`. Check [docs/acme_srv.md](docs/acme_srv.md) for further information.
