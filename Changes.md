@@ -6,8 +6,15 @@ and pick the appropriate release branch.
 
 ## Changes in 0.11
 
-database scheme gets updated. Please run either `tools/db_update.py` or
+**Upgrade notes**
+
+- take a backup of your `acme_srv.db` before doing the upgrade
+- database scheme gets updated. Please run either `tools/db_update.py` or
 `py manage.py makemigrations && py manage.py migrate` after updating the files.
+- orders and authorization expire based on (pre)configured timers
+ - default expiration timer is 86400 seconds and can be adjusted in `acme_srv.cfg`.
+ - auto expiration can be disabled in `acme_srv.cfg`. Check [docs/acme_srv.md](docs/acme_srv.md) for further information.
+ - the expiration checks and order/authorization invalidation will be triggered in case a client accesses an `order` or `authorization` resource.  It is recommended to run the script `tools/invalidator.py` after the upgrade to manually check and invalidate expired authorizations and orders.
 
 **Features**:
 
@@ -15,12 +22,21 @@ database scheme gets updated. Please run either `tools/db_update.py` or
 - certifier_ca_handler.py - handling of der encoded certificates in trigger() method
 - issuing date and expiration date will be stored in the `certificate` table
 - `xca_ca_handler`: new variable `issuing_ca_key`
+- basic [reporting and housekeeping](docs/housekeeping.md)
+- order and authorization expiration
+- method to remove expired certificates from database. Check the `certificate_cleanup` method [docs/housekeeping.md](docs/housekeeping.md) for further information
 
 **Bugfixes***:
 
 - Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)
 
 ## Changes in 0.10
+
+**Upgrade notes**
+
+- database scheme gets updated. Depending on the db_handler you need to:
+  - run `py manage.py makemigrations && py manage.py migrate` in case you use the django_handler.
+  - execute the `tools/db_upgrade.py` script when using the wsgi_handler
 
 **Features**:
 
