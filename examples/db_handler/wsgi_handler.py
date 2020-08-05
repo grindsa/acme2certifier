@@ -157,6 +157,9 @@ class DBstore(object):
         self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'ready'})
         self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'processing'})
         self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
+        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
         self.logger.debug('create orders')
         self.cursor.execute('''
             CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" varchar(1048) NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -755,6 +758,15 @@ class DBstore(object):
         if 'expire_uts' not in certificate_column_list:
             self.logger.debug('alter certificate table - add expire_uts')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
+
+        # add additional values to status table
+        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format('name')
+        self.cursor.execute(pre_statement, ['deactivated'])
+        if not self.cursor.fetchone():
+            self.logger.debug('adding additional status')
+            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
+            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
+            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
 
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
