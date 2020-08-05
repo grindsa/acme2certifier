@@ -17,6 +17,7 @@ if __name__ == '__main__':
     call_command('migrate', interactive=False)
 
     # update status fields
+    print('adding additional status fields to table...')
     STATUS_LIST = ['expired', 'deactivated', 'revoked']
     for status in STATUS_LIST:
         OBJ, _CREATED = Status.objects.update_or_create(name=status, defaults={'name': status})
