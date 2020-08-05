@@ -60,9 +60,9 @@ class DBstore(object):
                             status.name as status__name,
                             account.name as order__account__name
                         from authorization
-                        INNER JOIN orders on orders.id = authorization.order_id
-                        INNER JOIN status on status.id = authorization.status_id
-                        INNER JOIN account on account.id = orders.account_id
+                        LEFT JOIN orders on orders.id = authorization.order_id
+                        LEFT JOIN status on status.id = authorization.status_id
+                        LEFT JOIN account on account.id = orders.account_id
                         WHERE {0} LIKE ?'''.format(column)
         try:
             self.cursor.execute(pre_statement, [string])
@@ -389,6 +389,38 @@ class DBstore(object):
             authz_list.append(tmp_dic)
         self.logger.debug('DBStore.authorization_lookup() ended')
         return authz_list
+
+    def authorizations_invalid_search(self, column, string, vlist=('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE'):
+        """ search order table for a certain key/value pair """
+        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+
+        pre_statement = '''SELECT
+                                authorization.*,
+                                status.name as status__name,
+                                status.id as status__id,
+                                orders.name as order__name,
+                                orders.id as order__id
+                                FROM authorization
+                            LEFT JOIN status on status.id = authorization.status_id
+                            LEFT JOIN orders on orders.id = authorization.order_id
+                            WHERE authorization.status_id > 1 AND authorization.{0} {1} ?'''.format(column, operant)
+
+        self.cursor.execute(pre_statement, [string])
+        rows = self.cursor.fetchall()
+
+        authorization_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+            authorization_list.append(result)
+
+        self._db_close()
+        self.logger.debug('DBStore.authorizations_invalid_search() ended')
+        return authorization_list
 
     def authorization_update(self, data_dic):
         """ update existing authorization """

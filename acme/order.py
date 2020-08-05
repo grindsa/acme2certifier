@@ -95,9 +95,9 @@ class Order(object):
                 self.retry_after = config_dic['Order']['retry_after_timeout']
             if 'expiry' in config_dic['Order']:
                 try:
-                    self.expiry =  int(config_dic['Order']['expiry'])
-                except BaseException as err_:
-                    logger.error('Order._config_load(): failed to parse expiry: {0}'.format(config_dic['Order']['expiry']))
+                    self.expiry = int(config_dic['Order']['expiry'])
+                except BaseException:
+                    self.logger.error('Order._config_load(): failed to parse expiry: {0}'.format(config_dic['Order']['expiry']))
 
         self.logger.debug('Order._config_load() ended.')
 

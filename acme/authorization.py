@@ -5,25 +5,27 @@ from __future__ import print_function
 import json
 from acme.db_handler import DBstore
 from acme.challenge import Challenge
-from acme.helper import generate_random_string, uts_now, uts_to_date_utc
+from acme.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
 from acme.message import Message
 from acme.nonce import Nonce
 
 class Authorization(object):
     """ class for order handling """
 
-    def __init__(self, debug=None, srv_name=None, logger=None, expiry=86400):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
         self.debug = debug
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.nonce = Nonce(debug, self.logger)
-        self.expiry = expiry
+        self.expiry = 86400
+        self.expiry_check_disable = False
         self.path_dic = {'authz_path' : '/acme/authz/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self._config_load()
         return self
 
     def __exit__(self, *args):
@@ -58,6 +60,41 @@ class Authorization(object):
 
         self.logger.debug('Authorization._authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Authorization._config_load()')
+        config_dic = load_config()
+        if 'Authorization' in config_dic:
+            self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
+            if 'expiry' in config_dic['Authorization']:
+                try:
+                    self.expiry = int(config_dic['Authorization']['expiry'])
+                except BaseException:
+                    self.logger.error('Authorization._config_load(): failed to parse expiry: {0}'.format(config_dic['Authorization']['expiry']))
+        self.logger.debug('Authorization._config_load() ended.')
+
+    def invalidate(self, timestamp=None):
+        """ invalidate authorizations """
+        self.logger.debug('Authorization.invalidate({0})'.format(timestamp))
+        if not timestamp:
+            timestamp = uts_now()
+            self.logger.debug('Authorization.invalidate(): set timestamp to {0}'.format(timestamp))
+
+        field_list = ['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name']
+        authz_list = self.dbstore.authorizations_invalid_search('expires', timestamp, vlist=field_list, operant='<=')
+        output_list = []
+        for authz in authz_list:
+            # select all authz which are not invalid
+            if 'name' in authz and 'status__name' in authz and authz['status__name'] != 'invalid':
+                # change status and add to output list
+                output_list.append(authz)
+                data_dic = {'name': authz['name'], 'status': 'invalid'}
+                # print(authz['id'], authz['name'])
+                self.dbstore.authorization_update(data_dic)
+
+        self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
+        return (field_list, output_list)
 
     def new_get(self, url):
         """ challenge computation based on get request """
