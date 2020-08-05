@@ -117,6 +117,15 @@ class DBstore(object):
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
         return authz_list
 
+    def authorizations_invalid_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+        """ search order table for a certain key/value pair """
+        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(mkey, value))
+        # quick hack
+        if operant == '<=':
+            mkey = '{0}__lte'.format(mkey)
+        self.logger.debug('DBStore.authorizations_invalid_search() ended')            
+        return Authorization.objects.filter(**{mkey: value}, status__id__gt=1).values(*vlist)
+
     def authorization_update(self, data_dic):
         """ update existing authorization """
         self.logger.debug('DBStore.authorization_update({0})'.format(data_dic))
