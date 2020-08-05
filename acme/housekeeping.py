@@ -5,6 +5,7 @@ from __future__ import print_function
 import csv
 import json
 from acme.db_handler import DBstore
+from acme.authorization import Authorization
 from acme.certificate import Certificate
 from acme.order import Order
 from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
@@ -319,6 +320,33 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.certificates_cleanup(): No certificates to dump')
 
         return cert_list
+
+    def authorizations_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
+        """ authorizations cleanup based on expiry date"""
+        self.logger.debug('Housekeeping.authorization_invalidate({0})'.format(uts))
+
+        with Authorization(self.debug, None, self.logger) as authorization:
+            # get expired orders
+            (field_list, authorization_list) = authorization.invalidate(timestamp=uts)
+            # normalize lists
+            (field_list, authorization_list) = self._lists_normalize(field_list, authorization_list, 'authorization')
+            # convert dates into human readable format
+            authorization_list = self._convert_data(authorization_list)
+
+            if report_name:
+                if authorization_list:
+                    # dump report to file
+                    if report_format == 'csv':
+                        self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in csv-format')
+                        csv_list = self._to_list(field_list, authorization_list)
+                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                    elif report_format == 'json':
+                        self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in json-format')
+                        self._json_dump('{0}.{1}'.format(report_name, report_format), authorization_list)
+                    else:
+                        self.logger.debug('Housekeeping.authorizations_invalidate():  No dump just return report')
+                else:
+                    self.logger.debug('Housekeeping.authorizations_invalidate(): No authorizations to dump')
 
     def orders_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
         """ orders cleanup based on expiry date"""
