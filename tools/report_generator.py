@@ -19,8 +19,8 @@ if __name__ == '__main__':
     SUFFIX = uts_to_date_utc(int(time.time()), '%Y-%m-%d-%H%M%S')
 
     # this is just for testing
-    from shutil import copyfile
-    copyfile('db.sqlite3.old', 'db.sqlite3')
+    # from shutil import copyfile
+    # copyfile('db.sqlite3.old', 'db.sqlite3')
     # copyfile('acme/acme_srv.db.old', 'acme/acme_srv.db')
 
     with Housekeeping(DEBUG, LOGGER) as housekeeping:
