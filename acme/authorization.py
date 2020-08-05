@@ -109,6 +109,10 @@ class Authorization(object):
         """ challenge computation based on post request """
         self.logger.debug('Authorization.new_post()')
 
+        # invalidate expired authorizations
+        if not self.expiry_check_disable:
+            self.invalidate()
+
         response_dic = {}
         # check message
         (code, message, detail, protected, _payload, _account_name) = self.message.check(content)
