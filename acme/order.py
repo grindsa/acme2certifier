@@ -336,6 +336,7 @@ class Order(object):
         """ new oder request """
         self.logger.debug('Order.parse()')
 
+        # invalidate expired orders
         if not self.expiry_check_disable:
             self.invalidate()
 
