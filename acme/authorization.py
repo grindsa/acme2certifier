@@ -89,7 +89,7 @@ class Authorization(object):
             if 'name' in authz and 'status__name' in authz and authz['status__name'] != 'invalid':
                 # change status and add to output list
                 output_list.append(authz)
-                data_dic = {'name': authz['name'], 'status': 'invalid'}
+                data_dic = {'name': authz['name'], 'status': 'expired'}
                 # print(authz['id'], authz['name'])
                 self.dbstore.authorization_update(data_dic)
 
