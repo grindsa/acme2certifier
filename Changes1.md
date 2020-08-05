@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # Acme2certifier changelog
 
 This is a high-level summary of the most important changes. For a full list of
@@ -6,15 +7,15 @@ and pick the appropriate release branch.
 
 ## Changes in 0.11
 
-**Upgrade notes**
+**Upgrade notes**:
 
 - take a backup of your `acme_srv.db` before doing the upgrade
 - database scheme gets updated. Please run either `tools/db_update.py` or
 `py manage.py makemigrations && py manage.py migrate` after updating the files.
 - orders and authorization expire based on (pre)configured timers
- - default expiration timer is 86400 seconds and can be adjusted in `acme_srv.cfg`.
- - auto expiration can be disabled in `acme_srv.cfg`. Check [docs/acme_srv.md](docs/acme_srv.md) for further information.
- - the expiration checks and order/authorization invalidation will be triggered in case a client accesses an `order` or `authorization` resource.  It is recommended to run the script `tools/invalidator.py` after the upgrade to manually check and invalidate expired authorizations and orders.
+- default expiration timer is 86400 seconds and can be adjusted in `acme_srv.cfg`.
+- auto expiration can be disabled in `acme_srv.cfg`. Check [docs/acme_srv.md](docs/acme_srv.md) for further information.
+- the expiration checks and order/authorization invalidation will be triggered in case a client accesses an `order` or `authorization` resource.  It is recommended to run the script `tools/invalidator.py` after the upgrade to manually check and invalidate expired authorizations and orders.
 
 **Features**:
 
@@ -32,7 +33,7 @@ and pick the appropriate release branch.
 
 ## Changes in 0.10
 
-**Upgrade notes**
+**Upgrade notes**:
 
 - database scheme gets updated. Depending on the db_handler you need to:
   - run `py manage.py makemigrations && py manage.py migrate` in case you use the django_handler.
