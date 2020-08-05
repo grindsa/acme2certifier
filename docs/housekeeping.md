@@ -54,7 +54,7 @@ There a few methods for internal database maintainance.
   - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
   - report_name: optional - name of the report file  
 
-  - `authorization_invalidate(uts, report_format, report_name)` - this method sets all expired authorizations to "invalid" state.  Must be regularly executed if the parameter `expiry_check_disable` has been enabled in the `[authorization]` section of `acme_srv.cfg`
-    - uts: optional - unix timestamp used for order comparison. If not specified the actual unix-timestamp will be used
-    - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
-    - report_name: optional - name of the report file  
+- `authorization_invalidate(uts, report_format, report_name)` - this method sets all expired authorizations to "invalid" state.  Must be regularly executed if the parameter `expiry_check_disable` has been enabled in the `[authorization]` section of `acme_srv.cfg`
+  - uts: optional - unix timestamp used for order comparison. If not specified the actual unix-timestamp will be used
+  - report_format: optional `csv`/`json` - specifies the format of the report  (default `csv`)
+  - report_name: optional - name of the report file  
