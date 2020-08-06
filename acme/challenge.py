@@ -3,7 +3,7 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get, fqdn_resolve
+from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -90,7 +90,19 @@ class Challenge(object):
     def _info(self, challenge_name):
         """ get challenge details """
         self.logger.debug('Challenge._info({0})'.format(challenge_name))
-        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name)
+        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, vlist=('type', 'token', 'status__name', 'validated'))
+        if 'status' in challenge_dic and challenge_dic['status'] == 'valid':
+            if 'validated' in challenge_dic:
+                # convert validated timestamp to RFC3339 format - if it fails remove key from dictionary
+                try:
+                    challenge_dic['validated'] = uts_to_date_utc(challenge_dic['validated'])
+                except BaseException:
+                    challenge_dic.pop('validated')
+        else:
+            if 'validated' in challenge_dic:
+                challenge_dic.pop('validated')
+
+        self.logger.debug('Challenge._info({0}) ended'.format(challenge_name))
         return challenge_dic
 
     def _config_load(self):
@@ -175,7 +187,7 @@ class Challenge(object):
             # authorization update to valid state
             self._update_authz(challenge_name, {'status' : 'invalid'})
         elif challenge_check:
-            self._update({'name' : challenge_name, 'status' : 'valid'})
+            self._update({'name' : challenge_name, 'status' : 'valid', 'validated': uts_now()})
             # authorization update to valid state
             self._update_authz(challenge_name, {'status' : 'valid'})
 
@@ -319,7 +331,6 @@ class Challenge(object):
             # new challenges to be created
             self.logger.debug('Challenges not found. Create a new set.')
             challenge_list = self.new_set(authz_name, token, tnauth)
-
 
         return challenge_list
 

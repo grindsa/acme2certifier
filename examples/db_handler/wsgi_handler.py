@@ -170,7 +170,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create challenge')
         self.cursor.execute('''
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(10) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create certificate')
         self.cursor.execute('''
@@ -732,8 +732,11 @@ class DBstore(object):
         if 'keyauthorization' not in data_dic:
             data_dic['keyauthorization'] = lookup['keyauthorization']
 
+        if 'validated' not in data_dic:
+            data_dic['validated'] = lookup['validated']
+
         self._db_open()
-        self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization WHERE name = :name''', data_dic)
+        self.cursor.execute('''UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization, validated = :validated WHERE name = :name''', data_dic)
         self._db_close()
         self.logger.debug('DBStore.challenge_update() ended')
 
@@ -767,6 +770,15 @@ class DBstore(object):
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
+
+        self.cursor.execute('''PRAGMA table_info(challenge)''')
+        challenges_column_list = []
+        for column in self.cursor.fetchall():
+            challenges_column_list.append(column[1])
+
+        if 'validated' not in challenges_column_list:
+            self.logger.debug('alter challenge table - add validated')
+            self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
 
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
