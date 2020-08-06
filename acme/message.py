@@ -72,7 +72,7 @@ class Message(object):
         self.logger.debug('Message.check()')
         # disable signature check if paramter has been set
         if self.disable_dic['signature_check_disable']:
-            self.logger.error('**** SIGNATURE_CHECK_DISABLE!!! Security issue ****')
+            self.logger.error('**** SIGNATURE_CHECK_DISABLE!!! Severe security issue ****')
             skip_signature_check = True
         else:
             skip_signature_check = False
@@ -85,7 +85,7 @@ class Message(object):
             if skip_nonce_check or self.disable_dic['nonce_check_disable']:
                 # nonce check can be skipped by configuration and in case of key-rollover
                 if self.disable_dic['nonce_check_disable']:
-                    self.logger.error('**** NONCE CHECK DISABLED!!! Security issue ****')
+                    self.logger.error('**** NONCE CHECK DISABLED!!! Severe security issue ****')
                 else:
                     self.logger.debug('skip nonce check of inner payload during keyrollover')
                 code = 200

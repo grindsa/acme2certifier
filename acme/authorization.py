@@ -71,7 +71,7 @@ class Authorization(object):
                 try:
                     self.validity = int(config_dic['Authorization']['validity'])
                 except BaseException:
-                    self.logger.error('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
+                    self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp=None):
