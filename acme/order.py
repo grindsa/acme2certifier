@@ -17,7 +17,7 @@ class Order(object):
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
-        self.expiry = 86400
+        self.validity = 86400
         self.expiry_check_disable = False
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
         self.retry_after = 600
@@ -37,7 +37,7 @@ class Order(object):
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.logger, 12)
-        expires = uts_now() + self.expiry
+        expires = uts_now() + self.validity
 
         if 'identifiers' in payload:
 
@@ -93,11 +93,11 @@ class Order(object):
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
             if 'retry_after_timeout' in config_dic['Order']:
                 self.retry_after = config_dic['Order']['retry_after_timeout']
-            if 'expiry' in config_dic['Order']:
+            if 'validity' in config_dic['Order']:
                 try:
-                    self.expiry = int(config_dic['Order']['expiry'])
+                    self.validity = int(config_dic['Order']['validity'])
                 except BaseException:
-                    self.logger.error('Order._config_load(): failed to parse expiry: {0}'.format(config_dic['Order']['expiry']))
+                    self.logger.error('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
 
         self.logger.debug('Order._config_load() ended.')
 
