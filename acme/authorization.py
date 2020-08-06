@@ -19,7 +19,7 @@ class Authorization(object):
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.nonce = Nonce(debug, self.logger)
-        self.expiry = 86400
+        self.validity = 86400
         self.expiry_check_disable = False
         self.path_dic = {'authz_path' : '/acme/authz/'}
 
@@ -35,7 +35,7 @@ class Authorization(object):
         """ return authzs information """
         self.logger.debug('Authorization._authz_info({0})'.format(url))
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
-        expires = uts_now() + self.expiry
+        expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
         authz_info_dic = {}
         if self.dbstore.authorization_lookup('name', authz_name):
@@ -67,11 +67,11 @@ class Authorization(object):
         config_dic = load_config()
         if 'Authorization' in config_dic:
             self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
-            if 'expiry' in config_dic['Authorization']:
+            if 'validity' in config_dic['Authorization']:
                 try:
-                    self.expiry = int(config_dic['Authorization']['expiry'])
+                    self.validity = int(config_dic['Authorization']['validity'])
                 except BaseException:
-                    self.logger.error('Authorization._config_load(): failed to parse expiry: {0}'.format(config_dic['Authorization']['expiry']))
+                    self.logger.error('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp=None):
@@ -82,15 +82,14 @@ class Authorization(object):
             self.logger.debug('Authorization.invalidate(): set timestamp to {0}'.format(timestamp))
 
         field_list = ['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name']
-        authz_list = self.dbstore.authorizations_invalid_search('expires', timestamp, vlist=field_list, operant='<=')
+        authz_list = self.dbstore.authorizations_expired_search('expires', timestamp, vlist=field_list, operant='<=')
         output_list = []
         for authz in authz_list:
             # select all authz which are not invalid
-            if 'name' in authz and 'status__name' in authz and authz['status__name'] != 'invalid':
+            if 'name' in authz and 'status__name' in authz and authz['status__name'] != 'expired':
                 # change status and add to output list
                 output_list.append(authz)
                 data_dic = {'name': authz['name'], 'status': 'expired'}
-                # print(authz['id'], authz['name'])
                 self.dbstore.authorization_update(data_dic)
 
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))

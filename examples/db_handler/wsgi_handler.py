@@ -393,7 +393,7 @@ class DBstore(object):
         self.logger.debug('DBStore.authorization_lookup() ended')
         return authz_list
 
-    def authorizations_invalid_search(self, column, string, vlist=('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE'):
+    def authorizations_expired_search(self, column, string, vlist=('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -407,7 +407,7 @@ class DBstore(object):
                                 FROM authorization
                             LEFT JOIN status on status.id = authorization.status_id
                             LEFT JOIN orders on orders.id = authorization.order_id
-                            WHERE authorization.status_id > 1 AND authorization.{0} {1} ?'''.format(column, operant)
+                            WHERE status__name NOT LIKE 'expired' AND authorization.{0} {1} ?'''.format(column, operant)
 
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
