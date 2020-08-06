@@ -62,7 +62,7 @@ class Certificate(object):
                     identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                 except BaseException as err_:
                     identifier_status = []
-                    self.logger.error('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
+                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
             else:
                 try:
                     # get sans
@@ -70,7 +70,7 @@ class Certificate(object):
                     identifier_status = self._identifer_status_list(identifiers, san_list)
                 except BaseException as err_:
                     identifier_status = []
-                    self.logger.error('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
+                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
 
         result = False
         if identifier_status and False not in identifier_status:
@@ -130,7 +130,7 @@ class Certificate(object):
                         identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                     except BaseException as err_:
                         identifier_status = []
-                        self.logger.error('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
+                        self.logger.warning('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
                 else:
                     # get sans and compare identifiers against san
                     try:
@@ -138,7 +138,7 @@ class Certificate(object):
                         identifier_status = self._identifer_status_list(identifiers, san_list)
                     except BaseException as err_:
                         identifier_status = []
-                        self.logger.error('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
+                        self.logger.warning('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
 
         csr_check_result = False
 

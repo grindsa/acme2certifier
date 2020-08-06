@@ -288,7 +288,7 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
                     self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
                 else:
-                    self.logger.error('Housekeeping.certreport_get(): No dump just return report')
+                    self.logger.info('Housekeeping.certreport_get(): No dump just return report')
 
         return cert_list
 

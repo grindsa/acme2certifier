@@ -115,7 +115,7 @@ class Challenge(object):
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
                 except BaseException as err_:
-                    self.logger.error('Challenge._config_load() failed with error: {0}'.format(err_))
+                    self.logger.warning('Challenge._config_load() failed with error: {0}'.format(err_))
 
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
