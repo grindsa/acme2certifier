@@ -97,7 +97,7 @@ class Order(object):
                 try:
                     self.validity = int(config_dic['Order']['validity'])
                 except BaseException:
-                    self.logger.error('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
+                    self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
 
         self.logger.debug('Order._config_load() ended.')
 
