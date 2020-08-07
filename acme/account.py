@@ -56,8 +56,12 @@ class Account(object):
                         'jwk': json.dumps(content['jwk']),
                         'contact': json.dumps(contact),
                     }
-
-                    (db_name, new) = self.dbstore.account_add(data_dic)
+                    try:
+                        (db_name, new) = self.dbstore.account_add(data_dic)
+                    except BaseException as err_:
+                        self.logger.critical('Database error in Account._add(): {0}'.format(err_))
+                        db_name = None
+                        new = False
                     self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
                     if new:
                         code = 201
@@ -101,7 +105,12 @@ class Account(object):
         (code, message, detail) = self._contact_check(payload)
         if code == 200:
             data_dic = {'name' : aname, 'contact' : json.dumps(payload['contact'])}
-            result = self.dbstore.account_update(data_dic)
+            try:
+                result = self.dbstore.account_update(data_dic)
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Account._contacts_update(): {0}'.format(err_))
+                result = None
+
             if result:
                 code = 200
             else:
@@ -114,7 +123,11 @@ class Account(object):
     def _delete(self, aname):
         """ delete account """
         self.logger.debug('Account._delete({0})'.format(aname))
-        result = self.dbstore.account_delete(aname)
+        try:
+            result = self.dbstore.account_delete(aname)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Account._delete(): {0}'.format(err_))
+            result = None
 
         if result:
             code = 200
@@ -232,7 +245,11 @@ class Account(object):
                     (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
                     if code == 200:
                         data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
-                        result = self.dbstore.account_update(data_dic)
+                        try:
+                            result = self.dbstore.account_update(data_dic)
+                        except BaseException as err_:
+                            self.logger.critical('acme2certifier database error in Account._key_change(): {0}'.format(err_))
+                            result = None
                         if result:
                             code = 200
                             message = None
@@ -257,7 +274,11 @@ class Account(object):
         self.logger.debug('Account._key_compare({0})'.format(aname))
 
         # load current public key from database
-        pub_key = self.dbstore.jwk_load(aname)
+        try:
+            pub_key = self.dbstore.jwk_load(aname)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Account._key_compare(): {0}'.format(err_))
+            pub_key = None
 
         if old_key and pub_key:
             # rewrite alg statement in pubkey statement
@@ -297,7 +318,12 @@ class Account(object):
     def _lookup(self, value, field='name'):
         """ lookup account """
         self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
-        return self.dbstore.account_lookup(field, value)
+        try:
+            result = self.dbstore.account_lookup(field, value)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Account._lookup(): {0}'.format(err_))
+            result = None
+        return result
 
     # pylint: disable=W0212
     def _name_get(self, content):
@@ -316,7 +342,12 @@ class Account(object):
                 detail = None
 
                 if 'jwk' in protected:
-                    result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
+                    try:
+                        result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
+                    except BaseException as err_:
+                        self.logger.critical('acme2certifier database error in Account._onlyreturnexisting(): {0}'.format(err_))
+                        result = None
+
                     if result:
                         code = 200
                         message = result['name']
