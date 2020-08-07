@@ -23,8 +23,18 @@ class Nonce(object):
     def _check_and_delete(self, nonce):
         """ check if nonce exists and delete it """
         self.logger.debug('Nonce.nonce._check_and_delete({0})'.format(nonce))
-        if self.dbstore.nonce_check(nonce):
-            self.dbstore.nonce_delete(nonce)
+
+        try:
+            nonce_chk_result = self.dbstore.nonce_check(nonce)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Nonce._check_and_delete(): {0}'.format(err_))
+            nonce_chk_result = False
+
+        if nonce_chk_result:
+            try:
+                self.dbstore.nonce_delete(nonce)
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Nonce._check_and_delete(): {0}'.format(err_))
             code = 200
             message = None
             detail = None
@@ -57,6 +67,10 @@ class Nonce(object):
         self.logger.debug('Nonce.nonce_generate_and_add()')
         nonce = self._new()
         self.logger.debug('got nonce: {0}'.format(nonce))
-        _id = self.dbstore.nonce_add(nonce)
+        # self.logger.critical('foo')
+        try:
+            _id = self.dbstore.nonce_add(nonce)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Nonce.generate_and_add(): {0}'.format(err_))
         self.logger.debug('Nonce.generate_and_add() ended with:{0}'.format(nonce))
         return nonce
