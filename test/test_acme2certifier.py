@@ -4148,6 +4148,68 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.nonce._check_and_delete('nonce')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Nonce._check_and_delete(): exc_nonce_check', lcm.output)
 
+    def test_562_account_lookup(self):
+        """ test Account._lookup() if dbstore.account_lookup raises an exception """
+        self.account.dbstore.account_lookup.side_effect = Exception('exc_acc_lookup')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._lookup('foo')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._lookup(): exc_acc_lookup', lcm.output)
+
+    def test_563_account_onlyreturnexisting(self):
+        """ test Account._onlyreturnexisting() if dbstore.account_lookup raises an exception """
+        self.account.dbstore.account_lookup.side_effect = Exception('exc_acc_returnexit')
+        protected = {'jwk' : {'n' : 'foo'}}
+        payload = {'onlyreturnexisting' : True}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._onlyreturnexisting(protected, payload)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._onlyreturnexisting(): exc_acc_returnexit', lcm.output)
+
+    def test_564_key_compare(self):
+        """ test Account._key_compare() if dbstore.jwk_load raises an exception """
+        self.nonce.dbstore.jwk_load.side_effect = Exception('exc_key_compare')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._key_compare('foo', 'bar')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._key_compare(): exc_key_compare', lcm.output)
+
+    @patch('acme.account.Account._key_change_validate')
+    @patch('acme.message.Message.check')
+    def test_565_account_key_change(self, mock_mcheck, moch_kchval):
+        """ Account.key_change() - if dbstore.account_update raises an exception"""
+        protected = {'url': 'url/key-change'}
+        mock_mcheck.return_value = (200, 'message1', 'detail1', {'jwk': {'h1': 'h1a', 'h2': 'h2a', 'h3': 'h3a'}}, 'payload', 'aname')
+        moch_kchval.return_value = (200, 'message2', 'detail2')
+        self.account.dbstore.account_update.side_effect = Exception('exc_key_change')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._key_change('aname', {}, protected)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._key_change(): exc_key_change', lcm.output)
+
+    def test_566_account_delete(self):
+        """ test Account._delete() if dbstore.account_delete raises an exception """
+        self.account.dbstore.account_delete.side_effect = Exception('exc_delete')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._delete('foo')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._delete(): exc_delete', lcm.output)
+
+    @patch('acme.account.Account._contact_check')
+    def test_567_account_contact_update(self, mock_contact_chk,):
+        """ Account.contact_update() - if dbstore.account_update raises an exception"""
+        mock_contact_chk.return_value = (200, 'message', 'detail')
+        self.account.dbstore.account_update.side_effect = Exception('exc_contact_upd')
+        payload = {"contact" : "foo"}
+        aname = 'aname'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._contacts_update(aname, payload)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._contacts_update(): exc_contact_upd', lcm.output)
+
+    @patch('acme.account.generate_random_string')
+    def test_568_account_add(self, mock_name):
+        """ test account add - if dbstore.account_add raises an exception"""
+        self.account.dbstore.account_add.side_effect = Exception('exc_acc_add')
+        mock_name.return_value = 'randowm_string'
+        dic = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme.srv/acme/newaccount'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._add(dic, 'foo@example.com')
+        self.assertIn('CRITICAL:test_a2c:Database error in Account._add(): exc_acc_add', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
