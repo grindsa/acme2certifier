@@ -4211,5 +4211,76 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.account._add(dic, 'foo@example.com')
         self.assertIn('CRITICAL:test_a2c:Database error in Account._add(): exc_acc_add', lcm.output)
 
+    def test_569_authorization_invalidate(self):
+        """ test Authorization.invalidate() empty authz list """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = []
+        self.assertEqual((['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'], []), self.authorization.invalidate(timestamp))
+
+    def test_570_authorization_invalidate(self):
+        """ test Authorization.invalidate() authz with just a name """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = [{'name': 'name'}]
+        self.assertEqual((['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'], []), self.authorization.invalidate(timestamp))
+
+    def test_571_authorization_invalidate(self):
+        """ test Authorization.invalidate() authz with a name and non-expirewd status """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = [{'name': 'name', 'status__name': 'foo'}]
+        self.assertEqual((['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'], [{'name': 'name', 'status__name': 'foo'}]), self.authorization.invalidate(timestamp))
+
+    def test_572_authorization_invalidate(self):
+        """ test Authorization.invalidate() authz with a name and non-expirewd status """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = [{'name': 'name', 'status__name': 'expired'}]
+        self.assertEqual((['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'], []), self.authorization.invalidate(timestamp))
+
+    def test_573_authorization_invalidate(self):
+        """ test Authorization.invalidate() authz - dbstore.authorization_update() raises an exception """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = [{'name': 'name', 'status__name': 'foo'}]
+        self.authorization.dbstore.authorization_update.side_effect = Exception('exc_authz_update')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.authorization.invalidate(timestamp)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization.invalidate(): exc_authz_update', lcm.output)
+
+    def test_574_authorization_invalidate(self):
+        """ test Authorization.invalidate() authz - dbstore.authorization_update() raises an exception """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.side_effect = Exception('exc_authz_exp_search')
+        # self.authorization.dbstore.authorization_update.side_effect = Exception('exc_authz_update')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.authorization.invalidate(timestamp)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization.invalidate(): exc_authz_exp_search', lcm.output)
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.authorization.uts_now')
+    @patch('acme.authorization.generate_random_string')
+    def test_575_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+        """ test Authorization.auth_info() - dbstore.authorization update raises an exception """
+        mock_name.return_value = 'randowm_string'
+        mock_uts.return_value = 1543640400
+        mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
+        self.authorization.dbstore.authorization_update.side_effect = Exception('exc_authz_update')
+        self.authorization.dbstore.authorization_lookup.return_value = [{'name': 'foo'}]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.authorization._authz_info('http://tester.local/acme/authz/foo')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_update', lcm.output)
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.authorization.uts_now')
+    @patch('acme.authorization.generate_random_string')
+    def test_576_authorization_info(self, mock_name, mock_uts, mock_challengeset):
+        """ test Authorization.auth_info() - dbstore.authorization update raises an exception """
+        mock_name.return_value = 'randowm_string'
+        mock_uts.return_value = 1543640400
+        mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
+        self.authorization.dbstore.authorization_update.return_value = 'foo'
+        self.authorization.dbstore.authorization_lookup.side_effect = Exception('exc_authz_update')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.authorization._authz_info('http://tester.local/acme/authz/foo')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_update', lcm.output)
+
+
 if __name__ == '__main__':
     unittest.main()
