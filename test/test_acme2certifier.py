@@ -4271,7 +4271,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     @patch('acme.authorization.uts_now')
     @patch('acme.authorization.generate_random_string')
     def test_576_authorization_info(self, mock_name, mock_uts, mock_challengeset):
-        """ test Authorization.auth_info() - dbstore.authorization update raises an exception """
+        """ test Authorization.auth_info() - dbstore.authorization lookup raises an exception """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
@@ -4281,6 +4281,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.authorization._authz_info('http://tester.local/acme/authz/foo')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_update', lcm.output)
 
+    def test_577_name_get(self):
+        """ test Message.name_get() - dbstore.account_lookup raises an exception """
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
+        self.message.dbstore.account_lookup.side_effect = Exception('exc_mess__name_get')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.message._name_get(protected)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Message._name_get(): exc_mess__name_get', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
