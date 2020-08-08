@@ -50,7 +50,11 @@ class Message(object):
             if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing)
                 if 'jwk' in content:
-                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
+                    try:
+                        account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
+                    except BaseException as err_:
+                        self.logger.critical('acme2certifier database error in Message._name_get(): {0}'.format(err_))
+                        account_list = []
                     if account_list:
                         if 'name' in account_list:
                             kid = account_list['name']
