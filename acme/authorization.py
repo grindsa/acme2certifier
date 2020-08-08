@@ -38,21 +38,39 @@ class Authorization(object):
         expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
         authz_info_dic = {}
-        if self.dbstore.authorization_lookup('name', authz_name):
 
+        # lookup authorization based on name
+        try:
+            authz = self.dbstore.authorization_lookup('name', authz_name)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
+            authz = None
+
+        if authz:
             # update authorization with expiry date and token (just to be sure)
-            self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
+            try:
+                self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
             # get authorization information from db to be inserted in message
             tnauth = None
-            auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
-
+            try:
+                auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
+                auth_info = {}
             if auth_info:
-                authz_info_dic['status'] = auth_info[0]['status__name']
-                authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
-                if auth_info[0]['type'] == 'TNAuthList':
-                    tnauth = True
+                if 'status__name' in auth_info[0]:
+                    authz_info_dic['status'] = auth_info[0]['status__name']
+                else:
+                    authz_info_dic['status'] = 'pending'
+
+                if 'type' in auth_info[0]  and 'value' in auth_info[0]:
+                    authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
+                    if auth_info[0]['type'] == 'TNAuthList':
+                        tnauth = True
 
             with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
                 # get challenge data (either existing or new ones)
@@ -82,7 +100,12 @@ class Authorization(object):
             self.logger.debug('Authorization.invalidate(): set timestamp to {0}'.format(timestamp))
 
         field_list = ['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name']
-        authz_list = self.dbstore.authorizations_expired_search('expires', timestamp, vlist=field_list, operant='<=')
+        try:
+            authz_list = self.dbstore.authorizations_expired_search('expires', timestamp, vlist=field_list, operant='<=')
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
+            authz_list = []
+
         output_list = []
         for authz in authz_list:
             # select all authz which are not invalid
@@ -90,7 +113,10 @@ class Authorization(object):
                 # change status and add to output list
                 output_list.append(authz)
                 data_dic = {'name': authz['name'], 'status': 'expired'}
-                self.dbstore.authorization_update(data_dic)
+                try:
+                    self.dbstore.authorization_update(data_dic)
+                except BaseException as err_:
+                    self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
 
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
         return (field_list, output_list)
