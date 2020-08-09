@@ -4532,6 +4532,44 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.signature._jwk_load(1)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Signature._hwk_load(): exc_sig_jw_load', lcm.output)
 
+    @patch('acme.trigger.b64_decode')
+    @patch('acme.trigger.cert_der2pem')
+    @patch('acme.trigger.Trigger._certname_lookup')
+    @patch('acme.trigger.convert_byte_to_string')
+    def test_609_order_invalidate(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
+        """ test Trigger._payload_process - dbstore.order_update() raises an exception  """
+        payload = {}
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=(None, 'certificate', 'certificate_raw'))
+        mock_der2pem.return_value = 'der2pem'
+        mock_cobystr.return_value = 'cert_pem'
+        mock_b64dec.return_value = 'b64dec'
+        mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
+        self.trigger.dbstore.certificate_add.return_value = True
+        self.trigger.dbstore.order_update.side_effect = Exception('exc_trigger_order_upd')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._payload_process('payload')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() upd: exc_trigger_order_upd', lcm.output)
+
+    @patch('acme.trigger.b64_decode')
+    @patch('acme.trigger.cert_der2pem')
+    @patch('acme.trigger.Trigger._certname_lookup')
+    @patch('acme.trigger.convert_byte_to_string')
+    def test_610_order_invalidate(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
+        """ test Trigger._payload_process - dbstore.order_update() raises an exception  """
+        payload = {}
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=(None, 'certificate', 'certificate_raw'))
+        mock_der2pem.return_value = 'der2pem'
+        mock_cobystr.return_value = 'cert_pem'
+        mock_b64dec.return_value = 'b64dec'
+        mock_lookup.return_value = [{'cert_name': 'certificate_name1', 'order_name': 'order_name1'}, {'cert_name': 'certificate_name2', 'order_name': 'order_name2'}]
+        self.trigger.dbstore.certificate_add.side_effect = Exception('exc_trigger_order_add')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._payload_process('payload')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() add: exc_trigger_order_add', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
