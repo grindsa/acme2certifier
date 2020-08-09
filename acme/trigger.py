@@ -69,7 +69,7 @@ class Trigger(object):
     def _payload_process(self, payload):
         """ process payload """
         self.logger.debug('Trigger._payload_process()')
-        with  self.cahandler(self.debug, self.logger) as ca_handler:
+        with self.cahandler(self.debug, self.logger) as ca_handler:
             if payload:
                 (error, cert_bundle, cert_raw) = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
@@ -82,10 +82,16 @@ class Trigger(object):
                     if cert_name_list:
                         for cert in cert_name_list:
                             data_dic = {'cert' : cert_bundle, 'name': cert['cert_name'], 'cert_raw' : cert_raw}
-                            _cert_id = self.dbstore.certificate_add(data_dic)
+                            try:
+                                self.dbstore.certificate_add(data_dic)
+                            except BaseException as err_:
+                                self.logger.critical('acme2certifier database error in trigger._payload_process() add: {0}'.format(err_))
                             if 'order_name' in cert and cert['order_name']:
-                                # update order status to 5 (valid)
-                                self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
+                                try:
+                                    # update order status to 5 (valid)
+                                    self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
+                                except BaseException as err_:
+                                    self.logger.critical('acme2certifier database error in trigger._payload_process() upd: {0}'.format(err_))
                         code = 200
                         message = 'OK'
                         detail = None
