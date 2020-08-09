@@ -18,7 +18,12 @@ class Signature(object):
     def _jwk_load(self, kid):
         """ get key for a specific account id """
         self.logger.debug('Signature._jwk_load({0})'.format(kid))
-        return self.dbstore.jwk_load(kid)
+        try:
+            result = self.dbstore.jwk_load(kid)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Signature._hwk_load(): {0}'.format(err_))
+            result = None
+        return result
 
     def check(self, aname, content, use_emb_key=False, protected=None):
         """ signature check """

@@ -4525,6 +4525,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.order.invalidate(timestamp)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() search: exc_order_search', lcm.output)
 
+    def test_608_jwk_load(self):
+        """ test jwk load  - dbstore.jwk_load() raises an exception"""
+        self.signature.dbstore.jwk_load.side_effect = Exception('exc_sig_jw_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.signature._jwk_load(1)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Signature._hwk_load(): exc_sig_jw_load', lcm.output)
+
 
 if __name__ == '__main__':
     unittest.main()
