@@ -4387,8 +4387,63 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.certificate.certlist_search('type', 'value')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search', lcm.output)
 
+    def test_588_challengelist_search(self):
+        """ test Challenge._challengelist_search - dbstore.challenges_search() raises an exception  """
+        self.challenge.dbstore.challenges_search.side_effect = Exception('exc_chall_search')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._challengelist_search('key', 'value')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._challengelist_search(): exc_chall_search', lcm.output)
 
+    def test_589_challengecheck(self):
+        """ test Challenge._check - dbstore.jwk_load() raises an exception  """
+        self.challenge.dbstore.jwk_load.side_effect = Exception('exc_jkw_load')
+        self.challenge.dbstore.challenge_lookup.return_value = {'type': 'type', 'authorization__value': 'authorization__value', 'token': 'token', 'authorization__order__account__name': 'authorization__order__account__name'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._check('name', 'payload')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._check() jwk: exc_jkw_load', lcm.output)
 
+    def test_590_challengecheck(self):
+        """ test Challenge._check - dbstore.challenge_lookup() raises an exception  """
+        self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_chk')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._check('name', 'payload')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._check() lookup: exc_chall_chk', lcm.output)
+
+    def test_590_challengeinfo(self):
+        """ test Challenge._info - dbstore.challenge_lookup() raises an exception  """
+        self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_info')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._info('name')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._info(): exc_chall_info', lcm.output)
+
+    def test_591_challengenew(self):
+        """ test Challenge._new - dbstore.challenge_add() raises an exception  """
+        self.challenge.dbstore.challenge_add.side_effect = Exception('exc_chall_add')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._new('authz_name', 'mtype', 'token')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add', lcm.output)
+
+    def test_592_challengeupdate(self):
+        """ test Challenge._update - dbstore.challenge_update() raises an exception  """
+        self.challenge.dbstore.challenge_update.side_effect = Exception('exc_chall_upd')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._update({'foo': 'bar'})
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update(): exc_chall_upd', lcm.output)
+
+    def test_593_challenge_update_authz(self):
+        """ test Challenge._update_authz - dbstore.authorization_update() raises an exception  """
+        self.challenge.dbstore.authorization_update.side_effect = Exception('exc_chall_autz_upd')
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__name': 'authorization__name', 'authorization': 'authorization'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._update_authz('name', {'foo': 'bar'})
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() upd: exc_chall_autz_upd', lcm.output)
+
+    def test_597_challenge_update_authz(self):
+        """ test Challenge._update_authz - dbstore.authorization_update() raises an exception  """
+        self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_lookup_foo')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._update_authz('name', {'foo': 'bar'})
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
