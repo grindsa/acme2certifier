@@ -28,12 +28,22 @@ class Housekeeping(object):
     def _accountlist_get(self):
         """ get list of certs from database """
         self.logger.debug('Housekeeping._certlist_get()')
-        return self.dbstore.accountlist_get()
+        try:
+            result = self.dbstore.accountlist_get()
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Housekeeping._accountlist_get(): {0}'.format(err_))
+            result = None
+        return result
 
     def _certificatelist_get(self):
         """ get list of certs from database """
         self.logger.debug('Housekeeping._certlist_get()')
-        return self.dbstore.certificatelist_get()
+        try:
+            result = self.dbstore.certificatelist_get()
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): {0}'.format(err_))
+            result = None
+        return result
 
     def _config_load(self):
         """ load config from file """
