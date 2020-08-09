@@ -4459,6 +4459,72 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.housekeeping._certificatelist_get()
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.certificatelist_get(): exc_house_cert_get', lcm.output)
 
+    @patch('acme.order.Order._identifiers_check')
+    def test_600_order__add(self, mock_idchk):
+        """ test Order._add - dbstore.authorization_add() raises an exception  """
+        self.order.dbstore.authorization_add.side_effect = Exception('exc_order_add')
+        self.order.dbstore.order_add.return_value = 'oid'
+        mock_idchk.return_value = False
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._add({'foo': 'bar', 'identifiers': [{'type': 'dns', 'value': 'example1.com'}]}, 'aname')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._add() authz: exc_order_add', lcm.output)
+
+    @patch('acme.order.Order._identifiers_check')
+    def test_601_order__add(self, mock_idchk):
+        """ test Order._add - dbstore.order_add() raises an exception  """
+        self.order.dbstore.order_add.side_effect = Exception('exc_order_add')
+        mock_idchk.return_value = False
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._add({'foo': 'bar', 'identifiers': 'identifiers'}, 'aname')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._add() order: exc_order_add', lcm.output)
+
+    def test_602_order_info(self):
+        """ test Order._info - dbstore.order_lookup() raises an exception  """
+        self.challenge.dbstore.order_lookup.side_effect = Exception('exc_order_info')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._info('oname')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._info(): exc_order_info', lcm.output)
+
+    def test_603_order_process(self):
+        """ test Order._process - dbstore.order_lookup() raises an exception  """
+        self.challenge.dbstore.certificate_lookup.side_effect = Exception('exc_order_process')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._process('oname', {'url': 'url'}, 'payload')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._process(): exc_order_process', lcm.output)
+
+    def test_604_order_update(self):
+        """ test Order._update - dbstore.order_update() raises an exception  """
+        self.challenge.dbstore.order_update.side_effect = Exception('exc_order_upd')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._update({'url': 'url'})
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._update(): exc_order_upd', lcm.output)
+
+    @patch('acme.order.Order._info')
+    def test_605_order_lookup(self, mock_info):
+        """ test Order._lookup - dbstore.authorization_lookup() raises an exception  """
+        self.challenge.dbstore.authorization_lookup.side_effect = Exception('exc_authz_lookup')
+        mock_info.return_value = {'status': 'valid'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._lookup('oname')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._lookup(): exc_authz_lookup', lcm.output)
+
+    def test_606_order_invalidate(self):
+        """ test Order.invalidate - dbstore.order_update() raises an exception  """
+        self.order.dbstore.order_update.side_effect = Exception('exc_order_upd')
+        self.order.dbstore.order_invalid_search.return_value = ['foo']
+        timestamp = 1543640400
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order.invalidate(timestamp)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() upd: exc_order_upd', lcm.output)
+
+    def test_607_order_invalidate(self):
+        """ test Order.invalidate - dbstore.order_update() raises an exception  """
+        self.order.dbstore.orders_invalid_search.side_effect = Exception('exc_order_search')
+        timestamp = 1543640400
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order.invalidate(timestamp)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() search: exc_order_search', lcm.output)
+
 
 if __name__ == '__main__':
     unittest.main()
