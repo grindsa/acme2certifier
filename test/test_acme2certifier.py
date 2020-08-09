@@ -4289,5 +4289,106 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.message._name_get(protected)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Message._name_get(): exc_mess__name_get', lcm.output)
 
+    def test_577_cert_poll(self):
+        """ test Certificate.poll - dbstore.order_update() raises an exception  """
+        self.certificate.dbstore.order_update.side_effect = Exception('exc_cert_poll')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.poll =  Mock(return_value=('error', 'certificate', 'certificate_raw', 'poll_identifier', 'rejected'))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.poll('certificate_name', 'poll_identifier', 'csr', 'order_name')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll', lcm.output)
+
+    def test_578_cert_poll(self):
+        """ test Certificate.poll - dbstore.order_update() raises an exception  and certreq rejected """
+        self.certificate.dbstore.order_update.side_effect = Exception('exc_cert_poll')
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.poll =  Mock(return_value=('error', None, 'certificate_raw', 'poll_identifier', 'rejected'))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.poll('certificate_name', 'poll_identifier', 'csr', 'order_name')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll', lcm.output)
+
+    def test_578_store_cert(self):
+        """ test Certificate.store_cert() - dbstore.certificate_add raises an exception  """
+        self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._store_cert('cert_name', 'cert', 'raw')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add', lcm.output)
+
+    def test_579_store_cert_error(self):
+        """ test Certificate.store_cert_error() - dbstore.certificate_add raises an exception  """
+        self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add_error')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._store_cert_error('cert_name', 'error', 'poll')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add_error', lcm.output)
+
+    def test_580_account_check(self):
+        """ test Certificate._account_check() - dbstore.certificate_account_check raises an exception  """
+        self.certificate.dbstore.certificate_account_check.side_effect = Exception('exc_acc_chk')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._account_check('account_name', 'cert')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._account_check(): exc_acc_chk', lcm.output)
+
+    def test_581_authorization_check(self):
+        """ test Certificate._authorization_check() - dbstore.certificate_account_check raises an exception  """
+        self.certificate.dbstore.order_lookup.side_effect = Exception('exc_authz_chk')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._authorization_check('order_name', 'cert')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._authorization_check(): exc_authz_chk', lcm.output)
+
+    @patch('acme.certificate.Certificate._info')
+    def test_582_csr_check(self, mock_certinfo):
+        """ csr-check - dbstore.order_lookup() raises an exception """
+        mock_certinfo.return_value = {'order': 'order'}
+        self.certificate.dbstore.order_lookup.side_effect = Exception('exc_csr_chk')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._csr_check('cert_name', 'csr')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._csr_check(): exc_csr_chk', lcm.output)
+
+    def test_583_cert_info(self):
+        """ test Certificate._info - dbstore.certificate_lookup() raises an exception  """
+        self.certificate.dbstore.certificate_lookup.side_effect = Exception('exc_cert_info')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._info('cert_name')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._info(): exc_cert_info', lcm.output)
+
+    @patch('acme.certificate.Certificate._invalidation_check')
+    def test_584_cert_cleanup(self,  mock_chk):
+        """ test Certificate.cleanup - dbstore.certificate_add() raises an exception  """
+        mock_chk.return_value = (True, {'name': 'name', 'expire_uts': 1543640400, 'issue_uts': 1543640400, 'cert_raw': 'cert_raw'})
+        self.certificate.dbstore.certificates_search.return_value = [{'name', 'name'},]
+        self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_cleanup1')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.cleanup(1543640400)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() add: exc_cert_cleanup1', lcm.output)
+
+    @patch('acme.certificate.Certificate._invalidation_check')
+    def test_585_cert_cleanup(self,  mock_chk):
+        """ test Certificate.cleanup - dbstore.certificate_delete() raises an exception  """
+        mock_chk.return_value = (True, {'id': 2, 'name': 'name', 'expire_uts': 1543640400, 'issue_uts': 1543640400, 'cert_raw': 'cert_raw'})
+        self.certificate.dbstore.certificates_search.return_value = [{'name', 'name'},]
+        self.certificate.dbstore.certificate_delete.side_effect = Exception('exc_cert_cleanup2')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.cleanup(1543640400, True)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() delete: exc_cert_cleanup2', lcm.output)
+
+    def test_586_cert_cleanup(self):
+        """ test Certificate.cleanup - dbstore.certificates_search() raises an exception  """
+        self.certificate.dbstore.certificates_search.side_effect = Exception('exc_cert_cleanup')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.cleanup('timestamp')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() search: exc_cert_cleanup', lcm.output)
+
+    def test_587_certlist_search(self):
+        """ test Certificate.certlist_search - dbstore.certificates_search() raises an exception  """
+        self.certificate.dbstore.certificates_search.side_effect = Exception('exc_certlist_search')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate.certlist_search('type', 'value')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search', lcm.output)
+
+
+
+
 if __name__ == '__main__':
     unittest.main()
