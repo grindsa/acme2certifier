@@ -34,7 +34,11 @@ class Challenge(object):
         """ get exsting challegnes for a given authorization """
         self.logger.debug('Challenge._challengelist_search()')
 
-        challenge_list = self.dbstore.challenges_search(key, value, vlist)
+        try:
+            challenge_list = self.dbstore.challenges_search(key, value, vlist)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._challengelist_search(): {0}'.format(err_))
+            challenge_list = []
 
         challenge_dic = {}
         for challenge in challenge_list:
@@ -57,9 +61,19 @@ class Challenge(object):
     def _check(self, challenge_name, payload):
         """ challene check """
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
-        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
+        try:
+            challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._check() lookup: {0}'.format(err_))
+            challenge_dic = {}
+
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
-            pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
+            try:
+                pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Challenge._check() jwk: {0}'.format(err_))
+                pub_key = None
+
             if  pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
@@ -90,7 +104,12 @@ class Challenge(object):
     def _info(self, challenge_name):
         """ get challenge details """
         self.logger.debug('Challenge._info({0})'.format(challenge_name))
-        challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, vlist=('type', 'token', 'status__name', 'validated'))
+        try:
+            challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, vlist=('type', 'token', 'status__name', 'validated'))
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._info(): {0}'.format(err_))
+            challenge_dic = {}
+
         if 'status' in challenge_dic and challenge_dic['status'] == 'valid':
             if 'validated' in challenge_dic:
                 # convert validated timestamp to RFC3339 format - if it fails remove key from dictionary
@@ -144,7 +163,12 @@ class Challenge(object):
             'authorization' : authz_name,
             'status': 2
         }
-        chid = self.dbstore.challenge_add(data_dic)
+
+        try:
+            chid = self.dbstore.challenge_add(data_dic)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._new(): {0}'.format(err_))
+            chid = None
 
         challenge_dic = {}
         if chid:
@@ -158,18 +182,30 @@ class Challenge(object):
     def _update(self, data_dic):
         """ update challenge """
         self.logger.debug('Challenge._update({0})'.format(data_dic))
-        self.dbstore.challenge_update(data_dic)
+        try:
+            self.dbstore.challenge_update(data_dic)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._update(): {0}'.format(err_))
         self.logger.debug('Challenge._update() ended')
 
     def _update_authz(self, challenge_name, data_dic):
         """ update authorizsation based on challenge_name """
         self.logger.debug('Challenge._update_authz({0})'.format(challenge_name))
+        try:
+            # lookup autorization based on challenge_name
+            authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._update_authz() lookup: {0}'.format(err_))
+            authz_name = None
 
-        # lookup autorization based on challenge_name
-        authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
-        data_dic['name'] = authz_name
-        # update authorization
-        self.dbstore.authorization_update(data_dic)
+        if authz_name:
+            data_dic['name'] = authz_name
+        try:
+            # update authorization
+            self.dbstore.authorization_update(data_dic)
+        except BaseException as err_:
+            self.logger.critical('acme2certifier database error in Challenge._update_authz() upd: {0}'.format(err_))
+
         self.logger.debug('Challenge._update_authz() ended')
 
     def _validate(self, challenge_name, payload):
