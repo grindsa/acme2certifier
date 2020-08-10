@@ -38,7 +38,7 @@ if __name__ == '__main__':
         # certifiate cleanup (no delete) dump in json
         cleanup_report = housekeeping.certificates_cleanup(report_format='json', report_name='certificate_cleanup_{0}'.format(SUFFIX))
         # certifiate cleanup (including delete) dump in csv
-        housekeeping.certificates_cleanup(report_format='csv', report_name='certificate_cleanup_{0}'.format(SUFFIX), purge=True)
+        # housekeeping.certificates_cleanup(report_format='csv', report_name='certificate_cleanup_{0}'.format(SUFFIX), purge=True)
 
         # manual order invalidation
         order_list = housekeeping.orders_invalidate(report_format='csv', report_name='orders_invalidate_{0}'.format(SUFFIX))
