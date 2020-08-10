@@ -436,6 +436,21 @@ class Certificate(object):
         self.logger.debug('Certificate.cleanup() ended with: {0} certs'.format(len(report_list)))
         return (field_list, report_list)
 
+    def dates_update(self):
+        """ scan certificates and update issue/expiry date """
+        self.logger.debug('Certificate.certificate_dates_update()')
+
+        with Certificate(self.debug, None, self.logger) as certificate:
+            cert_list = certificate.certlist_search('issue_uts', 0, vlist=('id', 'name', 'cert', 'cert_raw', 'issue_uts', 'expire_uts'))
+            self.logger.debug('Got {0} certificates to be updated...'.format(len(cert_list)))
+            for cert in cert_list:
+                if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
+                    if cert['cert_raw']:
+                        (issue_uts, expire_uts) = cert_dates_get(self.logger,  cert['cert_raw'])
+                        if issue_uts or expire_uts:
+                            self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
+        return None
+
     def enroll_and_store(self, certificate_name, csr):
         """ cenroll and store certificater """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))

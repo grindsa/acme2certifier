@@ -302,6 +302,13 @@ class Housekeeping(object):
 
         return cert_list
 
+    def certificate_dates_update(self):
+        """ scan certificates and update issue/expiry date """
+        self.logger.debug('Housekeeping.certificate_dates_update()')
+
+        with Certificate(self.debug, None, self.logger) as certificate:
+            certificate.dates_update()
+
     def certificates_cleanup(self, uts=None, purge=False, report_format='csv', report_name=None):
         """ database cleanuip certificate-table """
         self.logger.debug('Housekeeping.certificates_cleanup()')

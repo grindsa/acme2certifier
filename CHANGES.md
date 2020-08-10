@@ -17,7 +17,7 @@ and pick the appropriate release branch.
 - orders and authorization expire based on (pre)configured timers
 - default expiration timer is 86400 seconds and can be adjusted in `acme_srv.cfg`.
 - auto expiration can be disabled in `acme_srv.cfg`. Check [docs/acme_srv.md](docs/acme_srv.md) for further information.
-- the expiration checks and order/authorization invalidation will be triggered in case a client accesses an `order` or `authorization` resource.  It is recommended to run the script `tools/invalidator.py` after the upgrade to manually check and invalidate expired authorizations and orders.
+- the expiration checks and order/authorization invalidation will be triggered in case a client accesses an `order` or `authorization` resource.  It is recommended to run the script `tools/invalidator.py` after the upgrade to manually check and invalidate expired authorizations and orders and update issuing- and expiration date in the certificate table.
 
 **Features**:
 
@@ -32,6 +32,7 @@ and pick the appropriate release branch.
 **Bugfixes***:
 
 - Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)
+- improved exception handling in case of database-errors
 
 ## Changes in 0.10
 

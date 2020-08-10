@@ -24,3 +24,6 @@ if __name__ == '__main__':
 
         # manual authorization invalidation
         authorization_list = housekeeping.authorizations_invalidate(report_format='csv', report_name='authorization_expire_{0}'.format(SUFFIX))
+
+        # update issue_uts and expire_uts in certificates table
+        housekeeping.certificate_dates_update()
