@@ -176,7 +176,20 @@ class DBstore(object):
         self.cursor.execute('''
             CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0)
         ''')
-
+        self.cursor.execute('''
+            CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.cursor.execute('''
+            CREATE TRIGGER [UpdateLastTime]
+                AFTER
+                UPDATE
+                ON housekeeping
+                FOR EACH ROW
+                WHEN NEW.modified_at <= OLD.modified_at
+            BEGIN
+                update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
+            END
+        ''')
         self._db_close()
         self.logger.debug('DBStore._db_create() ended')
 
@@ -780,6 +793,24 @@ class DBstore(object):
             self.logger.debug('alter challenge table - add validated')
             self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
 
+        # housekeeping table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
+        if not self.cursor.fetchone()[0] == 1:
+            self.logger.debug('create housekeeping table and trigger')
+            self.cursor.execute('''
+                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
+            self.cursor.execute('''
+                CREATE TRIGGER [UpdateLastTime]
+                    AFTER
+                    UPDATE
+                    ON housekeeping
+                    FOR EACH ROW
+                    WHEN NEW.modified_at <= OLD.modified_at
+                BEGIN
+                    update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
+                END
+            ''')
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
 
