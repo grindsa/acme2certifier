@@ -8,8 +8,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
 import django
 django.setup()
 from django.conf import settings
-from acme.models import Status
+from acme.models import Status, Housekeeping
 from django.core.management import call_command
+from acme.version import __version__
 
 if __name__ == '__main__':
 
@@ -21,3 +22,7 @@ if __name__ == '__main__':
     STATUS_LIST = ['expired', 'deactivated', 'revoked']
     for status in STATUS_LIST:
         OBJ, _CREATED = Status.objects.update_or_create(name=status, defaults={'name': status})
+
+    # update dbversion
+    print('update dbversion to {0}...'.format(__version__))
+    OBJ, _CREATED = Housekeeping.objects.update_or_create(name='name', defaults={'name': 'dbversion', 'value': __version__})
