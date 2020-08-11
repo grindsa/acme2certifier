@@ -30,3 +30,8 @@
     pk: 8
     fields:
         name: revoked
+-   model: acme.housekeeping
+    pk: 1
+    fields:
+        name: dbversion
+        value: 0.11-devel        
