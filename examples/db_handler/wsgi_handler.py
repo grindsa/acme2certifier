@@ -7,6 +7,7 @@ import json
 import os
 # pylint: disable=E0401
 from acme.helper import datestr_to_date
+from acme.version import __version__
 
 def initialize():
     """ run db_handler specific initialization functions  """
@@ -190,6 +191,8 @@ class DBstore(object):
                 update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
             END
         ''')
+
+        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__version__))
         self._db_close()
         self.logger.debug('DBStore._db_create() ended')
 
@@ -811,6 +814,12 @@ class DBstore(object):
                     update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
                 END
             ''')
+
+        # version update
+        self.logger.debug('update dbversion to {0}'.format(__version__))
+        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__version__))
+        self.cursor.execute('''UPDATE housekeeping SET value = "{0}" WHERE name="dbversion"'''.format(__version__))
+
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
 
