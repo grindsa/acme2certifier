@@ -8,7 +8,12 @@ Creating your own CA-handler should be pretty easy.  All you need to do is to cr
 - __revoke__: to revoke an existing certificate on CA server
 - [__trigger__](trigger.md): to process trigger send by CA server
 
+<<<<<<< HEAD
 The [stub_handler.py](../examples/ca_handler/skeleton_ca_handler.py) contains a skeleton which can be used to create customized ca_handlers.
+=======
+
+The [skeleton_ca_handler.py](/examples/ca_handler/skeleton_ca_handler.py) contains a skeleton which can be used to create customized ca_handlers.
+>>>>>>> master
 
 The below skeleton describes the different input parameters given by acme2certifier as well as the expected return values.
 
@@ -96,6 +101,7 @@ class CAhandler(object):
             cert_bundle - certificate chain in pem format
             cert_raw - certificate in asn1 (binary) format - base64 encoded
 
+<<<<<<< HEAD
         self.logger.debug('CAhandler.trigger()')
         ...
         self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
@@ -104,3 +110,13 @@ class CAhandler(object):
 
 You can add additional methods according to your needs. You can also add configuration options to acme_srv.cfg allowing you to configure the ca_handler according to your needs.
 Check the [certifier_ca_handler.py](../examples/ca_handler/certifier_ca_handler.py) especially the `_config_load()` method for further details.
+=======
+        self.logger.debug('CAhandler.trigger()')       
+        ...        
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))        
+        return (error, cert_bundle, cert_raw)            
+```
+
+You can add additional methods according to your needs. You can also add configuration options to acme_srv.cfg allowing you to configure the ca_handler according to your needs.
+Check the [certifier_ca_handler.py](/examples/ca_handler/certifier_ca_handler.py) especially the `_config_load()` method for further details.
+>>>>>>> master
