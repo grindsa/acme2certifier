@@ -10,6 +10,7 @@ from acme.certificate import Certificate
 from acme.challenge import Challenge
 from acme.directory import Directory
 from acme.helper import get_url, load_config, logger_setup, logger_info
+from acme.housekeeping import Housekeeping
 from acme.nonce import Nonce
 from acme.order import Order
 from acme.trigger import Trigger
@@ -22,6 +23,9 @@ DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 LOGGER.info('starting acme2certifier version {0}'.format(__version__))
+
+with Housekeeping(DEBUG, LOGGER) as housekeeping:
+    housekeeping.dbversion_check(__version__)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
