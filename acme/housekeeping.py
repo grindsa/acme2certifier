@@ -9,6 +9,7 @@ from acme.authorization import Authorization
 from acme.certificate import Certificate
 from acme.order import Order
 from acme.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
+from acme.version import __version__
 
 class Housekeeping(object):
     """ Housekeeping class """
@@ -364,6 +365,22 @@ class Housekeeping(object):
                         self.logger.debug('Housekeeping.authorizations_invalidate():  No dump just return report')
                 else:
                     self.logger.debug('Housekeeping.authorizations_invalidate(): No authorizations to dump')
+
+    def dbversion_check(self, version=None):
+        """ check database version """
+        self.logger.debug('Housekeeping.dbversion_check({0})'.format(version))
+
+        if version:
+            try:
+                (result, script_name) = self.dbstore.dbversion_get()
+            except BaseException as err_:
+                self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): {0}'.format(err_))
+                result = None
+                script_name = 'handler specific migration'
+            if result != __version__:
+                self.logger.critical('acme2certifier database version mismatch in: version is {0} but should be {1}. Please run the "{2}" script'.format(result, __version__, script_name))
+        else:
+            self.logger.critical('acme2certifier database version could not be verified in Housekeeping.dbversion_check()')
 
     def orders_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
         """ orders cleanup based on expiry date"""
