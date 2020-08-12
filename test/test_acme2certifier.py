@@ -4571,5 +4571,47 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.trigger._payload_process('payload')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() add: exc_trigger_order_add', lcm.output)
 
+    def test_611_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load  - version match int """
+        self.housekeeping.dbstore.dbversion_get.return_value = (1, 'foo')
+        with self.assertLogs('test_a2c', level='DEBUG') as lcm:
+            self.housekeeping.dbversion_check(1)
+        self.assertIn('DEBUG:test_a2c:acme2certifier database version: 1 is upto date', lcm.output)
+
+    def test_612_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load  - version match float"""
+        self.housekeeping.dbstore.dbversion_get.return_value = (1.0, 'foo')
+        with self.assertLogs('test_a2c', level='DEBUG') as lcm:
+            self.housekeeping.dbversion_check(1.0)
+        self.assertIn('DEBUG:test_a2c:acme2certifier database version: 1.0 is upto date', lcm.output)
+
+    def test_613_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load  - version match string"""
+        self.housekeeping.dbstore.dbversion_get.return_value = ('1.0-devel', 'foo')
+        with self.assertLogs('test_a2c', level='DEBUG') as lcm:
+            self.housekeeping.dbversion_check('1.0-devel')
+        self.assertIn('DEBUG:test_a2c:acme2certifier database version: 1.0-devel is upto date', lcm.output)
+
+    def test_614_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load  - no version number specified """
+        # self.signature.dbstore.jwk_load.side_effect = Exception('exc_sig_jw_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.housekeeping.dbversion_check()
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database version could not be verified in Housekeeping.dbversion_check()', lcm.output)
+
+    def test_615_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load - version mismatch """
+        self.housekeeping.dbstore.dbversion_get.return_value = (1, 'foo')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.housekeeping.dbversion_check(2)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database version mismatch in: version is 1 but should be 2. Please run the "foo" script', lcm.output)
+
+    def test_616_dbversion_check(self):
+        """ test Housekeeping.dbversion_check load  - dbstore.dbversion_get raises an exception """
+        self.housekeeping.dbstore.dbversion_get.side_effect = Exception('exc_housekeeping_vrsion_get')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.housekeeping.dbversion_check(2)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.dbversion_check(): exc_housekeeping_vrsion_get', lcm.output)
+
 if __name__ == '__main__':
     unittest.main()
