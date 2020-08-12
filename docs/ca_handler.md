@@ -8,7 +8,7 @@ Creating your own CA-handler should be pretty easy.  All you need to do is to cr
 - __revoke__: to revoke an existing certificate on CA server
 - [__trigger__](trigger.md): to process trigger send by CA server
 
-The [skeleton_ca_handler.py](/examples/ca_handler/skeleton_ca_handler.py) contains a skeleton which can be used to create customized ca_handlers.
+The [skeleton_ca_handler.py](../examples/ca_handler/skeleton_ca_handler.py) contains a skeleton which can be used to create customized ca_handlers.
 
 The below skeleton describes the different input parameters given by acme2certifier as well as the expected return values.
 
