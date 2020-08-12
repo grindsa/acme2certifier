@@ -12,6 +12,7 @@ from acme.authorization import Authorization
 from acme.certificate import Certificate
 from acme.challenge import Challenge
 from acme.directory import Directory
+from acme.housekeeping import Housekeeping
 from acme.nonce import Nonce
 from acme.order import Order
 from acme.trigger import Trigger
@@ -20,7 +21,10 @@ from acme.version import __version__
 
 # load config to set debug mode
 CONFIG = load_config()
-DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
+try:
+    DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
+except BaseException:
+    DEBUG = False
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
@@ -33,6 +37,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
+
+with Housekeeping(DEBUG, LOGGER) as housekeeping:
+    housekeeping.dbversion_check(__version__)
 
 # examption handling via logger
 sys.excepthook = handle_exception

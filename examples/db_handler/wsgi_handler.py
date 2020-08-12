@@ -759,6 +759,7 @@ class DBstore(object):
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
+        print(__version__)
         self._db_open()
         # add poll_identifier if not existing
         self.cursor.execute('''PRAGMA table_info(certificate)''')
@@ -822,6 +823,21 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
+
+    def dbversion_get(self):
+        """ get db version from housekeeping table """
+        self.logger.debug('DBStore.dbversion_get()')
+        self._db_open()
+        pre_statement = 'SELECT value from housekeeping WHERE housekeeping.{0} LIKE ?'.format('name')
+        self.cursor.execute(pre_statement, ['dbversion'])
+        query = list(self.cursor.fetchone())
+        if query:
+            result = query[0]
+        else:
+            result = None
+        self._db_close()
+        self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
+        return (result, 'tools/db_update.py')
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
