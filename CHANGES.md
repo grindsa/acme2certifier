@@ -28,6 +28,7 @@ and pick the appropriate release branch.
 - basic [reporting and housekeeping](docs/housekeeping.md)
 - order and authorization expiration
 - method to remove expired certificates from database. Check the `certificate_cleanup` method [docs/housekeeping.md](docs/housekeeping.md) for further information
+- database versioning and error logging in case of version mismatch
 
 **Bugfixes***:
 
