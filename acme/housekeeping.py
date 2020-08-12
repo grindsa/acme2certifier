@@ -377,8 +377,10 @@ class Housekeeping(object):
                 self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): {0}'.format(err_))
                 result = None
                 script_name = 'handler specific migration'
-            if result != __version__:
-                self.logger.critical('acme2certifier database version mismatch in: version is {0} but should be {1}. Please run the "{2}" script'.format(result, __version__, script_name))
+            if result != version:
+                self.logger.critical('acme2certifier database version mismatch in: version is {0} but should be {1}. Please run the "{2}" script'.format(result, version, script_name))
+            else:
+                self.logger.debug('acme2certifier database version: {0} is upto date'.format(version))
         else:
             self.logger.critical('acme2certifier database version could not be verified in Housekeeping.dbversion_check()')
 
