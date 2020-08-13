@@ -47,6 +47,7 @@ RUN sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache
     rm /etc/apache2/sites-enabled/000-default.conf
 
 COPY examples/Docker/apache2/django/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod a+rx /docker-entrypoint.sh
 
 WORKDIR /var/www/acme2certifier/
 
