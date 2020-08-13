@@ -27,7 +27,7 @@ RUN mkdir -p /opt/acme2certifier/volume && \
     chown -R nginx /opt/acme2certifier/acme
     # rm -rf /tmp/acme2certifier
 
-COPY /tmp/acme2certifier/examples/Docker/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
 
 WORKDIR /opt/acme2certifier
 
