@@ -38,7 +38,7 @@ RUN sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf
 
-COPY examples/Docker/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY examples/Docker/apache2/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
 
 WORKDIR /var/www/acme2certifier/
 
