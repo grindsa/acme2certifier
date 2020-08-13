@@ -32,6 +32,9 @@ RUN mkdir -p /opt/acme2certifier/volume && \
 
 # COPY /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
 
+# final nginx changes
+RUN sed -i "s/ default_server\;/\;/g" /etc/nginx/nginx.conf
+
 WORKDIR /opt/acme2certifier
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
