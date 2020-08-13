@@ -16,22 +16,21 @@ RUN mkdir -p /tmp/acme2certifier && \
 RUN mkdir -p /opt/acme2certifier/volume && \
     mkdir -p /opt/acme2certifier/examples && \
     mkdir -p /run/uwsgi && \
-    cp /tmp/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/acme2certifier_wsgi.py && \
-    cp -R /tmp/acme2certifier/examples/ca_handler /opt/acme2certifier/examples/ && \    
-    cp -R /tmp/acme2certifier/examples/nginx /opt/acme2certifier/examples/ && \    
-    cp /tmp/acme2certifier/examples/acme_srv.cfg /opt/acme2certifier/examples/ && \    
-    cp -R /tmp/acme2certifier/acme /opt/acme2certifier/ && \
-    cp -R /tmp/acme2certifier/tools /opt/acme2certifier/ && \
-    cp /tmp/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py && \
-    cp /tmp/acme2certifier/examples/nginx/acme2certifier.ini /opt/acme2certifier && \
-    cp /tmp/acme2certifier/examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf && \
-    cp /tmp/acme2certifier/examples/nginx/supervisord.conf /etc && \
-    chown -R nginx /opt/acme2certifier/acme && \
-    cp /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh && \
-    chmod a+rx /docker-entrypoint.sh
-    # rm -rf /tmp/acme2certifier
 
-# COPY /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY examples/acme2certifier_wsgi.py /opt/acme2certifier/acme2certifier_wsgi.py
+COPY examples/ca_handler /opt/acme2certifier/examples/
+COPY examples/nginx /opt/acme2certifier/examples/
+COPY examples/acme_srv.cfg /opt/acme2certifier/examples/
+COPY acme /opt/acme2certifier/
+COPY tools /opt/acme2certifier/
+COPY examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py
+COPY examples/nginx/acme2certifier.ini /opt/acme2certifier
+COPY examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+COPY examples/nginx/supervisord.conf /etc
+RUN  chown -R nginx /opt/acme2certifier/acme
+
+COPY examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod a+rx /docker-entrypoint.sh
 
 # final nginx changes
 RUN sed -i "s/ default_server\;/\;/g" /etc/nginx/nginx.conf
