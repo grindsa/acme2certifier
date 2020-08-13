@@ -18,6 +18,7 @@ RUN mkdir -p /opt/acme2certifier/volume && \
     mkdir -p /run/uwsgi && \
     cp /tmp/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/acme2certifier_wsgi.py && \
     cp -R /tmp/acme2certifier/examples/ca_handler /opt/acme2certifier/examples/ && \    
+    cp -R /tmp/acme2certifier/examples/nginx /opt/acme2certifier/examples/ && \    
     cp /tmp/acme2certifier/examples/acme_srv.cfg /opt/acme2certifier/examples/ && \    
     cp -R /tmp/acme2certifier/acme /opt/acme2certifier/ && \
     cp -R /tmp/acme2certifier/tools /opt/acme2certifier/ && \
