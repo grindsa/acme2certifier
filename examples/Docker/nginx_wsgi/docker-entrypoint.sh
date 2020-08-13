@@ -1,20 +1,23 @@
 #!/bin/bash
 
 # create acme-srv.cfg if not existing
-if [ ! -f /opt/acme2certifier/volume/acme_srv.cfg ] 
-then 
+if [ ! -f /opt/acme2certifier/volume/acme_srv.cfg ]
+then
     cp /opt/acme2certifier/examples/acme_srv.cfg /opt/acme2certifier/volume/
 fi
 
-# enable ssl if acme2certifier.pm exists on volume
-#if [ -f /opt/acme2certifier/volume/acme2certifier.pem ]
-#then
-#   cp  /opt/acme2certifier/examples/apache_wsgi_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
-#fi 
+# enable ssl if acme2certifier_cert.pem and acme2certifier_key.pem exist on volume
+if [ -f /opt/acme2certifier/volume/acme2certifier_cert.pem ] && [ -f /opt/acme2certifier/volume/acme2certifier_key.pem ]
+then
+   if [ ! -f /etc/nginx/conf.d/acme_ssl.conf ]
+   then
+     cp  /opt/acme2certifier/examples/nginx/nginx_acme_ssl.conf /etc/nginx/conf.d/acme_ssl.conf
+   fi
+fi
 
 # create ca_handler if not existing
-if [ ! -f /opt/acme2certifier/volume/ca_handler.py ] 
-then 
+if [ ! -f /opt/acme2certifier/volume/ca_handler.py ]
+then
     cp /opt/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /opt/acme2certifier/volume/ca_handler.py
 fi
 
@@ -43,4 +46,3 @@ fi
 chown -R nginx.nginx /opt/acme2certifier/volume
 chmod u+s /opt/acme2certifier/volume/
 exec "$@"
-
