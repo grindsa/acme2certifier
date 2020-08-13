@@ -23,11 +23,14 @@ RUN mkdir -p /opt/acme2certifier/volume && \
     cp -R /tmp/acme2certifier/tools /opt/acme2certifier/ && \
     cp /tmp/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme/db_handler.py && \
     cp /tmp/acme2certifier/examples/nginx/acme2certifier.ini /opt/acme2certifier && \
+    cp /tmp/acme2certifier/examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf && \
     cp /tmp/acme2certifier/examples/nginx/supervisord.conf /etc && \
-    chown -R nginx /opt/acme2certifier/acme
+    chown -R nginx /opt/acme2certifier/acme && \
+    cp /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh && \
+    chmod a+rx /docker-entrypoint.sh
     # rm -rf /tmp/acme2certifier
 
-COPY /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+# COPY /tmp/acme2certifier/examples/Docker/nginx_wsgi/docker-entrypoint.sh /docker-entrypoint.sh
 
 WORKDIR /opt/acme2certifier
 
