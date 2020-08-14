@@ -52,7 +52,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   acme_sh:
     name: "acme.sh"
-    needs: [docker-compose_apache2_wsgi]
+    needs: [docker-compose_apache2_django]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -66,6 +66,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (wsgi)"
       working-directory: examples/Docker/
       run: |
+        sed -i "s/wsgi/django/g" .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -76,9 +77,11 @@ jobs:
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+        sudo chown www-data.www-data data/db.sqlite3
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -159,7 +162,7 @@ jobs:
 
   certbot:
     name: "certbot"
-    needs: [docker-compose_apache2_django]
+    needs: [docker-compose_apache2_wsgi]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -172,7 +175,6 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
       run: |
-        sed -i "s/wsgi/django/g" .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -183,11 +185,9 @@ jobs:
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
-        sudo chown www-data.www-data data/db.sqlite3
 
     - name: "[ PREPARE ] create letsencrypt folder"
       run: |
