@@ -78,10 +78,12 @@ jobs:
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/django_db.sqlite3 examples/Docker/data/db.sqlite3
+        sudo chmod a+w .github/django_db.sqlite3 examples/Docker/data/db.sqlite3
         cd examples/Docker/
         docker-compose restart
-        chown www-data.www-data data/db.sqlite3
-        chmod a+w data/db.sqlite3
+        # chown www-data.www-data data/db.sqlite3
+        # chmod a+w data/db.sqlite3
         docker-compose logs
 
     - name: "[ PREPARE ] prepare acme.sh container"
