@@ -30,7 +30,7 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
-        sed -i "s/apache2/nginx/g" .env      
+        sed -i "s/apache2/nginx/g" .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -241,7 +241,7 @@ jobs:
 
   lego:
     name: "lego"
-    needs: [docker-compose_apache2_wsgi]
+    needs: [docker-compose_nginx_wsgi]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -251,9 +251,10 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] Build docker-compose (wsgi)"
+    - name: "[ PREPARE ] Build docker-compose (nginx_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sed -i "s/apache2/nginx/g" .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
