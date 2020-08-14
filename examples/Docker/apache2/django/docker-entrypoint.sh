@@ -60,10 +60,8 @@ fi
 if [ -L /var/www/acme2certifier/acme2certifier/settings.py ]
 then
     # apply migrations
-    python3 manage.py makemigrations
-    python3 manage.py migrate
+    python3 /var/www/acme2certifier/tools/django_update.py
     python3 manage.py loaddata acme/fixture/status.yaml
-
 else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 fi
