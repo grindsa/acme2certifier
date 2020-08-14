@@ -4245,6 +4245,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization.invalidate(): exc_authz_update', lcm.output)
 
     def test_574_authorization_invalidate(self):
+        """ test Authorization.invalidate() cornercase - do not invalidte authorizations with expires 0 """
+        timestamp = 1596240000
+        self.authorization.dbstore.authorizations_expired_search.return_value = [{'name': 'name', 'status__name': 'foo', 'expires': 0}]
+        self.assertEqual((['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'], []), self.authorization.invalidate(timestamp))
+
+    def test_575_authorization_invalidate(self):
         """ test Authorization.invalidate() authz - dbstore.authorization_update() raises an exception """
         timestamp = 1596240000
         self.authorization.dbstore.authorizations_expired_search.side_effect = Exception('exc_authz_exp_search')

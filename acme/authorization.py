@@ -110,13 +110,15 @@ class Authorization(object):
         for authz in authz_list:
             # select all authz which are not invalid
             if 'name' in authz and 'status__name' in authz and authz['status__name'] != 'expired':
-                # change status and add to output list
-                output_list.append(authz)
-                data_dic = {'name': authz['name'], 'status': 'expired'}
-                try:
-                    self.dbstore.authorization_update(data_dic)
-                except BaseException as err_:
-                    self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
+                # skip corner cases where authz expiry is set to 0
+                if 'expires' not in authz or authz['expires'] > 0:
+                    # change status and add to output list
+                    output_list.append(authz)
+                    data_dic = {'name': authz['name'], 'status': 'expired'}
+                    try:
+                        self.dbstore.authorization_update(data_dic)
+                    except BaseException as err_:
+                        self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
 
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
         return (field_list, output_list)

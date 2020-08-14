@@ -14,7 +14,7 @@ def initialize():
     # pylint: disable=E1101
     django.setup()
 initialize()
-from acme.models import Account, Authorization, Certificate, Challenge, Nonce, Order, Status
+from acme.models import Account, Authorization, Certificate, Challenge, Housekeeping, Nonce, Order, Status
 
 class DBstore(object):
     """ helper to do datebase operations """
@@ -256,6 +256,17 @@ class DBstore(object):
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
+
+    def dbversion_get(self):
+        """ get db version from housekeeping table """
+        self.logger.debug('DBStore.dbversion_get()')
+        version_list = Housekeeping.objects.filter(name='dbversion').values_list('value', flat=True)
+        if version_list:
+            result = version_list[0]
+        else:
+            result = None
+        self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
+        return (result, 'tools/django_update.py')
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """

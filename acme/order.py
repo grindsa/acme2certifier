@@ -18,6 +18,7 @@ class Order(object):
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.validity = 86400
+        self.authz_validity = 86400
         self.expiry_check_disable = False
         self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
         self.retry_after = 600
@@ -78,6 +79,7 @@ class Order(object):
                         auth['name'] = auth_name
                         auth['order'] = oid
                         auth['status'] = 'pending'
+                        auth['expires'] = uts_now() + self.authz_validity
                         try:
                             self.dbstore.authorization_add(auth)
                         except BaseException as err_:
@@ -104,6 +106,12 @@ class Order(object):
                     self.validity = int(config_dic['Order']['validity'])
                 except BaseException:
                     self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
+        if 'Authorization' in config_dic:
+            if 'validity' in config_dic['Authorization']:
+                try:
+                    self.authz_validity = int(config_dic['Authorization']['validity'])
+                except BaseException:
+                    self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
 
         self.logger.debug('Order._config_load() ended.')
 
