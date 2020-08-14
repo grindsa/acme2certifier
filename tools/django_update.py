@@ -25,4 +25,4 @@ if __name__ == '__main__':
 
     # update dbversion
     print('update dbversion to {0}...'.format(__version__))
-    OBJ, _CREATED = Housekeeping.objects.update_or_create(name='name', defaults={'name': 'dbversion', 'value': __version__})
+    OBJ, _CREATED = Housekeeping.objects.update_or_create(name='dbversion', defaults={'name': 'dbversion', 'value': __version__})
