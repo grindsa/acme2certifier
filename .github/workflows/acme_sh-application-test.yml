@@ -16,7 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [2048, 3072, 4096]
+        accountkeylength: [2048, ec-256, ec-384, ec-521]
+        keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -122,7 +123,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [2048, 3072, 4096]
+        accountkeylength: [2048, ec-256, ec-384, ec-521]
+        keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -230,7 +232,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [2048, 3072, 4096]
+        accountkeylength: [2048, ec-256, ec-384, ec-521]
+        keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -337,7 +340,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [2048, 3072, 4096]
+        accountkeylength: [2048, ec-256, ec-384, ec-521]
+        keylength: [2048, 3072, 4096, ec-521]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
