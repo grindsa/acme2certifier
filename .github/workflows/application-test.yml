@@ -50,6 +50,21 @@ jobs:
         docker-compose logs
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+  docker-compose_nginx_django:
+    name: "Docker compose - nginx django"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: "Build the stack"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
   acme_sh:
     name: "acme.sh"
     needs: [docker-compose_apache2_wsgi]
@@ -172,7 +187,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
       run: |
-        sed -i "s/wsgi/django/g" .env      
+        sed -i "s/wsgi/django/g" .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
