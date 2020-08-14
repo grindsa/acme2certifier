@@ -68,6 +68,4 @@ else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 fi
 
-
-
 exec "$@"
