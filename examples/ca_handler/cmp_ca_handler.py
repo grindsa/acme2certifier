@@ -99,8 +99,11 @@ class CAhandler(object):
             self.config_dic['popo'] = 0
 
         # create temp dir if needed
-        if not os.path.exists(self.tmp_dir):
-            os.makedirs(self.tmp_dir)
+        if self.tmp_dir:
+            if not os.path.exists(self.tmp_dir):
+                os.makedirs(self.tmp_dir)
+        else:
+            self.logger.error('CAhandler config error: "cmp_tmp_dir" parameter must be specified in config_file')
 
         self.logger.debug('CAhandler._config_load() ended')
 
