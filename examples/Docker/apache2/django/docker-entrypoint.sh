@@ -68,4 +68,7 @@ else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 fi
 
+chown -R www-data.www-data /var/www/acme2certifier/volume
+chmod u+s /var/www/acme2certifier/volume/
+
 exec "$@"
