@@ -63,7 +63,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] Build docker-compose (wsgi)"
+    - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
       run: |
         sed -i "s/wsgi/django/g" .env
@@ -71,7 +71,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "[ PREPARE ] setup openssl ca_handler and create django configuration"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -80,8 +80,9 @@ jobs:
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         cd examples/Docker/
         docker-compose restart
+        chown www-data.www-data data/db.sqlite3
+        chmod a+w data/db.sqlite3
         docker-compose logs
-        sudo chown www-data.www-data data/db.sqlite3
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -172,7 +173,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_django)"
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         docker network create acme
