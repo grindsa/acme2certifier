@@ -3,17 +3,18 @@
 # create acme-srv.cfg if not existing
 if [ ! -f /var/www/acme2certifier/volume/acme_srv.cfg ]
 then
+    echo "no acme_srv.cfg found! creating acme_srv.cfg"
     cp /var/www/acme2certifier/examples/acme_srv.cfg /var/www/acme2certifier/volume/
 fi
 
 # enable ssl if acme2certifier_cert.pem and acme2certifier_key.pem exist on volume
 if [ -f /var/www/acme2certifier/volume/acme2certifier_cert.pem ] && [ -f /var/www/acme2certifier/volume/acme2certifier_key.pem ]
 then
-   if [ ! -f /etc/nginx/sites-available/acme_ssl.conf ]
-   then
-     cp  /var/www/acme2certifier/examples/nginx/nginx_acme_ssl.conf /etc/nginx/sites-available/acme_ssl.conf
-     ln -s /etc/nginx/sites-available/acme_ssl.conf /etc/nginx/sites-enabled/acme_ssl.conf
-   fi
+    if [ ! -f /etc/nginx/sites-available/acme_ssl.conf ]
+    then
+        cp  /var/www/acme2certifier/examples/nginx/nginx_acme_ssl.conf /etc/nginx/sites-available/acme_ssl.conf
+        ln -s /etc/nginx/sites-available/acme_ssl.conf /etc/nginx/sites-enabled/acme_ssl.conf
+    fi
 fi
 
 # create ca_handler if not existing
@@ -62,14 +63,13 @@ fi
 if [ -L /var/www/acme2certifier/acme2certifier/settings.py ]
 then
     # apply migrations
-    python3 manage.py makemigrations
-    python3 manage.py migrate
+    python3 /var/www/acme2certifier/tools/django_update.py
     python3 manage.py loaddata acme/fixture/status.yaml
-
 else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 fi
 
 chown -R www-data.www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/
+
 exec "$@"
