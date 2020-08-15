@@ -48,7 +48,7 @@ RUN rm /var/www/acme2certifier/acme2certifier/settings.py && \
     sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini
     
-COPY examples/Docker/apache2/django/docker-entrypoint.sh /docker-entrypoint.sh
+COPY examples/Docker/nginx/django/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
 
 WORKDIR /var/www/acme2certifier/
