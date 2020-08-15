@@ -3,7 +3,7 @@ services:
   acme-srv:
     build:
       context: ../../.
-      dockerfile: examples/Docker/$CONTEXT/Dockerfile
+      dockerfile: examples/Docker/$WEBSERVER/$CONTEXT/Dockerfile
     image: acme2certifier/$CONTEXT
     volumes:
       - type: bind

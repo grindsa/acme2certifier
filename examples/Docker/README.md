@@ -5,12 +5,13 @@ This should be the fastest and most convenient way to deploy acme2certifier. Aft
 
 Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. In this docker-compose those files are attached to data/ folder.
 
-`.env` contains options to switch between master or devel branch as well as to choise between wsgi or django to run acme2certifier.
+`.env` contains options to switch between master or devel branch, choose choice between wsgi or django and select the webserver (apache2 or nginx) to be used.
 
 ```config
 COMPOSE_PROJECT_NAME=acme2certifier
 BRANCH=master
 CONTEXT=wsgi
+WEBSERVER=apache2
 ```
 
 Building the docker-compose:
@@ -71,7 +72,15 @@ user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network
 
 Both configuration file and ca_handler must be modified according to your setup.
 
-In case you would like to enable ssl-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
+To reload the modified files the container should be restarted.
+
+`user@docker-host:~/acme2certifier/examples/Docker$ docker-compose restart`
+
+Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](../../docs/acme_srv.md) in acme2certifier for further investigation.
+
+## TLS support when using apache2
+
+In case you would like to enable TLS-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
 
 - the private key
 - the end-entity certificate
@@ -89,8 +98,6 @@ ca certificate(s) data
 -----END CERTIFICATE-----
 ```
 
-To reload the modified files the container should be restarted.
+## TLS support when using nginx
 
-`user@docker-host:~/acme2certifier/examples/Docker$ docker-compose restart`
-
-Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](../../docs/acme_srv.md) in acme2certifier for further investigation.
+To enable TLS-support in nginx please place two files `acme2certifier_cert.pem` and `acme2certifier_key.pem` on the volme. `acme2certifier_cert.pem` must contain the certificate to be used while `acme2certifier_key.pem` must contain the corresponding private key. Certificate and key must be stored in pem format.
