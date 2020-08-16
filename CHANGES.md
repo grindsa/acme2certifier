@@ -5,6 +5,16 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.11.1
+
+**Bugfixes***:
+
+- `cmp_ca_handler.py`- avoid crash if tmp_dir has not been specified in config-files
+- `order.py` - expiry date will be added during authz creation
+- `authorization.py` - corner cases handling in case authz expiry is set to 0
+- `wiki-update.yml` - checkout from `grindsa/github-wiki-publish-action@customize_wiki_title`
+- `*.md` - meta tag "wiki-name" added
+
 ## Changes in 0.11
 
 **Upgrade notes**:
