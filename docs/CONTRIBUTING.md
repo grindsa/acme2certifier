@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- How to contribute to this project -->
 # Contributing
 
 When contributing to this repository, please first discuss the change you wish to make via issue,
