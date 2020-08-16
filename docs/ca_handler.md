@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- wiki-title How to create your own CA Handler -->
 # How to create your own CA-Handler
 
 Creating your own CA-handler should be pretty easy.  All you need to do is to create your own ca_handler.py with a "CAhandler" class containing the following methods required by acme2certifier:
