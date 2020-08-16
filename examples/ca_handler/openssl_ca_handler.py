@@ -223,7 +223,7 @@ class CAhandler(object):
             error = 'ca_cert_chain_list must be specified in config file'
 
         if error:
-            self.logger.debug('CAhandler config error: {0}'.format(error))
+            self.logger.error('CAhandler config error: {0}'.format(error))
 
         self.logger.debug('CAhandler._config_check() ended'.format())
         return error
