@@ -7,7 +7,7 @@ and pick the appropriate release branch.
 
 ## Changes in 0.11.1
 
-**Bugfixes***:
+**Bugfixes**:
 
 - `cmp_ca_handler.py`- avoid crash if tmp_dir has not been specified in config-files
 - `order.py` - expiry date will be added during authz creation
