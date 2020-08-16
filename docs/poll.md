@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- CA polling to check pending enrollment requests -->
+<!-- wiki-title CA polling to check pending enrollment requests -->
 # Ca_handler.poll()
 
 The ```poll``` method has been implemented to cover use-cases in which certificate issuance needs to be manually approved by the CA administrator.
