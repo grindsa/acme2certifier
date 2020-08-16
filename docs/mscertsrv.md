@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- CA handler for Microsoft Certification Authority Web Enrollment Service -->
+<!-- wiki-title CA handler for Microsoft Certification Authority Web Enrollment Service -->
 # CA handler for Microsoft Certification Authority Web Enrollment Service
 
 This CA handler uses Microsofts [Certification Authority Web Enrollment service](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649(v=ws.11)) for certificate enrollment and the python library [magnuswatn](https://github.com/magnuswatn/)/[certsrv](https://github.com/magnuswatn/certsrv) for communication with the enrollment service.

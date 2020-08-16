@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- CA trigger -->
+<!-- wiki-title CA trigger -->
 # Ca_handler.trigger()
 
 The ```trigger``` method allows a CA server to invoke certain actions on acme2certifier. The actions to be executed will be
