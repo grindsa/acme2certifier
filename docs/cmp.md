@@ -9,8 +9,7 @@ The handler has been tested against [Insta Certifier](https://www.insta.fi/en/se
 
 ## Pre-requisites
 
-You need to patch your the local openssl version to support CMPV2. Please follow the instructions provided at the [cmpossl webstite](https://github.com/mpeylo/cmpossl/wiki/Quick-Start)
-if you need further instructions  how to do so.
+You need to patch your the local openssl version to support CMPV2. Please follow the instructions from [cmpossl webstite](https://github.com/mpeylo/cmpossl/wiki/Quick-Start) to do so.
 
 Pre-compiled binaries for [Ubuntu 18.04](https://github.com/grindsa/acme2certifier/raw/master/examples/ca_handler/UB18CMPOpenSSL.7z) and [Windows](https://github.com/grindsa/acme2certifier/raw/master/examples/ca_handler/WindowsCMPOpenSSL.zip) are also available for testing purposes.
 
@@ -20,10 +19,10 @@ either Refnum/PSK or certificate authentication. Please consult your server conf
 The configuration could be a bid tricky and may require finetuning depending on type and configuration of your CMPv2 server. I strongly suggest to try enrollment via
 command line first and adapt the ca_handler accordingly.
 
-In my setup acme2certifier is authenticating via refnum/secred towards CMPv2 server. The later described ca-handler configuration maps to the below commandline.
+In my setup acme2certifier is authenticating via refnum/secred towards CMPv2 server. The later described ca-handler configuration maps to the below command line.
 
 ```shell
-acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -newkey pubkey.pem -cert ra_cert.pem -trusted capubs.pem -popo 0 -subject /CN=test-cert -extracertsout ca_certs.pem -certout test-cert.pem  -ignore_keyusage -popo 0
+acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -newkey pubkey.pem -cert ra_cert.pem -trusted capubs.pem -popo 0 -subject /CN=test-cert -extracertsout ca_certs.pem -certout test-cert.pem  -ignore_keyusage
 ```
 
 | Parameter | Value | Description |
@@ -48,10 +47,15 @@ The latest version of the documentation for the openssl cmp CLI can be found [he
 
 - note down the openssl command line for a successful certificate enrollment.
 
-- copy the ca_handler into the acme directory
+- copy the ca_handler into the acme directory or configure the cmp_ca_handler.py in `acme_srv.cfg`
 
 ```bash
 root@rlh:~# cp example/cmp_ca_handler.py acme/ca_handler.py
+```
+
+```config
+[CAhandler]
+handler_file: examples/ca_handler/cmp_ca_handler.py
 ```
 
 - modify the server configuration (/acme/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler
@@ -76,3 +80,5 @@ cmp_ignore_keyusage: True
 
 The parameters `-cmp ir`, `-popo 0` are set by the ca-handler. There is not need to specify these in the config. Same applies for `-subject`, `-extracertsout`, `-newkey` and `-certout` options.
 They will be set by the handler at runtime.
+
+Happy enrolling :-)
