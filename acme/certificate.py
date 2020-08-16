@@ -470,15 +470,16 @@ class Certificate(object):
                         result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts)
                     except BaseException as err_:
                         result = None
-                        self.logger.critical('Database error in Certificate.enroll_and_store(): {0}'.format(err_))
+                        self.logger.critical('acme2certifier database error in Certificate.enroll_and_store(): {0}'.format(err_))
                 else:
                     result = None
+                    self.logger.error('acme2certifier enrollment error: {0}'.format(error))                    
                     # store error message for later analysis
                     try:
                         self._store_cert_error(certificate_name, error, poll_identifier)
                     except BaseException as err_:
                         result = None
-                        self.logger.critical('Database error in Certificate.enroll_and_store(): {0}'.format(err_))
+                        self.logger.critical('acme2certifier database error in Certificate.enroll_and_store(): {0}'.format(err_))
 
                     # cover polling cases
                     if poll_identifier:

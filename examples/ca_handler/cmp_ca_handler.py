@@ -16,6 +16,7 @@ class CAhandler(object):
         self.config_dic = {}
         self.openssl_bin = None
         self.tmp_dir = None
+        self.recipient = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -38,19 +39,23 @@ class CAhandler(object):
         if os.path.isfile('{0}/{1}_capubs.pem'.format(self.tmp_dir, uts)):
             fso = open('{0}/{1}_capubs.pem'.format(self.tmp_dir, uts), 'r')
             ca_pem = fso.read()
-            # fso.close
+            fso.close
+
         # open certificate
         if os.path.isfile('{0}/{1}_cert.pem'.format(self.tmp_dir, uts)):
             fso = open('{0}/{1}_cert.pem'.format(self.tmp_dir, uts), 'r')
             cert_raw = fso.read()
-            # fso.close
-
+            fso.close
             # create bundle and raw cert
-            cert_bundle = cert_raw + ca_pem
-            cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
-            cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
-            cert_raw = cert_raw.replace('\n', '')
-
+            if cert_raw and ca_pem:
+                cert_bundle = cert_raw + ca_pem
+            elif cert_raw:
+                cert_bundle = cert_raw
+            if cert_raw:
+                cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
+                cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
+                cert_raw = cert_raw.replace('\n', '')
+        self.logger.debug('CAhandler._certs_bundle() ended with {0}/{1}'.format(bool(cert_bundle), bool(cert_raw)))
         return(cert_bundle, cert_raw)
 
     def _csr_san_get(self, csr):
@@ -60,11 +65,17 @@ class CAhandler(object):
 
         o_list = []
         for san in san_list:
-            (_type, value) = san.lower().split(':')
-            if value:
-                o_list.append(value)
+            try:
+                (_type, value) = san.lower().split(':')
+                if value:
+                    o_list.append(value)
+            except BaseException:
+                pass
 
-        sans = '"{0}"'.format(', '.join(o_list))
+        if o_list:
+            sans = '"{0}"'.format(', '.join(o_list))
+        else:
+            sans = None
         self.logger.debug('CAhandler._csr_san_get() ended with: {0}'.format(sans))
         return sans
 
@@ -73,25 +84,26 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
 
-        for ele in config_dic['CAhandler']:
-            if ele.startswith('cmp_'):
-                if ele == 'cmp_openssl_bin':
-                    self.openssl_bin = config_dic['CAhandler']['cmp_openssl_bin']
-                elif ele == 'cmp_tmp_dir':
-                    self.tmp_dir = config_dic['CAhandler']['cmp_tmp_dir']
-                elif ele == 'cmp_recipient':
-                    if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
-                        value = config_dic['CAhandler'][ele]
+        if 'CAhandler' in config_dic:
+            for ele in config_dic['CAhandler']:
+                if ele.startswith('cmp_'):
+                    if ele == 'cmp_openssl_bin':
+                        self.openssl_bin = config_dic['CAhandler']['cmp_openssl_bin']
+                    elif ele == 'cmp_tmp_dir':
+                        self.tmp_dir = config_dic['CAhandler']['cmp_tmp_dir']
+                    elif ele == 'cmp_recipient':
+                        if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
+                            value = config_dic['CAhandler'][ele]
+                        else:
+                            value = '/'+config_dic['CAhandler'][ele]
+                        value = value.replace(', ', '/')
+                        value = value.replace(',', '/')
+                        self.config_dic['recipient'] = value
                     else:
-                        value = '/'+config_dic['CAhandler'][ele]
-                    value = value.replace(', ', '/')
-                    value = value.replace(',', '/')
-                    self.config_dic['recipient'] = value
-                else:
-                    if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
-                        self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
-                    else:
-                        self.config_dic[ele[4:]] = config_dic['CAhandler'][ele]
+                        if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
+                            self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
+                        else:
+                            self.config_dic[ele[4:]] = config_dic['CAhandler'][ele]
 
         if 'cmd' not in self.config_dic:
             self.config_dic['cmd'] = 'ir'
@@ -104,6 +116,13 @@ class CAhandler(object):
                 os.makedirs(self.tmp_dir)
         else:
             self.logger.error('CAhandler config error: "cmp_tmp_dir" parameter must be specified in config_file')
+
+        if not self.openssl_bin:
+            self.logger.warning('CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)')
+            self.openssl_bin = '/usr/bin/openssl'
+
+        if not self.recipient:
+            self.logger.error('CAhandler config error: "cmp_recipient" is missing in config_file.')
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -185,17 +204,17 @@ class CAhandler(object):
             if subject and pubkey and san_list:
                 # dump public key
                 self._pubkey_save(uts, pubkey)
-
                 # build openssl command and run it
                 openssl_cmd = self._opensslcmd_build(uts, subject, san_list)
-                subprocess.call(openssl_cmd)
-
+                rcode = subprocess.call(openssl_cmd)
+                if rcode:
+                    self.logger.warning('CAhandler enrollment failed: {0}'.format(rcode))
+                    error = 'rc from enrollment not 0'
                 # generate certificates we need to return
                 if os.path.isfile('{0}/{1}_cert.pem'.format(self.tmp_dir, uts)):
                     (cert_bundle, cert_raw) = self._certs_bundle(uts)
                 else:
                     error = 'Enrollment failed'
-
                 # delete temporary files
                 self._tmp_files_delete(uts)
             else:
@@ -203,7 +222,7 @@ class CAhandler(object):
         else:
             error = 'Config incomplete'
 
-        self.logger.debug('Certificate.enroll() ended')
+        self.logger.debug('Certificate.enroll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, None)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
