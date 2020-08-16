@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 MD029 -->
-<!-- Installation on NGINX runnig on CentOS -->
+<!-- wiki-title Installation on NGINX runnig on CentOS -->
 # Installation on NGINX runnig on CentOS
 
 I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
