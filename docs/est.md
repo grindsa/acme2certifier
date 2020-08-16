@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- CA handler using EST protocol -->
 # Generic EST protocol handler
 
 The EST protocol handler is not bound to a specific CA and implements the ['cacerts'](https://tools.ietf.org/html/rfc7030#section-2.1) and ['simpleenroll'](https://tools.ietf.org/html/rfc7030#section-2.2.1) calls as defined in [RFC7030](https://tools.ietf.org/html/rfc7030).
