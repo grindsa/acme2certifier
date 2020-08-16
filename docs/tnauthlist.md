@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- Support for TNAuthList identifier and tkauth 01 challenges -->
 # TNAuthList support
 
 The support of TNAuthList identifier and tkauth-01 challenges is rather experimental. Main reason is that neither identifier nor challenge type are fully standardized.

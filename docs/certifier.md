@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- CA handler for NetGuard Certificate Manager and Insta Certifier -->
 # Connecting to Insta Certifier
 
 ## Prerequisites
