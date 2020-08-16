@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- CA handler for an openssl based CA stored on local file system -->
 # Support for an Openssl based CA stored on local file system
 
 The openssl CA handler is rather for testing and lab usage. I strongly recommend not to reuse it in production environments without reviewing local system configuration and hardening state

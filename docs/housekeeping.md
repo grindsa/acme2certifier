@@ -1,4 +1,5 @@
 <!-- markdownlint-disable  MD013 -->
+<!-- Reporting and housekeeping -->
 # Reporting and housekeeping
 
 The `Housekeeping` class contains a couple of methods for internal reporting and database maintenance.
