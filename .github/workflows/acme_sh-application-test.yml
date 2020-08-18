@@ -128,7 +128,7 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -139,7 +139,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -150,7 +150,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
 
     - name: "[ DEACTIVATE ] acme.sh"
       run: |
@@ -237,7 +237,7 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -248,7 +248,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -259,7 +259,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
 
     - name: "[ DEACTIVATE ] acme.sh"
       run: |
@@ -345,7 +345,7 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -356,7 +356,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -367,7 +367,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
 
     - name: "[ DEACTIVATE ] acme.sh"
       run: |
@@ -455,7 +455,7 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -466,7 +466,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
@@ -477,7 +477,7 @@ jobs:
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh --standalone --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
 
     - name: "[ DEACTIVATE ] acme.sh"
       run: |
