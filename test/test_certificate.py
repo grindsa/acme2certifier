@@ -121,7 +121,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.cert_san_get')
     def test_015_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans but failed order lookup"""
-        self.account.dbstore.order_lookup.return_value = {}
+        self.certificate.dbstore.order_lookup.return_value = {}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
@@ -135,63 +135,63 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.certificate.cert_san_get')
     def test_017_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order lookup returning identifiers without json structure) """
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_018_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with wrong sans) """
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_019_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with SAN entry which is not in the identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_020_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with single SAN entry and correct entry in identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_021_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with multiple SAN entries and correct entries in identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_022_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with one SAN entry and multiple entries in identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_023_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with uppercase SAN entries and lowercase entries in identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:SAN1.EXAMPLE.COM', 'DNS:SAN2.EXAMPLE.COM']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_024_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lowercase SAN entries and uppercase entries in identifier list"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
         mock_san.return_value = ['dns:san1.example.com', 'dns:san2.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
     @patch('acme.certificate.cert_san_get')
     def test_025_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lSAN entries (return none) and entries in identifier containing None"""
-        self.account.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
         mock_san.return_value = ['san1.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 

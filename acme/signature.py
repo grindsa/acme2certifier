@@ -21,6 +21,7 @@ class Signature(object):
         try:
             result = self.dbstore.jwk_load(kid)
         except BaseException as err_:
+            print(err_)
             self.logger.critical('acme2certifier database error in Signature._hwk_load(): {0}'.format(err_))
             result = None
         return result
