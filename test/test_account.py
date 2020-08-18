@@ -682,13 +682,15 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._onlyreturnexisting(protected, payload)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._onlyreturnexisting(): exc_acc_returnexit', lcm.output)
+        self.account.dbstore.account_lookup.side_effect = None
 
     def test_083_account__key_compare(self):
         """ test Account._key_compare() if dbstore.jwk_load raises an exception """
-        self.nonce.dbstore.jwk_load.side_effect = Exception('exc_key_compare')
+        self.account.dbstore.jwk_load.side_effect = Exception('exc_key_compare')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._key_compare('foo', 'bar')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._key_compare(): exc_key_compare', lcm.output)
+        self.account.dbstore.jwk_load.side_effect = None
 
     @patch('acme.account.Account._key_change_validate')
     @patch('acme.message.Message.check')

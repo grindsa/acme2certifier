@@ -325,14 +325,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_048_housekeeping__accountlist_get(self):
         """ test Housekeeping._accountlist_get - dbstore.accountlist_get() raises an exception  """
-        self.challenge.dbstore.accountlist_get.side_effect = Exception('exc_house_acc_get')
+        self.housekeeping.dbstore.accountlist_get.side_effect = Exception('exc_house_acc_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.housekeeping._accountlist_get()
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping._accountlist_get(): exc_house_acc_get', lcm.output)
 
     def test_049_housekeeping__certificatelist_get(self):
         """ test Housekeeping._certificatelist_get - dbstore.certificatelist_get() raises an exception  """
-        self.challenge.dbstore.certificatelist_get.side_effect = Exception('exc_house_cert_get')
+        self.housekeeping.dbstore.certificatelist_get.side_effect = Exception('exc_house_cert_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.housekeeping._certificatelist_get()
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.certificatelist_get(): exc_house_cert_get', lcm.output)

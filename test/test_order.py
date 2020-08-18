@@ -142,28 +142,28 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_011_order__lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and wrong authorization hash"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'identifier_key' : 'identifier_value'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': []}, self.order._lookup('foo'))
 
     @patch('acme.order.Order._info')
     def test_012_order__lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and correct authorization hash"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name']}, self.order._lookup('foo'))
 
     @patch('acme.order.Order._info')
     def test_013_order__lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and authorization hash having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
         self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}, self.order._lookup('foo'))
 
     @patch('acme.order.Order._info')
     def test_014_order__lookup(self, mock_oinfo):
         """ test order lookup status in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value'}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -171,7 +171,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_015_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -179,7 +179,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_016_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -187,7 +187,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_017_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0, 'notafter' : 0}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -195,7 +195,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_018_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -203,7 +203,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_019_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
-        self.authorization.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
+        self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
         e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_020_order__lookup(self, mock_oinfo):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and worng authorization"""
-        self.authorization.dbstore.authorization_lookup.return_value = 'foo'
+        self.order.dbstore.authorization_lookup.return_value = 'foo'
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
         e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order._lookup('foo'))
@@ -626,21 +626,21 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_074_order__info(self):
         """ test Order._info - dbstore.order_lookup() raises an exception  """
-        self.challenge.dbstore.order_lookup.side_effect = Exception('exc_order_info')
+        self.order.dbstore.order_lookup.side_effect = Exception('exc_order_info')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._info('oname')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._info(): exc_order_info', lcm.output)
 
     def test_075_order__process(self):
         """ test Order._process - dbstore.order_lookup() raises an exception  """
-        self.challenge.dbstore.certificate_lookup.side_effect = Exception('exc_order_process')
+        self.order.dbstore.certificate_lookup.side_effect = Exception('exc_order_process')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._process('oname', {'url': 'url'}, 'payload')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._process(): exc_order_process', lcm.output)
 
     def test_076_order__update(self):
         """ test Order._update - dbstore.order_update() raises an exception  """
-        self.challenge.dbstore.order_update.side_effect = Exception('exc_order_upd')
+        self.order.dbstore.order_update.side_effect = Exception('exc_order_upd')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._update({'url': 'url'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._update(): exc_order_upd', lcm.output)
@@ -648,7 +648,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.order.Order._info')
     def test_077_order__lookup(self, mock_info):
         """ test Order._lookup - dbstore.authorization_lookup() raises an exception  """
-        self.challenge.dbstore.authorization_lookup.side_effect = Exception('exc_authz_lookup')
+        self.order.dbstore.authorization_lookup.side_effect = Exception('exc_authz_lookup')
         mock_info.return_value = {'status': 'valid'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._lookup('oname')
