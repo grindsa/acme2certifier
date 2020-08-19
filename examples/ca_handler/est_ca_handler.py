@@ -4,6 +4,7 @@
 from __future__ import print_function
 import textwrap
 import requests
+from requests.auth import HTTPBasicAuth
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
 # pylint: disable=E0401
@@ -64,7 +65,11 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cacerts_get()')
         error = None
         try:
-            response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
+            if self.est_client_cert:
+                # client auth
+                response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
+            else:
+                response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle)
             response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except BaseException as err_:
@@ -149,7 +154,12 @@ class CAhandler(object):
         error = None
         try:
             headers = {'Content-Type': 'application/pkcs10'}
-            response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle)
+
+            if self.est_client_cert:
+                # client auth
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle)
+            else:
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle)
             response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except BaseException as err_:
@@ -173,7 +183,10 @@ class CAhandler(object):
             (error, ca_pem) = self._cacerts_get()
             if not error:
                 if ca_pem:
-                    (error, cert_raw) = self._simpleenroll(csr)
+                    if self.est_user or self.est_client_cert:
+                        (error, cert_raw) = self._simpleenroll(csr)
+                    else:
+                        error = 'Authentication information mssing'
                     if not error:
                         cert_bundle = cert_raw + ca_pem
                         cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
