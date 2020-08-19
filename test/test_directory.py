@@ -35,33 +35,39 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newNonce': 'http://tester.local/acme/newnonce'}, self.directory.directory_get())
+        output_dic = {'newNonce': 'http://tester.local/acme/newnonce'}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_003_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
-        self.assertDictContainsSubset({'newAccount': 'http://tester.local/acme/newaccount'}, self.directory.directory_get())
+        output_dic = {'newAccount': 'http://tester.local/acme/newaccount'}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_004_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.supress_version = True
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier'}}, self.directory.directory_get())
+        output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier'}}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_005_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.tos_url = 'foo'
         self.directory.supress_version = True
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'termsOfService': 'foo'}}, self.directory.directory_get())
+        output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'termsOfService': 'foo'}}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_006_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.version = '0.1'
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}}, self.directory.directory_get())
+        output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_007_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.version = '0.1'
         self.directory.tos_url = 'foo'
-        self.assertDictContainsSubset({'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'termsOfService': 'foo'}}, self.directory.directory_get())
+        output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'termsOfService': 'foo'}}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
 if __name__ == '__main__':
     unittest.main()
