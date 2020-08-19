@@ -11,7 +11,7 @@ and pick the appropriate release branch.
 
 - docker images containing nginx
 
-**Bugfixes/Improvements**
+**Bugfixes/Improvements**:
 
 - several fixes in unit-tests
 - unit-tests are splitted into separate files
@@ -19,7 +19,6 @@ and pick the appropriate release branch.
 - Github actions to test
   - certificate enrollment for all four containerized deployment options
   - tnauth functionality
-
 
 ## Changes in 0.11.1
 
