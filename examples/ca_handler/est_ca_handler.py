@@ -26,20 +26,19 @@ def _get_certificates(self):
         # pylint: disable=W0212
         certs = self._pkcs7.d.sign.cert
     elif self.type_is_signedAndEnveloped():
-        # pylint: disable=W0212    
+        # pylint: disable=W0212
         certs = self._pkcs7.d.signed_and_enveloped.cert
 
     pycerts = []
     for i in range(_lib.sk_X509_num(certs)):
         pycert = X509.__new__(X509)
-        # pylint: disable=W0212         
+        # pylint: disable=W0212
         pycert._x509 = _lib.sk_X509_value(certs, i)
         pycerts.append(pycert)
 
     if not pycerts:
         return None
     return tuple(pycerts)
-
 
 class CAhandler(object):
     """ EST CA  handler """
@@ -48,8 +47,9 @@ class CAhandler(object):
         self.logger = logger
         self.est_host = None
         self.est_client_cert = False
-        self.ca_bundle = False
-
+        self.est_user = None
+        self.est_password = None
+        self.ca_bundle = True
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.est_host:
@@ -78,18 +78,39 @@ class CAhandler(object):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
+
         if 'est_host' in config_dic['CAhandler']:
             self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
+        else:
+            self.logger.error('CAhandler._config_load(): missing "est_host" parameter in config file')
 
         # check if we need to use clientauth
         if 'est_client_cert' in config_dic['CAhandler'] and 'est_client_key' in config_dic['CAhandler']:
             self.est_client_cert = []
             self.est_client_cert.append(config_dic['CAhandler']['est_client_cert'])
             self.est_client_cert.append(config_dic['CAhandler']['est_client_key'])
+        elif 'est_client_cert' in config_dic['CAhandler'] or 'est_client_key' in config_dic['CAhandler']:
+            self.logger.error('CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file')
+
+        # check if we need to use user-auth
+        if 'est_user' in config_dic['CAhandler'] and 'est_password' in config_dic['CAhandler']:
+            self.est_user = config_dic['CAhandler']['est_user']
+            self.est_password = config_dic['CAhandler']['est_password']
+        elif 'est_user' in config_dic['CAhandler'] or 'est_password' in config_dic['CAhandler']:
+            self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
+
+        # check if we have one authentication scheme
+        if not self.est_client_cert and not self.est_user:
+            self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured')
+        elif self.est_client_cert and self.est_user:
+            self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together')
 
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
-            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+            try:
+                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+            except BaseException:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
         self.logger.debug('CAhandler._config_load() ended')
 
