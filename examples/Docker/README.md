@@ -1,12 +1,12 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Containerized installation using apache2 as webserver and wsgi or django -->
-# Containerized installation using apache2 as webserver and wsgi or django
+<!-- wiki-title Containerized installation using apache2 or nginx as webserver and wsgi or django -->
+# Containerized installation using apache2 or nginx as webserver and wsgi or django
 
-This should be the fastest and most convenient way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 20.04 container using apache2 as webserver.
+This should be the fastest and most convenient way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 20.04 container using either apache2 or nginx as webserver.
 
 Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. In this docker-compose those files are attached to data/ folder.
 
-`.env` contains options to switch between master or devel branch, choose choice between wsgi or django and select the webserver (apache2 or nginx) to be used.
+`.env` contains options to switch between master or devel branch, choose between wsgi or django and to select the webserver (apache2 or nginx)
 
 ```config
 COMPOSE_PROJECT_NAME=acme2certifier
@@ -41,6 +41,8 @@ The entry-point script will check during the start process if a configuration fi
 - [acme_srv.cfg file](../../examples/acme_srv.cfg) from the example directory
 - [stub_handler](../../examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
 
+In case your are running acme2certifer as django project a project specific `settings.py` will be created and also be stored in data/
+
 The container should be visible in the list of active containers
 
 ```bash
@@ -71,7 +73,7 @@ user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network
 }
 ```
 
-Both configuration file and ca_handler must be modified according to your setup.
+Configuration file, ca_handler and (optionally) settings.py must be modified according to your setup.
 
 To reload the modified files the container should be restarted.
 
