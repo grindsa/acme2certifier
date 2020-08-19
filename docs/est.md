@@ -42,7 +42,7 @@ ca_bundle: <filename>
 - est_host - URL of the est server service
 - est_client_key - Private key of the certificate used for TLS client-auth (acme/est/est.key.pem)
 - est_client_cert - Certificate used for TLS client-auth (acme/est/est.crt.pem)
-- ca_bundle - CA certificate bundle needed to valiate the EST server certificate (acme/est/ca_bundle.pem)
+- ca_bundle - CA certificate bundle needed to valiate the EST server certificate (acme/est/ca_bundle.pem). Setting to False disables the certificate check
 
 Below is the ca_bundle needed to interwork with EST reference implementation from [Cisco](http://testrfc7030.com/)
 
