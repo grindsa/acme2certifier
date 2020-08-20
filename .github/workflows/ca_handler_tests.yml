@@ -60,7 +60,7 @@ jobs:
     - name: "[ PREPARE ] est_ca handler using tls-client-auth"
       run: |
         sudo chmod 777 /etc/ssl/openssl.cnf
-        sudo echo "CipherString = DEFAULT@SECLEVEL=2" >> /etc/ssl/openssl.cnf
+        sudo echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
         sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
