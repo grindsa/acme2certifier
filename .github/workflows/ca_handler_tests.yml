@@ -42,6 +42,28 @@ jobs:
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
+    - name: "[ PREPARE ] setup xca ca_handler"
+      run: |
+        sudo mkdir -p examples/Docker/data/xca
+        sudo chmod -R 777 examples/Docker/data/xca
+        sudo cp examples/ca_handler/xca_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/acme2certifier.xdb
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "xdb_file: volume/xca/acme2certifier.xdb" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "issuing_ca_name: sub-ca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "passphrase: test1234" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ ENROLL ] via xca ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+
     - name: "[ PREPARE ] patch est_ca handler for testrfc7030.com"
       run: |
         sudo apt-get install curl openssl patch
@@ -61,7 +83,7 @@ jobs:
         sudo openssl base64 -d -in /tmp/cert.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out examples/Docker/data/est/est_client_cert.pem
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "est_host: https://testrfc7030.com:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_password: estpwd" >> examples/Docker/data/acme_srv.cfg
