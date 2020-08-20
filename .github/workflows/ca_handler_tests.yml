@@ -23,10 +23,32 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] est_ca handler with http-basic-auth"
+    - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        sudo apt-get install curl openssl
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ ENROLL ] via openssl ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE ] patch est_ca handler for testrfc7030.com"
+      run: |
+        sudo apt-get install curl openssl patch
         sudo cp examples/ca_handler/est_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
+    - name: "[ PREPARE ] setup using http-basic-auth"
+      run: |
         sudo mkdir -p examples/Docker/data/est
         sudo chmod -R 777 examples/Docker/data/est
         sudo touch $HOME/.rnd
@@ -48,16 +70,12 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
-
     - name: "[ ENROLL ] via EST using http-basic-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/est/ca_bundle.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ PREPARE ] est_ca handler using tls-client-auth"
+    - name: "[ PREPARE ] setup using tls-client-auth"
       run: |
         sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
@@ -65,14 +83,13 @@ jobs:
         sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker exec -i acme-srv bash -c 'echo "CipherString = DEFAULT@SECLEVEL=0" >> /etc/ssl/openssl.cnf' 
         docker-compose restart
         docker-compose logs
-     
+
     - name: "[ ENROLL ] via est using tls-client-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/est/ca_bundle.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}

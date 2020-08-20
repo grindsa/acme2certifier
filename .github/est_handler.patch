@@ -1,0 +1,3 @@
+6a7,8
+> import urllib3
+> requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'ALL:@SECLEVEL=1'
