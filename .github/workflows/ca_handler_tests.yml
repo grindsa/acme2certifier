@@ -65,7 +65,7 @@ jobs:
         sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose exec acme-srv bash -c 'echo "CipherString = DEFAULT@SECLEVEL=0" >> /etc/ssl/openssl.cnf' 
+        docker-compose exec -i acme-srv bash -c 'echo "CipherString = DEFAULT@SECLEVEL=0" >> /etc/ssl/openssl.cnf' 
         docker-compose restart
         docker-compose logs
      
