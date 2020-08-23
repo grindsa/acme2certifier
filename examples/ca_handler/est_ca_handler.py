@@ -64,16 +64,21 @@ class CAhandler(object):
         """ get ca certs from cerver """
         self.logger.debug('CAhandler._cacerts_get()')
         error = None
-        try:
-            if self.est_client_cert:
-                # client auth
-                response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
-            else:
-                response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle)
-            response.raise_for_status()
-            pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
-        except BaseException as err_:
-            error = err_
+        if self.est_host:
+            try:
+                if self.est_client_cert:
+                    # client auth
+                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
+                else:
+                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle)
+                pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
+            except BaseException as err_:
+                self.logger.error('CAhandler._cacerts_get() returned an error: {0}'.format(err_))
+                error = err_
+                pem = None
+        else:
+            self.logger.error('CAhandler._cacerts_get() configuration incomplete: "est_host" parameter is missing')
+            error = None
             pem = None
 
         self.logger.debug('CAhandler._cacerts_get() ended with err: {0}'.format(error))
@@ -154,15 +159,15 @@ class CAhandler(object):
         error = None
         try:
             headers = {'Content-Type': 'application/pkcs10'}
-
             if self.est_client_cert:
                 # client auth
                 response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle)
             else:
                 response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle)
-            response.raise_for_status()
+            # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except BaseException as err_:
+            self.logger.error('CAhandler._simpleenroll() returned an error: {0}'.format(err_))
             error = err_
             pem = None
 
@@ -186,14 +191,20 @@ class CAhandler(object):
                     if self.est_user or self.est_client_cert:
                         (error, cert_raw) = self._simpleenroll(csr)
                     else:
-                        error = 'Authentication information mssing'
+                        error = 'Authentication information missing'
+                        self.logger.error('CAhandler.enroll(): {0}'.format(error))
                     if not error:
                         cert_bundle = cert_raw + ca_pem
                         cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
                         cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
                         cert_raw = cert_raw.replace('\n', '')
+                    else:
+                        self.logger.error('CAhandler.enroll(): {0}'.format(error))
                 else:
                     error = 'no CA certificates found'
+                    self.logger.error('CAhandler.enroll(): {0}'.format(error))
+            else:
+                self.logger.error('CAhandler.enroll(): {0}'.format(error))
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
