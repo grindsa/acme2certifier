@@ -90,10 +90,10 @@ django project. Running acme2certifier as django project allows to use other
 database backendes than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker
-containers. I am not providing prepared images (I am to lazy to do continuous
-patch management) but instructions and ready-made scripts to build your own container.
+containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) as well as [instructions to build your own container](examples/Docker/).
 
-- [Containerized installation using apache2 as webserver and wsgi or django](examples/Docker/)
+- [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
+- [Instructions to build your own container](examples/Docker/)
 - [Installation as wsgi-script running on apache2](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX](docs/install_nginx_wsgi.md)
 
