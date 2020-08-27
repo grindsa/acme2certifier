@@ -168,7 +168,7 @@ class CAhandler(object):
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except BaseException as err_:
             self.logger.error('CAhandler._simpleenroll() returned an error: {0}'.format(err_))
-            error = err_
+            error = str(err_)
             pem = None
 
         self.logger.debug('CAhandler._simpleenroll() ended with err: {0}'.format(error))
