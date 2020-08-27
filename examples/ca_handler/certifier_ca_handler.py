@@ -178,6 +178,7 @@ class CAhandler(object):
                         if 'certificate' in request_dic:
                             # poll identifier for later storage
                             cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                            # pylint: disable=R1723
                             if 'certificateBase64' in cert_dic:
                                 # this is a valid cert generate the bundle
                                 error = None
@@ -207,32 +208,35 @@ class CAhandler(object):
         pem_list = []
         issuer_loop = True
 
-        while issuer_loop:
-            if 'certificateBase64' in cert_dic:
-                pem_list.append(cert_dic['certificateBase64'])
-            else:
-                # stop if there is no pem content in the json response
-                issuer_loop = False
-                break
-            if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
-                if 'issuer' in cert_dic:
-                    self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
-                    ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=False).json()
+        if cert_dic:
+            while issuer_loop:
+                if 'certificateBase64' in cert_dic:
+                    pem_list.append(cert_dic['certificateBase64'])
                 else:
-                    self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
-                    ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=False).json()
+                    # stop if there is no pem content in the json response
+                    issuer_loop = False
+                    break
+                if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
+                    if 'issuer' in cert_dic:
+                        self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
+                        ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=False).json()
+                    else:
+                        self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
+                        ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=False).json()
 
-                cert_dic = {}
-                if 'certificates' in ca_cert_dic:
-                    if 'active' in ca_cert_dic['certificates']:
-                        cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=False).json()
-            else:
-                issuer_loop = False
-                break
-
-        pem_file = ''
-        for cert in pem_list:
-            pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
+                    cert_dic = {}
+                    if 'certificates' in ca_cert_dic:
+                        if 'active' in ca_cert_dic['certificates']:
+                            cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=False).json()
+                else:
+                    issuer_loop = False
+                    break
+        if pem_list:
+            pem_file = ''
+            for cert in pem_list:
+                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
+        else:
+            pem_file = None
 
         self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
         return pem_file
