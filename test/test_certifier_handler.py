@@ -603,6 +603,93 @@ class TestACMEHandler(unittest.TestCase):
         mock_chain.return_value = 'chain'
         self.assertEqual((None, 'chain', 'foodecode'), self.cahandler.trigger(payload))
 
+    def test_064__pem_cert_chain_generate(self):
+        """ _pem_cert_chain_generate - empty cert_dic """
+        cert_dic = {}
+        self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    def test_065__pem_cert_chain_generate(self):
+        """ _pem_cert_chain_generate - wrong dic """
+        cert_dic = {'foo': 'bar'}
+        self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    def test_066__pem_cert_chain_generate(self):
+        """ _pem_cert_chain_generate - certificateBase64 in dict """
+        cert_dic = {'certificateBase64': 'certificateBase64'}
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase64\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_067__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - issuer in dict without certificateBase64 """
+        cert_dic = {'issuer': 'issuer'}
+        mockresponse = Mock()
+        mock_get.return_value = mockresponse
+        mockresponse.json = lambda: {'foo': 'bar'}
+        self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_068__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - request returns "certificates" but no active """
+        cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificates': 'certificates'}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_069__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - request returns certificate and active, 2nd request is bogus """
+        cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificates': {'active': 'active'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_070__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - request returns certificate two certs """
+        cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificates': {'active': 'active'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificateBase64': 'certificateBase642', 'issuer': 'issuer'}
+        mockresponse3 = Mock()
+        mockresponse3.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2, mockresponse3]
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase642\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_071__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - request returns certificate three certs """
+        cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificates': {'active': 'active'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificateBase64': 'certificateBase642', 'issuer': 'issuer'}
+        mockresponse3 = Mock()
+        mockresponse3.json = lambda: {'certificates': {'active': 'active'}}
+        mockresponse4 = Mock()
+        mockresponse4.json = lambda: {'certificateBase64': 'certificateBase643', 'issuer': 'issuer'}
+        mockresponse5 = Mock()
+        mockresponse5.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2, mockresponse3, mockresponse4, mockresponse5]
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase642\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase643\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
+    @patch('requests.get')
+    def test_072__pem_cert_chain_generate(self, mock_get):
+        """ _pem_cert_chain_generate - issuerCa in """
+        cert_dic = {'issuerCa': 'issuerCa', 'certificateBase64': 'certificateBase641'}
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificates': 'certificates'}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):
