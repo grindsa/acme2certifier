@@ -14,6 +14,7 @@ RUN apt-get install --no-install-recommends -y \
     python3-mysqldb \
     python3-pymysql \
     python3-yaml \
+    python3-cryptography \    
  && rm -rf /var/lib/apt/lists/*
 
 # install python requirements
@@ -42,12 +43,12 @@ COPY examples/nginx/supervisord.conf /etc
 RUN  chown -R www-data /var/www/acme2certifier/acme && \
      rm /etc/nginx/sites-enabled/default && \
      ln -s /etc/nginx/sites-available/acme.conf /etc/nginx/sites-enabled/acme.conf
-     
+
 RUN chown -R www-data:www-data /var/www/acme2certifier/
 RUN rm /var/www/acme2certifier/acme2certifier/settings.py && \
     sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini
-    
+
 COPY examples/Docker/nginx/django/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
 

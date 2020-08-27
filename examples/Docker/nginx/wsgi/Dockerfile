@@ -9,6 +9,7 @@ RUN apt-get install --no-install-recommends -y \
     uwsgi \
     uwsgi-plugin-python3 \
     curl \
+    python3-cryptography \    
 && rm -rf /var/lib/apt/lists/*
 
 # install python requirements
@@ -50,7 +51,7 @@ WORKDIR /var/www/acme2certifier
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["/usr/local/bin/supervisord"]
-	
+
 # CMD ["/bin/bash"]
 
 EXPOSE 80 443

@@ -9,6 +9,7 @@ RUN apt-get install --no-install-recommends -y \
     apache2-data \
     libapache2-mod-wsgi-py3 \
     curl \
+    python3-cryptography \    
  && rm -rf /var/lib/apt/lists/*
 
 # install python requirements
