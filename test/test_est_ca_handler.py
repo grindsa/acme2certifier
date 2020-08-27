@@ -192,7 +192,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.est_ca_handler.b64_decode')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem')
-    @patch.object(requests, 'get')
+    @patch('requests.get')
     def test_021__cacerts_get(self, mock_req, mock_to_pem, _mock_b64):
         """ test _cacerts_get() request.get triggers exception """
         mock_req.side_effect = Exception('exc_cacerts_get')
@@ -220,7 +220,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.est_ca_handler.b64_decode')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem')
-    @patch.object(requests, 'post')
+    @patch('requests.post')
     def test_023__simpleenroll(self, mock_req, mock_to_pem, _mock_b64):
         """ test _cacerts_get() successful run """
         mock_req.side_effect = Exception('exc_simple_enroll')
@@ -229,7 +229,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.ca_bundle = ['foo_bundle']
         self.cahandler.est_client_cert = 'est_client_cert'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._simpleenroll('csr')
+            self.assertEqual(('exc_simple_enroll', None), self.cahandler._simpleenroll('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._simpleenroll() returned an error: exc_simple_enroll', lcm.output)
 
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
