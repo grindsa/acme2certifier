@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # update status fields
     print('adding additional status fields to table...')
-    STATUS_LIST = ['expired', 'deactivated', 'revoked']
+    STATUS_LIST = ['invalid', 'pending', 'ready', 'processing', 'valid', 'expired', 'deactivated', 'revoked']
     for status in STATUS_LIST:
         OBJ, _CREATED = Status.objects.update_or_create(name=status, defaults={'name': status})
 
