@@ -20,253 +20,253 @@ jobs:
         DOCKERHUB_REPOSITORY: grindsa/acme2certifier
 
 
-build_and_upload_images_to_hub:
-  name: Push images to dockerhub
-  runs-on: ubuntu-latest
-  steps:
-    - name: "Get current version"
-      uses: oprypin/find-latest-tag@v1
-      with:
-        repository: ${{ github.repository }}  # The repository to scan.
-        releases-only: true  # We know that all relevant tags have a GitHub release for them.
-      id: acme2certifier_ver  # The step ID to refer to later.
+  build_and_upload_images_to_hub:
+    name: Push images to dockerhub
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Get current version"
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}  # The repository to scan.
+          releases-only: true  # We know that all relevant tags have a GitHub release for them.
+        id: acme2certifier_ver  # The step ID to refer to later.
 
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: "Retrieve Version from version.py"
-      run: |
-        echo ::set-env name=TAG_NAME::$(cat acme/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g)
-        echo ::set-env name=APP_NAME::$(echo ${{ github.repository }} | awk -F / '{print $2}')
+      - name: "Retrieve Version from version.py"
+        run: |
+          echo ::set-env name=TAG_NAME::$(cat acme/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g)
+          echo ::set-env name=APP_NAME::$(echo ${{ github.repository }} | awk -F / '{print $2}')
 
-    - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "Create images"
-      run: |
-        cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
-        cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-django -f - .  --no-cache
-        cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
-        cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
+      - name: "Create images"
+        run: |
+          cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
+          cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-django -f - .  --no-cache
+          cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
+          cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
 
-    - name: "upload images to hub.docker.com"
-      run: |
-        docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-        docker push grindsa/acme2certifier
-    - name: "delete images from local repository"
-      run: |
-        docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
+      - name: "upload images to hub.docker.com"
+        run: |
+          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker push grindsa/acme2certifier
+      - name: "delete images from local repository"
+        run: |
+          docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
 
-apache2_wsgi:
-  name: Test acme2certifier:apache2-wsgi image
-  needs: [build_and_upload_images_to_hub]
-  runs-on: ubuntu-latest
-  steps:
+  apache2_wsgi:
+    name: Test acme2certifier:apache2-wsgi image
+    needs: [build_and_upload_images_to_hub]
+    runs-on: ubuntu-latest
+    steps:
 
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
-      run: |
-        docker network create acme
-        sudo mkdir -p examples/Docker/data
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+      - name: "[ PREPARE ] setup openssl ca_handler"
+        run: |
+          docker network create acme
+          sudo mkdir -p examples/Docker/data
+          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] apache2 django container"
-      run: |
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
+      - name: "[ PREPARE ] apache2 django container"
+        run: |
+          docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+      - name: "[ PREPARE ] prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
 
-    - name: "[ ENROLL ] via openssl ca_handler"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+      - name: "[ ENROLL ] via openssl ca_handler"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ DEACTIVATE ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
+      - name: "[ DEACTIVATE ] acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
 
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        cd examples/Docker
-        docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          cd examples/Docker
+          docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
 
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v2
-      if: ${{ failure() }}
-      with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
-test_apache2_django:
-  name: Test acme2certifier:apache2-django image
-  needs: [build_and_upload_images_to_hub]
-  runs-on: ubuntu-latest
-  steps:
+  test_apache2_django:
+    name: Test acme2certifier:apache2-django image
+    needs: [build_and_upload_images_to_hub]
+    runs-on: ubuntu-latest
+    steps:
 
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] setup openssl ca_handler and django config"
-      run: |
-        docker network create acme
-        sudo mkdir -p examples/Docker/data
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+      - name: "[ PREPARE ] setup openssl ca_handler and django config"
+        run: |
+          docker network create acme
+          sudo mkdir -p examples/Docker/data
+          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/django_settings.py examples/Docker/data/settings.py
 
-    - name: "[ PREPARE ] apache2 wsgi container"
-      run: |
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-django
-        docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
-        sudo chmod a+w examples/Docker/data/db.sqlite3
+      - name: "[ PREPARE ] apache2 wsgi container"
+        run: |
+          docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-django
+          docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
+          sudo chmod a+w examples/Docker/data/db.sqlite3
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+      - name: "[ PREPARE ] prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
 
-    - name: "[ ENROLL ] via openssl ca_handler"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+      - name: "[ ENROLL ] via openssl ca_handler"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ DEACTIVATE ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
+      - name: "[ DEACTIVATE ] acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
 
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        cd examples/Docker
-        docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          cd examples/Docker
+          docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
 
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v2
-      if: ${{ failure() }}
-      with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
-nginx_wsgi:
-  name: Test acme2certifier:nginx-wsgi image
-  needs: [build_and_upload_images_to_hub]
-  runs-on: ubuntu-latest
-  steps:
+  nginx_wsgi:
+    name: Test acme2certifier:nginx-wsgi image
+    needs: [build_and_upload_images_to_hub]
+    runs-on: ubuntu-latest
+    steps:
 
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
-      run: |
-        docker network create acme
-        sudo mkdir -p examples/Docker/data
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+      - name: "[ PREPARE ] setup openssl ca_handler"
+        run: |
+          docker network create acme
+          sudo mkdir -p examples/Docker/data
+          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] nginx wsgi container"
-      run: |
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:nginx-wsgi
+      - name: "[ PREPARE ] nginx wsgi container"
+        run: |
+          docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:nginx-wsgi
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+      - name: "[ PREPARE ] prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
 
-    - name: "[ ENROLL ] via openssl ca_handler"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+      - name: "[ ENROLL ] via openssl ca_handler"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ DEACTIVATE ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
+      - name: "[ DEACTIVATE ] acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
 
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        cd examples/Docker
-        docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          cd examples/Docker
+          docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
 
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v2
-      if: ${{ failure() }}
-      with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
-test_nginx_django:
-  name: Test acme2certifier:nginx-django image
-  needs: [build_and_upload_images_to_hub]
-  runs-on: ubuntu-latest
-  steps:
+  test_nginx_django:
+    name: Test acme2certifier:nginx-django image
+    needs: [build_and_upload_images_to_hub]
+    runs-on: ubuntu-latest
+    steps:
 
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] setup openssl ca_handler and django config"
-      run: |
-        docker network create acme
-        sudo mkdir -p examples/Docker/data
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+      - name: "[ PREPARE ] setup openssl ca_handler and django config"
+        run: |
+          docker network create acme
+          sudo mkdir -p examples/Docker/data
+          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/django_settings.py examples/Docker/data/settings.py
 
-    - name: "[ PREPARE ] nginx django container"
-      run: |
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:nginx-django
-        docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
-        sudo chmod a+w examples/Docker/data/db.sqlite3
+      - name: "[ PREPARE ] nginx django container"
+        run: |
+          docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:nginx-django
+          docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
+          sudo chmod a+w examples/Docker/data/db.sqlite3
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+      - name: "[ PREPARE ] prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
 
-    - name: "[ ENROLL ] via openssl ca_handler"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+      - name: "[ ENROLL ] via openssl ca_handler"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ DEACTIVATE ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
+      - name: "[ DEACTIVATE ] acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
 
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        cd examples/Docker
-        docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          cd examples/Docker
+          docker logs acme-srv > ${{ github.workspace }}/artifact/docker.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker.log data acme-sh
 
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v2
-      if: ${{ failure() }}
-      with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
