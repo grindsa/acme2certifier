@@ -209,17 +209,6 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
-        """ revoke certificate """
-        self.logger.debug('CAhandler.tsg_id_lookup()')
-
-        code = 500
-        message = 'urn:ietf:params:acme:error:serverInternal'
-        detail = 'Revocation is not supported.'
-
-        self.logger.debug('CAhandler.revoke() ended')
-        return(code, message, detail)
-
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
@@ -231,6 +220,17 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def revoke(self, _cert, _rev_reason, _rev_date):
+        """ revoke certificate """
+        self.logger.debug('CAhandler.tsg_id_lookup()')
+
+        code = 500
+        message = 'urn:ietf:params:acme:error:serverInternal'
+        detail = 'Revocation is not supported.'
+
+        self.logger.debug('CAhandler.revoke() ended')
+        return(code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """
