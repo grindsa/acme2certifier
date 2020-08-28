@@ -45,7 +45,7 @@ jobs:
       - name: "Create images"
         run: |
           cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
-          cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-django -f - .  --no-cache
+          cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
           cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
           cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
 
