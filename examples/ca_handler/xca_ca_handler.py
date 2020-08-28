@@ -145,7 +145,10 @@ class CAhandler(object):
             self.issuing_ca_key = config_dic['CAhandler']['issuing_ca_key']
 
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
-            self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
+            try:
+                self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded'.format())
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
@@ -463,7 +466,7 @@ class CAhandler(object):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
-        error = None
+        error = 'Method not implemented.'
         cert_bundle = None
         cert_raw = None
         rejected = False
@@ -521,7 +524,7 @@ class CAhandler(object):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
-        error = None
+        error = 'Method not implemented.'
         cert_bundle = None
         cert_raw = None
         self._stub_func(payload)

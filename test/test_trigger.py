@@ -254,5 +254,13 @@ class TestACMEHandler(unittest.TestCase):
             self.trigger._payload_process('payload')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() add: exc_trigger_order_add', lcm.output)
 
+    @patch('acme.trigger.load_config')
+    def test_021_config_load(self, mock_load_cfg):
+        """ test _config_load missing ca_handler """
+        mock_load_cfg.return_value = {}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertIn('ERROR:test_a2c:Trigger._config_load(): CAhandler configuration missing in config file', lcm.output)
+
 if __name__ == '__main__':
     unittest.main()
