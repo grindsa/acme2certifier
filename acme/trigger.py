@@ -61,10 +61,18 @@ class Trigger(object):
             except BaseException:
                 ca_handler_module = importlib.import_module('acme.ca_handler')
         else:
-            ca_handler_module = importlib.import_module('acme.ca_handler')
+            if 'CAhandler' in config_dic:
+                ca_handler_module = importlib.import_module('acme.ca_handler')
+            else:
+                self.logger.error('Trigger._config_load(): CAhandler configuration missing in config file')
+                ca_handler_module = None
+
+        if ca_handler_module:
+            # store handler in variable
+            self.cahandler = ca_handler_module.CAhandler
+
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
-        # store handler in variable
-        self.cahandler = ca_handler_module.CAhandler
+        self.logger.debug('Certificate._config_load() ended.')
 
     def _payload_process(self, payload):
         """ process payload """
