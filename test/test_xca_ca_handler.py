@@ -577,7 +577,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.assertFalse(self.cahandler._cert_search('name', 'item_no_cert'))
 
-    @patch('examples.ca_handler.est_ca_handler.load_config')
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_075_config_load(self, mock_load_cfg):
         """ test _config_load - ca_chain is not json format """
         mock_load_cfg.return_value = {'CAhandler': {'ca_cert_chain_list': '[foo]'}}
