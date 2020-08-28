@@ -466,7 +466,7 @@ class CAhandler(object):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
-        error = None
+        error = 'Method not implemented.'
         cert_bundle = None
         cert_raw = None
         rejected = False
@@ -524,7 +524,7 @@ class CAhandler(object):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
-        error = None
+        error = 'Method not implemented.'
         cert_bundle = None
         cert_raw = None
         self._stub_func(payload)
