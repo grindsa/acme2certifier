@@ -9,7 +9,7 @@ and pick the appropriate release branch.
 
 **Upgrade notes**:
 
-- its enough to run the upgrade script. Depending on your configureatin you need to either run
+- its enough to run the upgrade script. Depending on your configuration you need to either run
   - `tools/db_update.py` when using the wsgi_handler or
   - `tools/django_update.py` in case you are using the django.handler
 
