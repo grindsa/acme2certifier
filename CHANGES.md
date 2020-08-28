@@ -7,18 +7,27 @@ and pick the appropriate release branch.
 
 ## Changes in 0.12
 
+**Upgrade notes**:
+
+- its enough to run the upgrade script. Depending on your configureatin you need to either run
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django.handler
+
 **Features**:
 
 - docker images containing nginx
+- readymade images at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier)
 
 **Bugfixes/Improvements**:
 
 - several fixes in unit-tests
 - unit-tests are splitted into separate files
+- unittests for `certifier_ca_handler.py`
 - documentation updates
 - Github actions to test
   - certificate enrollment for all four containerized deployment options
   - tnauth functionality
+  - image creation and dockerhup upload
 
 ## Changes in 0.11.1
 
