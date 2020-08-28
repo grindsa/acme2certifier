@@ -100,11 +100,17 @@ class Certificate(object):
             except BaseException:
                 ca_handler_module = importlib.import_module('acme.ca_handler')
         else:
-            ca_handler_module = importlib.import_module('acme.ca_handler')
-        self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
-        # store handler in variable
-        self.cahandler = ca_handler_module.CAhandler
+            if 'CAhandler' in config_dic:
+                ca_handler_module = importlib.import_module('acme.ca_handler')
+            else:
+                self.logger.error('Certificate._config_load(): CAhandler configuration missing in config file')
+                ca_handler_module = None
 
+        if ca_handler_module:
+            # store handler in variable
+            self.cahandler = ca_handler_module.CAhandler
+
+        self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
 
     def _csr_check(self, certificate_name, csr):
@@ -446,10 +452,10 @@ class Certificate(object):
             for cert in cert_list:
                 if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
                     if cert['cert_raw']:
-                        (issue_uts, expire_uts) = cert_dates_get(self.logger,  cert['cert_raw'])
+                        (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
                         if issue_uts or expire_uts:
                             self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
-        return None
+        # return None
 
     def enroll_and_store(self, certificate_name, csr):
         """ cenroll and store certificater """
@@ -473,7 +479,7 @@ class Certificate(object):
                         self.logger.critical('acme2certifier database error in Certificate.enroll_and_store(): {0}'.format(err_))
                 else:
                     result = None
-                    self.logger.error('acme2certifier enrollment error: {0}'.format(error))                    
+                    self.logger.error('acme2certifier enrollment error: {0}'.format(error))
                     # store error message for later analysis
                     try:
                         self._store_cert_error(certificate_name, error, poll_identifier)
@@ -637,7 +643,6 @@ class Certificate(object):
         try:
             self.dbstore.certificate_add(data_dic)
         except BaseException as err_:
-            result = None
             self.logger.critical('Database error in Certificate.store_csr(): {0}'.format(err_))
         self.logger.debug('Certificate.store_csr() ended')
         return certificate_name

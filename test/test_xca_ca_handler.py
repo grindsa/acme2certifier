@@ -32,7 +32,7 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         from examples.ca_handler.xca_ca_handler import CAhandler
         logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger('test_xca_handler')
+        self.logger = logging.getLogger('test_a2c')
         self.cahandler = CAhandler(False, self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         _prepare(self.dir_path)
@@ -576,6 +576,15 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._cert_sarch item search succ / cert_search failed """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.assertFalse(self.cahandler._cert_search('name', 'item_no_cert'))
+
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
+    def test_075_config_load(self, mock_load_cfg):
+        """ test _config_load - ca_chain is not json format """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_cert_chain_list': '[foo]'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.ca_cert_chain_list)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded', lcm.output)
 
 if __name__ == '__main__':
 

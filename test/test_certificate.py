@@ -1007,5 +1007,20 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.certlist_search('type', 'value')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search', lcm.output)
 
+    @patch('acme.certificate.load_config')
+    def test_129_config_load(self, mock_load_cfg):
+        """ test _config_load empty dictionary """
+        mock_load_cfg.return_value = {}
+        self.certificate._config_load()
+        self.assertFalse(self.certificate.tnauthlist_support)
+
+    @patch('acme.certificate.load_config')
+    def test_130_config_load(self, mock_load_cfg):
+        """ test _config_load missing ca_handler """
+        mock_load_cfg.return_value = {}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._config_load()
+        self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
+
 if __name__ == '__main__':
     unittest.main()
