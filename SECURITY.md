@@ -17,5 +17,7 @@ Please report security vulnerabilities directly to grindelsack@gmail.com and pro
 - Used software version and deployment mode
 - The actual behaviour
 - The expected behavour
+- Steps to replicate the problem (if they there are any)
+- Debug logs from acme2certifier
 
 Preferred-Languages: en, de.
