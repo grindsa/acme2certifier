@@ -41,8 +41,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._api_post()')
         try:
             api_response = requests.post(url=url, json=data, headers=self.headers, verify=False).json()
-        except BaseException as err:
-            api_response = err
+        except BaseException as err_:
+            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            api_response = str(err_)
 
         self.logger.debug('CAhandler._api_post() ended with: {0}'.format(api_response))
         return api_response
@@ -56,11 +57,12 @@ class CAhandler(object):
         if 'CAs' in ca_list:
             for ca_cert in ca_list['CAs']:
                 # compare name or description field against config value
-                if (ca_cert['name'] == self.ca_name or ca_cert['desc'] == self.ca_name):
-                    ca_id = ca_cert['id']
+                if ('name' in ca_cert and ca_cert['name'] == self.ca_name) or ('desc' in ca_cert and ca_cert['desc'] == self.ca_name):
+                    if 'id' in ca_cert:
+                        ca_id = ca_cert['id']
         else:
             # log error
-            self.logger.error('ca_id.lookup() no CAs found....')
+            self.logger.error('ca_id.lookup() no CAs found in response ...')
 
         if not ca_id:
             # log error
