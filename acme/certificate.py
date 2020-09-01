@@ -63,23 +63,24 @@ class Certificate(object):
 
             # check if we have a tnauthlist identifier
             tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
-
             if self.tnauthlist_support and tnauthlist_identifer_in:
                 try:
                     # get list of certextensions in base64 format and identifier status
                     tnauthlist = cert_extensions_get(self.logger, certificate)
                     identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                 except BaseException as err_:
+                    # enough to set identifier_list as empty list
                     identifier_status = []
-                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
+                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate. Error: {0}'.format(err_))
             else:
                 try:
                     # get sans
                     san_list = cert_san_get(self.logger, certificate)
                     identifier_status = self._identifer_status_list(identifiers, san_list)
                 except BaseException as err_:
+                    # enough to set identifier_list as empty list
                     identifier_status = []
-                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate.\nerror: {0}'.format(err_))
+                    self.logger.warning('Certificate._authorization_check() error while loading parsing certifcate. Error: {0}'.format(err_))
 
         result = False
         if identifier_status and False not in identifier_status:
@@ -188,6 +189,9 @@ class Certificate(object):
                             break
             self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
             identifier_status.append(san_is_in)
+
+        if not identifier_status:
+            identifier_status.append(False)
 
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
