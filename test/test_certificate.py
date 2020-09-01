@@ -337,7 +337,7 @@ class TestACMEHandler(unittest.TestCase):
         """ failed check no sans """
         identifier_dic = [{'foo': 'bar'}]
         san_list = []
-        self.assertEqual([], self.certificate._identifer_status_list(identifier_dic, san_list))
+        self.assertEqual([False], self.certificate._identifer_status_list(identifier_dic, san_list))
 
     def test_049_certificate__identifer_status_list(self):
         """ failed check no identifiers """
@@ -965,6 +965,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._csr_check('cert_name', 'csr')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._csr_check(): exc_csr_chk', lcm.output)
+        # self.certificate.dbstore.order_lookup.side_effect = []
 
     def test_124_certificate__info(self):
         """ test Certificate._info - dbstore.certificate_lookup() raises an exception  """
@@ -1021,6 +1022,56 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
         self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
+
+    @patch('acme.certificate.cert_san_get')
+    def test_131_certificate__authorization_check(self, mock_san):
+        """ test Certificate.authorization_check - cert_san_get raises exception) """
+        self.certificate.dbstore.order_lookup.side_effect = None
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        mock_san.side_effect = Exception('cert_san_get')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+        self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_san_get', lcm.output)
+
+    @patch('acme.certificate.Certificate._identifer_status_list')
+    @patch('acme.certificate.cert_san_get')
+    def test_132_certificate__authorization_check(self, mock_san, mock_statlist):
+        """ test Certificate.authorization_check - cert_san_get raises exception) """
+        self.certificate.dbstore.order_lookup.side_effect = None
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        mock_san.return_value = ['foo']
+        mock_statlist.side_effect = Exception('idstat_exc')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+        self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: idstat_exc', lcm.output)
+
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.cert_extensions_get')
+    def test_133_certificate__authorization_check(self, mock_certext, mock_tnin):
+        """ test Certificate.authorization_check cert_extensions_get raises exception) """
+        self.certificate.dbstore.order_lookup.side_effect = None
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        self.certificate.tnauthlist_support = True
+        mock_tnin.return_value = True
+        mock_certext.side_effect = Exception('cert_ext_get')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+        self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_ext_get', lcm.output)
+
+    @patch('acme.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme.certificate.cert_extensions_get')
+    def test_134_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
+        """ test Certificate.authorization_check _identifer_tnauth_list raises exception) """
+        self.certificate.dbstore.order_lookup.side_effect = None
+        self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
+        self.certificate.tnauthlist_support = True
+        mock_tnin.return_value = True
+        mock_certext.return_value = ['foo']
+        mock_tnlist.side_effect = Exception('tnauth_in_exc')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
+        self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: tnauth_in_exc', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
