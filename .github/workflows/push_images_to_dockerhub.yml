@@ -21,7 +21,7 @@ jobs:
 
 
   build_and_upload_images_to_hub:
-    name: Push images to dockerhub
+    name: Push images to dockerhub and github
     runs-on: ubuntu-latest
     steps:
       - name: "Get current version"
@@ -44,21 +44,28 @@ jobs:
 
       - name: "Create images"
         run: |
-          cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
-          cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
-          cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
-          cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
+          cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -t ghcr.io/grindsa/acme2certifier:apache2-wsgi -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
+          cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -t ghcr.io/grindsa/acme2certifier:apache2-django -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
+          cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -t ghcr.io/grindsa/acme2certifier:nginx-wsgi -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
+          cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -t ghcr.io/grindsa/acme2certifier:nginx-django -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
 
-      - name: "upload images ghcr.io"
+      - name: "upload images to ghcr.io"
         run: |
-          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.GHCR_TOKEN }}
-          docker push grindsa/acme2certifier
+          docker login ghcr.io -u ${{ secrets.GHCR_USER }} -p ${{ secrets.GHCR_TOKEN }}
+          docker push ghcr.io/grindsa/acme2certifier
+
+      #- name: "Create images for hub.docker.com"
+      #  run: |
+      #    cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
+      #    cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
+      #    cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
+      #    cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
 
       - name: "upload images to hub.docker.com"
         run: |
-          docker login -u ${{ secrets.GHCR_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker push grindsa/acme2certifier
-          
+
       - name: "delete images from local repository"
         run: |
           docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
