@@ -1,3 +1,4 @@
+<!-- markdownlint-disable  MD013 -->
 # acme2certifier
 
 ![GitHub release](https://img.shields.io/github/release/grindsa/acme2certifier.svg)
