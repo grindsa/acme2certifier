@@ -1,4 +1,4 @@
-name: Push images to dockerhub
+name: Push images to dockerhub and ghcr.io
 on:
   push:
     branches:
@@ -49,10 +49,16 @@ jobs:
           cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
           cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
 
+      - name: "upload images ghcr.io"
+        run: |
+          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.GHCR_TOKEN }}
+          docker push grindsa/acme2certifier
+
       - name: "upload images to hub.docker.com"
         run: |
-          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker login -u ${{ secrets.GHCR_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           docker push grindsa/acme2certifier
+          
       - name: "delete images from local repository"
         run: |
           docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
