@@ -79,15 +79,37 @@ class CAhandler(object):
         cert_raw = None
         cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle).json()
         if 'certificate' in cert_dic:
-            cert_raw = cert_dic['certificate']['der']
-            cert_bundle = cert_dic['certificate']['pem']
+            # add certificates
+            if 'der' in cert_dic['certificate']:
+                cert_raw = cert_dic['certificate']['der']
+            else:
+                error = 'no der certificate returned for id {0}'.format(cert_id)
+                self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
+            if 'pem' in cert_dic['certificate']:
+                cert_bundle = cert_dic['certificate']['pem']
+            else:
+                error = 'no pem certificate returned for id {0}'.format(cert_id)
+                self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
+
+            # add bundle ca certs to bundle
             for ca_id in self.ca_id_list:
                 cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=self.ca_bundle).json()
                 if 'certificate' in cert_dic:
-                    cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
+                    if 'pem' in cert_dic['certificate']:
+                        if cert_bundle:
+                            cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
+                        else:
+                            cert_bundle = cert_dic['certificate']['pem']
+                    else:
+                        # we got a cert but no ca no error just return the cert
+                        error = 'no pem ca-certificate returned for id {0}'.format(cert_id)
+                        self.logger.error('CAhandler._cert_bundle_build(): no pem ca-certificate returned for id: {0}'.format(cert_id))
+                else:
+                    error = 'no ca-certificate returned for id: {0}'.format(cert_id)
+                    self.logger.error('CAhandler._cert_bundle_build(): no ca-certificate returned for id: {0}'.format(cert_id))
         else:
             error = 'no certificate returned for id: {0}'.format(cert_id)
-            self.logger.error('no certificate returned for id: {0}'.format(cert_id))
+            self.logger.error('CAhandler._cert_bundle_build(): no certificate returned for id: {0}'.format(cert_id))
 
         self.logger.debug('CAhandler._cert_bundle_build() ended')
         return(error, cert_bundle, cert_raw)
@@ -156,7 +178,7 @@ class CAhandler(object):
             self.error = 'ca_id_list to be set in config file'
 
         if not self.error and self.ca_bundle is False:
-            self.logger.warning('"ca_bundle" set to "False" - validation of server certificate disabled')            
+            self.logger.warning('"ca_bundle" set to "False" - validation of server certificate disabled')
 
     def _config_load(self):
         """" load config from file """
@@ -346,7 +368,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -386,7 +408,7 @@ class CAhandler(object):
 
         return(code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, _payload):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
