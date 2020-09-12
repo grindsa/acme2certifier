@@ -53,6 +53,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
         self.assertFalse(self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
 
@@ -65,6 +66,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
         self.assertFalse(self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file', lcm.output)
@@ -78,6 +80,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
         self.assertFalse(self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file', lcm.output)
@@ -91,6 +94,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertFalse(self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file', lcm.output)
@@ -104,6 +108,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file', lcm.output)
@@ -116,6 +121,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
 
@@ -127,6 +133,43 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual('ca_name', self.cahandler.ca_name)
+        self.assertEqual(120, self.cahandler.polling_timeout)
+
+    @patch('examples.ca_handler.certifier_ca_handler.load_config')
+    def test_011_config_load(self, mock_load_cfg):
+        """ test _config_load ca_handler True """
+        mock_load_cfg.return_value = {'CAhandler': {'api_host': 'api_host', 'api_user': 'api_user', 'api_password': 'api_password', 'ca_name': 'ca_name', 'foo': 'bar', 'polling_timeout': 120, 'ca_bundle': True}}
+        self.cahandler._config_load()
+        self.assertEqual('api_host', self.cahandler.api_host)
+        self.assertEqual('api_user', self.cahandler.api_user)
+        self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual('ca_name', self.cahandler.ca_name)
+        self.assertEqual(120, self.cahandler.polling_timeout)
+
+    @patch('examples.ca_handler.certifier_ca_handler.load_config')
+    def test_012_config_load(self, mock_load_cfg):
+        """ test _config_load ca_handler False """
+        mock_load_cfg.return_value = {'CAhandler': {'api_host': 'api_host', 'api_user': 'api_user', 'api_password': 'api_password', 'ca_name': 'ca_name', 'foo': 'bar', 'polling_timeout': 120, 'ca_bundle': False}}
+        self.cahandler._config_load()
+        self.assertEqual('api_host', self.cahandler.api_host)
+        self.assertEqual('api_user', self.cahandler.api_user)
+        self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertEqual('ca_name', self.cahandler.ca_name)
+        self.assertEqual(120, self.cahandler.polling_timeout)
+
+    @patch('examples.ca_handler.certifier_ca_handler.load_config')
+    def test_013_config_load(self, mock_load_cfg):
+        """ test _config_load ca_handler configured """
+        mock_load_cfg.return_value = {'CAhandler': {'api_host': 'api_host', 'api_user': 'api_user', 'api_password': 'api_password', 'ca_name': 'ca_name', 'foo': 'bar', 'polling_timeout': 120, 'ca_bundle': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual('api_host', self.cahandler.api_host)
+        self.assertEqual('api_user', self.cahandler.api_user)
+        self.assertEqual('api_password', self.cahandler.api_password)
+        self.assertEqual('foo', self.cahandler.ca_bundle)
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(120, self.cahandler.polling_timeout)
 

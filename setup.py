@@ -1,7 +1,8 @@
 """ build script for acme2certifier """
 from setuptools import setup
 from glob import glob
-exec(open('acme/version.py').read())
+# exec(open('acme/version.py').read())
+from acme.version import __version__
 setup(name='acme2certifier',
       version=__version__,
       description='ACMEv2 server',
@@ -25,7 +26,7 @@ setup(name='acme2certifier',
                   ('/var/lib/acme2certifier/examples/trigger', glob('examples/trigger/*')),
                   ('/var/lib/acme2certifier/tools', glob('tools/*.py')),
                   ('/var/lib/acme2certifier/examples/Docker', glob('examples/Docker/*.*')),
-                  ('/var/lib/acme2certifier/examples/Docker/wsgi', glob('examples/Docker/wsgi/*')),                  
+                  ('/var/lib/acme2certifier/examples/Docker/wsgi', glob('examples/Docker/wsgi/*')),
                   ('/var/lib/acme2certifier/examples/Docker/django', glob('examples/Docker/django/*')),
                  ],
 
