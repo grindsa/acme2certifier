@@ -15,6 +15,7 @@ class CAhandler(object):
     def __init__(self, _debug=None, logger=None):
         self.logger = logger
         self.api_host = None
+        self.ca_bundle = True
         self.credential_dic = {'api_user' : None, 'self.api_password' : None}
         self.tsg_info_dic = {'name' : None, 'id' : None}
         self.headers = None
@@ -40,7 +41,7 @@ class CAhandler(object):
         """  generic wrapper for an API post call """
         self.logger.debug('CAhandler._api_post()')
         try:
-            api_response = requests.post(url=url, json=data, headers=self.headers, verify=False).json()
+            api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle).json()
         except BaseException as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             api_response = str(err_)
@@ -52,7 +53,7 @@ class CAhandler(object):
         """ lookup CA ID based on CA_name """
         self.logger.debug('CAhandler._ca_id_lookup()')
         # query CAs
-        ca_list = requests.get(self.api_host + '/ca?freeText=' + str(self.ca_name), headers=self.headers, verify=False).json()
+        ca_list = requests.get(self.api_host + '/ca?freeText=' + str(self.ca_name), headers=self.headers, verify=self.ca_bundle).json()
         ca_id = None
         if 'CAs' in ca_list:
             for ca_cert in ca_list['CAs']:
@@ -76,12 +77,12 @@ class CAhandler(object):
         cert_bundle = None
         error = None
         cert_raw = None
-        cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=False).json()
+        cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle).json()
         if 'certificate' in cert_dic:
             cert_raw = cert_dic['certificate']['der']
             cert_bundle = cert_dic['certificate']['pem']
             for ca_id in self.ca_id_list:
-                cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=False).json()
+                cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=self.ca_bundle).json()
                 if 'certificate' in cert_dic:
                     cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
         else:
@@ -97,9 +98,9 @@ class CAhandler(object):
 
         # get certificates
         if csr_cn:
-            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=False).json()
+            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
         else:
-            cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=False).json()
+            cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
 
         cert_id = None
         if 'certificates' in cert_list:
@@ -154,6 +155,9 @@ class CAhandler(object):
             self.logger.error('"ca_id_list" to be set in config file')
             self.error = 'ca_id_list to be set in config file'
 
+        if not self.error and self.ca_bundle is False:
+            self.logger.warning('"ca_bundle" set to "False" - validation of server certificate disabled')            
+
     def _config_load(self):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
@@ -170,6 +174,12 @@ class CAhandler(object):
             self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
         if 'ca_id_list' in config_dic['CAhandler']:
             self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
+        # check if we get a ca bundle for verification
+        if 'ca_bundle' in config_dic['CAhandler']:
+            try:
+                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+            except BaseException:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         self.logger.debug('CAhandler._config_load() ended')
 
     def _csr_id_lookup(self, csr_cn, csr_san_list):
@@ -204,7 +214,7 @@ class CAhandler(object):
                         break
                 elif not req_cn:
                     # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
-                    req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=False).json()
+                    req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle).json()
                     for _req in reversed(req_all):
                         req_san_list = csr_san_get(self.logger, _req['pkcs10'])
                         if sorted(csr_san_list) == sorted(req_san_list):
@@ -251,7 +261,7 @@ class CAhandler(object):
     def _unusedrequests_get(self):
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
-        return requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=False).json()
+        return requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle).json()
 
     def _san_compare(self, csr_san, cert_san):
         """ compare sans from csr with san in cert """
@@ -279,7 +289,7 @@ class CAhandler(object):
     def _tsg_id_lookup(self):
         """ get target system id based on name """
         self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
-        tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=False).json()
+        tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle).json()
         if 'targetSystemGroups' in tsg_list:
             for tsg in tsg_list['targetSystemGroups']:
                 if 'name' in tsg:
@@ -356,7 +366,7 @@ class CAhandler(object):
         hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
 
         # search for certificate
-        cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=False).json()
+        cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
 
         if 'certificates' in cert_list:
             try:
