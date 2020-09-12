@@ -47,7 +47,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post', lcm.output)
 
     @patch('requests.get')
-    def test_004_ca_get(self, mock_req):
+    def test_004_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns nothing """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -60,7 +60,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:ca_id.lookup() no CAs found in response ...', lcm.output)
 
     @patch('requests.get')
-    def test_005_ca_get(self, mock_req):
+    def test_005_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns wrong data """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -73,7 +73,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:ca_id.lookup() no CAs found in response ...', lcm.output)
 
     @patch('requests.get')
-    def test_006_ca_get(self, mock_req):
+    def test_006_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns wrong data """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -86,7 +86,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:ca_id.lookup() no CAs found in response ...', lcm.output)
 
     @patch('requests.get')
-    def test_006_ca_get(self, mock_req):
+    def test_007_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns empty ca-list """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -99,7 +99,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_007_ca_get(self, mock_req):
+    def test_008_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns wrong ca-list """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -112,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_008_ca_get(self, mock_req):
+    def test_009_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with name not matching """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -125,7 +125,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_009_ca_get(self, mock_req):
+    def test_010_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with name matching  but no id """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -138,7 +138,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_010_ca_get(self, mock_req):
+    def test_011_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with name matching  and id """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -149,7 +149,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('id', self.cahandler._ca_id_lookup())
 
     @patch('requests.get')
-    def test_011_ca_get(self, mock_req):
+    def test_012_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with desc not matching """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -162,7 +162,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_012_ca_get(self, mock_req):
+    def test_013_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with desc matching  but no id """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -175,7 +175,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:_ca_id_lookup(): no ca id found for ca_name', lcm.output)
 
     @patch('requests.get')
-    def test_013_ca_get(self, mock_req):
+    def test_014_ca_id_lookup(self, mock_req):
         """ CAhandler._ca_id_lookup() returns ca-list with desc matching  and id """
         self.cahandler.api_host = 'api_host'
         self.cahandler.ca_name = 'ca_name'
@@ -185,6 +185,101 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse.json = lambda: {'CAs': [{'desc': 'ca_name', 'id': 'id'}]}
         self.assertEqual('id', self.cahandler._ca_id_lookup())
 
+    @patch('requests.get')
+    def test_015_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns everything with one ca cert """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'der': 'der', 'pem': 'pem'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificate': {'pem': 'pemca'}}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        self.assertEqual((None, 'pempemca', 'der'), self.cahandler._cert_bundle_build('foo'))
+
+    @patch('requests.get')
+    def test_016_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns everything with two ca cert """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1, 2]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'der': 'der', 'pem': 'pem'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificate': {'pem': 'pemca1'}}
+        mockresponse3 = Mock()
+        mockresponse3.json = lambda: {'certificate': {'pem': 'pemca2'}}
+        mock_get.side_effect = [mockresponse1, mockresponse2, mockresponse3]
+        self.assertEqual((None, 'pempemca1pemca2', 'der'), self.cahandler._cert_bundle_build('foo'))
+
+    @patch('requests.get')
+    def test_017_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns everything without der in cert_dic """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'pem': 'pem'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificate': {'pem': 'pemca'}}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('no der certificate returned for id foo', 'pempemca', None), self.cahandler._cert_bundle_build('foo'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no der certificate returned for id: foo', lcm.output)
+
+    @patch('requests.get')
+    def test_018_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns everything without pem in cert_dic """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'der': 'der'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificate': {'pem': 'pemca'}}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('no pem certificate returned for id foo', 'pemca', 'der'), self.cahandler._cert_bundle_build('foo'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no pem certificate returned for id: foo', lcm.output)
+
+    @patch('requests.get')
+    def test_019_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns everything without pem in ca_dic """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'der': 'der', 'pem': 'pem'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'certificate': {'foo': 'bar'}}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('no pem ca-certificate returned for id foo', 'pem', 'der'), self.cahandler._cert_bundle_build('foo'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no pem ca-certificate returned for id: foo', lcm.output)
+
+    @patch('requests.get')
+    def test_020_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns wrong ca_dic """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'certificate': {'der': 'der', 'pem': 'pem'}}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('no ca-certificate returned for id: foo', 'pem', 'der'), self.cahandler._cert_bundle_build('foo'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no ca-certificate returned for id: foo', lcm.output)
+
+    @patch('requests.get')
+    def test_021_ca_id_lookup(self, mock_get):
+        """ CAhandler._cert_bundle_build() returns wrong cert_dic """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.ca_id_list = [1]
+        mockresponse1 = Mock()
+        mockresponse1.json = lambda: {'foo': 'bar'}
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar'}
+        mock_get.side_effect = [mockresponse1, mockresponse2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('no certificate returned for id: foo', None, None), self.cahandler._cert_bundle_build('foo'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no certificate returned for id: foo', lcm.output)
 
 if __name__ == '__main__':
 
