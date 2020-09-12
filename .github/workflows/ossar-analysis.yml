@@ -6,6 +6,9 @@ name: OSSAR
 on:
   push:
   pull_request:
+    branches: [ devel ]
+  schedule:
+    - cron:  '0 2 * * 6'
 
 jobs:
   OSSAR-Scan:
