@@ -19,6 +19,7 @@ class CAhandler(object):
         self.api_host = None
         self.api_user = None
         self.api_password = None
+        self.ca_bundle = True
         self.ca_name = None
         self.auth = None
         self.polling_timeout = 60
@@ -53,7 +54,7 @@ class CAhandler(object):
             result of the post command
         """
         try:
-            api_response = requests.post(url=url, json=data, auth=self.auth, verify=False).json()
+            api_response = requests.post(url=url, json=data, auth=self.auth, verify=self.ca_bundle).json()
         except BaseException as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             api_response = str(err_)
@@ -70,7 +71,7 @@ class CAhandler(object):
 
         if self.api_host:
             try:
-                api_response = requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, verify=False).json()
+                api_response = requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, verify=self.ca_bundle).json()
             except BaseException as err_:
                 self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
                 api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
@@ -123,7 +124,7 @@ class CAhandler(object):
 
         params = {'q' : 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
         try:
-            api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=False).json()
+            api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=self.ca_bundle).json()
         except BaseException as err_:
             self.logger.error('CAhandler._cert_get_properties() returned error: {0}'.format(str(err_)))
             api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
@@ -153,6 +154,12 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file')
             if 'polling_timeout' in config_dic['CAhandler']:
                 self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+            # check if we get a ca bundle for verification
+            if 'ca_bundle' in config_dic['CAhandler']:
+                try:
+                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+                except BaseException:
+                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -170,14 +177,14 @@ class CAhandler(object):
             cnt = 1
             while cnt <= poll_cnt:
                 cnt += 1
-                request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+                request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
                 poll_identifier = request_url
                 # check response
                 if 'status' in request_dic:
                     if request_dic['status'] == 'accepted':
                         if 'certificate' in request_dic:
                             # poll identifier for later storage
-                            cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                            cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle).json()
                             # pylint: disable=R1723
                             if 'certificateBase64' in cert_dic:
                                 # this is a valid cert generate the bundle
@@ -219,15 +226,15 @@ class CAhandler(object):
                 if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
                     if 'issuer' in cert_dic:
                         self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
-                        ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=False).json()
+                        ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=self.ca_bundle).json()
                     else:
                         self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
-                        ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=False).json()
+                        ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=self.ca_bundle).json()
 
                     cert_dic = {}
                     if 'certificates' in ca_cert_dic:
                         if 'active' in ca_cert_dic['certificates']:
-                            cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=False).json()
+                            cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=self.ca_bundle).json()
                 else:
                     issuer_loop = False
                     break
@@ -251,13 +258,13 @@ class CAhandler(object):
         poll_identifier = request_url
         rejected = False
 
-        request_dic = requests.get(request_url, auth=self.auth, verify=False).json()
+        request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
         # check response
         if 'status' in request_dic:
             if request_dic['status'] == 'accepted':
                 if 'certificate' in request_dic:
                     # poll identifier for later storage
-                    cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=False).json()
+                    cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle).json()
                     if 'certificateBase64' in cert_dic:
                         # this is a valid cert generate the bundle
                         error = None
