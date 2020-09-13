@@ -238,20 +238,25 @@ class CAhandler(object):
                         if field.startswith('CN='):
                             req_cn = field.lower().replace('cn=', '')
                             break
-
                 # compare csr cn with request cn
                 if csr_cn:
-                    if req_cn == csr_cn.lower():
+                    if req_cn == csr_cn.lower() and 'requestID' in req:
                         req_id = req['requestID']
                         break
                 elif not req_cn:
                     # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
-                    req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle).json()
+                    try:
+                        req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle).json()
+                    except BaseException as err_:
+                        self.logger.error('CAhandler._csr_id_lookup() returned error: {0}'.format(str(err_)))
+                        req_all = []
+
                     for _req in reversed(req_all):
-                        req_san_list = csr_san_get(self.logger, _req['pkcs10'])
-                        if sorted(csr_san_list) == sorted(req_san_list):
-                            req_id = _req['requestID']
-                            break
+                        if 'pkcs10' in _req:
+                            req_san_list = csr_san_get(self.logger, _req['pkcs10'])
+                            if sorted(csr_san_list) == sorted(req_san_list) and 'requestID' in _req:
+                                req_id = _req['requestID']
+                                break
 
         self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
@@ -287,13 +292,22 @@ class CAhandler(object):
         """ import certificate request to NCLM """
         self.logger.debug('CAhandler._request_import()')
         data_dic = {'pkcs10' : csr}
-        result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
+        try:
+            result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
+        except BaseException as err_:
+            self.logger.error('CAhandler._request_import() returned error: {0}'.format(str(err_)))
+            result = None
         return result
 
     def _unusedrequests_get(self):
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
-        return requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle).json()
+        try:
+            result = requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler._unusedrequests_get() returned error: {0}'.format(str(err_)))
+            result = None
+        return result
 
     def _san_compare(self, csr_san, cert_san):
         """ compare sans from csr with san in cert """

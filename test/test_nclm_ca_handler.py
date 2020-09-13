@@ -589,6 +589,236 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_id_list)
         self.assertIn('ERROR:test_a2c:"ca_id_list" to be set in config file', lcm.output)
 
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_051__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - all ok """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'subjectName': 'CN=csr_cn, O=bar', 'requestID': 'requestID'}]
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_052__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - no requestID in list """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'subjectName': 'CN=csr_cn, O=bar'}]
+        self.assertFalse(self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_053__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - cn in mock_unureq not correctly ordered """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'subjectName': 'O=bar, CN=csr_cn', 'requestID': 'requestID'}]
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_054__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - empty subjectName """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'subjectName': '', 'requestID': 'requestID'}]
+        self.assertFalse(self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_055__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - no subjectName """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        self.assertFalse(self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_056__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+        """ CAhandler._csr_id_lookup - requests to old """
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 100
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'subjectName': 'O=bar, CN=csr_cn', 'requestID': 'requestID'}]
+        self.assertFalse(self.cahandler._csr_id_lookup('csr_cn', ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_057__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  one san """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['csr_san_list']
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup(None, ['csr_san_list']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_058__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  two sans """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san1', 'san2']
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_059__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  two sans to be reordered """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san1', 'san2']
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup(None, ['san2', 'san1']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_060__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  two sans to be reordered """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san2', 'san1']
+        self.assertEqual('requestID', self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_061__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  no requestID """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'foo': 'bar'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san2', 'san1']
+        self.assertFalse(self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_062__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  sans are not matching """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'pkcs10': 'pkcs10', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san1']
+        self.assertFalse(self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_063__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn  no pkcs10 """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mockresponse = Mock()
+        mockresponse.json = lambda: [{'foo': 'bar', 'requestID': 'requestID'}]
+        mock_req.return_value = mockresponse
+        mock_san.return_value = ['san1']
+        self.assertFalse(self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+
+    @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
+    @patch('requests.get')
+    @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
+    @patch('examples.ca_handler.nclm_ca_handler.uts_now')
+    def test_064__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+        """ CAhandler._csr_id_lookup - no csr_cn request throws an exception """
+        self.cahandler.api_host = 'api_host'
+        mock_utsnow.return_value = 1000
+        mock_uts.return_value = 900
+        mock_unureq.return_value = [{'addedAt': 'addedAt', 'requestID': 'requestID'}]
+        mock_req.side_effect = Exception('exc_csr_id_lookup')
+        mock_san.return_value = ['san1']
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._csr_id_lookup(None, ['san1', 'san2']))
+        self.assertIn('ERROR:test_a2c:CAhandler._csr_id_lookup() returned error: exc_csr_id_lookup', lcm.output)
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
+    def test_065__request_import(self, mock_req):
+        """ CAhandler._request_import """
+        self.cahandler.api_host = 'api_host'
+        mock_req.return_value = 'foo'
+        self.assertEqual('foo', self.cahandler._request_import('csr'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
+    def test_066__request_import(self, mock_req):
+        """ CAhandler._request_import - req raises an exception """
+        self.cahandler.api_host = 'api_host'
+        mock_req.side_effect = Exception('exc_req_import')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._request_import('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._request_import() returned error: exc_req_import', lcm.output)
+
+    @patch('requests.get')
+    def test_067__request_import(self, mock_req):
+        """ CAhandler._unusedrequests_get """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'foo': 'bar'}
+        mock_req.return_value = mockresponse
+        self.assertEqual({'foo': 'bar'}, self.cahandler._unusedrequests_get())
+
+    @patch('requests.get')
+    def test_068__request_import(self, mock_req):
+        """ CAhandler._unusedrequests_get """
+        self.cahandler.api_host = 'api_host'
+        mock_req.side_effect = Exception('exc_req_unused')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._unusedrequests_get())
+        self.assertIn('ERROR:test_a2c:CAhandler._unusedrequests_get() returned error: exc_req_unused', lcm.output)
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):
