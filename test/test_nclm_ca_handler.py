@@ -281,6 +281,314 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('no certificate returned for id: foo', None, None), self.cahandler._cert_bundle_build('foo'))
         self.assertIn('ERROR:test_a2c:CAhandler._cert_bundle_build(): no certificate returned for id: foo', lcm.output)
 
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_022_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - one cert - ok """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName', 'certificateId': 'certificateId'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.return_value = True
+        self.assertEqual('certificateId', self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_023_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - two certs - 1st match """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName1', 'certificateId': 'certificateId1'}, {'subjectAltName': 'subjectAltName2', 'certificateId': 'certificateId2'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.side_effect = [True, False]
+        self.assertEqual('certificateId1', self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_024_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - two certs - 2nd match """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName1', 'certificateId': 'certificateId1'}, {'subjectAltName': 'subjectAltName2', 'certificateId': 'certificateId2'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.side_effect = [False, True]
+        self.assertEqual('certificateId2', self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_025_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - no certificateid in """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName', 'foo': 'bar'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.return_value = True
+        self.assertFalse(self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_026_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - two certs """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName1', 'foo': 'bar'}, {'subjectAltName': 'subjectAltName2', 'certificateId': 'certificateId2'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.side_effect = [True, True]
+        self.assertEqual('certificateId2', self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_027_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - one cert - no san in """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'foo': 'bar', 'certificateId': 'certificateId'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.return_value = True
+        self.assertFalse(self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_028_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - no san_list in function """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'certificates': [{'subjectAltName': 'subjectAltName', 'certificateId': 'certificateId'}]}
+        mock_req.return_value = mockresponse
+        mock_comp.return_value = True
+        self.assertFalse(self.cahandler._cert_id_lookup('csr_cn', None))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._san_compare')
+    @patch('requests.get')
+    def test_029_cert_id_lookup(self, mock_req, mock_comp):
+        """ CAhandler._cert_id_lookup() - one cert - ok """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'foo': 'bar'}
+        mock_req.return_value = mockresponse
+        mock_comp.return_value = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+        self.assertIn('ERROR:test_a2c:_cert_id_lookup(): no certificates found for csr_cn', lcm.output)
+
+    @patch('requests.get')
+    def test_030_cert_id_lookup(self, mock_req):
+        """ CAhandler._cert_id_lookup() - request raises exception """
+        self.cahandler.api_host = 'api_host'
+        mock_req.side_effect = Exception('req_exc')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._cert_id_lookup('csr_cn', 'san_list'))
+        self.assertIn('ERROR:test_a2c:CAhandler._cert_id_lookup() returned error: req_exc', lcm.output)
+
+    def test_031__config_check(self):
+        """ CAhandler._config.check() no api_host """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('api_host to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"api_host" to be set in config file', lcm.output)
+
+    def test_032__config_check(self):
+        """ CAhandler._config.check() no api_user """
+        self.cahandler.api_host = 'api_host'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('api_user to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"api_user" to be set in config file', lcm.output)
+
+    def test_033__config_check(self):
+        """ CAhandler._config.check() no api_user """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': False}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('api_user to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"api_user" to be set in config file', lcm.output)
+
+    def test_034__config_check(self):
+        """ CAhandler._config.check() no api_password """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('api_password to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"api_password" to be set in config file', lcm.output)
+
+    def test_035__config_check(self):
+        """ CAhandler._config.check() no api_password """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': False}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('api_password to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"api_password" to be set in config file', lcm.output)
+
+    def test_036__config_check(self):
+        """ CAhandler._config.check() no tsg_name """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': 'api_password'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('tsg_name to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"tsg_name" to be set in config file', lcm.output)
+
+    def test_037__config_check(self):
+        """ CAhandler._config.check() no tsg_name """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': 'api_password'}
+        self.cahandler.tsg_info_dic = {'name': False}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('tsg_name to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"tsg_name" to be set in config file', lcm.output)
+
+    def test_038__config_check(self):
+        """ CAhandler._config.check() no ca_name """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': 'api_password'}
+        self.cahandler.tsg_info_dic = {'name': 'name'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('ca_name to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"ca_name" to be set in config file', lcm.output)
+
+    def test_039__config_check(self):
+        """ CAhandler._config.check() no ca_id_list """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': 'api_password'}
+        self.cahandler.tsg_info_dic = {'name': 'name'}
+        self.cahandler.ca_name = 'ca_name'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertEqual('ca_id_list to be set in config file', self.cahandler.error)
+        self.assertIn('ERROR:test_a2c:"ca_id_list" to be set in config file', lcm.output)
+
+    def test_040__config_check(self):
+        """ CAhandler._config.check() ca_bundle False """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.credential_dic = {'api_user': 'api_user', 'api_password': 'api_password'}
+        self.cahandler.tsg_info_dic = {'name': 'name'}
+        self.cahandler.ca_name = 'ca_name'
+        self.cahandler.ca_id_list = ['id1', 'id2']
+        self.cahandler.ca_bundle = False
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_check()
+        self.assertFalse(self.cahandler.error)
+        self.assertIn('WARNING:test_a2c:"ca_bundle" set to "False" - validation of server certificate disabled', lcm.output)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_041_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load no cahandler section """
+        mock_load_cfg.return_value = {}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_042_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load api_host """
+        mock_load_cfg.return_value = {'CAhandler': {'api_host': 'api_host'}}
+        self.cahandler._config_load()
+        self.assertEqual('api_host', self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_043_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load api_user """
+        mock_load_cfg.return_value = {'CAhandler': {'api_user': 'api_user'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': 'api_user', 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_044_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load api_password """
+        mock_load_cfg.return_value = {'CAhandler': {'api_password': 'api_password'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': 'api_password'}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_045_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load ca_name """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_name': 'ca_name'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertEqual('ca_name', self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_046_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load tsg_name """
+        mock_load_cfg.return_value = {'CAhandler': {'tsg_name': 'tsg_name'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': 'tsg_name', 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_047_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load ca_bundle string """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_bundle': 'ca_bundle'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_048_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load ca_bundle False """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_bundle': False}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.ca_bundle)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_049_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load valid ca_id_list  """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_id_list': '[1, 2]'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual([1, 2], self.cahandler.ca_id_list)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_050_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load non-json ca_id_list  """
+        mock_load_cfg.return_value = {'CAhandler': {'ca_id_list': 'ca_id_list'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.ca_id_list)
+        self.assertIn('ERROR:test_a2c:"ca_id_list" to be set in config file', lcm.output)
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):

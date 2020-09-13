@@ -16,7 +16,7 @@ class CAhandler(object):
         self.logger = logger
         self.api_host = None
         self.ca_bundle = True
-        self.credential_dic = {'api_user' : None, 'self.api_password' : None}
+        self.credential_dic = {'api_user' : None, 'api_password' : None}
         self.tsg_info_dic = {'name' : None, 'id' : None}
         self.headers = None
         self.ca_name = None
@@ -118,11 +118,15 @@ class CAhandler(object):
         """ lookup cert id based on CN """
         self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
 
-        # get certificates
-        if csr_cn:
-            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
-        else:
-            cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        try:
+            # get certificates
+            if csr_cn:
+                cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+            else:
+                cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
+            cert_list = []
 
         cert_id = None
         if 'certificates' in cert_list:
@@ -130,7 +134,7 @@ class CAhandler(object):
                 # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
                 if san_list and 'subjectAltName' in cert:
                     result = self._san_compare(san_list, cert['subjectAltName'])
-                    if result:
+                    if result and 'certificateId' in cert:
                         cert_id = cert['certificateId']
                         break
                 # print(cert['certificateId'], cert['sortedSubjectName'], cert['subjectAltName'], cert['sortedIssuerSubjectName'])
@@ -184,24 +188,30 @@ class CAhandler(object):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
-        if 'api_host' in config_dic['CAhandler']:
-            self.api_host = config_dic['CAhandler']['api_host']
-        if 'api_user' in config_dic['CAhandler']:
-            self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
-        if 'api_password' in config_dic['CAhandler']:
-            self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
-        if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-        if 'tsg_name' in config_dic['CAhandler']:
-            self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
-        if 'ca_id_list' in config_dic['CAhandler']:
-            self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
-        # check if we get a ca bundle for verification
-        if 'ca_bundle' in config_dic['CAhandler']:
-            try:
-                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-            except BaseException:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+        if 'CAhandler' in config_dic:
+            if 'api_host' in config_dic['CAhandler']:
+                self.api_host = config_dic['CAhandler']['api_host']
+            if 'api_user' in config_dic['CAhandler']:
+                self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+            if 'api_password' in config_dic['CAhandler']:
+                self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
+            if 'ca_name' in config_dic['CAhandler']:
+                self.ca_name = config_dic['CAhandler']['ca_name']
+            if 'tsg_name' in config_dic['CAhandler']:
+                self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
+            if 'ca_id_list' in config_dic['CAhandler']:
+                try:
+                    self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
+                except BaseException:
+                    self.logger.error('"ca_id_list" to be set in config file')
+                    self.ca_id_list = []
+
+            # check if we get a ca bundle for verification
+            if 'ca_bundle' in config_dic['CAhandler']:
+                try:
+                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+                except BaseException:
+                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         self.logger.debug('CAhandler._config_load() ended')
 
     def _csr_id_lookup(self, csr_cn, csr_san_list):
