@@ -17,6 +17,7 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
@@ -33,6 +34,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data      
         docker network create acme
         docker-compose up -d
         docker-compose logs
