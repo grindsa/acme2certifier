@@ -17,9 +17,12 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ PREPARE ] enable tls"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -67,9 +70,12 @@ jobs:
       working-directory: examples/Docker/
       run: |
         sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ PREPARE ] enable tls"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -118,9 +124,12 @@ jobs:
       working-directory: examples/Docker/
       run: |
         sed -i "s/wsgi/django/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ PREPARE ] enable tls"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
@@ -169,9 +178,12 @@ jobs:
       run: |
         sed -i "s/wsgi/django/g" .env
         sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory        
     - name: "[ PREPARE ] enable tls"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
