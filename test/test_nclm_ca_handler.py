@@ -802,7 +802,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._request_import() returned error: exc_req_import', lcm.output)
 
     @patch('requests.get')
-    def test_067__request_import(self, mock_req):
+    def test_067__unusedrequests_get(self, mock_req):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -811,13 +811,186 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'foo': 'bar'}, self.cahandler._unusedrequests_get())
 
     @patch('requests.get')
-    def test_068__request_import(self, mock_req):
+    def test_068__unusedrequests_get(self, mock_req):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mock_req.side_effect = Exception('exc_req_unused')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.cahandler._unusedrequests_get())
         self.assertIn('ERROR:test_a2c:CAhandler._unusedrequests_get() returned error: exc_req_unused', lcm.output)
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_069__login(self, mock_get, mock_post):
+        """ CAhandler._unusedrequests_get """
+        self.cahandler.api_host = 'api_host'
+        mockresponse1 = Mock()
+        mockresponse1.status_code = lambda: 'foo'
+        mock_get.return_value = mockresponse1
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'access_token': 'access_token', 'username': 'username', 'realms': 'realms'}
+        mock_post.return_value = mockresponse2
+        self.cahandler._login()
+        self.assertEqual({'Authorization': 'Bearer access_token'}, self.cahandler.headers)
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_070__login(self, mock_get, mock_post):
+        """ CAhandler._unusedrequests_get  mock_post without username"""
+        self.cahandler.api_host = 'api_host'
+        mockresponse1 = Mock()
+        mockresponse1.status_code = lambda: 'foo'
+        mock_get.return_value = mockresponse1
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'access_token': 'access_token', 'foo': 'bar', 'realms': 'realms'}
+        mock_post.return_value = mockresponse2
+        self.cahandler._login()
+        self.assertEqual({'Authorization': 'Bearer access_token'}, self.cahandler.headers)
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_071__login(self, mock_get, mock_post):
+        """ CAhandler._unusedrequests_get mock_post without realms"""
+        self.cahandler.api_host = 'api_host'
+        mockresponse1 = Mock()
+        mockresponse1.status_code = lambda: 'foo'
+        mock_get.return_value = mockresponse1
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'access_token': 'access_token', 'username': 'username', 'foo': 'bar'}
+        mock_post.return_value = mockresponse2
+        self.cahandler._login()
+        self.assertEqual({'Authorization': 'Bearer access_token'}, self.cahandler.headers)
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def test_072__login(self, mock_get, mock_post):
+        """ CAhandler._unusedrequests_get mock_post without access tooken"""
+        self.cahandler.api_host = 'api_host'
+        mockresponse1 = Mock()
+        mockresponse1.status_code = lambda: 'foo'
+        mockresponse1.ok = 'ok'
+        mock_get.return_value = mockresponse1
+        mockresponse2 = Mock()
+        mockresponse2.json = lambda: {'foo': 'bar', 'username': 'username', 'realms': 'realms'}
+        mock_post.return_value = mockresponse2
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._login()
+        self.assertFalse(self.cahandler.headers)
+        self.assertIn('ERROR:test_a2c:CAhandler._login(): No token returned. Aborting...', lcm.output)
+
+    def test_073__san_compare(self):
+        """ CAhandler._san_compare all ok """
+        csr_san_list = ['foo:foo']
+        cert_san_list = {'foo': ['foo']}
+        self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
+
+    def test_074__san_compare(self):
+        """ CAhandler._san_compare multiple """
+        csr_san_list = ['foo:foo', 'foo:bar']
+        cert_san_list = {'foo': ['foo', 'bar']}
+        self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
+
+    def test_075__san_compare(self):
+        """ CAhandler._san_compare multiple """
+        csr_san_list = ['foo:foo,foo:bar']
+        cert_san_list = {'foo': ['foo', 'bar']}
+        self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
+
+    def test_076__san_compare(self):
+        """ CAhandler._san_compare multiple """
+        csr_san_list = ['foo:foo,foo:bar1']
+        cert_san_list = {'foo': ['foo', 'bar']}
+        self.assertFalse(self.cahandler._san_compare(csr_san_list, cert_san_list))
+
+    def test_077_poll(self):
+        """ CAhandler.poll() """
+        self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
+
+    def test_078_trigger(self):
+        """ CAhandler.trigger() """
+        self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
+
+    @patch('requests.get')
+    def test_079___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - all ok """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name', 'id': 'id'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
+
+    @patch('requests.get')
+    def test_080___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - multipe returned 1st matches """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name', 'id': 'id'}, {'name': 'name1', 'id': 'id1'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
+
+    @patch('requests.get')
+    def test_081___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - multipe returned 2nd matches """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name1', 'id': 'id1'}, {'name': 'name', 'id': 'id'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
+
+    @patch('requests.get')
+    def test_082___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - id is missing """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'name': 'name'}", lcm.output)
+
+    @patch('requests.get')
+    def test_083___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - name is missing """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'targetSystemGroups': [{'foo': 'bar', 'id': 'id'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'foo': 'bar', 'id': 'id'}", lcm.output)
+
+    @patch('requests.get')
+    def test_084___tsg_id_lookup(self, mock_get):
+        """ CAhandler._tsg_id_lookup() - targetSystemGroups is missing """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'tsg': [{'foo': 'bar', 'id': 'id'}]}
+        mock_get.return_value = mockresponse
+        self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._tsg_id_lookup()
+        self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() no target-system-groups found for filter: name...', lcm.output)
+
+    @patch('requests.get')
+    def test_085__tsg_id_lookup(self, mock_req):
+        """ CAhandler._request_import - req raises an exception """
+        self.cahandler.api_host = 'api_host'
+        mock_req.side_effect = Exception('exc_tsg_id_lookup')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._tsg_id_lookup())
+        self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() returned error: exc_tsg_id_lookup', lcm.output)
+
 
 if __name__ == '__main__':
 
