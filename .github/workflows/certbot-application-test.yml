@@ -9,66 +9,9 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  docker-compose_apache2_wsgi:
-    name: "Docker compose - apache2 wsgi"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: "Build the stack"
-      working-directory: examples/Docker/
-      run: |
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-  docker-compose_nginx_wsgi:
-    name: "Docker compose - nginx wsgi"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: "Build the stack"
-      working-directory: examples/Docker/
-      run: |
-        sed -i "s/apache2/nginx/g" .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-  docker-compose_apache2_django:
-    name: "Docker compose - apache2 django"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: "Build the stack"
-      working-directory: examples/Docker/
-      run: |
-        sed -i "s/wsgi/django/g" .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-  docker-compose_nginx_django:
-    name: "Docker compose - nginx django"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: "Build the stack"
-      working-directory: examples/Docker/
-      run: |
-        sed -i "s/wsgi/django/g" .env
-        sed -i "s/apache2/nginx/g" .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
   certbot_apache2_wsgi:
     name: "certbot_apache2_wsgi"
-    needs: [docker-compose_apache2_django]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -81,9 +24,13 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
@@ -150,7 +97,6 @@ jobs:
 
   certbot_apache2_django:
     name: "certbot_apache2_django"
-    needs: [docker-compose_apache2_django]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -164,9 +110,13 @@ jobs:
       working-directory: examples/Docker/
       run: |
         sed -i "s/wsgi/django/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler and django config"
       run: |
@@ -234,7 +184,6 @@ jobs:
 
   certbot_nginx_wsgi:
     name: "certbot_nginx_wsgi"
-    needs: [docker-compose_nginx_wsgi]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -248,9 +197,13 @@ jobs:
       working-directory: examples/Docker/
       run: |
         sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
@@ -317,7 +270,6 @@ jobs:
 
   certbot_nginx_django:
     name: "certbot_nginx_django"
-    needs: [docker-compose_nginx_django]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -332,9 +284,13 @@ jobs:
       run: |
         sed -i "s/wsgi/django/g" .env
         sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler and django config"
       run: |
