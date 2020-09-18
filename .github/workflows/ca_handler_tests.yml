@@ -18,9 +18,13 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
