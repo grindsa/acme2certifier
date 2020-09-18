@@ -222,7 +222,6 @@ class CAhandler(object):
 
         # get unused requests from NCLM
         request_list = self._unusedrequests_get()
-
         req_id = None
         # check every CSR
         for req in request_list:
@@ -257,7 +256,6 @@ class CAhandler(object):
                             if sorted(csr_san_list) == sorted(req_san_list) and 'requestID' in _req:
                                 req_id = _req['requestID']
                                 break
-
         self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
 
@@ -277,12 +275,13 @@ class CAhandler(object):
                 if 'access_token' in json_dic:
                     # self.token = json_dic['access_token']
                     self.headers = {"Authorization":"Bearer {0}".format(json_dic['access_token'])}
-                    self.logger.debug('login response:\n user: {0}\n token: {1}\n realms: {2}\n'.format(json_dic['username'], json_dic['access_token'], json_dic['realms']))
+                    _username = json_dic.get('username', None)
+                    _realms = json_dic.get('realms', None)
+                    self.logger.debug('login response:\n user: {0}\n token: {1}\n realms: {2}\n'.format(_username, json_dic['access_token'], _realms))
                 else:
-                    self.logger.error('No token returned. Aborting....')
-                    sys.exit(0)
+                    self.logger.error('CAhandler._login(): No token returned. Aborting...')
             else:
-                self.logger.error(api_response.raise_for_status())
+                self.logger.error(str(api_response.raise_for_status()))
         else:
             # If response code is not ok (200), print the resulting http error code with description
             self.logger.error(api_response.raise_for_status())
@@ -335,16 +334,21 @@ class CAhandler(object):
     def _tsg_id_lookup(self):
         """ get target system id based on name """
         self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
-        tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle).json()
+        try:
+            tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler._tsg_id_lookup() returned error: {0}'.format(err_))
+            tsg_list = []
         if 'targetSystemGroups' in tsg_list:
             for tsg in tsg_list['targetSystemGroups']:
-                if 'name' in tsg:
+                if 'name' in tsg and 'id' in tsg:
                     if self.tsg_info_dic['name'] == tsg['name']:
                         self.tsg_info_dic['id'] = tsg['id']
                         break
-
+                else:
+                    self.logger.error('CAhandler._tsg_id_lookup() incomplete response: {0}'.format(tsg))
         else:
-            self.logger.error('_tsg_id_lookup() no target-system-groups found for filter: {0}....'.format(self.tsg_info_dic['name']))
+            self.logger.error('CAhandler._tsg_id_lookup() no target-system-groups found for filter: {0}...'.format(self.tsg_info_dic['name']))
         self.logger.debug('CAhandler._tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
 
     def enroll(self, csr):
@@ -380,12 +384,12 @@ class CAhandler(object):
                         (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
                     else:
                         error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
-                        self.logger.error('certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
+                        self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
                 else:
                     error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
-                    self.logger.error('enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
+                    self.logger.error('CAhandler.eroll(): enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
             else:
-                error = 'ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
+                error = 'CAhandler.eroll(): ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
         else:
             self.logger.error(self.error)
 
