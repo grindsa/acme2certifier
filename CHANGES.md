@@ -5,6 +5,21 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.13
+
+**Features**:
+
+- template support in `xca_handler.py`
+- docker images at [ghcr.io](https://github.com/grindsa?tab=packages)
+
+**Bugfixes/Improvements**:
+
+- refactor `nclm_ca_handler.py`
+- refactor `certifier_ca_handler.py`
+- workflows for
+  - code-scanning (CodeQL and Bandit)
+  - ca_handler tests
+
 ## Changes in 0.12
 
 **Upgrade notes**:
