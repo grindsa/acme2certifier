@@ -698,37 +698,43 @@ class TestACMEHandler(unittest.TestCase):
         asn1_stream = b'12345678foo\x06\x03\x55\x04\x06\02fco\x06\x03\x55\x05\x07\03floc'
         self.assertEqual(({'countryName': 'co'}), self.cahandler._asn1_stream_parse(asn1_stream))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_100__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_100__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
         """ __template_parse() - all good """
         byte_string = 'foo'
         mock_split.return_value = (b'foo', b'bar')
         mock_asn.return_value = {'foo1': 'bar1'}
         mock_utf.return_value = {'foo2': 'bar2'}
-        self.assertEqual(({'foo1': 'bar1'}, {'foo2': 'bar2'}), self.cahandler._template_parse(byte_string))
+        mock_valid.return_value = 'valid'
+        self.assertEqual(({'foo1': 'bar1'}, {'foo2': 'bar2', 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_101__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_101__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
         """ __template_parse() - multiple values """
         byte_string = 'foo'
         mock_split.return_value = (b'foo', b'bar')
         mock_asn.return_value = {'foo1': 'bar1', 'foo11': 'bar11'}
         mock_utf.return_value = {'foo2': 'bar2', 'foo21': 'bar21'}
-        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': 'bar21'}), self.cahandler._template_parse(byte_string))
+        mock_valid.return_value = 'valid'
+        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': 'bar21', 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_102__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_102__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
         """ __template_parse() - no asn1_stream returned """
         byte_string = 'foo'
         mock_split.return_value = (None, b'bar')
         mock_utf.return_value = {'foo2': 'bar2'}
-        self.assertEqual(({}, {'foo2': 'bar2'}), self.cahandler._template_parse(byte_string))
+        mock_valid.return_value = 'valid'
+        self.assertEqual(({}, {'foo2': 'bar2', 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
@@ -749,34 +755,38 @@ class TestACMEHandler(unittest.TestCase):
         mock_split.return_value = (None, None)
         self.assertEqual(({}, {}), self.cahandler._template_parse(byte_string))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_105__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_105__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
         """ __template_parse() - multiple values replace blank with None"""
         byte_string = 'foo'
         mock_split.return_value = (b'foo', b'bar')
         mock_asn.return_value = {'foo1': 'bar1', 'foo11': 'bar11'}
         mock_utf.return_value = {'foo2': 'bar2', 'foo21': ''}
-        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': None}), self.cahandler._template_parse(byte_string))
+        mock_valid.return_value = 'valid'
+        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': None, 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_106__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_106__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
         """ __template_parse() - multiple values replace blanks with None"""
         byte_string = 'foo'
         mock_split.return_value = (b'foo', b'bar')
         mock_asn.return_value = {'foo1': 'bar1', 'foo11': 'bar11'}
         mock_utf.return_value = {'foo2': 'bar2', 'foo21': '', 'foo22': ''}
-        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': None, 'foo22': None}), self.cahandler._template_parse(byte_string))
+        mock_valid.return_value = 'valid'
+        self.assertEqual(({'foo1': 'bar1', 'foo11': 'bar11'}, {'foo2': 'bar2', 'foo21': None, 'foo22': None, 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
     def test_107__template_load(self):
         """ CAhandler._templatelod - existing template  """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.template_name = 'template'
         dn_dic = {'stateOrProvinceName': 'prov', 'localityName': 'loc', 'organizationName': 'org', 'organizationalUnitName': 'ou'}
-        template_dic = {'validN': '30', 'validMidn': '0', 'validM': '0', 'subKey': '0', 'subAltName': None, 'nsSslServerName': None, 'nsRevocationUrl': None, 'nsRenewalUrl': None, 'nsComment': 'xca certificate', 'nsCertType': '0', 'nsCaPolicyUrl': None, 'nsCARevocationUrl': None, 'nsBaseUrl': None, 'noWellDefinedExpDate': '0', 'kuCritical': '1', 'keyUse': '3', 'issAltName': None, 'ekuCritical': '1', 'eKeyUse': 'serverAuth, clientAuth', 'crlDist': None, 'ca': '0', 'bcCritical': '0', 'basicPath': None, 'authKey': '0', 'authInfAcc': None, 'adv_ext': None}
+        template_dic = {'validity': 30, 'validN': '30', 'validMidn': '0', 'validM': '0', 'subKey': '0', 'subAltName': None, 'nsSslServerName': None, 'nsRevocationUrl': None, 'nsRenewalUrl': None, 'nsComment': 'xca certificate', 'nsCertType': '0', 'nsCaPolicyUrl': None, 'nsCARevocationUrl': None, 'nsBaseUrl': None, 'noWellDefinedExpDate': '0', 'kuCritical': '1', 'keyUse': '3', 'issAltName': None, 'ekuCritical': '1', 'eKeyUse': 'serverAuth, clientAuth', 'crlDist': None, 'ca': '0', 'bcCritical': '0', 'basicPath': None, 'authKey': '0', 'authInfAcc': None, 'adv_ext': None}
         self.assertEqual((dn_dic, template_dic), self.cahandler._template_load())
 
     def test_108__template_load(self):
@@ -784,6 +794,86 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.template_name = 'notexist'
         self.assertEqual(({}, {}), self.cahandler._template_load())
+
+    def test_109__validity_calculate(self):
+        """ CAhandler._validity_calculate() - day value """
+        template_dic = {'validM': '0', 'validN': '10'}
+        self.assertEqual(10, self.cahandler._validity_calculate(template_dic))
+
+    def test_110__validity_calculate(self):
+        """ CAhandler._validity_calculate() - month value """
+        template_dic = {'validM': '1', 'validN': '10'}
+        self.assertEqual(300, self.cahandler._validity_calculate(template_dic))
+
+    def test_111__validity_calculate(self):
+        """ CAhandler._validity_calculate() - year value """
+        template_dic = {'validM': '2', 'validN': '2'}
+        self.assertEqual(730, self.cahandler._validity_calculate(template_dic))
+
+    def test_112__validity_calculate(self):
+        """ CAhandler._validity_calculate() - novalidn """
+        template_dic = {'validM': '2', 'novalidN': '2'}
+        self.assertEqual(365, self.cahandler._validity_calculate(template_dic))
+
+    def test_113__validity_calculate(self):
+        """ CAhandler._validity_calculate() - novalidn """
+        template_dic = {'novalidM': '2', 'validN': '2'}
+        self.assertEqual(365, self.cahandler._validity_calculate(template_dic))
+
+    def test_114__kue_generate(self):
+        """ CAhandler._kue_generate() - digitalSignature """
+        kup = 1
+        self.assertEqual('digitalSignature', self.cahandler._kue_generate(kup))
+
+    def test_115__kue_generate(self):
+        """ CAhandler._kue_generate() - nonRepudiation """
+        kup = 2
+        self.assertEqual('nonRepudiation', self.cahandler._kue_generate(kup))
+
+    def test_116__kue_generate(self):
+        """ CAhandler._kue_generate() - keyEncipherment """
+        kup = 4
+        self.assertEqual('keyEncipherment', self.cahandler._kue_generate(kup))
+
+    def test_117__kue_generate(self):
+        """ CAhandler._kue_generate() - dataEncipherment """
+        kup = 8
+        self.assertEqual('dataEncipherment', self.cahandler._kue_generate(kup))
+
+    def test_118__kue_generate(self):
+        """ CAhandler._kue_generate() - keyAgreement """
+        kup = 16
+        self.assertEqual('keyAgreement', self.cahandler._kue_generate(kup))
+
+    def test_119__kue_generate(self):
+        """ CAhandler._kue_generate() - keyCertSign """
+        kup = 32
+        self.assertEqual('keyCertSign', self.cahandler._kue_generate(kup))
+
+    def test_120__kue_generate(self):
+        """ CAhandler._kue_generate() - cRLSign """
+        kup = 64
+        self.assertEqual('cRLSign', self.cahandler._kue_generate(kup))
+
+    def test_121__kue_generate(self):
+        """ CAhandler._kue_generate() - encipherOnly """
+        kup = 128
+        self.assertEqual('encipherOnly', self.cahandler._kue_generate(kup))
+
+    def test_122__kue_generate(self):
+        """ CAhandler._kue_generate() - encipherOnly """
+        kup = 256
+        self.assertEqual('decipherOnly', self.cahandler._kue_generate(kup))
+
+    def test_123__kue_generate(self):
+        """ CAhandler._kue_generate() - digitalSignature and nonRepudiation """
+        kup = 3
+        self.assertEqual('digitalSignature,nonRepudiation', self.cahandler._kue_generate(kup))
+
+    def test_124__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = 511
+        self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly', self.cahandler._kue_generate(kup))
 
 if __name__ == '__main__':
 
