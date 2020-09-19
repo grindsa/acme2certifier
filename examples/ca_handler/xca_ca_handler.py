@@ -59,12 +59,12 @@ class CAhandler(object):
 
         dn_dic = {}
         if asn1_stream:
+
             # cut first 8 bytes which are bogus
-            asn1_stream = asn1_stream[8:]
+            # asn1_stream = asn1_stream[8:]
 
-            # print(asn1_stream)
+            # split stream
             stream_list = asn1_stream.split(b'\x06\x03\x55')
-
             # we have to remove the first element from list as it contains junk
             stream_list.pop(0)
 
@@ -497,8 +497,31 @@ class CAhandler(object):
                 # replace '' with None
                 template_dic = {k: None if not v else v for k, v in template_dic.items()}
 
+                template_dic['validity'] = self._validity_calculate(template_dic)
+
         self.logger.debug('CAhandler._template_parse() ended')
         return (dn_dic, template_dic)
+
+    def _validity_calculate(self, template_dic):
+        """ calculate validity in days """
+        self.logger.debug('CAhandler._validity_calculate()')
+
+        cert_validity = 365
+        if 'validM' in template_dic and 'validN' in template_dic:
+            if template_dic['validM'] == '0':
+                # validity in days
+                cert_validity = int(template_dic['validN'])
+            elif template_dic['validM'] == '1':
+                # validity in months
+                cert_validity = int(template_dic['validN']) * 30
+            elif template_dic['validM'] == '2':
+                # validity in months
+                cert_validity = int(template_dic['validN']) * 365
+        else:
+            cert_validity = 365
+
+        self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
+        return cert_validity
 
     def _utf_stream_parse(self, utf_stream=None):
         """ parse template information from utf_stream into dictitionary """
@@ -560,33 +583,40 @@ class CAhandler(object):
                     self.logger.debug('rewrite CN to {0}'.format(request_name))
                     subject.CN = request_name
 
+                # create certificate object
+                cert = crypto.X509()
+                cert.set_pubkey(req.get_pubkey())
+                cert.set_version(2)
+                cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
+                cert.set_issuer(ca_cert.get_subject())
+
                 # load template if configured
                 if self.template_name:
-                    (_dn_dic, _template_dic) = self._template_load()
+                    (dn_dic, template_dic) = self._template_load()
+                else:
+                    dn_dic = {}
+                    template_dic = {}
 
-                cert = crypto.X509()
+                # set cert_validity
+                if 'validity' in template_dic:
+                    # take validity from template
+                    cert_validity = template_dic['validity']
+                else:
+                    cert_validity = self.cert_validity_days
                 cert.gmtime_adj_notBefore(0)
-                cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
-                cert.set_issuer(ca_cert.get_subject())
-                cert.set_subject(subject)
-                cert.set_pubkey(req.get_pubkey())
-                cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
-                cert.set_version(2)
+                cert.gmtime_adj_notAfter(cert_validity * 86400)
+
+                # get extension list
+                extension_list = self._extension_list_generate(template_dic, cert, ca_cert)
+                # add extensions (copy from CSR and take the ones we constructed)
                 cert.add_extensions(req.get_extensions())
-                default_extension_list = [
-                    crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                    crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-                    crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-                    crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-                    crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-                ]
+                cert.add_extensions(extension_list)
 
-                # add default extensions
-                cert.add_extensions(default_extension_list)
+                if dn_dic:
+                    subject = self._subject_modify(subject, dn_dic)
+                cert.set_subject(subject)
 
-                print('boom')
-                sys.exit(0)
-
+                # sys.exit(0)
                 # sign csr
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
@@ -603,6 +633,98 @@ class CAhandler(object):
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
+
+    def _subject_modify(self, subject, dn_dic):
+        """ modify subject name """
+        self.logger.debug('CAhandler._subject_modify()')
+
+        if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
+            subject.organizationalUnitName = dn_dic['organizationalUnitName']
+        if 'organizationName' in dn_dic and dn_dic['organizationName']:
+            subject.organizationName = dn_dic['organizationName']
+        if 'localityName' in dn_dic and dn_dic['localityName']:
+            subject.localityName = dn_dic['localityName']
+        if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
+            subject.stateOrProvinceName = dn_dic['stateOrProvinceName']
+        if 'countryName' in dn_dic and dn_dic['countryName']:
+            subject.countryName = dn_dic['countryName']
+
+        self.logger.debug('CAhandler._subject_modify() ended')
+        return subject
+
+    def _extension_list_generate(self, template_dic, cert, ca_cert):
+        """ set extension list """
+        self.logger.debug('CAhandler._extension_list_generate()')
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+            crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+            # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+
+        if template_dic:
+            extension_list = [
+                crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+                crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+            ]
+
+            # extended key_usage
+            if 'eKeyUse' in template_dic:
+                if 'ekuCritical' in template_dic:
+                    ekuc = bool(int(template_dic['ekuCritical']))
+                else:
+                    ekuc = False
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(template_dic['eKeyUse'])))
+
+            # key_usage
+            if 'keyUse' in template_dic:
+                if 'kuCritical' in template_dic:
+                    kuc = bool(int(template_dic['kuCritical']))
+                else:
+                    kuc = False
+                # generate key-usage extension
+                ku_string = self._kue_generate(template_dic['keyUse'])
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
+
+            # add cdp
+            if 'crlDist' in template_dic:
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('crlDistributionPoints'), False, convert_string_to_byte(template_dic['crlDist'])))
+
+            # add basicConstraints
+            if 'ca' in template_dic:
+                if 'bcCritical' in template_dic:
+                    bcc = bool(int(template_dic['bcCritical']))
+                else:
+                    bcc = False
+                if template_dic['ca'] == '1':
+                    extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:TRUE')))
+                elif template_dic['ca'] == '2':
+                    extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:FALSE')))
+        else:
+            extension_list = default_extension_list
+
+        self.logger.debug('CAhandler._extension_list_generate() ended')
+        return extension_list
+
+    def _kue_generate(self, ku_val=None):
+        """ set genearte key usage extenstion """
+        self.logger.debug('CAhandler._extension_list_generate()')
+
+        # generate and reverse key_usage_list
+        key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
+
+        kuval = int(ku_val)
+        kubin = '{0:b}'.format(kuval)[::-1]
+        ku_list = []
+        for idx, ele in enumerate(kubin):
+            if ele == '1':
+                ku_list.append(key_usage_list[idx])
+        ku_string = ','.join(ku_list)
+
+        self.logger.debug('CAhandler._extension_list_generate() ended with: {0}'.format(ku_string))
+        return ku_string
 
     def poll(self, cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
