@@ -616,7 +616,6 @@ class CAhandler(object):
                     subject = self._subject_modify(subject, dn_dic)
                 cert.set_subject(subject)
 
-                # sys.exit(0)
                 # sign csr
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()

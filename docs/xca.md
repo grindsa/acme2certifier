@@ -42,4 +42,12 @@ template_name: XCA template to be applied to CSRs
 - `ca_cert_chain_list` - *optional* - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
 - `template_name` - *optional* - name of the XCA template to be applied during certificate issuance
 
+Template support has been introduced with v0.13. The template support is limited; only the below parameters will get applied to a CSR:
+
+- Certificate validity (`validN`/`validM`)
+- basicConstraints (`ca`)
+- KeyUsage attributes (`keyUse`)
+- extendedKeyUsage attributes (`eKeyUse`)
+- crlDistributionPoints (`crlDist`)
+
 Enjoy enrolling and revoking certificates
