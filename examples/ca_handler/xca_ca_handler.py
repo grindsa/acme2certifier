@@ -27,6 +27,7 @@ class CAhandler(object):
         self.issuing_ca_key = None
         self.cert_validity_days = 365
         self.ca_cert_chain_list = []
+        self.template_name = None
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -36,6 +37,46 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
+
+    def _asn1_stream_parse(self, asn1_stream=None):
+        """ parse asn_string """
+
+        self.logger.debug('CAhandler._asn1_stream_parse()')
+        oid_dic = {
+            "2.5.4.3": "commonName",
+            "2.5.4.4": "surname",
+            "2.5.4.5": "serialNumber",
+            "2.5.4.6": "countryName",
+            "2.5.4.7": "localityName",
+            "2.5.4.8": "stateOrProvinceName",
+            "2.5.4.9": "streetAddress",
+            "2.5.4.10": "organizationName",
+            "2.5.4.11": "organizationalUnitName",
+            "2.5.4.12": "title",
+            "2.5.4.13": "description",
+            "2.5.4.42": "givenName",
+        }
+
+        dn_dic = {}
+        if asn1_stream:
+            # cut first 8 bytes which are bogus
+            asn1_stream = asn1_stream[8:]
+
+            # print(asn1_stream)
+            stream_list = asn1_stream.split(b'\x06\x03\x55')
+
+            # we have to remove the first element from list as it contains junk
+            stream_list.pop(0)
+
+            for ele in stream_list:
+                oid = '2.5.{0}.{1}'.format(ele[0], ele[1])
+                if oid in oid_dic:
+                    value_len = ele[3]
+                    value = ele[4:4 + value_len]
+                    dn_dic[oid_dic[oid]] = value.decode('utf-8')
+
+            self.logger.debug('CAhandler._asn1_stream_parse() ended: {0}'.format(bool(dn_dic)))
+        return dn_dic
 
     def _ca_cert_load(self):
         """ load ca key from database """
@@ -147,8 +188,11 @@ class CAhandler(object):
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             try:
                 self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
-            except BaseException as err:
-                self.logger.error('CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded'.format())
+            except BaseException:
+                self.logger.error('CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded')
+
+        if 'template_name' in config_dic['CAhandler']:
+            self.template_name = config_dic['CAhandler']['template_name']
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
@@ -388,10 +432,100 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._store_cert() ended')
 
+    def _stream_split(self, byte_stream):
+        """ split template in asn1 structure and utf_stream """
+        self.logger.debug('CAhandler._stream_split()')
+        asn1_stream = None
+        utf_stream = None
+
+        # convert to byte if not already done
+        byte_stream = convert_string_to_byte(byte_stream)
+
+        if byte_stream:
+            # search pattern
+            pos = byte_stream.find(b'\x00\x00\x00\x0c') + 4
+            if pos != 3:
+                # split file 3 bcs find returns -1 in case of no-match
+                asn1_stream = byte_stream[:pos]
+                utf_stream = byte_stream[pos:]
+
+        self.logger.debug('CAhandler._stream_split() ended: {0}:{1}'.format(bool(asn1_stream), bool(utf_stream)))
+        return(asn1_stream, utf_stream)
+
     def _stub_func(self, parameter):
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
         self.logger.debug('CAhandler._stub_func() ended')
+
+    def _template_load(self):
+        """ load template from database """
+        self.logger.debug('CAhandler._template_load({0})'.format(self.template_name))
+        # query database for template
+        self._db_open()
+        pre_statement = '''SELECT * from view_templates WHERE name LIKE ?'''
+        self.cursor.execute(pre_statement, [self.template_name])
+        try:
+            db_result = dict_from_row(self.cursor.fetchone())
+        except BaseException:
+            self.logger.error('template lookup failed: {0}'.format(self.cursor.fetchone()))
+            db_result = {}
+
+        # parse template
+        dn_dic = {}
+        template_dic = {}
+        if 'template' in db_result:
+            byte_stream = b64_decode(self.logger, db_result['template'])
+            (dn_dic, template_dic) = self._template_parse(byte_stream)
+        self._db_close()
+        self.logger.debug('CAhandler._template_load() ended')
+
+        return(dn_dic, template_dic)
+
+    def _template_parse(self, byte_string=None):
+        """ process template """
+        self.logger.debug('CAhandler._template_parse()')
+        (asn1_stream, utf_stream) = self._stream_split(byte_string)
+
+        dn_dic = {}
+        if asn1_stream:
+            dn_dic = self._asn1_stream_parse(asn1_stream)
+
+        template_dic = {}
+        if utf_stream:
+            template_dic = self._utf_stream_parse(utf_stream)
+            if template_dic:
+                # replace '' with None
+                template_dic = {k: None if not v else v for k, v in template_dic.items()}
+
+        self.logger.debug('CAhandler._template_parse() ended')
+        return (dn_dic, template_dic)
+
+    def _utf_stream_parse(self, utf_stream=None):
+        """ parse template information from utf_stream into dictitionary """
+        self.logger.debug('CAhandler._utf_stream_parse()')
+        template_dic = {}
+
+        if utf_stream:
+            stream_list = utf_stream.split(b'\x00\x00\x00')
+
+            # iterate list and clean up parameter
+            parameter_list = []
+            for idx, ele in enumerate(stream_list):
+                ele = ele.replace(b'\x00', b'')
+                if idx > 0:
+                    # strip the first character
+                    ele = ele[1:]
+                parameter_list.append(ele.decode('utf-8'))
+
+            if parameter_list:
+                if len(parameter_list) % 2 != 0:
+                    # remove last element from list if amount of list entries is uneven
+                    parameter_list.pop()
+                # convert list into a directory
+                template_dic = {item : parameter_list[index+1] for index, item in enumerate(parameter_list) if index % 2 == 0}
+
+        self.logger.debug('CAhandler._utf_stream_parse() ended: {0}'.format(bool(template_dic)))
+        return template_dic
 
     def enroll(self, csr):
         """ enroll certificate  """
@@ -426,6 +560,10 @@ class CAhandler(object):
                     self.logger.debug('rewrite CN to {0}'.format(request_name))
                     subject.CN = request_name
 
+                # load template if configured
+                if self.template_name:
+                    (_dn_dic, _template_dic) = self._template_load()
+
                 cert = crypto.X509()
                 cert.gmtime_adj_notBefore(0)
                 cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
@@ -445,6 +583,10 @@ class CAhandler(object):
 
                 # add default extensions
                 cert.add_extensions(default_extension_list)
+
+                print('boom')
+                sys.exit(0)
+
                 # sign csr
                 cert.sign(ca_key, 'sha256')
                 serial = cert.get_serial_number()
