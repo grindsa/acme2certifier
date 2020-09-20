@@ -345,6 +345,24 @@ class CAhandler(object):
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
+    def _kue_generate(self, ku_val=None):
+        """ set genearte key usage extenstion """
+        self.logger.debug('CAhandler._extension_list_generate()')
+
+        # generate and reverse key_usage_list
+        key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
+
+        kuval = int(ku_val)
+        kubin = '{0:b}'.format(kuval)[::-1]
+        ku_list = []
+        for idx, ele in enumerate(kubin):
+            if ele == '1':
+                ku_list.append(key_usage_list[idx])
+        ku_string = ','.join(ku_list)
+
+        self.logger.debug('CAhandler._extension_list_generate() ended with: {0}'.format(ku_string))
+        return ku_string
+
     def _pemcertchain_generate(self, ee_cert, issuer_cert):
         """ build pem chain """
         self.logger.debug('CAhandler._pemcertchain_generate()')
@@ -457,6 +475,24 @@ class CAhandler(object):
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
         self.logger.debug('CAhandler._stub_func() ended')
 
+    def _subject_modify(self, subject, dn_dic):
+        """ modify subject name """
+        self.logger.debug('CAhandler._subject_modify()')
+
+        if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
+            subject.organizationalUnitName = dn_dic['organizationalUnitName']
+        if 'organizationName' in dn_dic and dn_dic['organizationName']:
+            subject.organizationName = dn_dic['organizationName']
+        if 'localityName' in dn_dic and dn_dic['localityName']:
+            subject.localityName = dn_dic['localityName']
+        if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
+            subject.stateOrProvinceName = dn_dic['stateOrProvinceName']
+        if 'countryName' in dn_dic and dn_dic['countryName']:
+            subject.countryName = dn_dic['countryName']
+
+        self.logger.debug('CAhandler._subject_modify() ended')
+        return subject
+
     def _template_load(self):
         """ load template from database """
         self.logger.debug('CAhandler._template_load({0})'.format(self.template_name))
@@ -502,27 +538,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_parse() ended')
         return (dn_dic, template_dic)
 
-    def _validity_calculate(self, template_dic):
-        """ calculate validity in days """
-        self.logger.debug('CAhandler._validity_calculate()')
-
-        cert_validity = 365
-        if 'validM' in template_dic and 'validN' in template_dic:
-            if template_dic['validM'] == '0':
-                # validity in days
-                cert_validity = int(template_dic['validN'])
-            elif template_dic['validM'] == '1':
-                # validity in months
-                cert_validity = int(template_dic['validN']) * 30
-            elif template_dic['validM'] == '2':
-                # validity in months
-                cert_validity = int(template_dic['validN']) * 365
-        else:
-            cert_validity = 365
-
-        self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
-        return cert_validity
-
     def _utf_stream_parse(self, utf_stream=None):
         """ parse template information from utf_stream into dictitionary """
         self.logger.debug('CAhandler._utf_stream_parse()')
@@ -549,6 +564,27 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._utf_stream_parse() ended: {0}'.format(bool(template_dic)))
         return template_dic
+
+    def _validity_calculate(self, template_dic):
+        """ calculate validity in days """
+        self.logger.debug('CAhandler._validity_calculate()')
+
+        cert_validity = 365
+        if 'validM' in template_dic and 'validN' in template_dic:
+            if template_dic['validM'] == '0':
+                # validity in days
+                cert_validity = int(template_dic['validN'])
+            elif template_dic['validM'] == '1':
+                # validity in months
+                cert_validity = int(template_dic['validN']) * 30
+            elif template_dic['validM'] == '2':
+                # validity in months
+                cert_validity = int(template_dic['validN']) * 365
+        else:
+            cert_validity = 365
+
+        self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
+        return cert_validity
 
     def enroll(self, csr):
         """ enroll certificate  """
@@ -633,24 +669,6 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
-    def _subject_modify(self, subject, dn_dic):
-        """ modify subject name """
-        self.logger.debug('CAhandler._subject_modify()')
-
-        if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
-            subject.organizationalUnitName = dn_dic['organizationalUnitName']
-        if 'organizationName' in dn_dic and dn_dic['organizationName']:
-            subject.organizationName = dn_dic['organizationName']
-        if 'localityName' in dn_dic and dn_dic['localityName']:
-            subject.localityName = dn_dic['localityName']
-        if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
-            subject.stateOrProvinceName = dn_dic['stateOrProvinceName']
-        if 'countryName' in dn_dic and dn_dic['countryName']:
-            subject.countryName = dn_dic['countryName']
-
-        self.logger.debug('CAhandler._subject_modify() ended')
-        return subject
-
     def _extension_list_generate(self, template_dic, cert, ca_cert):
         """ set extension list """
         self.logger.debug('CAhandler._extension_list_generate()')
@@ -672,7 +690,10 @@ class CAhandler(object):
             # extended key_usage
             if 'eKeyUse' in template_dic:
                 if 'ekuCritical' in template_dic:
-                    ekuc = bool(int(template_dic['ekuCritical']))
+                    try:
+                        ekuc = bool(int(template_dic['ekuCritical']))
+                    except BaseException:
+                        ekuc = False
                 else:
                     ekuc = False
                 extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(template_dic['eKeyUse'])))
@@ -680,7 +701,10 @@ class CAhandler(object):
             # key_usage
             if 'keyUse' in template_dic:
                 if 'kuCritical' in template_dic:
-                    kuc = bool(int(template_dic['kuCritical']))
+                    try:
+                        kuc = bool(int(template_dic['kuCritical']))
+                    except BaseException:
+                        kuc = False
                 else:
                     kuc = False
                 # generate key-usage extension
@@ -688,13 +712,16 @@ class CAhandler(object):
                 extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
 
             # add cdp
-            if 'crlDist' in template_dic:
+            if 'crlDist' in template_dic and template_dic['crlDist']:
                 extension_list.append(crypto.X509Extension(convert_string_to_byte('crlDistributionPoints'), False, convert_string_to_byte(template_dic['crlDist'])))
 
             # add basicConstraints
             if 'ca' in template_dic:
                 if 'bcCritical' in template_dic:
-                    bcc = bool(int(template_dic['bcCritical']))
+                    try:
+                        bcc = bool(int(template_dic['bcCritical']))
+                    except BaseException:
+                        bcc = False
                 else:
                     bcc = False
                 if template_dic['ca'] == '1':
@@ -706,24 +733,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._extension_list_generate() ended')
         return extension_list
-
-    def _kue_generate(self, ku_val=None):
-        """ set genearte key usage extenstion """
-        self.logger.debug('CAhandler._extension_list_generate()')
-
-        # generate and reverse key_usage_list
-        key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
-
-        kuval = int(ku_val)
-        kubin = '{0:b}'.format(kuval)[::-1]
-        ku_list = []
-        for idx, ele in enumerate(kubin):
-            if ele == '1':
-                ku_list.append(key_usage_list[idx])
-        ku_string = ','.join(ku_list)
-
-        self.logger.debug('CAhandler._extension_list_generate() ended with: {0}'.format(ku_string))
-        return ku_string
 
     def poll(self, cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """

@@ -1,11 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for openssl_ca_handler """
-# pylint: disable=C0415, R0904, R0913, W0212
+# pylint: disable=C0302, C0415, R0904, R0913, W0212
 import sys
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 # from OpenSSL import crypto
 import shutil
 
@@ -23,6 +23,12 @@ def _cleanup(dir_path):
     # remove old db
     if os.path.exists(dir_path + '/ca/acme2certifier.xdb'):
         os.remove(dir_path + '/ca/acme2certifier.xdb')
+
+def return_input(*args, **kwargs):
+    """ this function just returns input to output """
+    _foo = kwargs
+    return args
+
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -726,9 +732,8 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._validity_calculate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_102__template_parse(self, mock_split, mock_asn, mock_utf, mock_valid):
+    def test_102__template_parse(self, mock_split, mock_utf, mock_valid):
         """ __template_parse() - no asn1_stream returned """
         byte_string = 'foo'
         mock_split.return_value = (None, b'bar')
@@ -736,20 +741,17 @@ class TestACMEHandler(unittest.TestCase):
         mock_valid.return_value = 'valid'
         self.assertEqual(({}, {'foo2': 'bar2', 'validity': 'valid'}), self.cahandler._template_parse(byte_string))
 
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_103__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_103__template_parse(self, mock_split, mock_asn):
         """ __template_parse() - no asn1_stream returned """
         byte_string = 'foo'
         mock_split.return_value = (b'foo', None)
         mock_asn.return_value = {'foo1': 'bar1'}
         self.assertEqual(({'foo1': 'bar1'}, {}), self.cahandler._template_parse(byte_string))
 
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._utf_stream_parse')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._asn1_stream_parse')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._stream_split')
-    def test_104__template_parse(self, mock_split, mock_asn, mock_utf):
+    def test_104__template_parse(self, mock_split):
         """ __template_parse() - no asn1_stream returned """
         byte_string = 'foo'
         mock_split.return_value = (None, None)
@@ -874,6 +876,321 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._kue_generate() - all """
         kup = 511
         self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly', self.cahandler._kue_generate(kup))
+
+    def test_125__subject_modify(self):
+        """ CAhandler._subject_modify() empty dn_dic """
+        dn_dic = {}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertFalse(rc_obj.countryName)
+        self.assertFalse(rc_obj.stateOrProvinceName)
+        self.assertFalse(rc_obj.localityName)
+        self.assertFalse(rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_126__subject_modify(self):
+        """ CAhandler._subject_modify() wrong dn_dic """
+        dn_dic = {'foo': 'bar'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertFalse(rc_obj.countryName)
+        self.assertFalse(rc_obj.stateOrProvinceName)
+        self.assertFalse(rc_obj.localityName)
+        self.assertFalse(rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_127__subject_modify(self):
+        """ CAhandler._subject_modify() c included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertFalse(rc_obj.stateOrProvinceName)
+        self.assertFalse(rc_obj.localityName)
+        self.assertFalse(rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_128__subject_modify(self):
+        """ CAhandler._subject_modify() c, st included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertEqual('st', rc_obj.stateOrProvinceName)
+        self.assertFalse(rc_obj.localityName)
+        self.assertFalse(rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_129__subject_modify(self):
+        """ CAhandler._subject_modify() c, st, l included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertEqual('st', rc_obj.stateOrProvinceName)
+        self.assertEqual('lo', rc_obj.localityName)
+        self.assertFalse(rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_130__subject_modify(self):
+        """ CAhandler._subject_modify() c, st, l, o included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo', 'organizationName': 'or'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertEqual('st', rc_obj.stateOrProvinceName)
+        self.assertEqual('lo', rc_obj.localityName)
+        self.assertEqual('or', rc_obj.organizationName)
+        self.assertFalse(rc_obj.organizationalUnitName)
+
+    def test_131__subject_modify(self):
+        """ CAhandler._subject_modify() c, st, l, o included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo', 'organizationName': 'or', 'organizationalUnitName': 'ou'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertEqual('st', rc_obj.stateOrProvinceName)
+        self.assertEqual('lo', rc_obj.localityName)
+        self.assertEqual('or', rc_obj.organizationName)
+        self.assertEqual('ou', rc_obj.organizationalUnitName)
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_132__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - empty template """
+        template_dic = {}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'digitalSignature,keyEncipherment'), (b'basicConstraints', True, b'CA:FALSE'), (b'extendedKeyUsage', False, b'serverAuth')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_133__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - wrong template """
+        template_dic = {'foo': 'bar'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_134__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse without ekuCritical """
+        template_dic = {'foo': 'bar', 'eKeyUse': 'eKeyUse'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'extendedKeyUsage', False, b'eKeyUse')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_135__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse with ekuCritical 0 """
+        template_dic = {'foo': 'bar', 'eKeyUse': 'eKeyUse', 'ekuCritical': '0'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'extendedKeyUsage', False, b'eKeyUse')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_136__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse with ekuCritical 1 """
+        template_dic = {'foo': 'bar', 'eKeyUse': 'eKeyUse', 'ekuCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'extendedKeyUsage', True, b'eKeyUse')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_137__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse with ekuCritical string """
+        template_dic = {'foo': 'bar', 'eKeyUse': 'eKeyUse', 'ekuCritical': 'string'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'extendedKeyUsage', False, b'eKeyUse')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_138__extension_list_generate(self, mock_crypto, mock_kue):
+        """ CAhandler._extension_list_generate() - KeyUse without kuCritical """
+        template_dic = {'foo': 'bar', 'keyUse': 'keyUse'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        mock_kue.return_value = 'kue'
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', False, b'kue')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_139__extension_list_generate(self, mock_crypto, mock_kue):
+        """ CAhandler._extension_list_generate() - KeyUse with kuCritical 0 """
+        template_dic = {'foo': 'bar', 'keyUse': 'keyUse', 'kuCritical': '0'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        mock_kue.return_value = 'kue'
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', False, b'kue')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_140__extension_list_generate(self, mock_crypto, mock_kue):
+        """ CAhandler._extension_list_generate() - KeyUse with kuCritical 1 """
+        template_dic = {'foo': 'bar', 'keyUse': 'keyUse', 'kuCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        mock_kue.return_value = 'kue'
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'kue')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_141__extension_list_generate(self, mock_crypto, mock_kue):
+        """ CAhandler._extension_list_generate() - KeyUse with kuCritical string """
+        template_dic = {'foo': 'bar', 'keyUse': 'keyUse', 'kuCritical': 'string'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        mock_kue.return_value = 'kue'
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', False, b'kue')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_142__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse with crlDist """
+        template_dic = {'foo': 'bar', 'crlDist': 'crlDist'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'crlDistributionPoints', False, b'crlDist')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_143__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - eKeyUse with crlDist but no value """
+        template_dic = {'foo': 'bar', 'crlDist': None}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_144__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains without  bcCritical """
+        template_dic = {'foo': 'bar', 'ca': '2'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_145__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains with  bcCritical 0 """
+        template_dic = {'foo': 'bar', 'ca': '2', 'bcCritical': '0'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_146__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains with  bcCritical 1 """
+        template_dic = {'foo': 'bar', 'ca': '2', 'bcCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'basicConstraints', True, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_147__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains with  bcCritical string """
+        template_dic = {'foo': 'bar', 'ca': '2', 'bcCritical': 'string'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_148__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains with  ca 1 """
+        template_dic = {'foo': 'bar', 'ca': '1', 'bcCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'basicConstraints', True, b'CA:TRUE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_149__extension_list_generate(self, mock_crypto):
+        """ CAhandler._extension_list_generate() - basicConstrains with  ca 0 """
+        template_dic = {'foo': 'bar', 'ca': '0', 'bcCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
+
 
 if __name__ == '__main__':
 
