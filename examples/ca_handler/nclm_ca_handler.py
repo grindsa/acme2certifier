@@ -8,6 +8,7 @@ import time
 import requests
 # pylint: disable=E0401
 from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now
+from pprint import pprint
 
 class CAhandler(object):
     """ CA  handler """
@@ -21,7 +22,6 @@ class CAhandler(object):
         self.headers = None
         self.ca_name = None
         self.error = None
-        self.ca_id_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -73,43 +73,46 @@ class CAhandler(object):
 
     def _cert_bundle_build(self, cert_id):
         """ download cert and create bundle """
-        self.logger.debug('CAhandler._cert_bundle_build()')
-        cert_bundle = None
+        self.logger.debug('CAhandler._cert_bundle_build({0})'.format(cert_id))
+        cert_bundle = ''
         error = None
         cert_raw = None
-        cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle).json()
-        if 'certificate' in cert_dic:
-            # add certificates
-            if 'der' in cert_dic['certificate']:
-                cert_raw = cert_dic['certificate']['der']
-            else:
-                error = 'no der certificate returned for id {0}'.format(cert_id)
-                self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
-            if 'pem' in cert_dic['certificate']:
-                cert_bundle = cert_dic['certificate']['pem']
-            else:
-                error = 'no pem certificate returned for id {0}'.format(cert_id)
-                self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
 
-            # add bundle ca certs to bundle
-            for ca_id in self.ca_id_list:
-                cert_dic = requests.get(self.api_host + '/certificates/' + str(ca_id), headers=self.headers, verify=self.ca_bundle).json()
-                if 'certificate' in cert_dic:
-                    if 'pem' in cert_dic['certificate']:
-                        if cert_bundle:
-                            cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
-                        else:
-                            cert_bundle = cert_dic['certificate']['pem']
+        issuer_loop = True
+        count = 0
+        while issuer_loop:
+            # set issuer loop to False to avoid ending in an endless loop
+            issuer_loop = False
+            count += 1
+            self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_id))
+
+            cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle).json()
+            if 'certificate' in cert_dic:
+                if count == 1:
+                    if 'der' in cert_dic['certificate']:
+                        cert_raw = cert_dic['certificate']['der']
                     else:
-                        # we got a cert but no ca no error just return the cert
-                        error = 'no pem ca-certificate returned for id {0}'.format(cert_id)
-                        self.logger.error('CAhandler._cert_bundle_build(): no pem ca-certificate returned for id: {0}'.format(cert_id))
+                        error = 'no der certificate returned for id {0}'.format(cert_id)
+                        self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
+
+                if 'pem' in cert_dic['certificate']:
+                    cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
                 else:
-                    error = 'no ca-certificate returned for id: {0}'.format(cert_id)
-                    self.logger.error('CAhandler._cert_bundle_build(): no ca-certificate returned for id: {0}'.format(cert_id))
-        else:
-            error = 'no certificate returned for id: {0}'.format(cert_id)
-            self.logger.error('CAhandler._cert_bundle_build(): no certificate returned for id: {0}'.format(cert_id))
+                    error = 'no pem certificate returned for id {0}'.format(cert_id)
+                    self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
+
+                if 'issuerInfo' in cert_dic['certificate']:
+                    if 'id' in cert_dic['certificate']['issuerInfo'] and cert_dic['certificate']['issuerInfo']['id'] != cert_id:
+                        self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_dic['certificate']['issuerInfo']['id']))
+                        cert_id = cert_dic['certificate']['issuerInfo']['id']
+                        issuer_loop = True
+            else:
+                self.logger.error('CAhandler._cert_bundle_build(): invalid reponse returned for id: {0}'.format(cert_id))
+                error = 'invalid reponse returned for id: {0}'.format(cert_id)
+
+        # we need this for backwards compability
+        if cert_bundle == '':
+            cert_bundle = None
 
         self.logger.debug('CAhandler._cert_bundle_build() ended')
         return(error, cert_bundle, cert_raw)
@@ -177,10 +180,6 @@ class CAhandler(object):
             self.logger.error('"ca_name" to be set in config file')
             self.error = 'ca_name to be set in config file'
 
-        if not self.error and not self.ca_id_list:
-            self.logger.error('"ca_id_list" to be set in config file')
-            self.error = 'ca_id_list to be set in config file'
-
         if not self.error and self.ca_bundle is False:
             self.logger.warning('"ca_bundle" set to "False" - validation of server certificate disabled')
 
@@ -199,12 +198,6 @@ class CAhandler(object):
                 self.ca_name = config_dic['CAhandler']['ca_name']
             if 'tsg_name' in config_dic['CAhandler']:
                 self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
-            if 'ca_id_list' in config_dic['CAhandler']:
-                try:
-                    self.ca_id_list = json.loads(config_dic['CAhandler']['ca_id_list'])
-                except BaseException:
-                    self.logger.error('"ca_id_list" to be set in config file')
-                    self.ca_id_list = []
 
             # check if we get a ca bundle for verification
             if 'ca_bundle' in config_dic['CAhandler']:
