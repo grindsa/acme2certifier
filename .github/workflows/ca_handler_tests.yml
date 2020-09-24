@@ -98,7 +98,7 @@ jobs:
         sudo echo "api_user: ${{ secrets.NCM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: ${{ secrets.NCM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: ${{ secrets.NCM_CA_NAME }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: [${{ secrets.NCM_CA_BUNDLE }}]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: ${{ secrets.NCM_CA_BUNDLE }}" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -107,8 +107,6 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
-
-
 
     - name: "[ PREPARE ] patch est_ca handler for testrfc7030.com"
       run: |
