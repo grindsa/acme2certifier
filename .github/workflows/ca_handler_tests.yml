@@ -161,7 +161,7 @@ jobs:
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        # sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
