@@ -2,13 +2,13 @@
 <!-- wiki-title CA handler for XCA -->
 # Support for an XCA based Certificate Authorities
 
-This handler can be used to store, certificates and requests in an [XCA](https://github.com/chris2511/xca/) databse. Only SQLite is supported as backend database.
+This handler can be used to store, certificates and requests in an [XCA](https://github.com/chris2511/xca/) SQLite database.
 
-It is also possible to fetch enrollment templates from XCA an apply them to the certificate signing request.
+It is also possible to fetch enrollment templates from XCA an apply them to certificate signing requests.
 
 ## Prerequisites
 
-You need to have a ready-made xca database with CA certificate and keys imported. You further need the `internal names` from the Certificate Authorities as show in the XCA application.
+You need to have a ready-made xca database with CA certificate and keys imported. You further need the `Internal Name` from the Certificate Authorities to be used as show in the XCA application.
 
 ![xca-ca-list](xca-ca-list.png)
 
