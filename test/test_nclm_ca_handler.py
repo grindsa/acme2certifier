@@ -471,6 +471,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_041_config_load(self, mock_load_cfg):
@@ -482,6 +483,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_042_config_load(self, mock_load_cfg):
@@ -493,6 +495,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_043_config_load(self, mock_load_cfg):
@@ -504,6 +507,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_044_config_load(self, mock_load_cfg):
@@ -515,6 +519,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_045_config_load(self, mock_load_cfg):
@@ -526,6 +531,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'tsg_name', 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_046_config_load(self, mock_load_cfg):
@@ -537,6 +543,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.load_config')
     def test_047_config_load(self, mock_load_cfg):
@@ -548,6 +555,18 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_048_config_load(self, mock_load_cfg):
+        """ CAhandler._config_load template_name """
+        mock_load_cfg.return_value = {'CAhandler': {'template_name': 'template_name'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.api_host)
+        self.assertEqual({'api_user': None, 'api_password': None}, self.cahandler.credential_dic)
+        self.assertEqual({'name': None, 'id': None}, self.cahandler.tsg_info_dic)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
@@ -951,6 +970,159 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._tsg_id_lookup())
         self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() returned error: exc_tsg_id_lookup', lcm.output)
 
+    @patch('requests.get')
+    def test_083__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - all ok """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10, 'linkType': 'TEMPLATE'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': 10}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_084__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - linkId None """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': None, 'linkType': 'TEMPLATE'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_085__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - No linkId """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkType': 'TEMPLATE'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_086__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - no match in template names """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'nomatch', 'allowed': True, 'linkId': 10, 'linkType': 'TEMPLATE'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_088__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - allowed false """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': False, 'linkId': 10, 'linkType': 'TEMPLATE'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_089__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - template in lower cases """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10, 'linkType': 'template'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': 10}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_090__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - no template """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10, 'linkType': 'linkType'}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_091__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - no linktype """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10}]}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_092__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - empty list """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'items': []}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_093__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - no items """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'template': {'blank': []}}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_094__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - wrong dict """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'foo': 'bar'}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_095__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - wrong dict """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'foo': 'bar'}
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_096__template_id_lookup(self, mock_get):
+        """ CAhandler._template_id_lookup() - empty response """
+        self.cahandler.api_host = 'api_host'
+        mockresponse = Mock()
+        mockresponse.json = None
+        mock_get.return_value = mockresponse
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+
+    @patch('requests.get')
+    def test_097__template_id_lookup(self, mock_req):
+        """ CAhandler._cert_id_lookup() - request raises exception """
+        self.cahandler.api_host = 'api_host'
+        mock_req.side_effect = Exception('req_exc')
+        self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._template_id_lookup()
+        self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
+        self.assertIn('ERROR:test_a2c:CAhandler._template_id_lookup() returned error: req_exc', lcm.output)
 
 if __name__ == '__main__':
 
