@@ -385,8 +385,6 @@ class CAhandler(object):
                 if ca_id and self.template_info_dic['name'] and not self.template_info_dic['id']:
                     self._template_id_lookup()
 
-                sys.exit(0)
-
                 # get common name of CSR
                 csr_cn = csr_cn_get(self.logger, csr)
                 csr_san_list = csr_san_get(self.logger, csr)
@@ -398,6 +396,9 @@ class CAhandler(object):
 
                 if ca_id and csr_id and self.tsg_info_dic['id']:
                     data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
+                    # add template if correctly configured
+                    if 'id' in self.template_info_dic and self.template_info_dic['id']:
+                        data_dic['templateID'] = self.template_info_dic['id']
                     self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
                     # wait for certificate enrollment to get finished
                     time.sleep(5)
