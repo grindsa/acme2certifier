@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 """ ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class """
 from __future__ import print_function
-import json
+# import json
 import sys
 import time
 import requests
 # pylint: disable=E0401
 from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now
-from pprint import pprint
+
 
 class CAhandler(object):
     """ CA  handler """
@@ -19,6 +19,7 @@ class CAhandler(object):
         self.ca_bundle = True
         self.credential_dic = {'api_user' : None, 'api_password' : None}
         self.tsg_info_dic = {'name' : None, 'id' : None}
+        self.template_info_dic = {'name' : None, 'id' : None}
         self.headers = None
         self.ca_name = None
         self.error = None
@@ -198,6 +199,8 @@ class CAhandler(object):
                 self.ca_name = config_dic['CAhandler']['ca_name']
             if 'tsg_name' in config_dic['CAhandler']:
                 self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
+            if 'template_name' in config_dic['CAhandler']:
+                self.template_info_dic['name'] = config_dic['CAhandler']['template_name']
 
             # check if we get a ca bundle for verification
             if 'ca_bundle' in config_dic['CAhandler']:
@@ -324,6 +327,26 @@ class CAhandler(object):
         self.logger.debug('CAhandler._san_compare() ended with: {0}'.format(result))
         return result
 
+    def _template_id_lookup(self):
+        """ get template id based on name """
+        self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
+        try:
+            template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler._template_id_lookup() returned error: {0}'.format(err_))
+            template_list = []
+        if 'template' in template_list:
+            if 'items' in template_list['template']:
+                for template in template_list['template']['items']:
+                    if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
+                        if 'displayName' in template and template['displayName'] == self.template_info_dic['name']:
+                            if 'linkId' in template:
+                                self.template_info_dic['id'] = template['linkId']
+                                break
+        else:
+            self.logger.error('CAhandler._template_id_lookup() no templates found for filter: {0}...'.format(self.template_info_dic['name']))
+        self.logger.debug('CAhandler._template_id_lookup() ended with: {0}'.format(str(self.template_info_dic['id'])))
+
     def _tsg_id_lookup(self):
         """ get target system id based on name """
         self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
@@ -358,6 +381,12 @@ class CAhandler(object):
             if self.tsg_info_dic['id']:
 
                 ca_id = self._ca_id_lookup()
+
+                if ca_id and self.template_info_dic['name'] and not self.template_info_dic['id']:
+                    self._template_id_lookup()
+
+                sys.exit(0)
+
                 # get common name of CSR
                 csr_cn = csr_cn_get(self.logger, csr)
                 csr_san_list = csr_san_get(self.logger, csr)
