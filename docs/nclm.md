@@ -5,8 +5,8 @@
 ## Pre-requisites
 
 - NCLM 19.0.5 or higher needs to be up and running
-- you need username and password to access NCLM via REST-Service
-- there is a container created in NCLM which can be used to store the certificates
+- username and password to access NCLM via REST-Service
+- is a container created in NCLM which can be used to store the certificates
 
 ## Configuration
 
@@ -26,7 +26,7 @@ api_password: <password>
 ca_bundle: <value>
 ca_name: <ca_name>
 tsg_name: <tsg_name>
-ca_id_list: <ca_id_list>
+template_name: <template_name>
 ```
 
 - api_host - URL of the Certifier-REST service
@@ -35,4 +35,4 @@ ca_id_list: <ca_id_list>
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
 - tsg_name - name of the target system group to store the certificates
-- ca_id_list - list of CA certificates ids to be used to create the certificate bundle
+- template_name - optional - name of the template to be applied to CSR

@@ -9,7 +9,7 @@ and pick the appropriate release branch.
 
 **Features**:
 
-- template support in `xca_handler.py`
+- template support in `xca_handler.py` and `nclm_ca_handler.py`
 - docker images at [ghcr.io](https://github.com/grindsa?tab=packages)
 
 **Bugfixes/Improvements**:
