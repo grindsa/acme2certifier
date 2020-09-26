@@ -9,7 +9,7 @@ on:
 jobs:
 
   apache2_wsgi:
-    name: Test acme2certifier:apache2-wsgi image
+    name: Scan acme2certifier:apache2-wsgi
     runs-on: ubuntu-latest
     steps:
 
@@ -37,7 +37,7 @@ jobs:
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   apache2_django:
-    name: Test acme2certifier:apache2-django image
+    name: Scan acme2certifier:apache2-django
     runs-on: ubuntu-latest
     steps:
 
@@ -68,7 +68,7 @@ jobs:
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   nginx_wsgi:
-    name: Test acme2certifier:nginx-wsgi image
+    name: Scan acme2certifier:nginx-wsgi
     runs-on: ubuntu-latest
     steps:
 
@@ -96,7 +96,7 @@ jobs:
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   nginx_django:
-    name: Test acme2certifier:nginx-django image
+    name: Scan acme2certifier:nginx-django
     runs-on: ubuntu-latest
     steps:
 
