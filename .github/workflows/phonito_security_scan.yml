@@ -1,10 +1,8 @@
 name: phonito security scans
 on:
   push:
-    branches:
-      - "phonito"
   schedule:
-    # * is a special character in YAML so you have to quote this string
+    # * daily checks at 05:00am
     - cron:  '0 5 * * *'
 jobs:
 
