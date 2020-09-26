@@ -1,6 +1,5 @@
 name: phonito security scans
 on:
-  push:
   schedule:
     # * daily checks at 05:00am
     - cron:  '0 5 * * *'
