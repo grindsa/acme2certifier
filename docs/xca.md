@@ -56,4 +56,4 @@ Template support has been introduced starting from v0.13. Support is limited to 
   - S: StateOrProvinceName
   - C: CountryName
 
-Enjoy enrolling and revoking certificates
+Enjoy enrolling and revoking certificates...
