@@ -19,6 +19,7 @@ and pick the appropriate release branch.
 - workflows for
   - code-scanning (CodeQL and Bandit)
   - ca_handler tests
+  - [phonito](https://phonito.io/) security scans
 
 ## Changes in 0.12
 
