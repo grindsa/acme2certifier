@@ -499,18 +499,21 @@ def fqdn_resolve(host, dnssrv=None):
         if dnssrv:
             # add specific dns server
             req.nameservers = dnssrv
-        try:
-            answers = req.query(host, 'A')
-            for rdata in answers:
-                result = str(rdata)
+        for rrtype in ['A','AAAA']:
+            try:
+                answers = req.query(host, rrtype)
+                for rdata in answers:
+                    result = str(rdata)
+                    invalid = False
+                    break
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                result = None
+                invalid = True
+            except BaseException:
+                result = None
                 invalid = False
+            if result != None:
                 break
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            result = None
-            invalid = True
-        except BaseException:
-            result = None
-            invalid = False
     else:
         result = None
         invalid = False
