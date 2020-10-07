@@ -499,7 +499,7 @@ def fqdn_resolve(host, dnssrv=None):
         if dnssrv:
             # add specific dns server
             req.nameservers = dnssrv
-        for rrtype in ['A','AAAA']:
+        for rrtype in ['A', 'AAAA']:
             try:
                 answers = req.query(host, rrtype)
                 for rdata in answers:
