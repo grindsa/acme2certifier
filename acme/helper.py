@@ -27,6 +27,10 @@ import requests
 import pytz
 import dns.resolver
 import OpenSSL
+
+import socket
+import requests.packages.urllib3.util.connection as urllib3_cn
+
 from .version import __version__
 
 def b64decode_pad(logger, string):
@@ -564,6 +568,10 @@ def url_get_with_own_dns(logger, url):
     connection.create_connection = connection._orig_create_connection
     return result
 
+def allowed_gai_family():
+    family = socket.AF_INET    # force IPv4
+    return family
+
 def url_get(logger, url, dns_server_list=None):
     """ http get """
     logger.debug('url_get({0})'.format(url))
@@ -574,8 +582,18 @@ def url_get(logger, url, dns_server_list=None):
             req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
             result = req.text
         except BaseException as err_:
-            result = None
-            logger.error('url_get error: {0}'.format(err_))
+            # force fallback to ipv4
+            logger.debug('url_get({0}): fallback to v4'.format(url))
+            old_gai_family = urllib3_cn.allowed_gai_family
+            try:
+                urllib3_cn.allowed_gai_family = allowed_gai_family
+                req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+                result = req.text
+                print(result)                
+            except BaseException as err_:
+                result = None
+                logger.error('url_get error: {0}'.format(err_))
+            urllib3_cn.allowed_gai_family = old_gai_family
     logger.debug('url_get() ended with: {0}'.format(result))
     return result
 

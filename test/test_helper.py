@@ -610,6 +610,24 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_request.return_value = 'foo'
         self.assertEqual('foo', self.url_get(self.logger, 'url', 'dns'))
 
+    @patch('acme.helper.requests.get', side_effect=Mock(side_effect=Exception('foo')))
+    def test_086_helper_url_get(self, mock_request):
+        """ unsuccessful url_get """
+        # mock_request.return_value.text = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.url_get(self.logger, 'url'))
+        self.assertIn('ERROR:test_a2c:url_get error: foo', lcm.output)
+
+    #@patch('acme.helper.requests.get')
+    #def test_087_helper_url_get(self, mock_request):
+    #    """ unsuccessful url_get fallback to v4"""
+    #    object = Mock()
+    #    object.text = 'foo'
+    #    print(object.text)
+    #    mock_request.side_effect=[Mock(side_effect=Exception('foo')), object]
+    #    self.assertEqual(None, self.url_get(self.logger, 'url'))
+    # @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=Exception('foo')))
+
     @patch('acme.helper.requests.get')
     def test_086_helper_url_get_with_own_dns(self, mock_request):
         """ successful url_get_with_own_dns get with dns servers """
@@ -784,6 +802,26 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_119_helper_fqdn_resolve(self, mock_resolve):
         """ catch other execption """
         self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NXDOMAIN), ['foo']])
+    def test_120_helper_fqdn_resolve(self, mock_resolve):
+        """ catch NXDOMAIN on v4 and fine in v6 """
+        self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NoAnswer), ['foo']])
+    def test_121_helper_fqdn_resolve(self, mock_resolve):
+        """ catch NoAnswer on v4 and fine in v6 """
+        self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NoNameservers), ['foo']])
+    def test_122_helper_fqdn_resolve(self, mock_resolve):
+        """ catch other dns related execption on v4 and fine in v6 """
+        self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
+
+    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=Exception('foo')), ['foo']])
+    def test_123_helper_fqdn_resolve(self, mock_resolve):
+        """ catch other execption when resolving v4 but fine in v6"""
+        self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
 
 if __name__ == '__main__':
     unittest.main()
