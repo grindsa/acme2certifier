@@ -618,15 +618,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.assertFalse(self.url_get(self.logger, 'url'))
         self.assertIn('ERROR:test_a2c:url_get error: foo', lcm.output)
 
-    #@patch('acme.helper.requests.get')
-    #def test_087_helper_url_get(self, mock_request):
-    #    """ unsuccessful url_get fallback to v4"""
-    #    object = Mock()
-    #    object.text = 'foo'
-    #    print(object.text)
-    #    mock_request.side_effect=[Mock(side_effect=Exception('foo')), object]
-    #    self.assertEqual(None, self.url_get(self.logger, 'url'))
-    # @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=Exception('foo')))
+    @patch('acme.helper.requests.get')
+    def test_087_helper_url_get(self, mock_request):
+        """ unsuccessful url_get fallback to v4"""
+        object = Mock()
+        object.text = 'foo'
+        mock_request.side_effect=[Exception('foo'), object]
+        self.assertEqual('foo', self.url_get(self.logger, 'url'))
 
     @patch('acme.helper.requests.get')
     def test_086_helper_url_get_with_own_dns(self, mock_request):
