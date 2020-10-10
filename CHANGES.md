@@ -5,6 +5,16 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.12.1
+
+**Upgrade notes**:
+
+- You need to run the upgrade-script after updating the package
+
+**Bugfixes**:
+
+- `helper.py`- fqdn_resolve() - resolve AAAA records
+
 ## Changes in 0.12
 
 **Upgrade notes**:
