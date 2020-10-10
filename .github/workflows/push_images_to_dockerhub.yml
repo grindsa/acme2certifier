@@ -2,10 +2,10 @@ name: Push images to dockerhub
 on:
   push:
     branches:
-      - "master"
+      - "0.12_mnt_rc"
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '0 4 * * 6'
+    - cron:  '45 3 * * 6'
 jobs:
 
   update_docker_hub_description:
