@@ -30,7 +30,7 @@ jobs:
         uses: phonito/phonito-scanner-action@master
         with:
           image: grindsa/acme2certifier:apache2-wsgi
-          fail-level: HIGH
+          fail-level: MEDIUM
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   apache2_django:
@@ -61,7 +61,7 @@ jobs:
         uses: phonito/phonito-scanner-action@master
         with:
           image: grindsa/acme2certifier:apache2-django
-          fail-level: HIGH
+          fail-level: MEDIUM
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   nginx_wsgi:
@@ -89,7 +89,7 @@ jobs:
         uses: phonito/phonito-scanner-action@master
         with:
           image: grindsa/acme2certifier:nginx-wsgi
-          fail-level: HIGH
+          fail-level: MEDIUM
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
 
   nginx_django:
@@ -120,5 +120,5 @@ jobs:
         uses: phonito/phonito-scanner-action@master
         with:
           image: grindsa/acme2certifier:nginx-django
-          fail-level: HIGH
+          fail-level: MEDIUM
           phonito-token: '${{ secrets.PHONITO_TOKEN }}'
