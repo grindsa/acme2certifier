@@ -45,8 +45,8 @@ metadata:
   name: acme-cert
   namespace: cert-manager-acme
 spec:
-  # The use of the common name field has been deprecated and should not be used
-  # if configured, it must be also listed as a dnsName. I
+  # The use of the common name field has been deprecated and should be avoided
+  # if configured, it must be listed in the dnsNames section
   commonName: k8-acme-cn.bar.local.com
   dnsNames:
     - k8-acme-cn.bar.local.com
