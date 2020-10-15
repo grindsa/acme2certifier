@@ -29,7 +29,7 @@ metadata:
 spec:
   acme:
     email: foo@bar.local
-    server: <acme2certifier address>
+    server: http://acme-srv.bar.local
     privateKeySecretRef:
       # Secret resource that will be used to store the account's private key.
       name: acme-cert
@@ -45,15 +45,23 @@ metadata:
   name: acme-cert
   namespace: cert-manager-acme
 spec:
+  # The use of the common name field has been deprecated and should not be used
+  # if configured, it must be also listed as a dnsName. I
+  commonName: k8-acme-cn.bar.local.com
   dnsNames:
-    - k8-acme.bar.local.com
+    - k8-acme-cn.bar.local.com
+    - k8-acme-san1.bar.local.com
+    - k8-acme-san2.bar.local.com
   secretName: acme2certifier-secret
   issuerRef:
     name: acme2certifier
 ```
 
 - apply the configuration. Certificate enrollment shoud start immedeately
-```grindsa@ub-20:~$ microk8s.kubectl apply -f acme2certifier.yaml```
+
+```bash
+grindsa@ub-20:~$ microk8s.kubectl apply -f acme2certifier.yaml
+```
 
 - the enrollment status can be checked via `microk8s.kubectl describe certificate -n cert-manager-acme`
 
