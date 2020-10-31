@@ -8,16 +8,16 @@ on:
     - cron:  '0 4 * * 6'
 jobs:
 
-  update_docker_hub_description:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Docker Hub Description
-      uses: peter-evans/dockerhub-description@v2
-      env:
-        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USER }}
-        DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-        DOCKERHUB_REPOSITORY: grindsa/acme2certifier
+  #update_docker_hub_description:
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #  - uses: actions/checkout@v2
+  #  - name: Docker Hub Description
+  #    uses: peter-evans/dockerhub-description@v2
+  #    env:
+  #      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USER }}
+  #      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  #      DOCKERHUB_REPOSITORY: grindsa/acme2certifier
 
 
   build_and_upload_images_to_hub:
