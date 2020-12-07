@@ -36,10 +36,11 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          echo ::set-env name=TAG_NAME::$(cat acme/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g)
-          echo ::set-env name=APP_NAME::$(echo ${{ github.repository }} | awk -F / '{print $2}')
+          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
 
       - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+      - run: echo "APP tag is ${{ env.APP_NAME }}"       
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Create images"
