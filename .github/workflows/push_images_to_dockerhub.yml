@@ -40,7 +40,7 @@ jobs:
           echo TAG_NAME=$(cat acme/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
 
       - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "APP tag is ${{ env.APP_NAME }}"       
+      - run: echo "APP tag is ${{ env.APP_NAME }}"
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Create images"
@@ -49,6 +49,11 @@ jobs:
           cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -t ghcr.io/grindsa/acme2certifier:apache2-django -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
           cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -t ghcr.io/grindsa/acme2certifier:nginx-wsgi -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
           cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -t ghcr.io/grindsa/acme2certifier:nginx-django -t ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
+
+      - name: "upload images to hub.docker.com"
+        run: |
+          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker push grindsa/acme2certifier
 
       - name: "upload images to ghcr.io"
         run: |
@@ -61,11 +66,6 @@ jobs:
       #    cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
       #    cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
       #    cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
-
-      - name: "upload images to hub.docker.com"
-        run: |
-          docker login -u ${{ secrets.DOCKERHUB_USER }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-          docker push grindsa/acme2certifier
 
       - name: "delete images from local repository"
         run: |
