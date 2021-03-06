@@ -10,7 +10,14 @@ The CA server needs to send a http-post request to the ```/trigger``` and must s
 
 The data are expected to be send in json format; the payload must be base64 encoded.
 
-```curl -X POST -H "Content-Type: application/json" -d '{"payload":"'"$BASE64_PAYLOAD"'"}'}$ACME2CERTIFIER_URL/trigger```
+```bash
+# Modify to match your setup
+BASE64_PAYLOAD=`echo "Hello Payload" | base64`
+ACME2CERTIFIER_URL="http://10.97.149.146"
+
+# Invoke curl
+curl -X POST -H "Content-Type: application/json" -d "{\"payload\":\"$BASE64_PAYLOAD\"}" "$ACME2CERTIFIER_URL/trigger"
+```
 
 The payload will be forwarded extracted from the post-request and forwarded to the ```ca_handler.trigger()``` method for furhter processing.
 
