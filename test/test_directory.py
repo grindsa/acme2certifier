@@ -69,5 +69,12 @@ class TestACMEHandler(unittest.TestCase):
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'termsOfService': 'foo'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
+    def test_008_directory_directory_get(self):
+        """ test Directory.get_directory() method and check for "eab" key in meta tag"""
+        self.directory.version = '0.1'
+        self.directory.eab = 'foo'
+        output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'externalAccountRequired': True}}
+        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
+
 if __name__ == '__main__':
     unittest.main()
