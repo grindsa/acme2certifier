@@ -15,6 +15,7 @@ class Directory(object):
         self.supress_version = False
         self.tos_url = None
         self.version = __version__
+        self.eab = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -33,6 +34,10 @@ class Directory(object):
                 self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
+        if 'Account' in config_dic:
+            if 'eab_handler_file' in config_dic['Account']:
+                self.eab = True
+
         self.logger.debug('CAhandler._config_load() ended')
 
     def directory_get(self):
@@ -60,6 +65,10 @@ class Directory(object):
         # add terms of service
         if self.tos_url:
             d_dic['meta']['termsOfService'] = self.tos_url
+
+        # indicate eab requirement
+        if self.eab:
+            d_dic['meta']['externalAccountRequired'] = True
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
