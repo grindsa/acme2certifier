@@ -3,7 +3,8 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config
+import importlib
+from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -21,6 +22,8 @@ class Account(object):
         self.tos_check_disable = False
         self.inner_header_nonce_allow = False
         self.tos_url = None
+        self.eab_check = False
+        self.eab_handler = None
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -140,6 +143,21 @@ class Account(object):
 
         self.logger.debug('Account._delete() ended with:{0}'.format(code))
         return(code, message, detail)
+
+    def _eab_check(self, protected, payload):
+        """" check for external account binding """
+        self.logger.debug('_eab_check()')
+        if protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
+            with self.eab_handler(self.logger) as eab_handler:
+                (code, message, detail) = eab_handler.check(protected, payload)
+        else:
+            # no external account binding key in payload - error
+            code = 403
+            message = 'urn:ietf:params:acme:error:externalAccountRequired'
+            detail = 'external account binding required'
+
+        self.logger.debug('Account._delete() _eab_check with:{0}'.format(code))
+        return (code, message, detail)
 
     def _inner_jws_check(self, outer_protected, inner_protected):
         """ RFC8655 7.3.5 checs of inner JWS """
@@ -311,6 +329,23 @@ class Account(object):
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
             self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
             self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
+            if 'eab_handler_file' in config_dic['Account']:
+                # mandate eab check regardless if handler could get loaded or not
+                self.eab_check = True
+                try:
+                    eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['Account']['eab_handler_file']))
+                except BaseException:
+                    try:
+                        eab_handler_module = importlib.import_module('acme.eab_handler')
+                    except BaseException:
+                        eab_handler_module = None
+
+                if eab_handler_module:
+                    # store handler in variable
+                    self.eab_handler = eab_handler_module.EABhandler
+                else:
+                    self.logger.critical('Account._config_load(): EABHandler configuration is missing in config file')
+
         if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
@@ -410,6 +445,10 @@ class Account(object):
                 # tos check
                 if self.tos_url and not self.tos_check_disable:
                     (code, message, detail) = self._tos_check(payload)
+
+                # check for external account binding
+                if code == 200 and self.eab_check:
+                    (code, message, detail) = self._eab_check(protected, payload)
 
                 # contact check
                 if code == 200 and not self.contact_check_disable:

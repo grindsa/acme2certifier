@@ -3,8 +3,10 @@
 """ unittests for account.py """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import importlib
+import configparser
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -731,6 +733,231 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._add(dic, 'foo@example.com')
         self.assertIn('CRITICAL:test_a2c:Database error in Account._add(): exc_acc_add', lcm.output)
+
+    def test_088_eab_check(self):
+        """ test external account binding No payload and no protected """
+        payload = None
+        protected = None
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_089_eab_check(self):
+        """ test external account binding No payload and but protected """
+        payload = None
+        protected = 'protected'
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_090_eab_check(self):
+        """ test external account binding payload and but no protected """
+        payload = 'payload'
+        protected = None
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_091_eab_check(self):
+        """ test external account binding payload and protected """
+        payload = 'payload'
+        protected = 'protected'
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_092_eab_check(self):
+        """ test external account binding wrong payload """
+        payload = {'foo': 'bar'}
+        protected = 'protected'
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_093_eab_check(self):
+        """ test external account binding False """
+        payload = {'externalaccountbinding': False}
+        protected = 'protected'
+        result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    def test_094_eab_check(self):
+        """ test external account binding False """
+        payload = {'externalaccountbinding': True}
+        protected = 'protected'
+        result = (200, 'message', 'detail')
+        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        self.account.eab_handler = eab_handler_module.EABhandler
+        self.account.eab_handler.check = Mock(return_value=(200, 'message', 'detail'))
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.load_config')
+    def test_095_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_096_config_load(self, mock_load_cfg):
+        """ test _config_load account with unknown values """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_097_config_load(self, mock_load_cfg):
+        """ test _config_load account with inner_header_nonce_allow False """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'inner_header_nonce_allow': False}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_098_config_load(self, mock_load_cfg):
+        """ test _config_load account with inner_header_nonce_allow True """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'inner_header_nonce_allow': True}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertTrue(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_099_config_load(self, mock_load_cfg):
+        """ test _config_load account with ecc_only False """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'ecc_only': False}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_100_config_load(self, mock_load_cfg):
+        """ test _config_load account with ecc_only True """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'ecc_only': True}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertTrue(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_101_config_load(self, mock_load_cfg):
+        """ test _config_load account with tos_check_disable False """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'tos_check_disable': False}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_102_config_load(self, mock_load_cfg):
+        """ test _config_load account with tos_check_disable True """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'tos_check_disable': True}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertTrue(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_103_config_load(self, mock_load_cfg):
+        """ test _config_load account with contact_check_disable False """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'contact_check_disable': False}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_104_config_load(self, mock_load_cfg):
+        """ test _config_load account with contact_check_disable True """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'contact_check_disable': True}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertTrue(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+
+    @patch('acme.account.load_config')
+    def test_105_config_load(self, mock_load_cfg):
+        """ test _config_load account with contact_check_disable True """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertTrue(self.account.eab_check)
+        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler configuration is missing in config file', lcm.output)
+
+    @patch('acme.account.load_config')
+    def test_106_config_load(self, mock_load_cfg):
+        """ test _config_load account with tos url check """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+        self.assertFalse(self.account.tos_url)
+
+    @patch('acme.account.load_config')
+    def test_107_config_load(self, mock_load_cfg):
+        """ test _config_load account with tos url configured """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar', 'tos_url': 'tos_url'}
+        mock_load_cfg.return_value = parser
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertFalse(self.account.eab_check)
+        self.assertEqual('tos_url', self.account.tos_url)
 
 if __name__ == '__main__':
     unittest.main()
