@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 import importlib
-from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get
+from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get, b64decode_pad
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -144,12 +144,46 @@ class Account(object):
         self.logger.debug('Account._delete() ended with:{0}'.format(code))
         return(code, message, detail)
 
+    def _eab_jwk_compare(self, protected, payload):
+        """ compare jwk from outer header with jwk in eab playload """
+        self.logger.debug('_eab_jwk_compare()')
+        result = False
+        if 'jwk' in protected:
+            # convert outer jwk into string for better comparison
+            jwk_outer = json.dumps(protected['jwk'])
+            # decode inner jwk
+            jwk_inner = b64decode_pad(self.logger, payload)
+            if jwk_outer == jwk_inner:
+                result = True
+        self.logger.debug('_eab_jwk_compare() ended with: {0}'.format(result))
+        return result
+
+    def _eab_kid_get(self, protected):
+        """ get key identifier for eab validation """
+        self.logger.debug('_eab_kid_get()')
+        # load protected into json format
+        protected_dic = json.loads(b64decode_pad(self.logger, protected))
+        # extract kid
+        eab_key_id = protected_dic.get('kid', None)
+        self.logger.debug('_eab_kid_get() ended with: {0}'.format(eab_key_id))
+        return eab_key_id
+
     def _eab_check(self, protected, payload):
         """" check for external account binding """
         self.logger.debug('_eab_check()')
         if protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
-            with self.eab_handler(self.logger) as eab_handler:
-                (code, message, detail) = eab_handler.check(protected, payload)
+            # compare JWK from protected (outer) header if jwk included in payload of external account binding
+            jwk_compare = self._eab_jwk_compare(protected, payload['externalaccountbinding']['payload'])
+
+            if jwk_compare and 'protected' in payload['externalaccountbinding']:
+                # get key identifier
+                eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+
+            code = 403
+            message = 'foo'
+            detail = 'foo1'
+            #with self.eab_handler(self.logger) as eab_handler:
+            #    (code, message, detail) = eab_handler.check(protected, payload)
         else:
             # no external account binding key in payload - error
             code = 403
