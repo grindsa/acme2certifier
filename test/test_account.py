@@ -776,11 +776,14 @@ class TestACMEHandler(unittest.TestCase):
         result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
-    def test_094_eab_check(self):
-        """ test external account binding False """
-        payload = {'externalaccountbinding': True}
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_094_eab_check(self, mock_cmp):
+        """ test external account binding True """
+        print('FIX 094')
+        payload = {'externalaccountbinding': {'payload': 'foo'}}
         protected = 'protected'
-        result = (200, 'message', 'detail')
+        result = (403, 'foo', 'foo1')
+        mock_cmp.return_value = True
         eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
         self.account.eab_handler = eab_handler_module.EABhandler
         self.account.eab_handler.check = Mock(return_value=(200, 'message', 'detail'))
@@ -958,6 +961,31 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.contact_check_disable)
         self.assertFalse(self.account.eab_check)
         self.assertEqual('tos_url', self.account.tos_url)
+
+    @patch('json.loads')
+    def test_108_eab_kid_get(self, mock_json):
+        """ tes eab_kid all ok """
+        mock_json.return_value = {'kid': 'foo'}
+        self.assertEqual('foo', self.account._eab_kid_get('Zm9vYmFyMjM'))
+
+    @patch('json.loads')
+    def test_109_eab_kid_get(self, mock_json):
+        """ json does not have a kid key """
+        mock_json.return_value = {'foo': 'bar'}
+        self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
+
+    @patch('json.loads')
+    def test_110_eab_kid_get(self, mock_json):
+        """ json is empty """
+        mock_json.return_value = {}
+        self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
+
+    @patch('json.loads')
+    def test_111_eab_kid_get(self, mock_json):
+        """ json returns a string """
+        mock_json.return_value = 'nonjson'
+        self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
+
 
 if __name__ == '__main__':
     unittest.main()
