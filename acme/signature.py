@@ -53,3 +53,13 @@ class Signature(object):
 
         self.logger.debug('Signature.check() ended with: {0}:{1}'.format(result, error))
         return(result, error, None)
+
+    def eab_check(self, content, mac_key):
+        """ signature check """
+        self.logger.debug('Signature.eab_check()')
+        result = False
+        error = None
+        if content and mac_key:
+            (result, error) = signature_check(self.logger, content, mac_key, json_=True)
+
+        return(result, error)
