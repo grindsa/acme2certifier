@@ -81,5 +81,54 @@ class TestACMEHandler(unittest.TestCase):
             self.signature._jwk_load(1)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Signature._hwk_load(): exc_sig_jw_load', lcm.output)
 
+    @patch('acme.signature.signature_check')
+    def test_010_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  result and error """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_sigchk.return_value = ('result', 'error')
+        self.assertEqual(('result', 'error'), self.signature.eab_check(content, mac_key))
+
+    @patch('acme.signature.signature_check')
+    def test_011_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  result no error """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_sigchk.return_value = ('result', None)
+        self.assertEqual(('result', None), self.signature.eab_check(content, mac_key))
+
+    @patch('acme.signature.signature_check')
+    def test_012_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  result false and  error """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_sigchk.return_value = (False, 'error')
+        self.assertEqual((False, 'error'), self.signature.eab_check(content, mac_key))
+
+    @patch('acme.signature.signature_check')
+    def test_013_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  content None """
+        content = None
+        mac_key = 'mac_key'
+        mock_sigchk.return_value = (False, 'error')
+        self.assertEqual((False, None), self.signature.eab_check(content, mac_key))
+
+    @patch('acme.signature.signature_check')
+    def test_014_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  mac_key None """
+        content = 'content'
+        mac_key = None
+        mock_sigchk.return_value = (False, 'error')
+        self.assertEqual((False, None), self.signature.eab_check(content, mac_key))
+
+    @patch('acme.signature.signature_check')
+    def test_015_signature_eab_check(self, mock_sigchk):
+        """ test eab_check  -  mac_key and content None """
+        content = None
+        mac_key = None
+        mock_sigchk.return_value = (False, 'error')
+        self.assertEqual((False, None), self.signature.eab_check(content, mac_key))
+
+
 if __name__ == '__main__':
     unittest.main()
