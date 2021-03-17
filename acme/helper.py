@@ -14,6 +14,7 @@ import sys
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
+import socket
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -23,12 +24,10 @@ import hashlib
 from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
-import requests
 import pytz
 import dns.resolver
 import OpenSSL
-
-import socket
+import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 
 from .version import __version__
@@ -461,9 +460,9 @@ def sha256_hash(logger, string):
     logger.debug('sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(logger, result)))
     return result
 
-def signature_check(logger, message, pub_key):
+def signature_check(logger, message, pub_key, json_=False):
     """ check JWS """
-    logger.debug('signature_check()')
+    logger.debug('signature_check({0})'.format(json_))
 
     result = False
     error = None
@@ -471,7 +470,10 @@ def signature_check(logger, message, pub_key):
     if pub_key:
         # load key
         try:
-            jwkey = jwk.JWK(**pub_key)
+            if json_:
+                jwkey = jwk.JWK.from_json(pub_key)
+            else:
+                jwkey = jwk.JWK(**pub_key)
         except BaseException as err:
             logger.error('load key failed {0}'.format(err))
             jwkey = None
@@ -569,6 +571,7 @@ def url_get_with_own_dns(logger, url):
     return result
 
 def allowed_gai_family():
+    """ set family """
     family = socket.AF_INET    # force IPv4
     return family
 
@@ -589,7 +592,6 @@ def url_get(logger, url, dns_server_list=None):
                 urllib3_cn.allowed_gai_family = allowed_gai_family
                 req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
                 result = req.text
-                print(result)                
             except BaseException as err_:
                 result = None
                 logger.error('url_get error: {0}'.format(err_))
