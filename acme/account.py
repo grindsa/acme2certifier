@@ -7,6 +7,7 @@ import importlib
 from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get, b64decode_pad
 from acme.db_handler import DBstore
 from acme.message import Message
+from acme.signature import Signature
 
 class Account(object):
     """ ACME server class """
@@ -150,11 +151,13 @@ class Account(object):
         result = False
         if 'jwk' in protected:
             # convert outer jwk into string for better comparison
-            jwk_outer = json.dumps(protected['jwk'])
-            # decode inner jwk
-            jwk_inner = b64decode_pad(self.logger, payload)
-            if jwk_outer == jwk_inner:
-                result = True
+            if isinstance(protected, dict):
+                jwk_outer = json.dumps(protected['jwk'])
+                # decode inner jwk
+                jwk_inner = b64decode_pad(self.logger, payload)
+                if jwk_outer == jwk_inner:
+                    result = True
+
         self.logger.debug('_eab_jwk_compare() ended with: {0}'.format(result))
         return result
 
@@ -164,13 +167,18 @@ class Account(object):
         # load protected into json format
         protected_dic = json.loads(b64decode_pad(self.logger, protected))
         # extract kid
-        eab_key_id = protected_dic.get('kid', None)
+        if isinstance(protected_dic, dict):
+            eab_key_id = protected_dic.get('kid', None)
+        else:
+            eab_key_id = None
+
         self.logger.debug('_eab_kid_get() ended with: {0}'.format(eab_key_id))
         return eab_key_id
 
     def _eab_check(self, protected, payload):
         """" check for external account binding """
         self.logger.debug('_eab_check()')
+
         if protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
             # compare JWK from protected (outer) header if jwk included in payload of external account binding
             jwk_compare = self._eab_jwk_compare(protected, payload['externalaccountbinding']['payload'])
@@ -178,12 +186,32 @@ class Account(object):
             if jwk_compare and 'protected' in payload['externalaccountbinding']:
                 # get key identifier
                 eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+                if eab_kid:
+                    # get eab_mac_key
+                    with self.eab_handler(self.logger) as eab_handler:
+                        eab_mac_key = eab_handler.mac_key_get(eab_kid)
+                else:
+                    eab_mac_key = None
 
-            code = 403
-            message = 'foo'
-            detail = 'foo1'
-            #with self.eab_handler(self.logger) as eab_handler:
-            #    (code, message, detail) = eab_handler.check(protected, payload)
+                if eab_mac_key:
+                    (result, error) = self._eab_signature_verify(payload['externalaccountbinding'], eab_mac_key)
+                    if result:
+                        code = 200
+                        message = None
+                        detail = None
+                    else:
+                        code = 403
+                        message = 'urn:ietf:params:acme:error:unauthorized'
+                        detail = 'eab signature verification failed'
+                        self.logger.error('Account._eab_check() returned error: {0}'.format(error))
+                else:
+                    code = 403
+                    message = 'urn:ietf:params:acme:error:unauthorized'
+                    detail = 'eab kid lookup failed'
+            else:
+                code = 403
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'Malformed request'
         else:
             # no external account binding key in payload - error
             code = 403
@@ -192,6 +220,20 @@ class Account(object):
 
         self.logger.debug('Account._delete() _eab_check with:{0}'.format(code))
         return (code, message, detail)
+
+    def _eab_signature_verify(self, content, mac_key):
+        """ verify inner signature """
+        self.logger.debug('Account._eab_signature_verify()')
+
+        if content and mac_key:
+            signature = Signature(None, self.server_name, self.logger)
+            jwk_ = json.dumps({'k': mac_key, 'kty': 'oct'})
+            (sig_check, error) = signature.eab_check(json.dumps(content), jwk_)
+        else:
+            sig_check = False
+            error = None
+        self.logger.debug('Account._eab_signature_verify() ended with: {0}'.format(sig_check))
+        return (sig_check, error)
 
     def _inner_jws_check(self, outer_protected, inner_protected):
         """ RFC8655 7.3.5 checs of inner JWS """
@@ -508,6 +550,11 @@ class Account(object):
 
             response_dic['header'] = {}
             response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
+
+            # add exernal account binding
+            if self.eab_check and 'externalaccountbinding' in payload:
+                response_dic['data']['externalaccountbinding'] = payload['externalaccountbinding']
+
         else:
             if detail == 'tosfalse':
                 detail = 'Terms of service must be accepted'

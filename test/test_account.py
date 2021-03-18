@@ -986,6 +986,77 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = 'nonjson'
         self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
 
+    def test_112__eab_jwk_compare(self):
+        """ jwk inner ok """
+        protected = {'jwk': 'foobar'}
+        payload = 'ImZvb2JhciI='
+        self.assertTrue(self.account._eab_jwk_compare(protected, payload))
+
+    def test_113__eab_jwk_compare(self):
+        """ jwk inner ok no padding """
+        protected = {'jwk': 'foobar'}
+        payload = 'ImZvb2JhciI'
+        self.assertTrue(self.account._eab_jwk_compare(protected, payload))
+
+    def test_114__eab_jwk_compare(self):
+        """ jwk inner payload does not match """
+        protected = {'jwk': 'foobar'}
+        payload = 'Zm9vYg'
+        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+
+    def test_115__eab_jwk_compare(self):
+        """ no jwk in protected """
+        protected = {'foo': 'bar'}
+        payload = 'Zm9vYg'
+        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+
+    def test_116__eab_jwk_compare(self):
+        """ protected is a string """
+        protected = 'protected'
+        payload = 'Zm9vYg'
+        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+
+    def test_117__eab_jwk_compare(self):
+        """ protected is a string containg jwk """
+        protected = 'protected-jwk'
+        payload = 'Zm9vYg'
+        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+
+    def test_118__eab_signature_verify(self):
+        """ content and mac_key are missing """
+        content = None
+        mac_key = None
+        self.assertEqual((False, None), self.account._eab_signature_verify(content, mac_key))
+
+    def test_119__eab_signature_verify(self):
+        """ mac_key is issing """
+        content = 'content'
+        mac_key = None
+        self.assertEqual((False, None), self.account._eab_signature_verify(content, mac_key))
+
+    @patch('acme.signature.Signature.eab_check')
+    def test_120__eab_signature_verify(self, mock_eabchk):
+        """ result and error returned """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_eabchk.return_value = ('foo', 'bar')
+        self.assertEqual(('foo', 'bar'), self.account._eab_signature_verify(content, mac_key))
+
+    @patch('acme.signature.Signature.eab_check')
+    def test_121__eab_signature_verify(self, mock_eabchk):
+        """ result and no error returned """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_eabchk.return_value = (True, None)
+        self.assertEqual((True, None), self.account._eab_signature_verify(content, mac_key))
+
+    @patch('acme.signature.Signature.eab_check')
+    def test_122__eab_signature_verify(self, mock_eabchk):
+        """ result and no error returned """
+        content = 'content'
+        mac_key = 'mac_key'
+        mock_eabchk.return_value = (False, 'error')
+        self.assertEqual((False, 'error'), self.account._eab_signature_verify(content, mac_key))
 
 if __name__ == '__main__':
     unittest.main()
