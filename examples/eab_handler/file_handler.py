@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" skeleton for customized CA handler """
+""" eab file handler """
 from __future__ import print_function
+import csv
 # pylint: disable=E0401
 from acme.helper import load_config
 
@@ -10,11 +11,11 @@ class EABhandler(object):
 
     def __init__(self, logger=None):
         self.logger = logger
-        self.parameter = None
+        self.key_file = None
 
     def __enter__(self):
         """ Makes EABhandler a Context Manager """
-        if not self.parameter:
+        if not self.key_file:
             self._config_load()
         return self
 
@@ -25,23 +26,22 @@ class EABhandler(object):
         """" load config from file """
         self.logger.debug('EABhandler._config_load()')
 
-        #config_dic = load_config(self.logger, 'EABhandler')
-        #if 'parameter' in config_dic['EABhandler']:
-        #    self.parameter = config_dic['EABhandler']['EABhandler']
+        config_dic = load_config(self.logger, 'EABhandler')
+        if 'key_file' in config_dic['EABhandler']:
+            self.key_file = config_dic['EABhandler']['key_file']
 
         self.logger.debug('EABhandler._config_load() ended')
 
-    def check(self, protected, payload):
+    def mac_key_get(self, kid=None):
         """ check external account binding """
-        self.logger.debug('EABhandler.check()')
+        self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
 
-        from pprint import pprint
-        pprint(protected)
-        pprint(payload)
-
-        code = 403
-        message = 'joerns message'
-        detail = 'joerns detail'
-
-        self.logger.debug('EABhandler.check() ended with: {0}'.format(code))
-        return (code, message, detail)
+        mac_key = None
+        with open(self.key_file, mode='r') as csv_file:
+            csv_reader = csv.DictReader(csv_file)
+            for row in csv_reader:
+                if 'eab_kid' in row and 'eab_mac' in row and row['eab_kid'] == kid:
+                    mac_key = row['eab_mac']
+                    break
+        self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))                    
+        return mac_key
