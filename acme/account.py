@@ -399,7 +399,7 @@ class Account(object):
 
     def _config_load(self):
         """" load config from file """
-        self.logger.debug('_config_load()')
+        self.logger.debug('Account._config_load()')
         config_dic = load_config()
         if 'Account' in config_dic:
             self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
@@ -408,16 +408,19 @@ class Account(object):
             self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
 
         if 'EABhandler' in config_dic:
+            self.logger.debug('Account._config.load(): loading eab_handler')
             if 'eab_handler_file' in config_dic['EABhandler']:
                 # mandate eab check regardless if handler could get loaded or not
                 self.eab_check = True
                 try:
                     eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['EABhandler']['eab_handler_file']))
-                except BaseException:
+                except BaseException as err_:
+                    self.logger.critical('Account._config_load(): loading EABHandler configured in cfg failed with err: {0}'.format(err))
                     try:
                         eab_handler_module = importlib.import_module('acme.eab_handler')
                     except BaseException:
                         eab_handler_module = None
+                        self.logger.critical('Account._config_load(): loading default EABHandler failed with err: {0}'.format(err))
 
                 if eab_handler_module:
                     # store handler in variable
@@ -428,6 +431,8 @@ class Account(object):
         if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
+        self.logger.debug('Account._config_load() ended')
+
 
     def _lookup(self, value, field='name'):
         """ lookup account """
