@@ -29,7 +29,7 @@ class Account(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
-        print(self.eab_check)
+        self.logger.debug(self.eab_check)
         return self
 
     def __exit__(self, *args):
