@@ -33,6 +33,7 @@ COPY examples/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf
 COPY examples/django/ /var/www/acme2certifier/
 COPY examples/django/ /var/www/acme2certifier/examples/django
 COPY examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
+COPY examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 COPY examples/acme_srv.cfg /var/www/acme2certifier/examples/
 COPY examples/apache_django_ssl.conf /var/www/acme2certifier/examples/
 COPY acme/ /var/www/acme2certifier/acme
