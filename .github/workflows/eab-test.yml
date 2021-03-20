@@ -56,7 +56,7 @@ jobs:
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot12.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
