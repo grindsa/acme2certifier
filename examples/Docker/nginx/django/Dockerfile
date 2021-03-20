@@ -14,7 +14,7 @@ RUN apt-get install --no-install-recommends -y \
     python3-mysqldb \
     python3-pymysql \
     python3-yaml \
-    python3-cryptography \    
+    python3-cryptography \
  && rm -rf /var/lib/apt/lists/*
 
 # install python requirements
@@ -32,6 +32,7 @@ RUN mkdir -p /var/www/acme2certifier/volume && \
 COPY examples/django/ /var/www/acme2certifier/
 COPY examples/django/ /var/www/acme2certifier/examples/django
 COPY examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
+COPY examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 COPY examples/acme_srv.cfg /var/www/acme2certifier/examples/
 COPY examples/nginx/ /var/www/acme2certifier/examples/nginx
 COPY acme/ /var/www/acme2certifier/acme
