@@ -29,7 +29,6 @@ class Account(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
-        self.logger.debug(self.eab_check)
         return self
 
     def __exit__(self, *args):
@@ -415,12 +414,12 @@ class Account(object):
                 try:
                     eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['EABhandler']['eab_handler_file']))
                 except BaseException as err_:
-                    self.logger.critical('Account._config_load(): loading EABHandler configured in cfg failed with err: {0}'.format(err))
+                    self.logger.critical('Account._config_load(): loading EABHandler configured in cfg failed with err: {0}'.format(err_))
                     try:
                         eab_handler_module = importlib.import_module('acme.eab_handler')
-                    except BaseException:
+                    except BaseException as err_:
                         eab_handler_module = None
-                        self.logger.critical('Account._config_load(): loading default EABHandler failed with err: {0}'.format(err))
+                        self.logger.critical('Account._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
 
                 if eab_handler_module:
                     # store handler in variable

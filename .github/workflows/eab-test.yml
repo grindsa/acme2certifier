@@ -41,7 +41,7 @@ jobs:
         sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: examples/eab_handler/json_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: examples/eab_handler/key_file.json" >> examples/Docker/data/acme_srv.cfg
-        sudo cat examples/Docker/data/acme_srv.cfg
+        # sudo cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
