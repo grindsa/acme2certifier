@@ -780,6 +780,8 @@ class TestACMEHandler(unittest.TestCase):
         """ test external account binding True but protected in accountbinding structure is missing """
         payload = {'externalaccountbinding': {'payload': 'foo'}}
         protected = 'protected'
+        self.account.eab_check = True
+        self.account.eab_handler = 'foo'
         result = (403, 'urn:ietf:params:acme:error:malformed', 'Malformed request')
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
@@ -789,6 +791,8 @@ class TestACMEHandler(unittest.TestCase):
         payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
         protected = 'protected'
         mock_cmp.return_value = False
+        self.account.eab_check = True
+        self.account.eab_handler = 'foo'
         result = (403, 'urn:ietf:params:acme:error:malformed', 'Malformed request')
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
@@ -800,6 +804,8 @@ class TestACMEHandler(unittest.TestCase):
         protected = 'protected'
         mock_cmp.return_value = True
         mock_kget.return_value = None
+        self.account.eab_check = True
+        self.account.eab_handler = 'foo'
         result = (403, 'urn:ietf:params:acme:error:unauthorized', 'eab kid lookup failed')
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
@@ -811,7 +817,7 @@ class TestACMEHandler(unittest.TestCase):
         protected = 'protected'
         mock_cmp.return_value = True
         mock_kget.return_value = 'kid'
-        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        eab_handler_module = importlib.import_module('examples.eab_handler.skeleton_eab_handler')
         self.account.eab_handler = eab_handler_module.EABhandler
         self.account.eab_handler.mac_key_get = Mock(return_value=None)
         result = (403, 'urn:ietf:params:acme:error:unauthorized', 'eab kid lookup failed')
@@ -826,7 +832,7 @@ class TestACMEHandler(unittest.TestCase):
         protected = 'protected'
         mock_cmp.return_value = True
         mock_kget.return_value = 'kid'
-        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        eab_handler_module = importlib.import_module('examples.eab_handler.skeleton_eab_handler')
         self.account.eab_handler = eab_handler_module.EABhandler
         self.account.eab_handler.mac_key_get = Mock(return_value='mac_key')
         mock_sigvrf.return_value = (False, 'error')
@@ -842,7 +848,7 @@ class TestACMEHandler(unittest.TestCase):
         protected = 'protected'
         mock_cmp.return_value = True
         mock_kget.return_value = 'kid'
-        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        eab_handler_module = importlib.import_module('examples.eab_handler.skeleton_eab_handler')
         self.account.eab_handler = eab_handler_module.EABhandler
         self.account.eab_handler.mac_key_get = Mock(return_value='mac_key')
         mock_sigvrf.return_value = (True, None)

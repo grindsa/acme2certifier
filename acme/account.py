@@ -179,7 +179,7 @@ class Account(object):
         """" check for external account binding """
         self.logger.debug('_eab_check()')
 
-        if protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
+        if self.eab_handler and protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
             # compare JWK from protected (outer) header if jwk included in payload of external account binding
             jwk_compare = self._eab_jwk_compare(protected, payload['externalaccountbinding']['payload'])
 
