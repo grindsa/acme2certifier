@@ -405,11 +405,13 @@ class Account(object):
             self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
             self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
             self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
-            if 'eab_handler_file' in config_dic['Account']:
+
+        if 'EABhandler' in config_dic:
+            if 'eab_handler_file' in config_dic['EABhandler']:
                 # mandate eab check regardless if handler could get loaded or not
                 self.eab_check = True
                 try:
-                    eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['Account']['eab_handler_file']))
+                    eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['EABhandler']['eab_handler_file']))
                 except BaseException:
                     try:
                         eab_handler_module = importlib.import_module('acme.eab_handler')

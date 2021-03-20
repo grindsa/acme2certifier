@@ -776,21 +776,81 @@ class TestACMEHandler(unittest.TestCase):
         result = (403, 'urn:ietf:params:acme:error:externalAccountRequired', 'external account binding required')
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
-    @patch('acme.account.Account._eab_jwk_compare')
-    def test_094_eab_check(self, mock_cmp):
-        """ test external account binding True """
-        print('FIX 094')
+    def test_094_eab_check(self):
+        """ test external account binding True but protected in accountbinding structure is missing """
         payload = {'externalaccountbinding': {'payload': 'foo'}}
         protected = 'protected'
-        result = (403, 'foo', 'foo1')
+        result = (403, 'urn:ietf:params:acme:error:malformed', 'Malformed request')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_095_eab_check(self, mock_cmp):
+        """ test external account binding False """
+        payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
+        protected = 'protected'
+        mock_cmp.return_value = False
+        result = (403, 'urn:ietf:params:acme:error:malformed', 'Malformed request')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.Account._eab_kid_get')
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_096_eab_check(self, mock_cmp, mock_kget):
+        """ test external _eab_kid_get returns None """
+        payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
+        protected = 'protected'
         mock_cmp.return_value = True
+        mock_kget.return_value = None
+        result = (403, 'urn:ietf:params:acme:error:unauthorized', 'eab kid lookup failed')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.Account._eab_kid_get')
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_097_eab_check(self, mock_cmp, mock_kget):
+        """ test external _eab_kid_get returns value but mac lookup failed """
+        payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
+        protected = 'protected'
+        mock_cmp.return_value = True
+        mock_kget.return_value = 'kid'
         eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
         self.account.eab_handler = eab_handler_module.EABhandler
-        self.account.eab_handler.check = Mock(return_value=(200, 'message', 'detail'))
+        self.account.eab_handler.mac_key_get = Mock(return_value=None)
+        result = (403, 'urn:ietf:params:acme:error:unauthorized', 'eab kid lookup failed')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.Account._eab_signature_verify')
+    @patch('acme.account.Account._eab_kid_get')
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_098_eab_check(self, mock_cmp, mock_kget, mock_sigvrf):
+        """ test external _eab_kid_get returns value but mac lookup successful sig verification failed"""
+        payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
+        protected = 'protected'
+        mock_cmp.return_value = True
+        mock_kget.return_value = 'kid'
+        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        self.account.eab_handler = eab_handler_module.EABhandler
+        self.account.eab_handler.mac_key_get = Mock(return_value='mac_key')
+        mock_sigvrf.return_value = (False, 'error')
+        result = (403, 'urn:ietf:params:acme:error:unauthorized', 'eab signature verification failed')
+        self.assertEqual(result, self.account._eab_check(protected, payload))
+
+    @patch('acme.account.Account._eab_signature_verify')
+    @patch('acme.account.Account._eab_kid_get')
+    @patch('acme.account.Account._eab_jwk_compare')
+    def test_099_eab_check(self, mock_cmp, mock_kget, mock_sigvrf):
+        """ test external _eab_kid_get returns value but mac lookup successful sig verification failed"""
+        payload = {'externalaccountbinding': {'payload': 'payload', 'protected': 'protected'}}
+        protected = 'protected'
+        mock_cmp.return_value = True
+        mock_kget.return_value = 'kid'
+        eab_handler_module = importlib.import_module('examples.eab_handler.file_handler')
+        self.account.eab_handler = eab_handler_module.EABhandler
+        self.account.eab_handler.mac_key_get = Mock(return_value='mac_key')
+        mock_sigvrf.return_value = (True, None)
+        result = (200, None, None)
         self.assertEqual(result, self.account._eab_check(protected, payload))
 
     @patch('acme.account.load_config')
-    def test_095_config_load(self, mock_load_cfg):
+    def test_100_config_load(self, mock_load_cfg):
         """ test _config_load empty config """
         parser = configparser.ConfigParser()
         # parser['Account'] = {'foo': 'bar'}
@@ -803,7 +863,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_096_config_load(self, mock_load_cfg):
+    def test_101_config_load(self, mock_load_cfg):
         """ test _config_load account with unknown values """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar'}
@@ -816,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_097_config_load(self, mock_load_cfg):
+    def test_102_config_load(self, mock_load_cfg):
         """ test _config_load account with inner_header_nonce_allow False """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'inner_header_nonce_allow': False}
@@ -829,7 +889,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_098_config_load(self, mock_load_cfg):
+    def test_103_config_load(self, mock_load_cfg):
         """ test _config_load account with inner_header_nonce_allow True """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'inner_header_nonce_allow': True}
@@ -842,7 +902,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_099_config_load(self, mock_load_cfg):
+    def test_104_config_load(self, mock_load_cfg):
         """ test _config_load account with ecc_only False """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'ecc_only': False}
@@ -855,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_100_config_load(self, mock_load_cfg):
+    def test_105_config_load(self, mock_load_cfg):
         """ test _config_load account with ecc_only True """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'ecc_only': True}
@@ -868,7 +928,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_101_config_load(self, mock_load_cfg):
+    def test_106_config_load(self, mock_load_cfg):
         """ test _config_load account with tos_check_disable False """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'tos_check_disable': False}
@@ -881,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_102_config_load(self, mock_load_cfg):
+    def test_107_config_load(self, mock_load_cfg):
         """ test _config_load account with tos_check_disable True """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'tos_check_disable': True}
@@ -894,7 +954,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_103_config_load(self, mock_load_cfg):
+    def test_108_config_load(self, mock_load_cfg):
         """ test _config_load account with contact_check_disable False """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'contact_check_disable': False}
@@ -907,7 +967,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_104_config_load(self, mock_load_cfg):
+    def test_109_config_load(self, mock_load_cfg):
         """ test _config_load account with contact_check_disable True """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar', 'contact_check_disable': True}
@@ -920,10 +980,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.eab_check)
 
     @patch('acme.account.load_config')
-    def test_105_config_load(self, mock_load_cfg):
+    def test_110_config_load(self, mock_load_cfg):
         """ test _config_load account with contact_check_disable True """
         parser = configparser.ConfigParser()
-        parser['Account'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
+        parser['EABhandler'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
         mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._config_load()
@@ -935,7 +995,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler configuration is missing in config file', lcm.output)
 
     @patch('acme.account.load_config')
-    def test_106_config_load(self, mock_load_cfg):
+    def test_111_config_load(self, mock_load_cfg):
         """ test _config_load account with tos url check """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar'}
@@ -949,7 +1009,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.tos_url)
 
     @patch('acme.account.load_config')
-    def test_107_config_load(self, mock_load_cfg):
+    def test_112_config_load(self, mock_load_cfg):
         """ test _config_load account with tos url configured """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar', 'tos_url': 'tos_url'}
@@ -963,79 +1023,79 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('tos_url', self.account.tos_url)
 
     @patch('json.loads')
-    def test_108_eab_kid_get(self, mock_json):
+    def test_113_eab_kid_get(self, mock_json):
         """ tes eab_kid all ok """
         mock_json.return_value = {'kid': 'foo'}
         self.assertEqual('foo', self.account._eab_kid_get('Zm9vYmFyMjM'))
 
     @patch('json.loads')
-    def test_109_eab_kid_get(self, mock_json):
+    def test_114_eab_kid_get(self, mock_json):
         """ json does not have a kid key """
         mock_json.return_value = {'foo': 'bar'}
         self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
 
     @patch('json.loads')
-    def test_110_eab_kid_get(self, mock_json):
+    def test_115_eab_kid_get(self, mock_json):
         """ json is empty """
         mock_json.return_value = {}
         self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
 
     @patch('json.loads')
-    def test_111_eab_kid_get(self, mock_json):
+    def test_116_eab_kid_get(self, mock_json):
         """ json returns a string """
         mock_json.return_value = 'nonjson'
         self.assertFalse(self.account._eab_kid_get('Zm9vYmFyMjM'))
 
-    def test_112__eab_jwk_compare(self):
+    def test_117__eab_jwk_compare(self):
         """ jwk inner ok """
         protected = {'jwk': 'foobar'}
         payload = 'ImZvb2JhciI='
         self.assertTrue(self.account._eab_jwk_compare(protected, payload))
 
-    def test_113__eab_jwk_compare(self):
+    def test_118__eab_jwk_compare(self):
         """ jwk inner ok no padding """
         protected = {'jwk': 'foobar'}
         payload = 'ImZvb2JhciI'
         self.assertTrue(self.account._eab_jwk_compare(protected, payload))
 
-    def test_114__eab_jwk_compare(self):
+    def test_119__eab_jwk_compare(self):
         """ jwk inner payload does not match """
         protected = {'jwk': 'foobar'}
         payload = 'Zm9vYg'
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
-    def test_115__eab_jwk_compare(self):
+    def test_120__eab_jwk_compare(self):
         """ no jwk in protected """
         protected = {'foo': 'bar'}
         payload = 'Zm9vYg'
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
-    def test_116__eab_jwk_compare(self):
+    def test_121__eab_jwk_compare(self):
         """ protected is a string """
         protected = 'protected'
         payload = 'Zm9vYg'
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
-    def test_117__eab_jwk_compare(self):
+    def test_122__eab_jwk_compare(self):
         """ protected is a string containg jwk """
         protected = 'protected-jwk'
         payload = 'Zm9vYg'
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
-    def test_118__eab_signature_verify(self):
+    def test_123__eab_signature_verify(self):
         """ content and mac_key are missing """
         content = None
         mac_key = None
         self.assertEqual((False, None), self.account._eab_signature_verify(content, mac_key))
 
-    def test_119__eab_signature_verify(self):
+    def test_124__eab_signature_verify(self):
         """ mac_key is issing """
         content = 'content'
         mac_key = None
         self.assertEqual((False, None), self.account._eab_signature_verify(content, mac_key))
 
     @patch('acme.signature.Signature.eab_check')
-    def test_120__eab_signature_verify(self, mock_eabchk):
+    def test_125__eab_signature_verify(self, mock_eabchk):
         """ result and error returned """
         content = 'content'
         mac_key = 'mac_key'
@@ -1043,7 +1103,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('foo', 'bar'), self.account._eab_signature_verify(content, mac_key))
 
     @patch('acme.signature.Signature.eab_check')
-    def test_121__eab_signature_verify(self, mock_eabchk):
+    def test_126__eab_signature_verify(self, mock_eabchk):
         """ result and no error returned """
         content = 'content'
         mac_key = 'mac_key'
@@ -1051,7 +1111,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((True, None), self.account._eab_signature_verify(content, mac_key))
 
     @patch('acme.signature.Signature.eab_check')
-    def test_122__eab_signature_verify(self, mock_eabchk):
+    def test_127__eab_signature_verify(self, mock_eabchk):
         """ result and no error returned """
         content = 'content'
         mac_key = 'mac_key'
