@@ -34,8 +34,8 @@ class Directory(object):
                 self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
-        if 'Account' in config_dic:
-            if 'eab_handler_file' in config_dic['Account']:
+        if 'EABhandler' in config_dic:
+            if 'eab_handler_file' in config_dic['EABhandler']:
                 self.eab = True
 
         self.logger.debug('CAhandler._config_load() ended')
