@@ -122,17 +122,17 @@ def newaccount(environ, start_response):
     """ create new account """
     if environ['REQUEST_METHOD'] == 'POST':
 
-        account = Account(DEBUG, get_url(environ), LOGGER)
-        request_body = get_request_body(environ)
-        response_dic = account.new(request_body)
+        with Account(DEBUG, get_url(environ), LOGGER) as account:
+            request_body = get_request_body(environ)
+            response_dic = account.new(request_body)
 
-        # create header
-        headers = create_header(response_dic)
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            # create header
+            headers = create_header(response_dic)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
-        return [json.dumps(response_dic['data']).encode('utf-8')]
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
