@@ -3,6 +3,7 @@
 """ unittests for account.py """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import configparser
 import sys
 from unittest.mock import patch, MagicMock
 
@@ -75,6 +76,84 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.eab = 'foo'
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'externalAccountRequired': True}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
+
+    @patch('acme.directory.load_config')
+    def test_009_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_010_config_load(self, mock_load_cfg):
+        """ test _config_load with unknown values config """
+        parser = configparser.ConfigParser()
+        parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_011_config_load(self, mock_load_cfg):
+        """ test _config_load with unknown values config """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_012_config_load(self, mock_load_cfg):
+        """ test _config_load supress version number """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'supress_version': True}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertTrue(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_013_config_load(self, mock_load_cfg):
+        """ test _config_load tos url """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'tos_url': 'tos_url'}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertEqual('tos_url', self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_014_config_load(self, mock_load_cfg):
+        """ test _config_load eab """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertTrue(self.directory.eab)
+
+    @patch('acme.directory.load_config')
+    def test_015_config_load(self, mock_load_cfg):
+        """ test _config_load all parameters set """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        parser['Directory'] = {'tos_url': 'tos_url', 'supress_version': True}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertTrue(self.directory.supress_version)
+        self.assertEqual('tos_url', self.directory.tos_url)
+        self.assertTrue(self.directory.eab)
 
 if __name__ == '__main__':
     unittest.main()
