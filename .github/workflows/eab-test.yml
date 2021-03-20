@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        keylength: [2048, 4096]
+        keylength: [2048]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -37,7 +37,11 @@ jobs:
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo echo -e "[EABhandler]\neab_handler_file: examples/eab_handler/json_handler.py\nkey_file: examples/eab_handler/key_file.json" >> examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: examples/eab_handler/json_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: examples/eab_handler/key_file.json" >> examples/Docker/data/acme_srv.cfg
+        sudo cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -48,7 +52,7 @@ jobs:
 
     - name: "[ REGISTER] certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=mac_02
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_04 --eab-hmac-key=mac_02
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -68,5 +72,5 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: lego_key-${{ matrix.keylength }}.tar.gz
+        name: eab-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
