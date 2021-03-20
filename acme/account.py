@@ -29,6 +29,7 @@ class Account(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
+        print(self.eab_check)
         return self
 
     def __exit__(self, *args):
@@ -66,7 +67,7 @@ class Account(object):
                         self.logger.critical('Database error in Account._add(): {0}'.format(err_))
                         db_name = None
                         new = False
-                    self.logger.debug('god account_name:{0} new:{1}'.format(db_name, new))
+                    self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
                     if new:
                         code = 201
                         message = account_name
