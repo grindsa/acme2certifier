@@ -12,6 +12,7 @@ and pick the appropriate release branch.
 - You need to run the upgrade-script after updating the package
 
 **Features**:
+
 - support for [External Account Binding](docs/eab.md)
 
 **Bugfixes**:
