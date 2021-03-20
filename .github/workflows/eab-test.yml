@@ -46,6 +46,9 @@ jobs:
         docker-compose restart
         docker-compose logs
 
+    - name: "Test http://acme-srv/directory is accessable again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
     - name: "[ PREPARE ] create letsencrypt folder"
       run: |
         mkdir certbot
