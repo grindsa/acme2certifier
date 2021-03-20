@@ -90,7 +90,7 @@ def acct(environ, start_response):
 
 
 def authz(environ, start_response):
-    """ account handling """
+    """ authorization handling """
     if environ['REQUEST_METHOD'] == 'POST' or environ['REQUEST_METHOD'] == 'GET':
         with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
             if environ['REQUEST_METHOD'] == 'POST':

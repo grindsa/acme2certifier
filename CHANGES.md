@@ -5,6 +5,19 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.14
+
+**Upgrade notes**:
+
+- You need to run the upgrade-script after updating the package
+
+**Features**:
+- support for [External Account Binding](docs/eab.md)
+
+**Bugfixes**:
+
+- `acme2certifier_wsgi.py`- newaccount() - initialize `Account()` class as context handler
+
 ## Changes in 0.13.1
 
 **Upgrade notes**:
