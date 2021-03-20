@@ -11,11 +11,11 @@ class EABhandler(object):
 
     def __init__(self, logger=None):
         self.logger = logger
-        self.key_file = None
+        self.key = None
 
     def __enter__(self):
         """ Makes EABhandler a Context Manager """
-        if not self.key_file:
+        if not self.key:
             self._config_load()
         return self
 
