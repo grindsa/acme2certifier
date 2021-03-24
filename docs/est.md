@@ -2,9 +2,9 @@
 <!-- wiki-title CA handler using EST protocol -->
 # Generic EST protocol handler
 
-The EST protocol handler is not bound to a specific CA and implements the ['cacerts'](https://tools.ietf.org/html/rfc7030#section-2.1) and ['simpleenroll'](https://tools.ietf.org/html/rfc7030#section-2.2) calls as defined in [RFC7030](https://tools.ietf.org/html/rfc7030).
+The EST protocol handler is not bound to a specific CA server and implements the ['cacerts'](https://tools.ietf.org/html/rfc7030#section-2.1) and ['simpleenroll'](https://tools.ietf.org/html/rfc7030#section-2.2) calls as defined in [RFC7030](https://tools.ietf.org/html/rfc7030).
 
-Wwhen using the handler please be aware of the following limitations:
+When using the handler please be aware of the following limitations:
 
 - Authentication towards CA server is limited to ClientAuth as described in [RFC7030 section 3.3.2](https://tools.ietf.org/html/rfc7030#section-3.3.2) and HTTP-BASIC authentication as described in [RFC7030 section 3.2.3](https://tools.ietf.org/html/rfc7030#section-3.2.3)
 - Revocation operations are not supported
