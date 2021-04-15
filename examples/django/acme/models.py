@@ -16,7 +16,8 @@ class Account(models.Model):
     name = models.CharField(max_length=15, unique=True)
     jwk = models.TextField(blank=True)
     alg = models.CharField(max_length=10)
-    contact = models.CharField(max_length=256)
+    contact = models.CharField(max_length=255)
+    eab_kid = models.TextField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def __unicode__(self):
         return self.contact

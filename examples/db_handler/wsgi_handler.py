@@ -147,7 +147,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create account')
         self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
@@ -796,6 +796,14 @@ class DBstore(object):
         if 'validated' not in challenges_column_list:
             self.logger.debug('alter challenge table - add validated')
             self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
+
+        self.cursor.execute('''PRAGMA table_info(account)''')
+        account_column_list = []
+        for column in self.cursor.fetchall():
+            account_column_list.append(column[1])
+        if 'eab_kid' not in account_column_list:
+            self.logger.debug('alter account table - add eab_kid')
+            self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")

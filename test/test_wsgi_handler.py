@@ -164,6 +164,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.dbstore.account_delete('not_existing'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_020_account_lookup(self, mock_datestr):
+        """ test DBstore.account_lookup() for an existing value include eab_lid"""
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1', 'eab_kid': 'eab_kid'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
+        self.dbstore.account_add(data_dic)
+        mock_datestr.return_value = 'datestr'
+        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': 'eab_kid'}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
     def test_021_account_lookup(self, mock_datestr):
         """ test DBstore.account_lookup() for an existing value"""
         data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
@@ -171,7 +181,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
         self.dbstore.account_add(data_dic)
         mock_datestr.return_value = 'datestr'
-        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr'}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
+        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': ''}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
 
     def test_022_account_lookup(self):
         """ test DBstore.account_lookup() for an not existing value"""
