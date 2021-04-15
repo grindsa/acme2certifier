@@ -244,6 +244,10 @@ class DBstore(object):
         """ add account in database """
         self.logger.debug('DBStore.account_add({0})'.format(data_dic))
 
+        # add eab_kid field if not existing
+        if 'eab_kid' not in data_dic:
+            data_dic['eab_kid'] = ''
+
         # we need this for compability with django
         created = False
         # check if we alredy have an entry for the key
@@ -256,7 +260,7 @@ class DBstore(object):
             self.cursor.execute('''UPDATE ACCOUNT SET alg = :alg, jwk = :jwk, contact = :contact WHERE jwk = :jwk''', data_dic)
         else:
             # insert
-            self.cursor.execute('''INSERT INTO ACCOUNT(alg, jwk, contact, name) VALUES(:alg, :jwk, :contact, :name)''', data_dic)
+            self.cursor.execute('''INSERT INTO ACCOUNT(alg, jwk, contact, name, eab_kid) VALUES(:alg, :jwk, :contact, :name, :eab_kid)''', data_dic)
             aname = data_dic['name']
             created = True
 
