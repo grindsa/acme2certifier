@@ -17,7 +17,7 @@ from acme.nonce import Nonce
 from acme.order import Order
 from acme.trigger import Trigger
 from acme.helper import get_url, load_config, logger_setup, logger_info
-from acme.version import __version__
+from acme.version import __dbversion__, __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -39,7 +39,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 LOGGER = logger_setup(DEBUG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
-    housekeeping.dbversion_check(__version__)
+    housekeeping.dbversion_check(__dbversion__)
 
 # examption handling via logger
 sys.excepthook = handle_exception
