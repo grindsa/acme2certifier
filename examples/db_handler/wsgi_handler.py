@@ -7,7 +7,7 @@ import json
 import os
 # pylint: disable=E0401
 from acme.helper import datestr_to_date
-from acme.version import __version__
+from acme.version import __dbversion__
 
 def initialize():
     """ run db_handler specific initialization functions  """
@@ -192,7 +192,7 @@ class DBstore(object):
             END
         ''')
 
-        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__version__))
+        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
         self._db_close()
         self.logger.debug('DBStore._db_create() ended')
 
@@ -763,9 +763,8 @@ class DBstore(object):
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
-        print(__version__)
         self._db_open()
-        # add poll_identifier if not existing
+        # add poll_identifier if not existingcd
         self.cursor.execute('''PRAGMA table_info(certificate)''')
         certificate_column_list = []
         for column in self.cursor.fetchall():
@@ -829,9 +828,9 @@ class DBstore(object):
             ''')
 
         # version update
-        self.logger.debug('update dbversion to {0}'.format(__version__))
-        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__version__))
-        self.cursor.execute('''UPDATE housekeeping SET value = "{0}" WHERE name="dbversion"'''.format(__version__))
+        self.logger.debug('update dbversion to {0}'.format(__dbversion__))
+        self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
+        self.cursor.execute('''UPDATE housekeeping SET value = "{0}" WHERE name="dbversion"'''.format(__dbversion__))
 
         self._db_close()
         self.logger.debug('DBStore.db_update() ended')
