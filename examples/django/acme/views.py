@@ -14,7 +14,7 @@ from acme.housekeeping import Housekeeping
 from acme.nonce import Nonce
 from acme.order import Order
 from acme.trigger import Trigger
-from acme.version import __version__
+from acme.version import __dbversion__, __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -25,7 +25,7 @@ LOGGER = logger_setup(DEBUG)
 LOGGER.info('starting acme2certifier version {0}'.format(__version__))
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
-    housekeeping.dbversion_check(__version__)
+    housekeeping.dbversion_check(__dbversion__)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
