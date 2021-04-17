@@ -8,6 +8,8 @@ To enable EAB the CA operator needs to provide both ACME client and acme2certifi
 
 kid and mac_key will be loaded into acme2certifer by using a plugin based mechanism. Two plugins will be shipped by default and are stored in the `example/eab_handler` directory.
 
+The key identifers will be part of the reports created by [Housekeeping](housekeeping.md) class.
+
 ## file_handler
 
 The eab_file_handler.py allows to load kid and mac_key from a csv-file. The handler needs to be activated in `EABhandler` section of `acme_srv.cfg`
