@@ -21,6 +21,7 @@ except ImportError:
     from urlparse import urlparse
 import logging
 import hashlib
+import ssl
 from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
@@ -141,10 +142,14 @@ def cert_pubkey_get(logger, cert):
     logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
     return convert_byte_to_string(pubkey_str)
 
-def cert_san_get(logger, certificate):
+def cert_san_get(logger, certificate, recode=True):
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
+
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     san = []
     ext_count = cert.get_extension_count()
@@ -159,12 +164,15 @@ def cert_san_get(logger, certificate):
     logger.debug('cert_san_get() ended')
     return san
 
-def cert_extensions_get(logger, certificate):
+def cert_extensions_get(logger, certificate, recode=True):
     """ get extenstions from certificate certificate """
     logger.debug('cert_extensions_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
 
+    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
     extension_list = []
     ext_count = cert.get_extension_count()
     for i in range(0, ext_count):
@@ -319,6 +327,20 @@ def dkeys_lower(tree):
         result = tree
     return result
 
+def fqdn_in_san_check(logger, san_list, fqdn):
+    """ check if fqdn is in a list of sans """
+    logger.debug('fqdn_in_san_check()')
+
+    result = False
+    for san in san_list:
+        (_type, value) = san.lower().split(':')
+        if fqdn == value:
+            result = True
+            break
+
+    logger.debug('fqdn_in_san_check() ended with: {}'.format(result))
+    return result
+
 def generate_random_string(logger, length):
     """ generate random string to be used as name """
     logger.debug('generate_random_string()')
@@ -454,10 +476,15 @@ def jwk_thumbprint_get(logger, pub_key):
 def sha256_hash(logger, string):
     """ hash string """
     logger.debug('sha256_hash()')
-
     result = hashlib.sha256(string.encode('utf-8')).digest()
-
     logger.debug('sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(logger, result)))
+    return result
+
+def sha256_hash_hex(logger, string):
+    """ hash string """
+    logger.debug('sha256_hash_hex()')
+    result = hashlib.sha256(string.encode('utf-8')).hexdigest()
+    logger.debug('sha256_hash_hex() ended with {0}'.format(result))
     return result
 
 def signature_check(logger, message, pub_key, json_=False):
@@ -647,6 +674,23 @@ def datestr_to_date(datestr, tformat='%Y-%m-%dT%H:%M:%S'):
     except BaseException:
         result = None
     return result
+
+def servercert_get(logger, hostname, port=443):
+    """ get server certificate from an ssl connection """
+    logger.debug('servercert_get({0}:{1})'.format(hostname, port))
+
+    pem_cert = None
+    context = ssl.create_default_context()
+    # disable cert validation
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    with socket.create_connection((hostname, port)) as sock:
+        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+            der_cert = sslsock.getpeercert(True)
+            # from binary DER format to PEM
+            pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
+
+    return pem_cert
 
 def validate_csr(logger, order_dic, _csr):
     """ validate certificate signing request against order"""
