@@ -3,7 +3,7 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc
+from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check
 from acme.db_handler import DBstore
 from acme.message import Message
 
@@ -59,7 +59,7 @@ class Challenge(object):
         return challenge_list
 
     def _check(self, challenge_name, payload):
-        """ challene check """
+        """ challenge check """
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
@@ -80,6 +80,8 @@ class Challenge(object):
                     (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
                     (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
+                    (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                 elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
                     (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                 else:
@@ -236,6 +238,43 @@ class Challenge(object):
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
 
+    def _validate_alpn_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
+        """ validate dns challenge """
+        self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
+
+        # resolve name
+        (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
+        self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+
+        # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
+        # which is base 64 encoded '0420' has been taken from acme.sh sources
+        sha256_digest = sha256_hash_hex(self.logger, '{0}.{1}'.format(token, jwk_thumbprint))
+        extension_value = b64_encode(self.logger, bytearray.fromhex('0420{0}'.format(sha256_digest)))
+        self.logger.debug('computed value: {0}'.format(extension_value))
+
+        if not invalid:
+            cert = servercert_get(self.logger, fqdn)
+            if cert:
+                san_list = cert_san_get(self.logger, cert, recode=False)
+                fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
+                if fqdn_in_san:
+                    extension_list = cert_extensions_get(self.logger, cert, recode=False)
+                    if extension_value in extension_list:
+                        self.logger.debug('alpn validation successful')
+                        result = True
+                    else:
+                        self.logger.debug('alpn validation not successful')
+                        result = False
+                else:
+                    self.logger.debug('fqdn check against san failed')
+                    result = False
+            else:
+                self.logger.debug('no cert returned...')
+                result = False
+
+        self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
+        return (result, invalid)
+
     def _validate_dns_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
@@ -386,6 +425,7 @@ class Challenge(object):
         if not tnauth:
             challenge_list.append(self._new(authz_name, 'http-01', token))
             challenge_list.append(self._new(authz_name, 'dns-01', token))
+            challenge_list.append(self._new(authz_name, 'tls-alpn-01', token))
         else:
             challenge_list.append(self._new(authz_name, 'tkauth-01', token))
         self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
