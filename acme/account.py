@@ -34,7 +34,7 @@ class Account(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _add(self, content, contact):
+    def _add(self, content, payload, contact):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._add()')
         account_name = generate_random_string(self.logger, 12)
@@ -60,6 +60,13 @@ class Account(object):
                         'jwk': json.dumps(content['jwk']),
                         'contact': json.dumps(contact),
                     }
+
+                    if self.eab_check:
+                        if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
+                            if 'protected' in payload['externalaccountbinding']:
+                                eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+                                if eab_kid:
+                                    data_dic['eab_kid'] = eab_kid
                     try:
                         (db_name, new) = self.dbstore.account_add(data_dic)
                     except BaseException as err_:
@@ -218,7 +225,7 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:externalAccountRequired'
             detail = 'external account binding required'
 
-        self.logger.debug('Account._delete() _eab_check with:{0}'.format(code))
+        self.logger.debug('Account._eab_check() ended with:{0}'.format(code))
         return (code, message, detail)
 
     def _eab_signature_verify(self, content, mac_key):
@@ -543,7 +550,7 @@ class Account(object):
                         contact_list = payload['contact']
                     else:
                         contact_list = []
-                    (code, message, detail) = self._add(protected, contact_list)
+                    (code, message, detail) = self._add(protected, payload, contact_list)
 
         if code in (200, 201):
             response_dic['data'] = {}
