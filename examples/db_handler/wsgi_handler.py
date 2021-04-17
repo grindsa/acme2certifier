@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" cgi handler for acmesrv.py """
+""" wsgi handler for acme2certifier """
 from __future__ import print_function
 import sqlite3
 import json
@@ -318,7 +318,7 @@ class DBstore(object):
         """ certificatelist_get """
         self.logger.debug('DBStore.certificatelist_get()')
         vlist = [
-            'id', 'name', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
+            'id', 'name', 'eab_kid', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
             'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name',
             'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token',
             'order__authorization__created_at', 'order__authorization__status__id', 'order__authorization__status__name',
