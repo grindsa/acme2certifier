@@ -60,17 +60,18 @@ class Account(object):
                         'jwk': json.dumps(content['jwk']),
                         'contact': json.dumps(contact),
                     }
-
+                    # add eab_kid to data_dic if eab_check is enabled and kid is part of the request
                     if self.eab_check:
                         if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
                             if 'protected' in payload['externalaccountbinding']:
                                 eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+                                self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
                                 if eab_kid:
                                     data_dic['eab_kid'] = eab_kid
                     try:
                         (db_name, new) = self.dbstore.account_add(data_dic)
                     except BaseException as err_:
-                        self.logger.critical('Database error in Account._add(): {0}'.format(err_))
+                        self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
                         db_name = None
                         new = False
                     self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
