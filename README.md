@@ -88,8 +88,6 @@ Following challenge types are supported:
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05)
 
-
-
 Additional functionality will be added over time. If you are badly missing a
 certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new)
 to let me know.

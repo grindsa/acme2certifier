@@ -20,19 +20,19 @@ eab_handler_file: examples/eab_handler/file_handler.py
 key_file: examples/eab_handler/key_file.csv
 ```
 
-The key_file must be in CSV format with kid in the 1st and mac_key in the 2nd column.
+The key_file must be in CSV format with kid in the 1st and mac_key (base64 encoded) in the 2nd column.
 
 ```csv
 eab_kid,eab_mac
-keyid_00,mac_00
-keyid_01,mac_01
-keyid_02,mac_02
-keyid_03,mac_03
+keyid_00,bWFjXzAw
+keyid_01,bWFjXzAx
+keyid_02,bWFjXzAy
+keyid_03,bWFjXzAz
 ```
 
 ## json_handler
 
-The eab_json_handler.py allows to load kid and mac_key in json format. The handler gets activated in `EABhandler` section of `acme_srv.cfg` as shown below.
+The eab_json_handler.py allows to load kid and mac_key (base64 encoded) in json format. The handler gets activated in `EABhandler` section of `acme_srv.cfg` as shown below.
 
 ```bash
 [EABhandler]
@@ -44,10 +44,10 @@ kid and mac_key need to be stored as key/value pairs in json format.
 
 ```json
 {
-  "keyid_01": "mac_00",
-  "keyid_01": "mac_01",
-  "keyid_02": "mac_02",
-  "keyid_03": "mac_03"
+  "keyid_01": "bWFjXzAw",
+  "keyid_01": "bWFjXzAx",
+  "keyid_02": "bWFjXzAy",
+  "keyid_03": "bWFjXzAz"
 }
 ```
 

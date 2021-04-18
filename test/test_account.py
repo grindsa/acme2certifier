@@ -1113,7 +1113,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_122__eab_jwk_compare(self):
         """ jwk inner payload does not match """
         protected = {'jwk': 'foobar'}
-        payload = 'Zm9vYg'
+        payload = 'ImZvb2Ii'
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
     def test_123__eab_jwk_compare(self):
