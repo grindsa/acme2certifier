@@ -47,7 +47,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_003_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
-        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
+        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
 
     @patch('acme.challenge.Challenge._new')
     def test_004_challenge_new_set(self, mock_challenge):
@@ -59,7 +59,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_005_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
-        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
+        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
 
     def test_006_challenge__info(self):
         """ test challenge.info() """
@@ -461,6 +461,64 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._update_authz('name', {'foo': 'bar'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo', lcm.output)
+
+    @patch('acme.challenge.fqdn_resolve')
+    def test_056_challenge__validate_alpn_challenge(self, mock_resolve):
+        """ test validate_alpn_challenge fqdn_resolve returned Invalid """
+        mock_resolve.return_value = (None, True)
+        self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.servercert_get')
+    @patch('acme.challenge.fqdn_resolve')
+    def test_057_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv):
+        """ test validate_alpn_challenge no certificate returned """
+        mock_resolve.return_value = ('foo', False)
+        mock_srv.return_value = None
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.fqdn_in_san_check')
+    @patch('acme.challenge.cert_san_get')
+    @patch('acme.challenge.servercert_get')
+    @patch('acme.challenge.fqdn_resolve')
+    def test_058_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk):
+        """ test validate_alpn_challenge sancheck returned false """
+        mock_resolve.return_value = ('foo', False)
+        mock_sanget.return_value = ['foo', 'bar']
+        mock_sanchk.return_value = False
+        mock_srv.return_value = 'cert'
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.cert_extensions_get')
+    @patch('acme.challenge.b64_encode')
+    @patch('acme.challenge.fqdn_in_san_check')
+    @patch('acme.challenge.cert_san_get')
+    @patch('acme.challenge.servercert_get')
+    @patch('acme.challenge.fqdn_resolve')
+    def test_059_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+        """ test validate_alpn_challenge extension check failed """
+        mock_resolve.return_value = ('foo', False)
+        mock_sanget.return_value = ['foo', 'bar']
+        mock_sanchk.return_value = True
+        mock_srv.return_value = 'cert'
+        mock_encode.return_value = 'foo'
+        mock_ext.return_value = ['foobar', 'bar', 'foo1']
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.cert_extensions_get')
+    @patch('acme.challenge.b64_encode')
+    @patch('acme.challenge.fqdn_in_san_check')
+    @patch('acme.challenge.cert_san_get')
+    @patch('acme.challenge.servercert_get')
+    @patch('acme.challenge.fqdn_resolve')
+    def test_060_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+        """ test validate_alpn_challenge extension sucessful """
+        mock_resolve.return_value = ('foo', False)
+        mock_sanget.return_value = ['foo', 'bar']
+        mock_sanchk.return_value = True
+        mock_srv.return_value = 'cert'
+        mock_encode.return_value = 'foo'
+        mock_ext.return_value = ['foobar', 'bar', 'foo']
+        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
 if __name__ == '__main__':
     unittest.main()
