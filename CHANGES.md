@@ -5,6 +5,21 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.15
+
+**Upgrade notes**:
+
+- You need to run the upgrade-script after updating the package
+
+**Features**:
+
+- support for [tls-alpn-01](https://tools.ietf.org/html/rfc8737) challenges
+- eab kid logging and reporting
+
+**Bugfixes**:
+
+- database scheme versioning
+
 ## Changes in 0.14
 
 **Upgrade notes**:

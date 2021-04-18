@@ -315,8 +315,8 @@ class DBstore(object):
         return result
 
     def accountlist_get(self):
-        """ certificatelist_get """
-        self.logger.debug('DBStore.certificatelist_get()')
+        """ accountlist_get """
+        self.logger.debug('DBStore.accountlist_get()')
         vlist = [
             'id', 'name', 'eab_kid', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
             'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name',
@@ -559,7 +559,7 @@ class DBstore(object):
         vlist = [
             'id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts',
             'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers',
-            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg'
+            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid'
         ]
 
         self._db_open()
@@ -575,7 +575,8 @@ class DBstore(object):
                             account.contact as order__account__contact,
                             account.created_at as order__account__created_at,
                             account.jwk as order__account__jwk,
-                            account.alg as order__account__alg
+                            account.alg as order__account__alg,
+                            account.eab_kid as order__account__eab_kid
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
