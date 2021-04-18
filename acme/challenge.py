@@ -271,6 +271,8 @@ class Challenge(object):
             else:
                 self.logger.debug('no cert returned...')
                 result = False
+        else:
+            result = False
 
         self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)

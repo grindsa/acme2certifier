@@ -46,10 +46,6 @@ def b64_decode(logger, string):
     """ b64 decoding """
     logger.debug('b64decode()')
     return convert_byte_to_string(base64.b64decode(string))
-    #if sys.version_info[0] >= 3:
-    #    return base64.b64decode(string).decode()
-    #else:
-    #    return base64.b64decode(string)
 
 def b64_encode(logger, string):
     """ encode a bytestream in base64 """
@@ -332,11 +328,15 @@ def fqdn_in_san_check(logger, san_list, fqdn):
     logger.debug('fqdn_in_san_check()')
 
     result = False
-    for san in san_list:
-        (_type, value) = san.lower().split(':')
-        if fqdn == value:
-            result = True
-            break
+    if fqdn and san_list:
+        for san in san_list:
+            try:
+                (_type, value) = san.lower().split(':')
+                if fqdn == value:
+                    result = True
+                    break
+            except BaseException:
+                pass
 
     logger.debug('fqdn_in_san_check() ended with: {}'.format(result))
     return result
