@@ -43,6 +43,6 @@ jobs:
           # release_name: hahohe ${{ env.TAG_NAME }}
           # body_path: body.txt
           body: |
-            [Changelog](CHANGES.md)
+            [Changelog](https://github.com/grindsa/acme2certifier/blob/master/CHANGES.md)
           draft: false
           prerelease: false
