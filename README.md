@@ -54,7 +54,7 @@ code and don’t forget to send patches.
 
 ## Project status
 
-As of today acme2certifier supports the below ACME functions only:
+As of today acme2certifier supports the below ACME functions:
 
 - "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/rfc8555#section-7.1.1)
 - "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/rfc8555#section-7.2)
@@ -72,14 +72,23 @@ As of today acme2certifier supports the below ACME functions only:
 - "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
 
 Starting from version 0.4 acme2certifer includes experimental support for
-[TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03)
-and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) challenges.
+[TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-08)
+and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05) challenges.
 Check [tnauthlist.md](docs/tnauthlist.md) for further information.
 
 Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md)
 and [call backs](docs/trigger.md) from CA servers. These calls are not standardized
 but important to use acme2certifier together with classical enterprise CA
 servers,
+
+Following challenge types are supported:
+
+- [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
+- [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
+- [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
+- [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05)
+
+
 
 Additional functionality will be added over time. If you are badly missing a
 certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new)
