@@ -163,6 +163,7 @@ class Account(object):
                 jwk_outer = json.dumps(protected['jwk'])
                 # decode inner jwk
                 jwk_inner = b64decode_pad(self.logger, payload)
+                jwk_inner = json.dumps(json.loads(jwk_inner))
                 if jwk_outer == jwk_inner:
                     result = True
 
