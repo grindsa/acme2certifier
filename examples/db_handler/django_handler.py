@@ -81,8 +81,8 @@ class DBstore(object):
         return obj.id
 
     def accountlist_get(self):
-        """ certificatelist_get """
-        self.logger.debug('DBStore.certificatelist_get()')
+        """ accountlist_get """
+        self.logger.debug('DBStore.accountlist_get()')
         vlist = [
             'id', 'name', 'contact', 'eab_kid', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name',
             'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name',
@@ -200,7 +200,7 @@ class DBstore(object):
         vlist = [
             'id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts',
             'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers',
-            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg'
+            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid'
             ]
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
         return(vlist, list(Certificate.objects.filter(cert_raw__isnull=False).exclude(cert_raw='').values(*vlist)))
