@@ -38,7 +38,7 @@ services:
     environment:
       TZ: "Your/Timezone"
 ```
-(List of Timezones)[https://en.wikipedia.org/wiki/List_of_tz_database_time_zones]
+[List of Timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
 ## Start acme2certifier:
 
