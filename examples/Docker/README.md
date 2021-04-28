@@ -33,6 +33,7 @@ Removing intermediate container 03f043052bc9
 By default containers will use UTC as their timezone. This can be fairly inconvenient when trying to correlate logs. As such you can set the timezone for the container by creating a docker-compose.override.yaml file with the following contents:
 
 ```yml
+version: '3.2'
 services:
   acme-srv:
     environment:
