@@ -15,7 +15,7 @@ CONTEXT=wsgi
 WEBSERVER=apache2
 ```
 
-## Building the docker-compose:
+## Building the docker-compose
 
 ```bash
 user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache
@@ -28,7 +28,7 @@ Removing intermediate container 03f043052bc9
 ...
 ```
 
-## Setting the timezone:
+## Setting the timezone
 
 By default containers will use UTC as their timezone. This can be fairly inconvenient when trying to correlate logs. As such you can set the timezone for the container by creating a docker-compose.override.yaml file with the following contents:
 
@@ -39,9 +39,10 @@ services:
     environment:
       TZ: "Your/Timezone"
 ```
+
 [List of Timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
-## Start acme2certifier:
+## Start acme2certifier
 
 `user@docker-host:~/acme2certifier/examples/Docker$ docker-compose up -d`
 
