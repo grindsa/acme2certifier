@@ -14,7 +14,7 @@ When using the handler please be aware of the following limitations:
 
 1. Microsoft Certification Authority Web Enrollment Service must be enabled and configured - of course :-)
 2. You need to have a set of credentails with permissions to access the service and enrollment templates
-3. Authentication method )basic or ntlm) to the service must be defined.
+3. Authentication method (basic or ntlm) to the service must be defined.
 
 It is helpful to verify the service access before starting the configuration of acme2certifier
 
