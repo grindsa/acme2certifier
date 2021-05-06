@@ -877,6 +877,27 @@ class TestACMEHandler(unittest.TestCase):
         kup = 511
         self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly', self.cahandler._kue_generate(kup))
 
+    def test_125__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = 0
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): defaulting ku_val to 23', lcm.output)
+
+    def test_126__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = '0'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): defaulting ku_val to 23', lcm.output)
+
+    def test_127__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = 'a'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): convert to int failed defaulting ku_val to 23', lcm.output)
+
     def test_125__subject_modify(self):
         """ CAhandler._subject_modify() empty dn_dic """
         dn_dic = {}
