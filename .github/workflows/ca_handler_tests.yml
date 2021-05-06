@@ -58,6 +58,7 @@ jobs:
         sudo echo "issuing_ca_name: sub-ca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "passphrase: test1234" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template_name: acme" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
