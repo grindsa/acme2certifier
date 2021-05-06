@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
         item_dic = {'name': 'name', 'type': 2, 'source': 0, 'date': 'date', 'comment': 'comment'}
-        self.assertEqual(14, self.cahandler._item_insert(item_dic))
+        self.assertEqual(15, self.cahandler._item_insert(item_dic))
 
     def test_026_item_insert(self):
         """ CAhandler._item_insert no name """
