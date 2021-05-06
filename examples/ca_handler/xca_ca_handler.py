@@ -345,14 +345,24 @@ class CAhandler(object):
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-    def _kue_generate(self, ku_val=None):
+    def _kue_generate(self, ku_val=23):
         """ set genearte key usage extenstion """
         self.logger.debug('CAhandler._extension_list_generate()')
 
         # generate and reverse key_usage_list
         key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
 
-        kuval = int(ku_val)
+        # convert keyusage value from template
+        try:
+            kuval = int(ku_val)
+        except BaseException:
+            self.logger.error('CAhandler._extension_list_generate(): convert to int failed defaulting ku_val to 23')
+            kuval = 23
+
+        if kuval == 0:
+            self.logger.error('CAhandler._extension_list_generate(): defaulting ku_val to 23')
+            kuval = 23
+
         kubin = '{0:b}'.format(kuval)[::-1]
         ku_list = []
         for idx, ele in enumerate(kubin):
@@ -588,6 +598,7 @@ class CAhandler(object):
 
     def enroll(self, csr):
         """ enroll certificate  """
+        # pylint: disable=R0914        
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None
