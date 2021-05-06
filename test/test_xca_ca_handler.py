@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
         self.cahandler.issuing_ca_name = 'sub-ca'
         item_dic = {'name': 'name', 'type': 2, 'source': 0, 'date': 'date', 'comment': 'comment'}
-        self.assertEqual(14, self.cahandler._item_insert(item_dic))
+        self.assertEqual(15, self.cahandler._item_insert(item_dic))
 
     def test_026_item_insert(self):
         """ CAhandler._item_insert no name """
@@ -876,6 +876,27 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._kue_generate() - all """
         kup = 511
         self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyAgreement,keyCertSign,cRLSign,encipherOnly,decipherOnly', self.cahandler._kue_generate(kup))
+
+    def test_125__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = 0
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): defaulting ku_val to 23', lcm.output)
+
+    def test_126__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = '0'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): defaulting ku_val to 23', lcm.output)
+
+    def test_127__kue_generate(self):
+        """ CAhandler._kue_generate() - all """
+        kup = 'a'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('digitalSignature,nonRepudiation,keyEncipherment,keyAgreement', self.cahandler._kue_generate(kup))
+        self.assertIn('ERROR:test_a2c:CAhandler._extension_list_generate(): convert to int failed defaulting ku_val to 23', lcm.output)
 
     def test_125__subject_modify(self):
         """ CAhandler._subject_modify() empty dn_dic """
