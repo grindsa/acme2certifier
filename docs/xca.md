@@ -46,7 +46,7 @@ Template support has been introduced starting from v0.13. Support is limited to 
 
 - Certificate validity (`validN`/`validM`)
 - basicConstraints (`ca`)
-- KeyUsage attributes (`keyUse`)
+- KeyUsage attributes (`keyUse`) - if not included attribute will be defaulted to `digitalSignature, nonRepudiation, keyEncipherment, keyAgreement`
 - extendedKeyUsage attributes (`eKeyUse`)
 - crlDistributionPoints (`crlDist`)
 - Enforcement of the following DN attributes:
