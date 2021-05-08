@@ -635,7 +635,8 @@ def txt_get(logger, fqdn, dns_srv=None):
         dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
         dns.resolver.default_resolver.nameservers = dns_srv
     try:
-        result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
+        # result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
+        result = dns.resolver.query(fqdn, 'TXT')[0].strings[0]
     except BaseException as err_:
         logger.error('txt_get() error: {0}'.format(err_))
         result = None
