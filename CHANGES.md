@@ -5,11 +5,17 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.15.2
+
+**Bugfixes**:
+
+- additional fixes for dns-01 challenge validation (handling for *.foo.bar and foo.bar in the same csr)
+
 ## Changes in 0.15.1
 
 **Bugfixes**:
 
-- fixes for dns-01 challenge invalidation
+- fixes for dns-01 challenge validation
 - default ku settings when using xca templates
 
 ## Changes in 0.15
