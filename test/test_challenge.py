@@ -248,7 +248,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.txt_get')
     def test_030_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with incorrect response """
-        mock_dns.return_value = 'foo'
+        mock_dns.return_value = ['foo']
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', False)
@@ -260,7 +260,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.txt_get')
     def test_031_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with correct response """
-        mock_dns.return_value = 'foo'
+        mock_dns.return_value = ['foo']
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', False)
@@ -272,7 +272,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.txt_get')
     def test_032_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Challenge.validate_dns_challenge() with invalid response - obsolete """
-        mock_dns.return_value = 'foo'
+        mock_dns.return_value = ['foo']
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = (None, True)
@@ -284,7 +284,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.txt_get')
     def test_033_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Challenge.validate_dns_challenge() with invalid but correct fqdn returned - obsolete """
-        mock_dns.return_value = 'foo'
+        mock_dns.return_value = ['foo']
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', True)

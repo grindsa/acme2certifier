@@ -10,14 +10,6 @@ services:
         source: ./data
         target: /var/www/acme2certifier/volume/
         read_only: false
-      - type: bind
-        source: /etc/timezone
-        target: /etc/timezone
-        read_only: true
-      - type: bind
-        source: /etc/localtime
-        target: /etc/localtime
-        read_only: true
     ports:
       - "22280:80"
       - "22443:443"

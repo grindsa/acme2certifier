@@ -634,14 +634,16 @@ def txt_get(logger, fqdn, dns_srv=None):
     if dns_srv:
         dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
         dns.resolver.default_resolver.nameservers = dns_srv
+    txt_record_list = []
     try:
-        # result = dns.resolver.query(fqdn, 'TXT').response.answer[0][-1].strings[0]
-        result = dns.resolver.query(fqdn, 'TXT')[0].strings[0]
+        #result = dns.resolver.query(fqdn, 'TXT')[0].strings[0]
+        response = dns.resolver.query(fqdn, 'TXT')
+        for rrecord in response:
+            txt_record_list.append(rrecord.strings[0])
     except BaseException as err_:
         logger.error('txt_get() error: {0}'.format(err_))
-        result = None
-    logger.debug('txt_get() ended with: {0}'.format(result))
-    return result
+    logger.debug('txt_get() ended with: {0}'.format(txt_record_list))
+    return txt_record_list
 
 def uts_now():
     """ return unixtimestamp in utc """
