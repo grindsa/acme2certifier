@@ -2,12 +2,12 @@ name: Codecov
 on:
   push:
     branches:
-      - 'main'
+      - 'master'
       - 'devel'
 jobs:
   codecov:
     name: Codecov Workflow
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v1
