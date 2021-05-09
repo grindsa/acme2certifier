@@ -284,31 +284,25 @@ class Challenge(object):
         # handle wildcard domain
         fqdn = self._wcd_manipulate(fqdn)
 
-        # rewrite fqdn
+        # rewrite fqdn to resolve txt record
         fqdn = '_acme-challenge.{0}'.format(fqdn)
 
-        # resolve name
-        (_response, invalid) = fqdn_resolve(fqdn)
+        # compute sha256 hash
+        _hash = b64_url_encode(self.logger, sha256_hash(self.logger, '{0}.{1}'.format(token, jwk_thumbprint)))
+        # query dns
+        txt = txt_get(self.logger, fqdn, self.dns_server_list)
 
-        if not invalid:
-            # compute sha256 hash
-            _hash = b64_url_encode(self.logger, sha256_hash(self.logger, '{0}.{1}'.format(token, jwk_thumbprint)))
-            # query dns
-            txt = txt_get(self.logger, fqdn, self.dns_server_list)
-
-            # compare computed hash with result from DNS query
-            self.logger.debug('response_got: {0} response_expected: {1}'.format(txt, _hash))
-            if _hash == txt:
-                self.logger.debug('validation successful')
-                result = True
-            else:
-                self.logger.debug('validation not successful')
-                result = False
+        # compare computed hash with result from DNS query
+        self.logger.debug('response_got: {0} response_expected: {1}'.format(txt, _hash))
+        if _hash == txt:
+            self.logger.debug('validation successful')
+            result = True
         else:
+            self.logger.debug('validation not successful')
             result = False
 
-        self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}/{1}'.format(result, invalid))
-        return (result, invalid)
+        self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
+        return (result, False)
 
     def _validate_http_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
         """ validate http challenge """
