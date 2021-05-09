@@ -271,24 +271,24 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
     def test_032_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
-        """ test Challenge.validate_dns_challenge() with invalid response """
+        """ test Challenge.validate_dns_challenge() with invalid response - obsolete """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = (None, True)
-        self.assertEqual((False, True), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.fqdn_resolve')
     @patch('acme.challenge.sha256_hash')
     @patch('acme.challenge.b64_url_encode')
     @patch('acme.challenge.txt_get')
     def test_033_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
-        """ test Challenge.validate_dns_challenge() with invalid but correct fqdn returned """
+        """ test Challenge.validate_dns_challenge() with invalid but correct fqdn returned - obsolete """
         mock_dns.return_value = 'foo'
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', True)
-        self.assertEqual((False, True), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     def test_034_challenge__validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
