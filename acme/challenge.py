@@ -290,11 +290,11 @@ class Challenge(object):
         # compute sha256 hash
         _hash = b64_url_encode(self.logger, sha256_hash(self.logger, '{0}.{1}'.format(token, jwk_thumbprint)))
         # query dns
-        txt = txt_get(self.logger, fqdn, self.dns_server_list)
+        txt_list = txt_get(self.logger, fqdn, self.dns_server_list)
 
         # compare computed hash with result from DNS query
-        self.logger.debug('response_got: {0} response_expected: {1}'.format(txt, _hash))
-        if _hash == txt:
+        self.logger.debug('response_got: {0} response_expected: {1}'.format(txt_list, _hash))
+        if _hash in txt_list:
             self.logger.debug('validation successful')
             result = True
         else:
