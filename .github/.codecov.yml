@@ -1,0 +1,3 @@
+ignore:
+  - "examples/ca_handler/skeleton_ca_handler.py"
+  - "test"       # wildcards accepted
