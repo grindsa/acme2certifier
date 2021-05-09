@@ -32,9 +32,9 @@ polling_timeout: <seconds>
 - api_password - password for REST user
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
-- polling_timeout - optinal - polling timeout (default: 60s)
+- polling_timeout - optional - polling timeout (default: 60s)
 
-Depending on CA policy configuration a CSR may require approval. In such a situation acme2certfier will poll the CA server to check the CSR status. The polling intervall can be configured in acme.server.cfg.
+Depending on CA policy configuration a CSR may require approval. In such a situation acme2certfier will poll the CA server to check the CSR status. The polling interval can be configured in acme.server.cfg.
 
 You can get the ca_name by running the following REST call against certifier.
 
