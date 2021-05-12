@@ -419,9 +419,12 @@ class Challenge(object):
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
         challenge_list = []
         if not tnauth:
-            challenge_list.append(self._new(authz_name, 'http-01', token))
-            challenge_list.append(self._new(authz_name, 'dns-01', token))
-            challenge_list.append(self._new(authz_name, 'tls-alpn-01', token))
+            for challenge_type in ['http-01', 'dns-01', 'tls-alpn-01']:
+                challenge_json = self._new(authz_name, challenge_type, token)
+                if challenge_json:
+                    challenge_list.append(challenge_json)
+                else:
+                    self.logger.error('ERROR: Empty challenge returned for {0}'.format(challenge_type))
         else:
             challenge_list.append(self._new(authz_name, 'tkauth-01', token))
         self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))

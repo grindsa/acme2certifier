@@ -138,7 +138,7 @@ acme/xca/*
 acme/fixture
 *.dll
 acme/cmp/WindowsCMPOpenSSL/openssl.exe
-
+acme/migrations.old
 # Docker data content
 examples/Docker/data/*
 !examples/Docker/.env

@@ -58,7 +58,7 @@ class Challenge(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
     authorization = models.ForeignKey(Authorization, on_delete=models.CASCADE)
-    type = models.CharField(max_length=10)
+    type = models.CharField(max_length=15)
     token = models.CharField(max_length=64)
     expires = models.IntegerField(default=0)
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)

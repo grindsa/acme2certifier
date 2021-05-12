@@ -57,9 +57,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._new')
     def test_005_challenge_new_set(self, mock_challenge):
-        """ test generation of a challenge set """
-        mock_challenge.return_value = {'foo' : 'bar'}
-        self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', False))
+        """ test generation of a challenge set with empty challenge """
+        mock_challenge.side_effect = [{'foo1' : 'bar1'}, {}, {'foo3' : 'bar3'}]
+        self.assertEqual([{'foo1': 'bar1'}, {'foo3': 'bar3'}], self.challenge.new_set('authz_name', 'token', False))
 
     def test_006_challenge__info(self):
         """ test challenge.info() """
