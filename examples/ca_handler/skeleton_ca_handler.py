@@ -26,8 +26,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
 
         config_dic = load_config(self.logger, 'CAhandler')
-        if 'parameter' in config_dic['CAhandler']:
-            self.parameter = config_dic['CAhandler']['parameter']
+        if 'CAhandler' in config_dic:
+            if 'parameter' in config_dic['CAhandler']:
+                self.parameter = config_dic['CAhandler']['parameter']
 
         self.logger.debug('CAhandler._config_load() ended')
 
