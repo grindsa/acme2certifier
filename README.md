@@ -6,6 +6,9 @@
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/devel.svg?label=last%20commit%20into%20devel)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2581/badge)](https://bestpractices.coreinfrastructure.org/projects/2581)
 
+![Codecov main](https://img.shields.io/codecov/c/gh/grindsa/acme2certifer/branch/master?label=test%20coverage%20master)
+![Codecov devel](https://img.shields.io/codecov/c/gh/grindsa/acme2certifer/branch/devel?label=test%20coverage%20devel)
+
 acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
 protocol yet. It consists of two libraries:
