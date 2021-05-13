@@ -5,6 +5,19 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.15.3
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django.handler
+
+**Bugfixes**:
+
+- fix for `type` field length in `Challenge` table
+
+
 ## Changes in 0.15.2
 
 **Bugfixes**:
