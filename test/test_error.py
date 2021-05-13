@@ -77,5 +77,11 @@ class TestACMEHandler(unittest.TestCase):
         """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
         self.assertFalse(self.error.enrich_error('urn:ietf:params:acme:error:badCSR', None))
 
+    @patch('acme.error.Error._acme_errormessage')
+    def test_013_error_enrich_error(self, mock_error):
+        """ Error.enrich_error for valid message, no detail and nothing in error_hash hash """
+        mock_error.return_value = 'foo'
+        self.assertEqual('foo', self.error.enrich_error(None, ''))
+
 if __name__ == '__main__':
     unittest.main()
