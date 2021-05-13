@@ -17,7 +17,6 @@ and pick the appropriate release branch.
 
 - fix for `type` field length in `Challenge` table
 
-
 ## Changes in 0.15.2
 
 **Bugfixes**:
