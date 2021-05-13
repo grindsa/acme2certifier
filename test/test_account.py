@@ -41,7 +41,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_account__tos_check(self):
         """ test successful tos check """
-        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.account._tos_check({'termsOfServiceAgreed': False}))
+        self.assertEqual((403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse'), self.account._tos_check({'termsofserviceagreed': False}))
 
     def test_003_account__tos_check(self):
         """ test successful tos check """
@@ -260,6 +260,32 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
+
+    @patch('acme.account.Account._key_change')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._delete')
+    @patch('acme.message.Message.check')
+    def test_030_account_parse(self, mock_mcheck, mock_del, mock_nnonce, mock_keychange):
+        """ test succ account parse for key-change (unsuccessful) """
+        mock_mcheck.return_value = (200, None, None, 'protected', {"payload" : "foo"}, 'account_name')
+        mock_del.return_value = (200, None, None)
+        mock_nnonce.return_value = 'new_nonce'
+        mock_keychange.return_value = (400, 'message', 'detail')
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}, 'header': {}}, self.account.parse(message))
+
+    @patch('acme.account.Account._key_change')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._delete')
+    @patch('acme.message.Message.check')
+    def test_031_account_parse(self, mock_mcheck, mock_del, mock_nnonce, mock_keychange):
+        """ test succ account parse for key-change (successful) """
+        mock_mcheck.return_value = (200, None, None, 'protected', {"payload" : "foo"}, 'account_name')
+        mock_del.return_value = (200, None, None)
+        mock_nnonce.return_value = 'new_nonce'
+        mock_keychange.return_value = (200, None, None)
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'code': 200, 'data': {}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
 
     def test_030_account__onlyreturnexisting(self):
         """ test onlyReturnExisting with False """
@@ -706,6 +732,42 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
+    @patch('acme.account.Account._eab_check')
+    @patch('acme.account.Account._tos_check')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._add')
+    @patch('acme.message.Message.check')
+    def test_085_account_new(self, mock_mcheck, mock_aad, mock_nnonce, mock_tos, mock_eab):
+        """ Account.new() successful eab check retured error """
+        mock_mcheck.return_value = (200, None, None, 'protected', {}, None)
+        self.account.contact_check_disable = True
+        self.account.eab_check = True
+        mock_tos.return_value = (200, None, None)
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        mock_eab.return_value = (400, 'message', 'detail')
+        message = {'foo' : 'bar'}
+        e_result = {'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}, 'header': {}}
+        self.assertEqual(e_result, self.account.new(message))
+
+    @patch('acme.account.Account._eab_check')
+    @patch('acme.account.Account._tos_check')
+    @patch('acme.nonce.Nonce.generate_and_add')
+    @patch('acme.account.Account._add')
+    @patch('acme.message.Message.check')
+    def test_086_account_new(self, mock_mcheck, mock_aad, mock_nnonce, mock_tos, mock_eab):
+        """ Account.new() successful """
+        mock_mcheck.return_value = (200, None, None, 'protected', {}, None)
+        self.account.contact_check_disable = True
+        self.account.eab_check = True
+        mock_tos.return_value = (200, None, None)
+        mock_aad.return_value = (200, 1, None)
+        mock_nnonce.return_value = 'new_nonce'
+        mock_eab.return_value = (200, None, None)
+        message = {'foo' : 'bar'}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        self.assertEqual(e_result, self.account.new(message))
+
     @patch('acme.message.Message.check')
     def test_083_account_new(self, mock_mcheck):
         """ Account.new() tos check skipped as no tos """
@@ -750,6 +812,11 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._key_change('aname', {}, protected)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Account._key_change(): exc_key_change', lcm.output)
+
+    def test_087_account__delete(self):
+        """ test Account._delete() if dbstore.account_delete ok """
+        self.account.dbstore.account_delete.return_value = 200
+        self.assertEqual((200, None, None), self.account._delete('foo'))
 
     def test_088_account__delete(self):
         """ test Account._delete() if dbstore.account_delete raises an exception """
@@ -1044,7 +1111,25 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.tos_check_disable)
         self.assertFalse(self.account.contact_check_disable)
         self.assertTrue(self.account.eab_check)
+        self.assertIn("CRITICAL:test_a2c:Account._config_load(): loading EABHandler configured in cfg failed with err: No module named 'foo'", lcm.output)
+        self.assertIn("CRITICAL:test_a2c:Account._config_load(): loading default EABHandler failed with err: No module named 'acme.eab_handler'", lcm.output)
         self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler configuration is missing in config file', lcm.output)
+
+    @patch('importlib.import_module')
+    @patch('acme.account.load_config')
+    def test_116_config_load(self, mock_load_cfg, mock_imp):
+        """ test _config_load account with contact_check_disable True """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
+        mock_load_cfg.return_value = parser
+        mock_imp.return_value = Mock()
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertTrue(self.account.eab_check)
+        self.assertTrue(self.account.eab_handler)
 
     @patch('acme.account.load_config')
     def test_114_config_load(self, mock_load_cfg):
@@ -1169,6 +1254,13 @@ class TestACMEHandler(unittest.TestCase):
         mac_key = 'mac_key'
         mock_eabchk.return_value = (False, 'error')
         self.assertEqual((False, 'error'), self.account._eab_signature_verify(content, mac_key))
+
+    @patch('acme.account.Account._config_load')
+    def test_0131__enter__(self, mock_cfg):
+        """ test enter """
+        mock_cfg.return_value = True
+        self.account.__enter__()
+        self.assertTrue(mock_cfg.called)
 
 if __name__ == '__main__':
     unittest.main()
