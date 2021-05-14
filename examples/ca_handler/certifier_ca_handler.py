@@ -258,7 +258,13 @@ class CAhandler(object):
         poll_identifier = request_url
         rejected = False
 
-        request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
+        try:
+            request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
+        except BaseException as err:
+            self.logger.error('CAhandler._request.poll() returned: {0}'.format(err))
+            request_dic = {}
+            error = err
+
         # check response
         if 'status' in request_dic:
             if request_dic['status'] == 'accepted':
@@ -270,10 +276,18 @@ class CAhandler(object):
                         error = None
                         cert_bundle = self._pem_cert_chain_generate(cert_dic)
                         cert_raw = cert_dic['certificateBase64']
+                    else:
+                        error = 'certificateBase64 is missing in cert request response'
+                else:
+                    error = 'No certificate structure in request response'
             elif request_dic['status'] == 'rejected':
                 error = 'Request rejected by operator'
                 rejected = True
-
+            else:
+                error = 'Unknown request status: {0}'.format(request_dic['status'])
+        else:
+            error = '"status" field not found in response.'
+            
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 

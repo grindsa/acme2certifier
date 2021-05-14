@@ -733,6 +733,68 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.side_effect = [mockresponse1, mockresponse2]
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
+    def test_066__enter__(self):
+        """ test __enter__ """
+        self.cahandler.__enter__()
+
+    @patch('requests.get')
+    def test_074_request_poll(self, mock_get):
+        """ test request poll request returned exception """
+        mock_get.side_effect = Exception('exc_api_get')
+        result = ('"status" field not found in response.', None, None, 'url', False)
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(result, self.cahandler._request_poll('url'))
+        self.assertIn('ERROR:test_a2c:CAhandler._request.poll() returned: exc_api_get', lcm.output)
+
+    @patch('requests.get')
+    def test_075_request_poll(self, mock_get):
+        """ test request poll request returned unknown status """
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'status': 'unknown'}
+        mock_get.return_value = mockresponse
+        result = ('Unknown request status: unknown', None, None, 'url', False)
+        self.assertEqual(result, self.cahandler._request_poll('url'))
+
+    @patch('requests.get')
+    def test_076_request_poll(self, mock_get):
+        """ test request poll request returned status rejected """
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'status': 'rejected'}
+        mock_get.return_value = mockresponse
+        result = ('Request rejected by operator', None, None, 'url', True)
+        self.assertEqual(result, self.cahandler._request_poll('url'))
+
+    @patch('requests.get')
+    def test_077_request_poll(self, mock_get):
+        """ test request poll request returned status accepted but no certinformation in """
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'status': 'accepted', 'foo': 'bar'}
+        mock_get.return_value = mockresponse
+        result = ('No certificate structure in request response', None, None, 'url', False)
+        self.assertEqual(result, self.cahandler._request_poll('url'))
+
+    @patch('requests.get')
+    def test_077_request_poll(self, mock_get):
+        """ test request poll request returned status accepted but no certinformation in """
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'status': 'accepted', 'certificate': 'certificate'}
+        mock_get.return_value = mockresponse
+        result = ('certificateBase64 is missing in cert request response', None, None, 'url', False)
+        self.assertEqual(result, self.cahandler._request_poll('url'))
+
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._pem_cert_chain_generate')
+    @patch('requests.get')
+    def test_078_request_poll(self, mock_get, mock_pemgen):
+        """ test request poll request returned status accepted but no certinformation in """
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'status': 'accepted', 'certificate': 'certificate', 'certificateBase64': 'certificateBase64'}
+        mock_get.return_value = mockresponse
+        mock_pemgen.return_value = 'bundle'
+        result = (None, 'bundle', 'certificateBase64', 'url', False)
+        self.assertEqual(result, self.cahandler._request_poll('url'))
+
+
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):
