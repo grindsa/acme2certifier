@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" handler for an openssl ca """
+""" handler for xca handler """
 from __future__ import print_function
 import os
 import sqlite3
