@@ -484,6 +484,7 @@ class CAhandler(object):
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
         self.logger.debug('CAhandler._stub_func() ended')
+        return parameter
 
     def _subject_modify(self, subject, dn_dic):
         """ modify subject name """
@@ -598,85 +599,88 @@ class CAhandler(object):
 
     def enroll(self, csr):
         """ enroll certificate  """
-        # pylint: disable=R0914        
+        # pylint: disable=R0914
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None
         cert_raw = None
-
         error = self._config_check()
 
         if not error:
-
             request_name = self._requestname_get(csr)
+            if request_name:
+                # import CSR to database
+                _csr_info = self._csr_import(csr, request_name)
 
-            # import CSR to database
-            _csr_info = self._csr_import(csr, request_name)
+                # prepare the CSR to be signed
+                csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
 
-            # prepare the CSR to be signed
-            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+                # load ca cert and key
+                (ca_key, ca_cert, ca_id) = self._ca_load()
 
-            # load ca cert and key
-            (ca_key, ca_cert, ca_id) = self._ca_load()
+                if ca_key and ca_cert and ca_id:
+                    # load request
+                    req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
 
-            if ca_key and ca_cert:
-                # load request
-                req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+                    # copy cn of request
+                    subject = req.get_subject()
+                    # rewrite CN if required
+                    if not subject.CN:
+                        self.logger.info('rewrite CN to {0}'.format(request_name))
+                        subject.CN = request_name
 
-                # copy cn of request
-                subject = req.get_subject()
-                # rewrite CN if required
-                if not subject.CN:
-                    self.logger.debug('rewrite CN to {0}'.format(request_name))
-                    subject.CN = request_name
+                    # create certificate object
+                    cert = crypto.X509()
+                    cert.set_pubkey(req.get_pubkey())
+                    cert.set_version(2)
+                    cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
+                    cert.set_issuer(ca_cert.get_subject())
 
-                # create certificate object
-                cert = crypto.X509()
-                cert.set_pubkey(req.get_pubkey())
-                cert.set_version(2)
-                cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
-                cert.set_issuer(ca_cert.get_subject())
+                    # load template if configured
+                    if self.template_name:
+                        (dn_dic, template_dic) = self._template_load()
+                    else:
+                        dn_dic = {}
+                        template_dic = {}
 
-                # load template if configured
-                if self.template_name:
-                    (dn_dic, template_dic) = self._template_load()
+                    # set cert_validity
+                    if 'validity' in template_dic:
+                        self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
+                        # take validity from template
+                        cert_validity = template_dic['validity']
+                    else:
+                        cert_validity = self.cert_validity_days
+                    cert.gmtime_adj_notBefore(0)
+                    cert.gmtime_adj_notAfter(cert_validity * 86400)
+
+                    # get extension list
+                    extension_list = self._extension_list_generate(template_dic, cert, ca_cert)
+                    # add extensions (copy from CSR and take the ones we constructed)
+                    cert.add_extensions(req.get_extensions())
+                    cert.add_extensions(extension_list)
+
+                    if dn_dic:
+                        self.logger.info('modify subject with template data')
+                        subject = self._subject_modify(subject, dn_dic)
+                    cert.set_subject(subject)
+
+                    # sign csr
+                    cert.sign(ca_key, 'sha256')
+                    serial = cert.get_serial_number()
+
+                    # get hsshes
+                    issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
+                    name_hash = cert.subject_name_hash() & 0x7fffffff
+
+                    # store certificate
+                    self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
+
+                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
+                    cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
                 else:
-                    dn_dic = {}
-                    template_dic = {}
-
-                # set cert_validity
-                if 'validity' in template_dic:
-                    # take validity from template
-                    cert_validity = template_dic['validity']
-                else:
-                    cert_validity = self.cert_validity_days
-                cert.gmtime_adj_notBefore(0)
-                cert.gmtime_adj_notAfter(cert_validity * 86400)
-
-                # get extension list
-                extension_list = self._extension_list_generate(template_dic, cert, ca_cert)
-                # add extensions (copy from CSR and take the ones we constructed)
-                cert.add_extensions(req.get_extensions())
-                cert.add_extensions(extension_list)
-
-                if dn_dic:
-                    subject = self._subject_modify(subject, dn_dic)
-                cert.set_subject(subject)
-
-                # sign csr
-                cert.sign(ca_key, 'sha256')
-                serial = cert.get_serial_number()
-
-                # get hsshes
-                issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
-                name_hash = cert.subject_name_hash() & 0x7fffffff
-
-                # store certificate
-                self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
-
-                cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
-                cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
-
+                    error = 'ca lookup failed'
+            else:
+                error = 'request_name lookup failed'
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 

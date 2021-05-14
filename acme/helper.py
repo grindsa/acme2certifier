@@ -304,6 +304,7 @@ def decode_message(logger, message):
         signature = jwstoken.objects['signature']
         result = True
     except BaseException as err:
+        logger.error('decode_message() err: {0}'.format(err))
         error = str(err)
         protected = {}
         payload = {}
@@ -464,7 +465,8 @@ def jwk_thumbprint_get(logger, pub_key):
         try:
             jwkey = jwk.JWK(**pub_key)
             thumbprint = jwkey.thumbprint()
-        except BaseException:
+        except BaseException as err:
+            logger.error('jwk_thumbprint_get(): error: {0}'.format(err))
             jwkey = None
             thumbprint = None
     else:

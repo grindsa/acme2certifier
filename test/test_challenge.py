@@ -4,6 +4,7 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
+import configparser
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, '.')
@@ -306,9 +307,31 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.jwk_load.return_value = None
         self.assertEqual((False, False), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_http_challenge')
+    @patch('acme.challenge.Challenge._validate_alpn_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
     def test_037_challenge__check(self, mock_jwk, mock_chall):
+        """ challenge check with with failed tls-alpn challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = (False, 'foo')
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
+        self.assertTrue(mock_chall.called)
+
+    @patch('acme.challenge.Challenge._validate_alpn_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
+    def test_038_challenge__check(self, mock_jwk, mock_chall):
+        """ challenge check with with succ tls-alpn challenge """
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.jwk_load.return_value = 'pub_key'
+        mock_chall.return_value = (True, 'foo')
+        mock_jwk.return_value = 'jwk_thumbprint'
+        self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
+        self.assertTrue(mock_chall.called)
+
+    @patch('acme.challenge.Challenge._validate_http_challenge')
+    @patch('acme.challenge.jwk_thumbprint_get')
+    def test_039_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -318,7 +341,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_http_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_038_challenge__check(self, mock_jwk, mock_chall):
+    def test_040_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -328,7 +351,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_dns_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_039_challenge__check(self, mock_jwk, mock_chall):
+    def test_041_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed dns challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -338,7 +361,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_dns_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_040_challenge__check(self, mock_jwk, mock_chall):
+    def test_042_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -348,7 +371,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_041_challenge__check(self, mock_jwk, mock_chall):
+    def test_043_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support not configured """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -358,7 +381,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_042_challenge__check(self, mock_jwk, mock_chall):
+    def test_044_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support True """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -369,7 +392,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_043_challenge__check(self, mock_jwk, mock_chall):
+    def test_045_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist_support unset """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -380,7 +403,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme.challenge.Challenge._validate_tkauth_challenge')
     @patch('acme.challenge.jwk_thumbprint_get')
-    def test_044_challenge__check(self, mock_jwk, mock_chall):
+    def test_046_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist support set """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
@@ -389,29 +412,45 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
-    def test_045_challenge__wcd_manipulate(self):
+    def test_047_challenge__wcd_manipulate(self):
         """ get fqdn wc manipulation """
         fqdn = 'foo.bar'
         self.assertEqual('foo.bar', self.challenge._wcd_manipulate(fqdn))
 
-    def test_046_challenge__wcd_manipulate(self):
+    def test_048_challenge__wcd_manipulate(self):
         """ get fqdn wc manipulation """
         fqdn = '*.foo.bar'
         self.assertEqual('foo.bar', self.challenge._wcd_manipulate(fqdn))
 
-    def test_047_challenge__wcd_manipulate(self):
+    def test_049_challenge__wcd_manipulate(self):
         """ get fqdn wc manipulation """
         fqdn = 'foo*.foo.bar'
         self.assertEqual('foo*.foo.bar', self.challenge._wcd_manipulate(fqdn))
 
-    def test_048_challenge__challengelist_search(self):
+    def test_050_challenge__challengelist_search(self):
+        """ test Challenge._challengelist_search - one challenge """
+        self.challenge.dbstore.challenges_search.return_value = [{'token': 'token', 'type': 'type', 'name': 'name'}]
+        self.challenge.path_dic = {'chall_path': '/chall_path/'}
+        self.challenge.server_name = 'server_name'
+        result = [{'name': 'name', 'token': 'token', 'type': 'type', 'url': 'server_name/chall_path/name'}]
+        self.assertEqual(result, self.challenge._challengelist_search('key', 'value'))
+
+    def test_051_challenge__challengelist_search(self):
+        """ test Challenge._challengelist_search - two challenges """
+        self.challenge.dbstore.challenges_search.return_value = [{'token': 'token1', 'type': 'type1', 'name': 'name1'}, {'token': 'token2', 'type': 'type2', 'name': 'name2'}]
+        self.challenge.path_dic = {'chall_path': '/chall_path/'}
+        self.challenge.server_name = 'server_name'
+        result = [{'name': 'name1', 'token': 'token1', 'type': 'type1', 'url': 'server_name/chall_path/name1'}, {'name': 'name2', 'token': 'token2', 'type': 'type2', 'url': 'server_name/chall_path/name2'}]
+        self.assertEqual(result, self.challenge._challengelist_search('key', 'value'))
+
+    def test_052_challenge__challengelist_search(self):
         """ test Challenge._challengelist_search - dbstore.challenges_search() raises an exception  """
         self.challenge.dbstore.challenges_search.side_effect = Exception('exc_chall_search')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._challengelist_search('key', 'value')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._challengelist_search(): exc_chall_search', lcm.output)
 
-    def test_049_challenge__check(self):
+    def test_053_challenge__check(self):
         """ test Challenge._check - dbstore.jwk_load() raises an exception  """
         self.challenge.dbstore.jwk_load.side_effect = Exception('exc_jkw_load')
         self.challenge.dbstore.challenge_lookup.return_value = {'type': 'type', 'authorization__value': 'authorization__value', 'token': 'token', 'authorization__order__account__name': 'authorization__order__account__name'}
@@ -419,35 +458,35 @@ class TestACMEHandler(unittest.TestCase):
             self.challenge._check('name', 'payload')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._check() jwk: exc_jkw_load', lcm.output)
 
-    def test_050_challenge__check(self):
+    def test_054_challenge__check(self):
         """ test Challenge._check - dbstore.challenge_lookup() raises an exception  """
         self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_chk')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._check('name', 'payload')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._check() lookup: exc_chall_chk', lcm.output)
 
-    def test_051_challenge__info(self):
+    def test_055_challenge__info(self):
         """ test Challenge._info - dbstore.challenge_lookup() raises an exception  """
         self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_info')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._info('name')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._info(): exc_chall_info', lcm.output)
 
-    def test_052_challenge__new(self):
+    def test_056_challenge__new(self):
         """ test Challenge._new - dbstore.challenge_add() raises an exception  """
         self.challenge.dbstore.challenge_add.side_effect = Exception('exc_chall_add')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._new('authz_name', 'mtype', 'token')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add', lcm.output)
 
-    def test_053_challenge__update(self):
+    def test_057_challenge__update(self):
         """ test Challenge._update - dbstore.challenge_update() raises an exception  """
         self.challenge.dbstore.challenge_update.side_effect = Exception('exc_chall_upd')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._update({'foo': 'bar'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update(): exc_chall_upd', lcm.output)
 
-    def test_054_challenge__update_authz(self):
+    def test_058_challenge__update_authz(self):
         """ test Challenge._update_authz - dbstore.authorization_update() raises an exception  """
         self.challenge.dbstore.authorization_update.side_effect = Exception('exc_chall_autz_upd')
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__name': 'authorization__name', 'authorization': 'authorization'}
@@ -455,7 +494,7 @@ class TestACMEHandler(unittest.TestCase):
             self.challenge._update_authz('name', {'foo': 'bar'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() upd: exc_chall_autz_upd', lcm.output)
 
-    def test_055_challenge__update_authz(self):
+    def test_059_challenge__update_authz(self):
         """ test Challenge._update_authz - dbstore.authorization_update() raises an exception  """
         self.challenge.dbstore.challenge_lookup.side_effect = Exception('exc_chall_lookup_foo')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -463,14 +502,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo', lcm.output)
 
     @patch('acme.challenge.fqdn_resolve')
-    def test_056_challenge__validate_alpn_challenge(self, mock_resolve):
+    def test_060_challenge__validate_alpn_challenge(self, mock_resolve):
         """ test validate_alpn_challenge fqdn_resolve returned Invalid """
         mock_resolve.return_value = (None, True)
         self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme.challenge.servercert_get')
     @patch('acme.challenge.fqdn_resolve')
-    def test_057_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv):
+    def test_061_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv):
         """ test validate_alpn_challenge no certificate returned """
         mock_resolve.return_value = ('foo', False)
         mock_srv.return_value = None
@@ -480,7 +519,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.cert_san_get')
     @patch('acme.challenge.servercert_get')
     @patch('acme.challenge.fqdn_resolve')
-    def test_058_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk):
+    def test_062_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk):
         """ test validate_alpn_challenge sancheck returned false """
         mock_resolve.return_value = ('foo', False)
         mock_sanget.return_value = ['foo', 'bar']
@@ -494,7 +533,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.cert_san_get')
     @patch('acme.challenge.servercert_get')
     @patch('acme.challenge.fqdn_resolve')
-    def test_059_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+    def test_063_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
         """ test validate_alpn_challenge extension check failed """
         mock_resolve.return_value = ('foo', False)
         mock_sanget.return_value = ['foo', 'bar']
@@ -510,7 +549,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.challenge.cert_san_get')
     @patch('acme.challenge.servercert_get')
     @patch('acme.challenge.fqdn_resolve')
-    def test_060_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+    def test_064_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
         """ test validate_alpn_challenge extension sucessful """
         mock_resolve.return_value = ('foo', False)
         mock_sanget.return_value = ['foo', 'bar']
@@ -519,6 +558,269 @@ class TestACMEHandler(unittest.TestCase):
         mock_encode.return_value = 'foo'
         mock_ext.return_value = ['foobar', 'bar', 'foo']
         self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme.challenge.Challenge._validate')
+    def test_065__existing_challenge_validate(self, mock_validate):
+        """ validate challenge with empty challenge list """
+        challenge_list = []
+        self.challenge._existing_challenge_validate(challenge_list)
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme.challenge.Challenge._validate')
+    def test_066__existing_challenge_validate(self, mock_validate):
+        """ validate challenge with challenge list """
+        challenge_list = ['foo']
+        self.challenge._existing_challenge_validate(challenge_list)
+        self.assertTrue(mock_validate.called)
+
+    @patch('acme.challenge.load_config')
+    def test_067_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list )
+
+    @patch('acme.challenge.load_config')
+    def test_068_config_load(self, mock_load_cfg):
+        """ test _config_load challenge_validation_disable False """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'challenge_validation_disable': False}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list)
+
+    @patch('acme.challenge.load_config')
+    def test_069_config_load(self, mock_load_cfg):
+        """ test _config_load challenge_validation_disable True """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'challenge_validation_disable': True}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertTrue(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list)
+
+    @patch('acme.challenge.load_config')
+    def test_070_config_load(self, mock_load_cfg):
+        """ test _config_load tnauthlist_support False """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'tnauthlist_support': False}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list)
+
+    @patch('acme.challenge.load_config')
+    def test_071_config_load(self, mock_load_cfg):
+        """ test _config_load tnauthlist_support True """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'tnauthlist_support': True}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertTrue(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list)
+
+    @patch('acme.challenge.load_config')
+    def test_072_config_load(self, mock_load_cfg):
+        """ test _config_load one DNS """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'dns_server_list': '["10.10.10.10"]'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertEqual(['10.10.10.10'], self.challenge.dns_server_list)
+
+    @patch('acme.challenge.load_config')
+    def test_073_config_load(self, mock_load_cfg):
+        """ test _config_load two DNS """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'dns_server_list': '["10.10.10.10", "10.0.0.1"]'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertEqual(['10.10.10.10', '10.0.0.1'], self.challenge.dns_server_list)
+
+    @patch('json.loads')
+    @patch('acme.challenge.load_config')
+    def test_074_config_load(self, mock_load_cfg, mock_json):
+        """ test _config_load two DNS """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'dns_server_list': '["10.10.10.10", "10.0.0.1"]'}
+        mock_load_cfg.return_value = parser
+        mock_json.side_effect = Exception('exc_mock_json')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._config_load()
+        self.assertIn('WARNING:test_a2c:Challenge._config_load() failed with error: exc_mock_json', lcm.output)
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.dns_server_list)
+
+
+    def test_075__name_get(self):
+        """ test name get no touch"""
+        url = 'foo'
+        self.assertEqual('foo', self.challenge._name_get(url))
+
+    @patch('acme.challenge.parse_url')
+    def test_076__name_get(self, mock_parse):
+        """ test name get urlparse"""
+        mock_parse.return_value = {'path': 'path'}
+        url = 'foo'
+        self.assertEqual('path', self.challenge._name_get(url))
+
+    @patch('acme.challenge.parse_url')
+    def test_077__name_get(self, mock_parse):
+        """ test name get challenge_path replace """
+        mock_parse.return_value = {'path': 'foo/my_path'}
+        self.challenge.path_dic = {'chall_path': 'foo/'}
+        url = 'foo'
+        self.assertEqual('my_path', self.challenge._name_get(url))
+
+    @patch('acme.challenge.parse_url')
+    def test_078__name_get(self, mock_parse):
+        """ test name get challenge_path replace """
+        mock_parse.return_value = {'path': 'foo/my/path'}
+        self.challenge.path_dic = {'chall_path': 'foo/'}
+        url = 'foo'
+        self.assertEqual('my', self.challenge._name_get(url))
+
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_079__validate(self, mock_update, mock_aupdate):
+        """ test validate """
+        challenge_name = 'challenge_name'
+        payload = 'payload'
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        self.challenge.challenge_validation_disable = True
+        self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._check')
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_080__validate(self, mock_update, mock_aupdate, mock_check):
+        """ test validate check returned ch:False/inv:False """
+        challenge_name = 'challenge_name'
+        payload = 'payload'
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_check.return_value = (False, False)
+        self.assertFalse(self.challenge._validate(challenge_name, payload))
+        self.assertFalse(mock_update.called)
+        self.assertFalse(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._check')
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_081__validate(self, mock_update, mock_aupdate, mock_check):
+        """ test validate check returned ch:False/inv:True """
+        challenge_name = 'challenge_name'
+        payload = 'payload'
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_check.return_value = (False, True)
+        self.assertFalse(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._check')
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_082__validate(self, mock_update, mock_aupdate, mock_check):
+        """ test validate check returned ch:True/inv:False """
+        challenge_name = 'challenge_name'
+        payload = 'payload'
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_check.return_value = (True, False)
+        self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._check')
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_083__validate(self, mock_update, mock_aupdate, mock_check):
+        """ test validate check returned ch:True/inv:True """
+        challenge_name = 'challenge_name'
+        payload = 'payload'
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_check.return_value = (True, True)
+        self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._check')
+    @patch('acme.challenge.Challenge._update_authz')
+    @patch('acme.challenge.Challenge._update')
+    def test_084__validate(self, mock_update, mock_aupdate, mock_check):
+        """ test validate check returned ch:True/inv:False """
+        challenge_name = 'challenge_name'
+        payload = {'keyAuthorization': 'keyAuthorization'}
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_check.return_value = (True, False)
+        self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch('acme.challenge.Challenge._name_get')
+    @patch('acme.challenge.Challenge._info')
+    def test_085_get(self, mock_info, mock_name):
+        """ test get """
+        mock_info.return_value = 'chall_info'
+        mock_name.return_value = 'foo'
+        self.assertEqual({'code': 200, 'data': 'chall_info'}, self.challenge.get('url'))
+        self.assertTrue(mock_name.called)
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.challenge.Challenge._existing_challenge_validate')
+    @patch('acme.challenge.Challenge._challengelist_search')
+    def test_086_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+        """ test challengeset_get - no challenge_list returned """
+        mock_chsearch.return_value = []
+        mock_val.return_value = True
+        mock_set.return_value = 'new_set'
+        self.assertEqual('new_set', self.challenge.challengeset_get('authz_name', 'auth_status', 'token', 'tnauth'))
+        self.assertTrue(mock_set.called)
+        self.assertFalse(mock_val.called)
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.challenge.Challenge._existing_challenge_validate')
+    @patch('acme.challenge.Challenge._challengelist_search')
+    def test_087_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+        """ test challengeset_get - challenge_list returned """
+        mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
+        mock_val.return_value = True
+        mock_set.return_value = 'new_set'
+        self.assertEqual([{'foo': 'bar'}], self.challenge.challengeset_get('authz_name', 'auth_status', 'token', 'tnauth'))
+        self.assertFalse(mock_set.called)
+        self.assertFalse(mock_val.called)
+
+    @patch('acme.challenge.Challenge.new_set')
+    @patch('acme.challenge.Challenge._existing_challenge_validate')
+    @patch('acme.challenge.Challenge._challengelist_search')
+    def test_088_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+        """ test challengeset_get - challenge_list returned autzstatus pending """
+        mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
+        mock_val.return_value = True
+        mock_set.return_value = 'new_set'
+        self.assertEqual([{'foo': 'bar'}], self.challenge.challengeset_get('authz_name', 'pending', 'token', 'tnauth'))
+        self.assertFalse(mock_set.called)
+        self.assertTrue(mock_val.called)
 
 if __name__ == '__main__':
     unittest.main()

@@ -150,6 +150,27 @@ class TestACMEHandler(unittest.TestCase):
         # self.cahandler.passphrase = 'wrongpw'
         self.assertFalse(self.cahandler._ca_key_load())
 
+    @patch('OpenSSL.crypto.load_privatekey')
+    def test_018_ca_key_load(self, mock_key):
+        """ CAhandler._ca_key_load """
+        self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_key = 'sub-ca'
+        self.cahandler.passphrase = 'test1234'
+        mock_key.side_effect = Exception('exc_key_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._ca_key_load()
+        self.assertIn('ERROR:test_a2c:CAhandler._ca_key_load() failed with error: exc_key_load', lcm.output)
+
+    @patch('OpenSSL.crypto.load_certificate')
+    def test_019_ca_cert_load(self, mock_certload):
+        """ CAhandler._ca_cert_load """
+        self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
+        self.cahandler.issuing_ca_name = 'sub-ca'
+        mock_certload.side_effect = Exception('exc_cert_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None), self.cahandler._ca_load())
+        self.assertIn('ERROR:test_a2c:CAhandler._ca_cert_load() failed with error: exc_cert_load', lcm.output)
+
     def test_017_csr_insert(self):
         """ CAhandler._csr_insert empty item dic """
         self.cahandler.xdb_file = self.dir_path + '/ca/acme2certifier.xdb'
@@ -343,6 +364,19 @@ class TestACMEHandler(unittest.TestCase):
         cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 2, 'ca': 3, 'cert': 'cert', 'iss_hash': 4, 'hash': 'hash'}
         self.assertFalse(self.cahandler._cert_insert(cert_dic))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_050_cert_insert(self, mock_open, mock_close):
+        """ CAhandler._csr_import with hash not int """
+        cert_dic = {'item': 1, 'serial': 'serial', 'issuer': 2, 'ca': 3, 'cert': 'cert', 'iss_hash': 4, 'hash': 5}
+        mock_open.return_value = True
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.lastrowid = 5
+        self.assertEqual(5, self.cahandler._cert_insert(cert_dic))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
     def test_048_pemcertchain_generate(self):
         """ CAhandler._pemcertchain_generate no certificates """
         ee_cert = None
@@ -494,6 +528,18 @@ class TestACMEHandler(unittest.TestCase):
         rev_dic = {'caID': 0, 'serial': 'serial', 'date': 'date', 'invaldate': 'invaldate', 'reasonBit': '0'}
         self.assertFalse(self.cahandler._revocation_insert(rev_dic))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_071_rev_insert(self, mock_open, mock_close):
+        """ CAhandler._revocation_insert with caID is not inall okt """
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.cahandler.cursor.lastrowid = 5
+        rev_dic = {'caID': 0, 'serial': 'serial', 'date': 'date', 'invaldate': 'invaldate', 'reasonBit': 0}
+        self.assertEqual(5, self.cahandler._revocation_insert(rev_dic))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+
     @patch('examples.ca_handler.xca_ca_handler.uts_to_date_utc')
     def test_068_revoke(self, mock_date):
         """ CAhandler.revocation without xdb file """
@@ -598,6 +644,34 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'template_name': 'foo'}}
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.template_name)
+
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
+    def test_083_config_load(self, mock_load_cfg):
+        """ test _config_load - load template """
+        mock_load_cfg.return_value = {'CAhandler': {'xdb_file': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual('foo', self.cahandler.xdb_file)
+
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
+    def test_084_config_load(self, mock_load_cfg):
+        """ test _config_load - load template """
+        mock_load_cfg.return_value = {'CAhandler': {'passphrase': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual('foo', self.cahandler.passphrase)
+
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
+    def test_085_config_load(self, mock_load_cfg):
+        """ test _config_load - load template """
+        mock_load_cfg.return_value = {'CAhandler': {'issuing_ca_name': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual('foo', self.cahandler.issuing_ca_name)
+
+    @patch('examples.ca_handler.xca_ca_handler.load_config')
+    def test_086_config_load(self, mock_load_cfg):
+        """ test _config_load - load template """
+        mock_load_cfg.return_value = {'CAhandler': {'issuing_ca_key': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual('foo', self.cahandler.issuing_ca_key)
 
     def test_079_stream_split(self):
         """ test stream_split - all ok """
@@ -1212,6 +1286,340 @@ class TestACMEHandler(unittest.TestCase):
         result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always')]
         self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert))
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_load')
+    def test_150__enter__(self, mock_cfg):
+        """ test enter """
+        mock_cfg.return_value = True
+        self.cahandler.__enter__()
+        self.assertTrue(mock_cfg.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_load')
+    def test_151__enter__(self, mock_cfg):
+        """ test enter """
+        self.cahandler.xdb_file = self.dir_path + '/ca/est_proxy.xdb'
+        mock_cfg.return_value = True
+        self.cahandler.__enter__()
+        self.assertFalse(mock_cfg.called)
+
+    def test_152_trigger(self):
+        """ test trigger """
+        self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
+
+    def test_153_poll(self):
+        """ test poll """
+        self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier','csr'))
+
+    def test_154_stub_func(self):
+        """ test stubfunc """
+        self.assertEqual('parameter', self.cahandler._stub_func('parameter'))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_insert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._item_insert')
+    def test_155__store_cert(self, mock_i_insert, mock_c_insert):
+        """ test insert """
+        mock_i_insert.return_value = 1
+        mock_c_insert.return_value = 2
+        self.cahandler._store_cert('ca_id', 'cert_name', 'serial', 'cert', 'name_hash', 'issuer_hash')
+        self.assertTrue(mock_i_insert.called)
+        self.assertTrue(mock_c_insert.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_156_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+        """ revocation search  """
+        mock_dicfrow.return_value = {'foo': 'bar'}
+        mock_open.return_value = True
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.assertEqual({'foo': 'bar'}, self.cahandler._revocation_search('column', 'value'))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+        self.assertTrue(mock_dicfrow.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_157_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+        """ revocation search  dicfromrow throws exception """
+        mock_dicfrow.side_effect = Exception('exc_dicfromrow')
+        mock_open.return_value = True
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.assertFalse(self.cahandler._revocation_search('column', 'value'))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+        self.assertTrue(mock_dicfrow.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_166_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+        """ revocation search  """
+        mock_dicfrow.return_value = {'foo': 'bar'}
+        mock_open.return_value = True
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.assertEqual({'foo': 'bar'}, self.cahandler._revocation_search('column', 'value'))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+        self.assertTrue(mock_dicfrow.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
+    def test_167_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+        """ revocation search  dicfromrow throws exception """
+        mock_dicfrow.side_effect = Exception('exc_dicfromrow')
+        mock_open.return_value = True
+        mock_close.return_value = True
+        self.cahandler.cursor = Mock()
+        self.assertFalse(self.cahandler._revocation_search('column', 'value'))
+        self.assertTrue(mock_open.called)
+        self.assertTrue(mock_close.called)
+        self.assertTrue(mock_dicfrow.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_insert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._item_insert')
+    def test_165__store_cert(self, mock_i_insert, mock_c_insert):
+        """ test insert """
+        mock_i_insert.return_value = 1
+        mock_c_insert.return_value = 2
+        self.cahandler._store_cert('ca_id', 'cert_name', 'serial', 'cert', 'name_hash', 'issuer_hash')
+        self.assertTrue(mock_i_insert.called)
+        self.assertTrue(mock_c_insert.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_168_enroll(self, mock_chk):
+        """ enroll test error returned from config_check"""
+        mock_chk.return_value = 'error'
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_169_enroll(self, mock_chk, mock_nameget):
+        """ enroll test error returned no request name returned """
+        mock_chk.return_value = None
+        mock_nameget.return_value = None
+        self.assertEqual(('request_name lookup failed', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_170_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+        """ enroll test error returned from ca_load failed """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        mock_ca_load.return_value = (None, None, None)
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_171_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+        """ enroll test error returned from ca_load failed """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        mock_ca_load.return_value = ('ca_key', None, None)
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_172_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+        """ enroll test error returned from ca_load failed """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        mock_ca_load.return_value = ('ca_key', 'ca_cert', None)
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_encode')
+    @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._store_cert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_generate')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_173_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+        """ enroll test """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_ca_load.return_value = ('ca_key', ca_obj, 5)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csr_load.return_value = Mock()
+        mock_csr_load.return_value.get_subject = Mock(return_value=dn_obj)
+        mock_ext_get.return_value = ['ext1', 'ext2']
+        mock_509.return_value = Mock()
+        mock_509.return_value.get_serial_number = Mock(return_value=42)
+        mock_509.return_value.subject_name_hash = Mock(return_value=42)
+        mock_store.return_value = 'foo'
+        mock_dump.return_value = 'foo'
+        mock_cbs.return_value = 'foo'
+        mock_b64e.return_value = 'foo'
+        self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_encode')
+    @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._store_cert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_generate')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_175_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+        """ enroll test - default cert validity """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_ca_load.return_value = ('ca_key', ca_obj, 5)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csr_load.return_value = Mock()
+        mock_csr_load.return_value.get_subject = Mock(return_value=dn_obj)
+        mock_ext_get.return_value = ['ext1', 'ext2']
+        mock_509.return_value = Mock()
+        mock_509.return_value.get_serial_number = Mock(return_value=42)
+        mock_509.return_value.subject_name_hash = Mock(return_value=42)
+        mock_store.return_value = 'foo'
+        mock_dump.return_value = 'foo'
+        mock_cbs.return_value = 'foo'
+        mock_b64e.return_value = 'foo'
+        self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
+        self.assertEqual(365, self.cahandler.cert_validity_days)
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_encode')
+    @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._store_cert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_generate')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_174_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+        """ enroll test - rewrite CN """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'reqname'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_ca_load.return_value = ('ca_key', ca_obj, 5)
+        dn_obj = Mock()
+        dn_obj.CN = None
+        mock_csr_load.return_value = Mock()
+        mock_csr_load.return_value.get_subject = Mock(return_value=dn_obj)
+        mock_ext_get.return_value = ['ext1', 'ext2']
+        mock_509.return_value = Mock()
+        mock_509.return_value.get_serial_number = Mock(return_value=42)
+        mock_509.return_value.subject_name_hash = Mock(return_value=42)
+        mock_store.return_value = 'foo'
+        mock_dump.return_value = 'foo'
+        mock_cbs.return_value = 'foo'
+        mock_b64e.return_value = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
+        self.assertIn('INFO:test_a2c:rewrite CN to reqname', lcm.output)
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_encode')
+    @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._store_cert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_generate')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_176_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
+        """ enroll test - template load validity """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_ca_load.return_value = ('ca_key', ca_obj, 5)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csr_load.return_value = Mock()
+        mock_csr_load.return_value.get_subject = Mock(return_value=dn_obj)
+        mock_ext_get.return_value = ['ext1', 'ext2']
+        mock_509.return_value = Mock()
+        mock_509.return_value.get_serial_number = Mock(return_value=42)
+        mock_509.return_value.subject_name_hash = Mock(return_value=42)
+        mock_store.return_value = 'foo'
+        mock_dump.return_value = 'foo'
+        mock_cbs.return_value = 'foo'
+        mock_b64e.return_value = 'foo'
+        dn_dic = {'foo': 'bar'}
+        template_dic = {'validity': 500}
+        mock_tmp_load.return_value = (dn_dic, template_dic)
+        self.cahandler.template_name = 'template'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
+        self.assertIn('INFO:test_a2c:take validity from template: 500', lcm.output)
+
+    @patch('examples.ca_handler.xca_ca_handler.b64_encode')
+    @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._store_cert')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_generate')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_177_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
+        """ enroll test - template load validity """
+        mock_chk.return_value = None
+        mock_nameget.return_value = 'name'
+        mock_csrinfo.return_value = {'foo': 'bar'}
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_ca_load.return_value = ('ca_key', ca_obj, 5)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csr_load.return_value = Mock()
+        mock_csr_load.return_value.get_subject = Mock(return_value=dn_obj)
+        mock_ext_get.return_value = ['ext1', 'ext2']
+        mock_509.return_value = Mock()
+        mock_509.return_value.get_serial_number = Mock(return_value=42)
+        mock_509.return_value.subject_name_hash = Mock(return_value=42)
+        mock_store.return_value = 'foo'
+        mock_dump.return_value = 'foo'
+        dn_dic = {'foo': 'bar'}
+        template_dic = {}
+        mock_tmp_load.return_value = (dn_dic, template_dic)
+        self.cahandler.template_name = 'template'
+        mock_cbs.return_value = 'foo'
+        mock_b64e.return_value = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
+        self.assertIn('INFO:test_a2c:modify subject with template data', lcm.output)
 
 if __name__ == '__main__':
 
