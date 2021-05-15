@@ -1,0 +1,6 @@
+CREATE DATABASE acme2certifier;
+CREATE USER acme2certifier WITH PASSWORD '1mmSvDF';
+ALTER ROLE acme2certifier SET client_encoding TO 'utf8';
+ALTER ROLE acme2certifier SET default_transaction_isolation TO 'read committed';
+ALTER ROLE acme2certifier SET timezone TO 'UTC';
+GRANT ALL PRIVILEGES ON DATABASE acme2certifier TO acme2certifier;
