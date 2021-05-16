@@ -22,7 +22,7 @@ class CAhandler(object):
         self.debug = debug
         self.logger = logger
         self.xdb_file = None
-        self.passphrase = 'i_dont_know'
+        self.passphrase = None
         self.issuing_ca_name = None
         self.issuing_ca_key = None
         self.cert_validity_days = 365
@@ -176,7 +176,16 @@ class CAhandler(object):
         if 'xdb_file' in config_dic['CAhandler']:
             self.xdb_file = config_dic['CAhandler']['xdb_file']
 
+        if 'passphrase_variable' in config_dic['CAhandler']:
+            try:
+                self.passphrase = os.environ[config_dic['CAhandler']['passphrase_variable']]
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+
         if 'passphrase' in config_dic['CAhandler']:
+            # overwrite passphrase specified in variable
+            if self.passphrase:
+                self.logger.info('CAhandler._config_load() overwrite passphrase_variable')
             self.passphrase = config_dic['CAhandler']['passphrase']
 
         if 'issuing_ca_name' in config_dic['CAhandler']:
