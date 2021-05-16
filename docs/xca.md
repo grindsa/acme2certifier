@@ -29,15 +29,15 @@ root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme/ca_handler.py
 xdb_file: acme/xca/acme2certifier.xdb
 issuing_ca_name: sub-ca
 issuing_ca_key: sub-ca-key
-passphrase: test1234
+passphrase_variable: XCA_PASSPHRASE
 ca_cert_chain_list: ["root-ca"]
 template_name: XCA template to be applied to CSRs
 ```
 
 - `xdb_file` - path to XCA database
-- `issuing_ca_key_passphrase` - password to access the private key
 - `issuing_ca_name` - XCA name of the certificate authority used to issue certificates.
 - `issuing_ca_key` - XCA name of the ley used to sign certificates. If not set same value as configured in `issuing_ca_name` will be assumed.
+- `passphrase_variable` - *optional* - name of the environment variable containing the passphrase to decrypt the CA key (a configured `passphrase` parameter takes precedence)
 - `passphrase` - *optional* - passphrase to access the database and decrypt the private CA Key
 - `ca_cert_chain_list` - *optional* - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issuing CA cert must not be included)
 - `template_name` - *optional* - name of the XCA template to be applied during certificate issuance
