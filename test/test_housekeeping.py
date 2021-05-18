@@ -4,7 +4,8 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -371,6 +372,137 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.housekeeping.dbversion_check(2)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database version mismatch in: version is 1 but should be 2. Please run the "foo" script', lcm.output)
+
+    @patch('acme.housekeeping.Housekeeping._config_load')
+    def test_055__enter__(self, mock_cfg):
+        """ test enter """
+        mock_cfg.return_value = True
+        self.housekeeping.__enter__()
+        self.assertTrue(mock_cfg.called)
+
+    @patch('acme.housekeeping.load_config')
+    def test_056_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.housekeeping._config_load()
+        self.assertTrue(mock_load_cfg.called)
+
+    @patch('acme.housekeeping.load_config')
+    def test_057_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        parser['Housekeeping'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.housekeeping._config_load()
+        self.assertTrue(mock_load_cfg.called)
+
+    @patch('csv.writer')
+    @patch("builtins.open", mock_open(read_data='csv_dump'), create=True)
+    def test_058__csv_dump(self, mock_write):
+        """ test csv dump """
+        self.housekeeping._csv_dump('filename', 'data')
+        self.assertTrue(mock_write.called)
+
+    @patch('json.dumps')
+    @patch("builtins.open", mock_open(read_data='csv_dump'), create=True)
+    def test_058__csv_dump(self, mock_json):
+        """ test csv dump """
+        mock_json.return_value = {'foo': 'bar'}
+        self.housekeeping._json_dump('filename', 'data')
+        self.assertTrue(mock_json.called)
+
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._accountlist_get')
+    def test_059_accountreport_get(self, mock_get, mock_norm, mock_convert):
+        """ test accountreport_get() no report name"""
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = ('foo', 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', None, False))
+
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._accountlist_get')
+    def test_060_accountreport_get(self, mock_get, mock_norm, mock_convert, mock_list, mock_dump):
+        """ test accountreport_get() report name csv """
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = ('foo', 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', 'report_name', False))
+        self.assertTrue(mock_list.called)
+        self.assertTrue(mock_dump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._to_acc_json')
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._accountlist_get')
+    def test_061_accountreport_get(self, mock_get, mock_norm, mock_convert, mock_list, mock_dump):
+        """ test accountreport_get() report name json not nested """
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = ('foo', 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.accountreport_get('json', 'report_name', False))
+        self.assertFalse(mock_list.called)
+        self.assertTrue(mock_dump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._to_acc_json')
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._accountlist_get')
+    def test_062_accountreport_get(self, mock_get, mock_norm, mock_convert, mock_list, mock_dump):
+        """ test accountreport_get() report name json not nested """
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = ('foo', 'bar')
+        mock_convert.return_value = ['list']
+        mock_list.return_value = ['list1']
+        self.assertEqual(['list1'], self.housekeeping.accountreport_get('json', 'report_name', True))
+        self.assertTrue(mock_list.called)
+        self.assertTrue(mock_dump.called)
+
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._certificatelist_get')
+    def test_063_certreport_get(self, mock_get, mock_norm, mock_convert):
+        """ test accountreport_get() no report name"""
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = (['foo'], 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', None))
+
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._certificatelist_get')
+    def test_064_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list, mock_dump):
+        """ test accountreport_get() no report name"""
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = (['foo'], 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', 'report_name'))
+        self.assertTrue(mock_list.called)
+        self.assertTrue(mock_dump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._to_acc_json')
+    @patch('acme.housekeeping.Housekeeping._convert_data')
+    @patch('acme.housekeeping.Housekeeping._lists_normalize')
+    @patch('acme.housekeeping.Housekeeping._certificatelist_get')
+    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list, mock_dump):
+        """ test accountreport_get() report name json not nested """
+        mock_get.return_value = ('foo', 'bar')
+        mock_norm.return_value = (['foo'], 'bar')
+        mock_convert.return_value = ['list']
+        self.assertEqual(['list'], self.housekeeping.certreport_get('json', 'report_name'))
+        self.assertFalse(mock_list.called)
+        self.assertTrue(mock_dump.called)
 
 if __name__ == '__main__':
     unittest.main()
