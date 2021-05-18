@@ -5,6 +5,7 @@
 import unittest
 import sys
 import importlib
+import configparser
 from unittest.mock import patch, MagicMock, Mock
 
 sys.path.insert(0, '.')
@@ -189,6 +190,22 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
     def test_017_trigger__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+        """ Trigger._payload_process() _certname.lookup() returned empty list """
+        payload = {'payload': 'foo'}
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.trigger.cahandler = ca_handler_module.CAhandler
+        self.trigger.cahandler.trigger = Mock(return_value=('error', 'bundle', 'raw'))
+        mock_der2pem.return_value = 'der2pem'
+        mock_cobystr.return_value = 'cert_pem'
+        mock_b64dec.return_value = 'b64dec'
+        mock_lookup.return_value = []
+        self.assertEqual((400, 'certificate_name lookup failed', None), self.trigger._payload_process(payload))
+
+    @patch('acme.trigger.Trigger._certname_lookup')
+    @patch('acme.trigger.b64_decode')
+    @patch('acme.trigger.cert_der2pem')
+    @patch('acme.trigger.convert_byte_to_string')
+    def test_018_trigger__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -205,7 +222,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.trigger.b64_decode')
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.convert_byte_to_string')
-    def test_018_trigger__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
+    def test_019_trigger__payload_process(self, mock_cobystr, mock_der2pem, mock_b64dec, mock_lookup):
         """ Trigger._payload_process() without certificate_name """
         payload = {'payload': 'foo'}
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -221,7 +238,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.Trigger._certname_lookup')
     @patch('acme.trigger.convert_byte_to_string')
-    def test_019_trigger__payload_process(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
+    def test_020_trigger__payload_process(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
         """ test Trigger._payload_process - dbstore.order_update() raises an exception  """
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
@@ -240,7 +257,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.trigger.cert_der2pem')
     @patch('acme.trigger.Trigger._certname_lookup')
     @patch('acme.trigger.convert_byte_to_string')
-    def test_020_trigger__payload_process(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
+    def test_021_trigger__payload_process(self, mock_cobystr, mock_lookup, mock_der2pem, mock_b64dec):
         """ test Trigger._payload_process - dbstore.order_update() raises an exception  """
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.trigger.cahandler = ca_handler_module.CAhandler
@@ -255,12 +272,83 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() add: exc_trigger_order_add', lcm.output)
 
     @patch('acme.trigger.load_config')
-    def test_021_config_load(self, mock_load_cfg):
+    def test_022_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.trigger._config_load()
         self.assertIn('ERROR:test_a2c:Trigger._config_load(): CAhandler configuration missing in config file', lcm.output)
+
+    @patch('acme.trigger.Trigger._config_load')
+    def test_023__enter__(self, mock_cfg):
+        """ test enter """
+        mock_cfg.return_value = True
+        self.trigger.__enter__()
+        self.assertTrue(mock_cfg.called)
+
+    @patch('acme.trigger.load_config')
+    def test_024_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertFalse(self.trigger.tnauthlist_support)
+        self.assertIn('ERROR:test_a2c:Trigger._config_load(): CAhandler configuration missing in config file', lcm.output)
+
+    @patch('acme.trigger.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load missing ca_handler """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'handler_file': 'foo'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: No module named 'foo'", lcm.output)
+        # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: No module named 'acme.ca_handler'", lcm.output)
+
+    @patch('importlib.import_module')
+    @patch('acme.trigger.load_config')
+    def test_026_config_load(self, mock_load_cfg, mock_imp):
+        """ test _config_load missing ca_handler """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'handler_file': 'foo'}
+        mock_load_cfg.return_value = parser
+        mock_imp.return_value = Mock()
+        self.trigger._config_load()
+        self.assertTrue(self.trigger.cahandler)
+
+    @patch('importlib.import_module')
+    @patch('acme.trigger.load_config')
+    def test_027_config_load(self, mock_load_cfg, mock_imp):
+        """ test _config_load missing ca_handler """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        mock_imp.return_value = Mock()
+        self.trigger._config_load()
+        self.assertTrue(self.trigger.cahandler)
+
+    @patch('acme.trigger.load_config')
+    def test_028_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'tnauthlist_support': False}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertFalse(self.trigger.tnauthlist_support)
+
+    @patch('acme.trigger.load_config')
+    def test_029_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'tnauthlist_support': True}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertTrue(self.trigger.tnauthlist_support)
 
 if __name__ == '__main__':
     unittest.main()
