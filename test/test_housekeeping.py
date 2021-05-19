@@ -504,5 +504,76 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_list.called)
         self.assertTrue(mock_dump.called)
 
+    @patch('acme.certificate.Certificate.dates_update')
+    def test_066_certificate_data_update(self, mock_update):
+        """ test certificate_dates_update """
+        self.housekeeping.certificate_dates_update()
+        self.assertTrue(mock_update.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.certificate.Certificate.cleanup')
+    @patch('acme.housekeeping.uts_now')
+    def test_067_certificates_cleanup(self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump):
+        """ test certificates_cleanup no uts empty report_name """
+        mock_uts.return_value = 1111111111
+        mock_cleanup.return_value = ('fieldlist', [])
+        self.assertFalse(self.housekeeping.certificates_cleanup(uts=None, purge=False, report_format='csv', report_name=None))
+        self.assertTrue(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.certificate.Certificate.cleanup')
+    @patch('acme.housekeeping.uts_now')
+    def test_068_certificates_cleanup(self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump):
+        """ test certificates_cleanup uts but empty report_name """
+        mock_uts.return_value = 1111111111
+        mock_cleanup.return_value = ('fieldlist', [])
+        self.assertFalse(self.housekeeping.certificates_cleanup(uts='uts', purge=False, report_format='csv', report_name=None))
+        self.assertFalse(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.certificate.Certificate.cleanup')
+    @patch('acme.housekeeping.uts_now')
+    def test_069_certificates_cleanup(self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump):
+        """ test certificates_cleanup no uts empty certlist """
+        mock_uts.return_value = 111111111
+        mock_cleanup.return_value = ('fieldlist', [])
+        self.assertFalse(self.housekeeping.certificates_cleanup(uts='foo', purge=False, report_format='csv', report_name='foo'))
+        self.assertFalse(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+    @patch('acme.housekeeping.Housekeeping._json_dump')
+    @patch('acme.housekeeping.Housekeeping._csv_dump')
+    @patch('acme.housekeeping.Housekeeping._to_list')
+    @patch('acme.certificate.Certificate.cleanup')
+    @patch('acme.housekeeping.uts_now')
+    def test_069_certificates_cleanup(self, mock_uts, mock_cleanup, mock_list, mock_cdump, mock_jdump):
+        """ test certificates_cleanup no uts empty certlist """
+        mock_uts.return_value = 111111111
+        mock_cleanup.return_value = ('fieldlist', 'certlist')
+        self.assertEqual('cert_list', self.housekeeping.certificates_cleanup(uts='foo', purge=False, report_format='csv', report_name='foo'))
+        self.assertFalse(mock_uts.called)
+        self.assertTrue(mock_cleanup.called)
+        self.assertFalse(mock_list.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertFalse(mock_jdump.called)
+
+
 if __name__ == '__main__':
     unittest.main()
