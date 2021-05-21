@@ -142,12 +142,33 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
             if 'api_user' in config_dic['CAhandler']:
                 self.api_user = config_dic['CAhandler']['api_user']
+
+            if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
+                if 'api_user_variable' in config_dic['CAhandler']:
+                    try:
+                        self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
+                    except BaseException as err:
+                        self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                if 'api_user' in config_dic['CAhandler']:
+                    if self.api_user:
+                        self.logger.info('CAhandler._config_load() overwrite api_user')
+                    self.api_user = config_dic['CAhandler']['api_user']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file')
-            if 'api_password' in config_dic['CAhandler']:
-                self.api_password = config_dic['CAhandler']['api_password']
+
+            if 'api_password' in config_dic['CAhandler'] or 'api_password_variable' in config_dic['CAhandler']:
+                if 'api_password_variable' in config_dic['CAhandler']:
+                    try:
+                        self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
+                    except BaseException as err:
+                        self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                if 'api_password' in config_dic['CAhandler']:
+                    if self.api_password:
+                        self.logger.info('CAhandler._config_load() overwrite api_password_variable')
+                    self.api_password = config_dic['CAhandler']['api_password']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file')
+
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
             else:
@@ -287,7 +308,7 @@ class CAhandler(object):
                 error = 'Unknown request status: {0}'.format(request_dic['status'])
         else:
             error = '"status" field not found in response.'
-            
+
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
