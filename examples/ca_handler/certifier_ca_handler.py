@@ -6,6 +6,7 @@ import textwrap
 import math
 import time
 import requests
+import os
 from requests.auth import HTTPBasicAuth
 # pylint: disable=E0401
 from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
@@ -140,15 +141,13 @@ class CAhandler(object):
                 self.api_host = config_dic['CAhandler']['api_host']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
-            if 'api_user' in config_dic['CAhandler']:
-                self.api_user = config_dic['CAhandler']['api_user']
 
             if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
                 if 'api_user_variable' in config_dic['CAhandler']:
                     try:
                         self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
                     except BaseException as err:
-                        self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                        self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
                 if 'api_user' in config_dic['CAhandler']:
                     if self.api_user:
                         self.logger.info('CAhandler._config_load() overwrite api_user')
