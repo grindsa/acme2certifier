@@ -281,7 +281,7 @@ class CAhandler(object):
         else:
             # If response code is not ok (200), print the resulting http error code with description
             self.logger.error(api_response.raise_for_status())
-            sys.exit(0)
+            # sys.exit(0)
 
     def _request_import(self, csr):
         """ import certificate request to NCLM """
