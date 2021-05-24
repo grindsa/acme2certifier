@@ -23,6 +23,7 @@ class CAhandler(object):
         self.headers = None
         self.ca_name = None
         self.error = None
+        self.wait_interval = 5
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -401,7 +402,7 @@ class CAhandler(object):
                         data_dic['templateID'] = self.template_info_dic['id']
                     self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
                     # wait for certificate enrollment to get finished
-                    time.sleep(5)
+                    time.sleep(self.wait_interval)
                     cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
                     if cert_id:
                         (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
@@ -439,16 +440,25 @@ class CAhandler(object):
         hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
 
         # search for certificate
-        cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        try:
+            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler.revoke(): request get aborted with err:'.format(err_))
+            cert_list = []
 
         if 'certificates' in cert_list:
             try:
                 cert_id = cert_list['certificates'][0]['certificateId']
                 data_dic = {'reason': rev_reason, 'time': rev_date}
-                detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
-                code = 200
-                message = None
-            except IndexError:
+                try:
+                    detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
+                    code = 200
+                    message = None
+                except BaseException as err:
+                    code = 500
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'Revocation operation failed'
+            except BaseException:
                 code = 404
                 message = 'urn:ietf:params:acme:error:serverInternal'
                 detail = 'CertificateID could not be found'
