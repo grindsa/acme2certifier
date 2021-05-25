@@ -67,9 +67,11 @@ class CAhandler(object):
         if self.est_host:
             try:
                 if self.est_client_cert:
+                    self.logger.debug('CAhandler._cacerts_get() by using client-certs')
                     # client auth
                     response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
                 else:
+                    self.logger.debug('CAhandler._cacerts_get() by using userid/password')
                     response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle)
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except BaseException as err_:
