@@ -55,6 +55,7 @@ save_cert_as_hex: True
 
 - `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
 - `issuing_ca_key_passphrase` - password to access the private key
+- `issuing_ca_key_passphrase_variable` - *optional* - name of the environment variable containing the passphrase to access the CA key (a configured `issuing_ca_key_passphrase` parameter in acme_srv.cfg takes precedence)
 - `issuing_ca_cert` - Certificate of issuing CA in PEM format
 - `issuing_ca_crl` - CRL of issuing CA in PEM format
 - `ca_cert_chain_list` - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)

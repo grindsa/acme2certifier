@@ -133,9 +133,8 @@ class CAhandler(object):
             try:
                 pkcs7 = crypto.load_pkcs7_data(filetype, pkcs7_content)
                 break
-            except crypto.Error as _err:
+            except BaseException as _err:
                 pkcs7 = None
-                # print(err)
 
         cert_pem_list = []
         if pkcs7:

@@ -29,7 +29,9 @@ polling_timeout: <seconds>
 
 - api_host - URL of the Certifier-REST service
 - api_user - REST user
+- api_user_variable - *optional* - name of the environment variable containing the REST username (a configured `api_user` parameter in acme_srv.cfg takes precedence)
 - api_password - password for REST user
+- api_password_variable - *optional* - name of the environment variable containing the password for the REST user (a configured `api_password` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
 - polling_timeout - optional - polling timeout (default: 60s)
