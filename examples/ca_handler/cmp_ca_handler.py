@@ -158,7 +158,6 @@ class CAhandler(object):
             fso.write(pubkey)
         self.logger.debug('CAhandler._pubkey_save() ended')
 
-
     def _tmp_files_delete(self, uts):
         """ delete temp files """
         self.logger.debug('CAhandler._tmp_files_delete({0})'.format(uts))

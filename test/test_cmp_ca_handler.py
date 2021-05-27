@@ -5,7 +5,7 @@
 import sys
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open, Mock
 # from OpenSSL import crypto
 import shutil
 
@@ -14,7 +14,6 @@ sys.path.insert(1, '..')
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
-
     def setUp(self):
         """ setup unittest """
         import logging
@@ -220,6 +219,143 @@ class TestACMEHandler(unittest.TestCase):
         olist = []
         self.assertEqual('"bar1, bar2"', self.cahandler._csr_san_get('csr'))
 
+    def test_023_poll(self):
+        """ test trigger """
+        self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
+
+    def test_024_trigger(self):
+        """ test trigger """
+        self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
+
+    def test_025_revoke(self):
+        """ test revoke """
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Revocation is not supported.'), self.cahandler.revoke('cert', 'rev_reason', 'rev_date'))
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._config_load')
+    def test_026__enter__(self, mock_load):
+        """ test enter """
+        self.cahandler.__enter__()
+        self.assertTrue(mock_load.called)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._config_load')
+    def test_027__enter__(self, mock_load):
+        """ test enter """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        self.cahandler.__enter__()
+        self.assertFalse(mock_load.called)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    def test_028__pubkey_save(self):
+        """ test pubkey save """
+        self.assertFalse(self.cahandler._pubkey_save('uts', 'pubkey'))
+
+    @patch('os.remove')
+    @patch('os.path.isfile')
+    def test_029_tmp_files_delete(self, mock_exists, mock_remove):
+        """ test files_delete if file exists """
+        mock_exists.return_value = True
+        self.cahandler._tmp_files_delete('uts')
+        self.assertTrue(mock_remove.called)
+
+    @patch('os.remove')
+    @patch('os.path.isfile')
+    def test_030_tmp_files_delete(self, mock_exists, mock_remove):
+        """ test files_delete if file exists """
+        mock_exists.return_value = False
+        self.cahandler._tmp_files_delete('uts')
+        self.assertFalse(mock_remove.called)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('os.path.isfile')
+    def test_031_certs_bundle(self, mock_exists):
+        """ certs bundle if no file exists """
+        mock_exists.return_value = False
+        self.assertEqual((None, None), self.cahandler._certs_bundle('foo'))
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('os.path.isfile')
+    def test_032_certs_bundle(self, mock_exists):
+        """ certs bundle if only capubs exists """
+        mock_exists.side_effect = (True, False)
+        self.assertEqual((None, None), self.cahandler._certs_bundle('uts'))
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('os.path.isfile')
+    def test_033_certs_bundle(self, mock_exists):
+        """ certs bundle if only cert exists """
+        mock_exists.side_effect = (False, True)
+        self.assertEqual(('foo', 'foo'), self.cahandler._certs_bundle('uts'))
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('os.path.isfile')
+    def test_034_certs_bundle(self, mock_exists):
+        """ certs bundle if all exists """
+        mock_exists.side_effect = (True, True)
+        self.assertEqual(('foofoo', 'foo'), self.cahandler._certs_bundle('uts'))
+
+    @patch("builtins.open", mock_open(read_data='-----BEGIN CERTIFICATE-----\nfoo'), create=True)
+    @patch('os.path.isfile')
+    def test_035_certs_bundle(self, mock_exists):
+        """ certs bundle if cert exists replace begin tag """
+        mock_exists.side_effect = (False, True)
+        self.assertEqual(('-----BEGIN CERTIFICATE-----\nfoo', 'foo'), self.cahandler._certs_bundle('uts'))
+
+    @patch("builtins.open", mock_open(read_data='-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n'), create=True)
+    @patch('os.path.isfile')
+    def test_036_certs_bundle(self, mock_exists):
+        """ certs bundle if cert exists replace end tag """
+        mock_exists.side_effect = (False, True)
+        self.assertEqual(('-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n', 'foo'), self.cahandler._certs_bundle('uts'))
+
+    @patch("builtins.open", mock_open(read_data='foo\n'), create=True)
+    @patch('os.path.isfile')
+    def test_037_certs_bundle(self, mock_exists):
+        """ certs bundle if cert exists replace end tag """
+        mock_exists.side_effect = (False, True)
+        self.assertEqual(('foo\n', 'foo'), self.cahandler._certs_bundle('uts'))
+
+    def test_038_opensslcmd_build(self):
+        """test _openssl_cmd_build()"""
+        self.cahandler.openssl_bin = 'openssl_bin'
+        self.cahandler.tmp_dir = '/tmp'
+        uts = 1234
+        subject = 'subject'
+        san_list = 'foo1.bar.local'
+        result = ['openssl_bin', 'cmp', '-subject', 'subject', '-newkey', '/tmp/1234_pubkey.pem', '-sans', 'foo1.bar.local', '-extracertsout', '/tmp/1234_capubs.pem', '-certout', '/tmp/1234_cert.pem', '-msgtimeout', '5', '-totaltimeout', '10']
+        self.assertEqual(result, self.cahandler._opensslcmd_build(uts, subject, san_list))
+
+    def test_039_opensslcmd_build(self):
+        """test _openssl_cmd_build() with option including in config dic"""
+        self.cahandler.openssl_bin = 'openssl_bin'
+        self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.config_dic = {'foo1': 'bar1', 'foo2': 'bar2'}
+        uts = 1234
+        subject = 'subject'
+        san_list = 'foo1.bar.local'
+        result = ['openssl_bin', 'cmp', '-foo1', 'bar1', '-foo2', 'bar2', '-subject', 'subject', '-newkey', '/tmp/1234_pubkey.pem', '-sans', 'foo1.bar.local', '-extracertsout', '/tmp/1234_capubs.pem', '-certout', '/tmp/1234_cert.pem', '-msgtimeout', '5', '-totaltimeout', '10']
+        self.assertEqual(result, self.cahandler._opensslcmd_build(uts, subject, san_list))
+
+    def test_040_opensslcmd_build(self):
+        """test _openssl_cmd_build()"""
+        self.cahandler.openssl_bin = 'openssl_bin'
+        self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.config_dic = {'-msgtimeout': 10}
+        uts = 1234
+        subject = 'subject'
+        san_list = 'foo1.bar.local'
+        result = ['openssl_bin', 'cmp', '--msgtimeout', '10', '-subject', 'subject', '-newkey', '/tmp/1234_pubkey.pem', '-sans', 'foo1.bar.local', '-extracertsout', '/tmp/1234_capubs.pem', '-certout', '/tmp/1234_cert.pem', '-msgtimeout', '5', '-totaltimeout', '10']
+        self.assertEqual(result, self.cahandler._opensslcmd_build(uts, subject, san_list))
+
+    def test_041_opensslcmd_build(self):
+        """test _openssl_cmd_build()"""
+        self.cahandler.openssl_bin = 'openssl_bin'
+        self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.config_dic = {'-totaltimeout': 10}
+        uts = 1234
+        subject = 'subject'
+        san_list = 'foo1.bar.local'
+        result = ['openssl_bin', 'cmp', '--totaltimeout', '10', '-subject', 'subject', '-newkey', '/tmp/1234_pubkey.pem', '-sans', 'foo1.bar.local', '-extracertsout', '/tmp/1234_capubs.pem', '-certout', '/tmp/1234_cert.pem', '-msgtimeout', '5', '-totaltimeout', '10']
+        self.assertEqual(result, self.cahandler._opensslcmd_build(uts, subject, san_list))
 
 if __name__ == '__main__':
 
