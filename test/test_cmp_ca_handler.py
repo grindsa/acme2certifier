@@ -357,6 +357,171 @@ class TestACMEHandler(unittest.TestCase):
         result = ['openssl_bin', 'cmp', '--totaltimeout', '10', '-subject', 'subject', '-newkey', '/tmp/1234_pubkey.pem', '-sans', 'foo1.bar.local', '-extracertsout', '/tmp/1234_capubs.pem', '-certout', '/tmp/1234_cert.pem', '-msgtimeout', '5', '-totaltimeout', '10']
         self.assertEqual(result, self.cahandler._opensslcmd_build(uts, subject, san_list))
 
+    def test_042_enroll(self):
+        """ test enroll without openssl_bin """
+        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_043_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get):
+        """ test enroll csr_dn_get returns_exception """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.side_effect = Exception('ex_dn_get')
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.return_value = 'san.foo.bar'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('CSR invalid', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): csr_dn_get() failed with error: ex_dn_get', lcm.output)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_files_delete')
+    @patch('os.path.isfile')
+    @patch('subprocess.call')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._pubkey_save')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_043_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+        """ test enroll csr_dn_get returns None and gets corrected """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = None
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.return_value = 'san.foo.bar'
+        mock_save.return_value = True
+        mock_build.return_value = 'opensslcmd'
+        mock_call.return_value = 0
+        mock_exists.return_value = True
+        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_del.return_value = True
+        #with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.assertEqual((None, 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
+        #self.assertIn('ERROR:test_a2c:CAhandler.enroll(): csr_dn_get() failed with error: ex_dn_get', lcm.output)
+        self.assertTrue(mock_save.called)
+        self.assertTrue(mock_build.called)
+        self.assertTrue(mock_call.called)
+        self.assertTrue(mock_exists.called)
+        self.assertTrue(mock_del.called)
+        self.assertTrue(mock_bundle.called)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_045_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get):
+        """ test enroll csr_pubkey_get returns_exception """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = 'dn'
+        mock_pkey_get.side_effect = Exception('ex_pubkey_get')
+        mock_san_get.return_value = 'san.foo.bar'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('CSR invalid', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): csr_pubkey_get() failed with error: ex_pubkey_get', lcm.output)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_046_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get):
+        """ test enroll _csr_san_get returns_exception """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = 'dn'
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.side_effect = Exception('ex_san_get')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('CSR invalid', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): _csr_san_get() failed with error: ex_san_get', lcm.output)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_files_delete')
+    @patch('os.path.isfile')
+    @patch('subprocess.call')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._pubkey_save')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_047_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+        """ test enroll csr_dn_get runs through without issues """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = 'dn'
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.return_value = 'san.foo.bar'
+        mock_save.return_value = True
+        mock_build.return_value = 'opensslcmd'
+        mock_call.return_value = 0
+        mock_exists.return_value = True
+        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_del.return_value = True
+        #with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.assertEqual((None, 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
+        #self.assertIn('ERROR:test_a2c:CAhandler.enroll(): csr_dn_get() failed with error: ex_dn_get', lcm.output)
+        self.assertTrue(mock_save.called)
+        self.assertTrue(mock_build.called)
+        self.assertTrue(mock_call.called)
+        self.assertTrue(mock_exists.called)
+        self.assertTrue(mock_del.called)
+        self.assertTrue(mock_bundle.called)
+
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_files_delete')
+    @patch('os.path.isfile')
+    @patch('subprocess.call')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._pubkey_save')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+    def test_048_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+        """ test enroll subprocess.call returns other than 0 """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = 'dn'
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.return_value = 'san.foo.bar'
+        mock_save.return_value = True
+        mock_build.return_value = 'opensslcmd'
+        mock_call.return_value = 25
+        mock_exists.return_value = True
+        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_del.return_value = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('rc from enrollment not 0', 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): failed: 25', lcm.output)
+        self.assertTrue(mock_save.called)
+        self.assertTrue(mock_build.called)
+        self.assertTrue(mock_call.called)
+        self.assertTrue(mock_exists.called)
+        self.assertTrue(mock_del.called)
+        self.assertTrue(mock_bundle.called)
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_files_delete')
+    @patch('os.path.isfile')
+    @patch('subprocess.call')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._pubkey_save')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._csr_san_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.cmp_ca_handler.csr_dn_get')
+
+    def test_049_enroll(self, mock_dn_get, mock_pkey_get, mock_san_get, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+        """ test enroll subprocess.call files do not exist """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_dn_get.return_value = 'dn'
+        mock_pkey_get.return_value = 'pkey'
+        mock_san_get.return_value = 'san.foo.bar'
+        mock_save.return_value = True
+        mock_build.return_value = 'opensslcmd'
+        mock_call.return_value = 0
+        mock_exists.return_value = False
+        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_del.return_value = True
+        self.assertEqual(('Enrollment failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_save.called)
+        self.assertTrue(mock_build.called)
+        self.assertTrue(mock_call.called)
+        self.assertTrue(mock_exists.called)
+        self.assertTrue(mock_del.called)
+        self.assertFalse(mock_bundle.called)
+
 if __name__ == '__main__':
 
     unittest.main()
