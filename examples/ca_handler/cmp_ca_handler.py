@@ -17,6 +17,8 @@ class CAhandler(object):
         self.openssl_bin = None
         self.tmp_dir = None
         self.recipient = None
+        self.ref = None
+        self.secret = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -39,13 +41,13 @@ class CAhandler(object):
         if os.path.isfile('{0}/{1}_capubs.pem'.format(self.tmp_dir, uts)):
             fso = open('{0}/{1}_capubs.pem'.format(self.tmp_dir, uts), 'r')
             ca_pem = fso.read()
-            fso.close
+            fso.close()
 
         # open certificate
         if os.path.isfile('{0}/{1}_cert.pem'.format(self.tmp_dir, uts)):
             fso = open('{0}/{1}_cert.pem'.format(self.tmp_dir, uts), 'r')
             cert_raw = fso.read()
-            fso.close
+            fso.close()
             # create bundle and raw cert
             if cert_raw and ca_pem:
                 cert_bundle = cert_raw + ca_pem
@@ -99,11 +101,32 @@ class CAhandler(object):
                         value = value.replace(', ', '/')
                         value = value.replace(',', '/')
                         self.config_dic['recipient'] = value
+                    elif ele == 'cmp_ref_variable':
+                        try:
+                            self.ref = os.environ[config_dic['CAhandler']['cmp_ref_variable']]
+                        except BaseException as err:
+                            self.logger.error('CAhandler._config_load() could not load cmp_ref:{0}'.format(err))
+                    elif ele == 'cmp_secret_variable':
+                        try:
+                            self.secret = os.environ[config_dic['CAhandler']['cmp_secret_variable']]
+                        except BaseException as err:
+                            self.logger.error('CAhandler._config_load() could not load cmp_secret_variable:{0}'.format(err))
+                    elif ele in ('cmp_secret', 'cmp_ref'):
+                        continue
                     else:
                         if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
                             self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
                         else:
                             self.config_dic[ele[4:]] = config_dic['CAhandler'][ele]
+
+        if 'CAhandler' in config_dic and 'cmp_ref' in config_dic['CAhandler']:
+            if self.ref:
+                self.logger.info('CAhandler._config_load() overwrite cmp_ref variable')
+            self.ref = config_dic['CAhandler']['cmp_ref']
+        if 'CAhandler' in config_dic and 'cmp_secret' in config_dic['CAhandler']:
+            if self.secret:
+                self.logger.info('CAhandler._config_load() overwrite cmp_secret variable')
+            self.secret = config_dic['CAhandler']['cmp_secret']
 
         if 'cmd' not in self.config_dic:
             self.config_dic['cmd'] = 'ir'
@@ -227,7 +250,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, None)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -250,7 +273,7 @@ class CAhandler(object):
 
         return(code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, _payload):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
