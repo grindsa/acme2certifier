@@ -6,7 +6,7 @@
 
 To enable EAB the CA operator needs to provide both ACME client and acme2certifier with a key identifier (kid) and a MAC key (mac_key) which will we be used to authenticate `NewAccount` requests.
 
-kid and mac_key will be loaded into acme2certifer by using a plugin based mechanism. Two plugins will be shipped by default and are stored in the `example/eab_handler` directory.
+Kid and mac_key will be loaded into acme2certifer by using a plugin based mechanism. Two plugins will be shipped by default and are stored in the `example/eab_handler` directory.
 
 The key identifers will be part of the reports created by [Housekeeping](housekeeping.md) class.
 
