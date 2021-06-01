@@ -6,11 +6,12 @@ import unittest
 import sys
 import os
 from OpenSSL import crypto
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 import requests
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
+
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -223,6 +224,128 @@ class TestACMEHandler(unittest.TestCase):
     def test_021_trigger(self):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
+
+    def test_022_check_credentials(self):
+        """ test polling """
+        ca_server = Mock()
+        ca_server.check_credentials = Mock(return_value=True)
+        self.assertTrue(self.cahandler._check_credentials(ca_server))
+
+    def test_023_check_credentials(self):
+        """ test polling """
+        ca_server = Mock()
+        ca_server.check_credentials = Mock(return_value=False)
+        self.assertFalse(self.cahandler._check_credentials(ca_server))
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._config_load')
+    def test_024__enter__(self, mock_cfg):
+        """ test enter  called """
+        mock_cfg.return_value = True
+        self.cahandler.__enter__()
+        self.assertTrue(mock_cfg.called)
+
+    def test_025_enroll(self):
+        """ enroll without having self.host """
+        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+
+    def test_026_enroll(self):
+        """ enroll without having self.user """
+        self.cahandler.host = 'host'
+        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+
+    def test_027_enroll(self):
+        """ enroll without having self.password """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+
+    def test_028_enroll(self):
+        """ enroll without having self.template """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('certsrv.Certsrv')
+    def test_029_enroll(self, mock_certserver, mock_credchk):
+        """ enroll credential check failed """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mock_certserver.return_value = 'foo'
+        mock_credchk.return_value = False
+        self.assertEqual(('Connection or Credentialcheck failed.', None, None, None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_030_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+        """ enroll enroll successful """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = "get_chain"
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = ['get_chain', 'get_cert']
+        mock_p2p.return_value = 'p2p'
+        self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_031_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+        """ enroll exceütption in get chain """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = 'get_chain'
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = [Exception('exc_get_chain'), 'get_cert']
+        mock_p2p.return_value = 'p2p'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('cert bundling failed', None, 'get_cert', None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:ca_server.get_chain() failed with error: exc_get_chain', lcm.output)
+        self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_032_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+        """ enroll exceütption in get cert """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = 'get_chain'
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = ['exc_get_chain', Exception('get_cert')]
+        mock_p2p.return_value = 'p2p'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('cert bundling failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:ca_server.get_cert() failed with error: get_cert', lcm.output)
+        self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
 
 if __name__ == '__main__':
 
