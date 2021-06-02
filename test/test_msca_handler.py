@@ -213,53 +213,137 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertEqual('template', self.cahandler.template)
 
-    def test_019_revoke(self):
+    @patch.dict('os.environ', {'host_variable': 'host'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_019_config_load(self, mock_load_cfg):
+        """ test _config_load - load with host variable """
+        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_variable'}}
+        self.cahandler._config_load()
+        self.assertEqual('host', self.cahandler.host)
+
+    @patch.dict('os.environ', {'host_variable': 'host'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_020_config_load(self, mock_load_cfg):
+        """ test _config_load - load with host variable which does not exist """
+        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'doesnotexist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'doesnotexist'", lcm.output)
+
+    @patch.dict('os.environ', {'host_variable': 'host'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_021_config_load(self, mock_load_cfg):
+        """ test _config_load - load with host variable which gets overwritten """
+        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_variable', 'host': 'host_local'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('host_local', self.cahandler.host)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite host', lcm.output)
+
+    @patch.dict('os.environ', {'user_variable': 'user'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_022_config_load(self, mock_load_cfg):
+        """ test _config_load - load with user variable """
+        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_variable'}}
+        self.cahandler._config_load()
+        self.assertEqual('user', self.cahandler.user)
+
+    @patch.dict('os.environ', {'user_variable': 'user'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_023_config_load(self, mock_load_cfg):
+        """ test _config_load - load with user variable which does not exist """
+        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'doesnotexist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.user)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'doesnotexist'", lcm.output)
+
+    @patch.dict('os.environ', {'user_variable': 'user'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_024_config_load(self, mock_load_cfg):
+        """ test _config_load - load with user variable which gets overwritten """
+        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_variable', 'user': 'user_local'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('user_local', self.cahandler.user)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite user', lcm.output)
+
+    @patch.dict('os.environ', {'password_variable': 'password'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load - load with password variable """
+        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_variable'}}
+        self.cahandler._config_load()
+        self.assertEqual('password', self.cahandler.password)
+
+    @patch.dict('os.environ', {'password_variable': 'password'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_026_config_load(self, mock_load_cfg):
+        """ test _config_load - load with password variable which does not exist """
+        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'doesnotexist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.password)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'doesnotexist'", lcm.output)
+
+    @patch.dict('os.environ', {'password_variable': 'password'})
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_027_config_load(self, mock_load_cfg):
+        """ test _config_load - load with password variable which gets overwritten """
+        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_variable', 'password': 'password_local'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('password_local', self.cahandler.password)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite password', lcm.output)
+
+    def test_028_revoke(self):
         """ test revocation """
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Revocation is not supported.'), self.cahandler.revoke('cert', 'rev_reason', 'rev_date'))
 
-    def test_020_poll(self):
+    def test_029_poll(self):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
 
-    def test_021_trigger(self):
+    def test_030_trigger(self):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    def test_022_check_credentials(self):
+    def test_031_check_credentials(self):
         """ test polling """
         ca_server = Mock()
         ca_server.check_credentials = Mock(return_value=True)
         self.assertTrue(self.cahandler._check_credentials(ca_server))
 
-    def test_023_check_credentials(self):
+    def test_032_check_credentials(self):
         """ test polling """
         ca_server = Mock()
         ca_server.check_credentials = Mock(return_value=False)
         self.assertFalse(self.cahandler._check_credentials(ca_server))
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._config_load')
-    def test_024__enter__(self, mock_cfg):
+    def test_033__enter__(self, mock_cfg):
         """ test enter  called """
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    def test_025_enroll(self):
+    def test_034_enroll(self):
         """ enroll without having self.host """
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
 
-    def test_026_enroll(self):
+    def test_035_enroll(self):
         """ enroll without having self.user """
         self.cahandler.host = 'host'
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
 
-    def test_027_enroll(self):
+    def test_036_enroll(self):
         """ enroll without having self.password """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
 
-    def test_028_enroll(self):
+    def test_037_enroll(self):
         """ enroll without having self.template """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -268,7 +352,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
     @patch('certsrv.Certsrv')
-    def test_029_enroll(self, mock_certserver, mock_credchk):
+    def test_038_enroll(self, mock_certserver, mock_credchk):
         """ enroll credential check failed """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -283,7 +367,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('textwrap.fill')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
     @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
-    def test_030_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+    def test_039_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
         """ enroll enroll successful """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -304,7 +388,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('textwrap.fill')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
     @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
-    def test_031_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+    def test_040_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
         """ enroll exceütption in get chain """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -328,7 +412,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('textwrap.fill')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
     @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
-    def test_032_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
+    def test_041_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p):
         """ enroll exceütption in get cert """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
