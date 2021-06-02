@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca handler for  Microsoft Webenrollment service (certsrv) """
 from __future__ import print_function
+import os
 import textwrap
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
@@ -156,11 +157,33 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
+
+            if 'host_variable' in config_dic['CAhandler']:
+                try:
+                    self.host = os.environ[config_dic['CAhandler']['host_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
             if 'host' in config_dic['CAhandler']:
+                if self.host:
+                    self.logger.info('CAhandler._config_load() overwrite host')
                 self.host = config_dic['CAhandler']['host']
+            if 'user_variable' in config_dic['CAhandler']:
+                try:
+                    self.user = os.environ[config_dic['CAhandler']['user_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
             if 'user' in config_dic['CAhandler']:
+                if self.user:
+                    self.logger.info('CAhandler._config_load() overwrite user')
                 self.user = config_dic['CAhandler']['user']
+            if 'password_variable' in config_dic['CAhandler']:
+                try:
+                    self.password = os.environ[config_dic['CAhandler']['password_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
             if 'password' in config_dic['CAhandler']:
+                if self.password:
+                    self.logger.info('CAhandler._config_load() overwrite password')
                 self.password = config_dic['CAhandler']['password']
             if 'template' in config_dic['CAhandler']:
                 self.template = config_dic['CAhandler']['template']

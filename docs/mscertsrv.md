@@ -69,8 +69,11 @@ template: <name>
 ```
 
 - host - hostname of the system providing the Web enrollment service
+- host_variable - *optional* - name of the environment variable containing host address (a configured `host` parameter in acme_srv.cfg takes precedence)
 - user - username used to access the service
+- user_variable - *optional* - name of the environment variable containing the username used for service access (a configured `user` parameter in acme_srv.cfg takes precedence)
 - password - password
+- password_variable - *optional* - name of the environment variable containing the password used for service access (a configured `password` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - CA certificate bundle in pem format needed to valiate the server certificate
 - auth_method - authentication method (either "basic" or "ntlm")
 - template - certificate template used for enrollment
