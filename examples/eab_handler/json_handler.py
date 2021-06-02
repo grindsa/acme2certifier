@@ -27,8 +27,9 @@ class EABhandler(object):
         self.logger.debug('EABhandler._config_load()')
 
         config_dic = load_config(self.logger, 'EABhandler')
-        if 'key_file' in config_dic['EABhandler']:
-            self.key_file = config_dic['EABhandler']['key_file']
+        if 'EABhandler' in config_dic:
+            if 'key_file' in config_dic['EABhandler']:
+                self.key_file = config_dic['EABhandler']['key_file']
 
         self.logger.debug('EABhandler._config_load() ended')
 
@@ -37,10 +38,14 @@ class EABhandler(object):
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
 
         mac_key = None
-        with open(self.key_file, encoding='utf8') as json_file:
-            data_dic = json.load(json_file)
-            if kid in data_dic:
-                mac_key = data_dic[kid]
+        try:
+            if self.key_file and kid:
+                with open(self.key_file, encoding='utf8') as json_file:
+                    data_dic = json.load(json_file)
+                    if kid in data_dic:
+                        mac_key = data_dic[kid]
+        except BaseException as err:
+            self.logger.error('EABhandler.mac_key_get() error: {0}'.format(err))
 
         self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))
         return mac_key
