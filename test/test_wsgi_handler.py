@@ -8,7 +8,9 @@ try:
     from mock import patch, MagicMock
 except ImportError:
     from unittest.mock import patch, MagicMock
-sys.path.insert(0, '..')
+
+sys.path.insert(0, '.')
+sys.path.insert(1, '..')
 
 def dict_from_row(row):
     """ small helper to convert a select list into a dictionary """
@@ -25,12 +27,15 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         # from acme.wsgi_handler import DBstore
-        from examples.db_handler.wsgi_handler import DBstore
+        from examples.db_handler.wsgi_handler import DBstore, initialize
+        from acme.version import __dbversion__
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_acme2certifier')
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.dbstore = DBstore(False, self.logger, self.dir_path + '/acme_test.db')
+        self.initialize = initialize
+        self.dbversion = __dbversion__
         _cleanup(self.dir_path)
         self.dbstore._db_create()
 
@@ -309,6 +314,53 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'token' : 'token1', 'expires': '25'}
         self.assertEqual(1, self.dbstore.authorization_update(data_dic))
 
+    def test_040_authorization_update(self):
+        """ test DBstore.authorization_update() method  no expires """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'name1', 'token' : 'token2'}
+        self.assertEqual(1, self.dbstore.authorization_update(data_dic))
+        self.assertEqual('token2', dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['token'])
+
+    def test_041_authorization_update(self):
+        """ test DBstore.authorization_update() method  no expires """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'name1', 'expires' : '35'}
+        self.assertEqual(1, self.dbstore.authorization_update(data_dic))
+        self.assertEqual(35, dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['expires'])
+
+    def test_042_authorization_update(self):
+        """ test DBstore.authorization_update() method  no expires """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'expires' : '35'}
+        self.assertFalse(self.dbstore.authorization_update(data_dic))
+
+    def test_043_authorization_update(self):
+        """ test DBstore.authorization_update() method  no expires """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'name1', 'expires' : '35', 'status': 'valid'}
+        self.assertEqual(1, self.dbstore.authorization_update(data_dic))
+        self.assertEqual(35, dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['expires'])
+        self.assertEqual(5, dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['status_id'])
+        self.assertEqual('valid', dict_from_row(self.dbstore._authorization_search('name', 'name1')[0])['status__name'])
+
     def test_040_authorization_search(self):
         """ test DBstore.authorization_search() by name """
         data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
@@ -578,6 +630,16 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name': 'certname2', 'error': 'error3', 'poll_identifier': None}
         self.assertEqual(2, self.dbstore.certificate_add(data_dic))
 
+    def test_067_certificate_add(self):
+        """ test DBstore.certificate_add() method csr add """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name': 'certname1', 'order': 'name1'}
+        self.assertEqual(1, self.dbstore.certificate_add(data_dic))
+        self.assertEqual({'cert': None, 'order': u'name1', 'order__name': u'name1', 'name': u'certname1', 'csr': u''}, self.dbstore.certificate_lookup('name', 'certname1'))
+
     def test_067_certificate_lookup(self):
         """ test DBstore.certificate_lookup() by name (successful) """
         data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
@@ -670,6 +732,134 @@ class TestACMEHandler(unittest.TestCase):
         mock_orderlookup.return_value = {'account__name': 'name1'}
         self.assertEqual('foo1', self.dbstore.certificate_account_check(None, 'cert_failed'))
 
+    @patch('examples.db_handler.wsgi_handler.DBstore.order_lookup')
+    @patch('examples.db_handler.wsgi_handler.DBstore.certificate_lookup')
+    def test_078_certificate_account_check(self, mock_certlookup, mock_orderlookup):
+        """ test DBstore.certificate_account_check() order lookup retured no account__name """
+        mock_certlookup.return_value = {'order__name': 'foo1'}
+        mock_orderlookup.return_value = {'foo': 'name1'}
+        self.assertFalse(self.dbstore.certificate_account_check(None, 'cert_failed'))
+
+    def test_078_initialize(self):
+        """ test initialize function """
+        self.assertEqual(None, self.initialize())
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_079_account_update(self, mock_datestr):
+        """ test account update all ok """
+        mock_datestr.return_value = 'datestr'
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
+        update_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertEqual(2, self.dbstore.account_update(update_dic))
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_080_account_update(self, mock_datestr):
+        """ test account update without alg """
+        mock_datestr.return_value = 'datestr'
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
+        update_dic = {'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertEqual(2, self.dbstore.account_update(update_dic))
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_081_account_update(self, mock_datestr):
+        """ test account update without jwk """
+        mock_datestr.return_value = 'datestr'
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact21', 'name' : 'name2'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
+        update_dic = {'alg' : 'alg2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertEqual(2, self.dbstore.account_update(update_dic))
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_082_account_update(self, mock_datestr):
+        """ test account update without jwk """
+        mock_datestr.return_value = 'datestr'
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
+        update_dic = {'alg' : 'alg2', 'jwk' : 'jwk20', 'name' : 'name2'}
+        self.assertEqual(2, self.dbstore.account_update(update_dic))
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact2', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk20'}
+        self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
+
+    @patch('examples.db_handler.wsgi_handler.datestr_to_date')
+    def test_083_account_update(self, mock_datestr):
+        """ test account update without eab_kid but eab_kid inserted in account_add() """
+        mock_datestr.return_value = 'datestr'
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2', 'eab_kid': 'eab_kid'}
+        self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
+        update_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertEqual(2, self.dbstore.account_update(update_dic))
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': 'eab_kid', 'jwk': 'jwk2'}
+        self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
+
+    def test_084_account_update(self):
+        """ test account update - account.search() did not return anything """
+        update_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
+        self.assertFalse(self.dbstore.account_update(update_dic))
+
+    def test_085_accountlist_get(self):
+        """ test DBstore.accountlist_get """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
+        self.dbstore.challenge_add(data_dic)
+        data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 'name1', 'expires' : 25, 'type' : 'type2'}
+        self.dbstore.challenge_add(data_dic)
+        vlist = ['id', 'name', 'eab_kid', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name', 'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token', 'order__authorization__created_at', 'order__authorization__status__id', 'order__authorization__status__name', 'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token', 'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization', 'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name']
+        account_list = {'id': 1, 'name': 'name1', 'eab_kid': '', 'contact': 'contact1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'alg': 'alg1', 'order__id': 1, 'order__name': 'name', 'order__status__id': 1, 'order__status__name': 'invalid', 'order__notbefore': '', 'order__notafter': '', 'order__expires': 25, 'order__identifiers': 'identifiers', 'order__authorization__id': 1, 'order__authorization__name': 'name1', 'order__authorization__type': 'type1', 'order__authorization__value': 'value1', 'order__authorization__expires': None, 'order__authorization__token': None, 'order__authorization__status__id': 2, 'order__authorization__status__name': 'pending', 'order__authorization__challenge__id': 1, 'order__authorization__challenge__name': 'challenge1', 'order__authorization__challenge__token': 'token1', 'order__authorization__challenge__expires': 25, 'order__authorization__challenge__type': 'type1', 'order__authorization__challenge__keyauthorization': None, 'order__authorization__challenge__status__id': 2, 'order__authorization__challenge__status__name': 'pending'}
+        (result_vlist, result_account_list) = self.dbstore.accountlist_get()
+        self.assertEqual(vlist, result_vlist)
+        self.assertTrue(set(account_list.items()).issubset( set(result_account_list[0].items())))
+
+    def test_086_authorizations_expired_search(self):
+        """ test DBstore.authorizations_expired_search() """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        result = {'id': 1, 'name': 'name1', 'expires': None, 'value': 'value1', 'token': None, 'status__id': 2, 'status__name': 'pending', 'order__id': 1, 'order__name': 'name'}
+        result_list = self.dbstore.authorizations_expired_search('name', 'name1')
+        self.assertTrue(set(result.items()).issubset( set(result_list[0].items())))
+
+    def test_087_certificate_delete(self):
+        """ test DBstore.certificate_delete() method (succesful) """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
+        self.dbstore.certificate_add(data_dic)
+        result = {'name': 'certname1', 'csr': 'csr1',  'order': 'name', 'order__name': 'name', 'cert': None}
+        self.assertEqual(result, self.dbstore.certificate_lookup('name', 'certname1'))
+        self.dbstore.certificate_delete('name', 'certname1')
+        self.assertFalse(self.dbstore.certificate_lookup('name', 'certname1'))
+
+    def test_088_dbversion(self):
+        """ test db_version """
+        self.assertEqual((self.dbversion, 'tools/db_update.py'), self.dbstore.dbversion_get())
 
 if __name__ == '__main__':
 

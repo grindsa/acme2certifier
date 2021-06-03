@@ -295,7 +295,11 @@ class DBstore(object):
         """ update existing account """
         self.logger.debug('DBStore.account_update({0})'.format(data_dic))
 
-        lookup = dict_from_row(self._account_search('name', data_dic['name']))
+        try:
+            lookup = dict_from_row(self._account_search('name', data_dic['name']))
+        except BaseException as _err:
+            lookup = None
+
         if lookup:
             if 'alg' not in data_dic:
                 data_dic['alg'] = lookup['alg']
@@ -303,7 +307,6 @@ class DBstore(object):
                 data_dic['contact'] = lookup['contact']
             if 'jwk' not in data_dic:
                 data_dic['jwk'] = lookup['jwk']
-
             self._db_open()
             self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
             self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
@@ -381,7 +384,6 @@ class DBstore(object):
             account_list.append(result)
 
         self._db_close()
-
         return(vlist, account_list)
 
     def authorization_add(self, data_dic):
@@ -415,9 +417,8 @@ class DBstore(object):
 
     def authorizations_expired_search(self, column, string, vlist=('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE'):
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(column, string))
+        self.logger.debug('DBStore.authorizations_expired_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
-
         pre_statement = '''SELECT
                                 authorization.*,
                                 status.name as status__name,
@@ -442,7 +443,7 @@ class DBstore(object):
             authorization_list.append(result)
 
         self._db_close()
-        self.logger.debug('DBStore.authorizations_invalid_search() ended')
+        self.logger.debug('DBStore.authorizations_expired_search-() ended')
         return authorization_list
 
     def authorization_update(self, data_dic):
