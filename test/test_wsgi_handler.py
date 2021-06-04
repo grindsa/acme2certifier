@@ -5,9 +5,9 @@ import unittest
 import sys
 import os
 try:
-    from mock import patch, MagicMock
+    from mock import patch, MagicMock, Mock
 except ImportError:
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch, MagicMock, Mock
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -31,7 +31,7 @@ class TestACMEHandler(unittest.TestCase):
         from acme.version import __dbversion__
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger('test_acme2certifier')
+        self.logger = logging.getLogger('test_a2c')
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.dbstore = DBstore(False, self.logger, self.dir_path + '/acme_test.db')
         self.initialize = initialize
@@ -857,9 +857,187 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.certificate_delete('name', 'certname1')
         self.assertFalse(self.dbstore.certificate_lookup('name', 'certname1'))
 
-    def test_088_dbversion(self):
+    def test_088_certificatelist_get(self):
+        """ test DBstore.certificatelist_get() """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
+        self.dbstore.certificate_add(data_dic)
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        self.assertEqual(1, self.dbstore.certificate_add(data_dic))
+        vlist = ['id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts', 'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid']
+        certlist = {'id': 1, 'name': 'certname1', 'cert_raw': 'cert_raw', 'csr': 'csr1', 'poll_identifier': None, 'issue_uts': 0, 'expire_uts': 0, 'order__id': 1, 'order__name': 'name', 'order__status__name': 1, 'order__notbefore': '', 'order__notafter': '', 'order__expires': 25, 'order__identifiers': 'identifiers', 'order__account__name': 'name1', 'order__account__contact': 'contact1', 'order__account__jwk': '{"key11": "val11", "key12": "val12"}', 'order__account__alg': 'alg1', 'order__account__eab_kid': ''}
+        (result_vlist, result_certifcate_list) = self.dbstore.certificatelist_get()
+        self.assertEqual(vlist, result_vlist)
+        self.assertTrue(set(certlist.items()).issubset( set(result_certifcate_list[0].items())))
+
+    def test_089_dbversion(self):
         """ test db_version """
         self.assertEqual((self.dbversion, 'tools/db_update.py'), self.dbstore.dbversion_get())
+
+    def test_090_certificates_search(self):
+        """ test DBstore.certificates_search() """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
+        self.dbstore.certificate_add(data_dic)
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        self.dbstore.certificate_add(data_dic)
+        self.assertEqual([{'name': 'certname1', 'csr': 'csr1', 'cert': 'cert', 'order__name': 'name', 'order': 'name'}], self.dbstore.certificates_search('cert', 'cert'))
+        self.assertEqual([{'name': 'certname1', 'csr': 'csr1', 'cert': 'cert', 'order__name': 'name', 'order': 'name'}], self.dbstore.certificates_search('cert_raw', 'cert_raw'))
+        self.assertEqual([{'name': 'certname1', 'csr': 'csr1', 'cert': 'cert', 'order__name': 'name', 'order': 'name'}], self.dbstore.certificates_search('certificate.name', 'certname1'))
+        self.assertEqual([{'cert': 'cert', 'name': 'certname1'}], self.dbstore.certificates_search('certificate.name', 'certname1', vlist=['name', 'cert']))
+
+    def test_091_certificates_search(self):
+        """ test DBstore.certificates_search() no result"""
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
+        self.dbstore.certificate_add(data_dic)
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        self.dbstore.certificate_add(data_dic)
+        self.assertFalse(self.dbstore.certificates_search('cert', 'cert1'))
+
+    def test_092_challenge_search(self):
+        """ test DBstore.challenge_search method  """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
+        self.dbstore.challenge_add(data_dic)
+        result = [{'name': 'challenge1', 'status': 'pending', 'status__name': 'pending', 'token': 'token1', 'type': 'type1'}]
+        self.assertEqual(result, self.dbstore.challenges_search('challenge.name', 'challenge1'))
+        self.assertEqual(result, self.dbstore.challenges_search('challenge.token', 'token1'))
+        self.assertEqual(result, self.dbstore.challenges_search('status__name', 'pending'))
+        self.assertEqual([{'name': 'challenge1', 'token': 'token1'}], self.dbstore.challenges_search('status__name', 'pending', vlist=['name', 'token']))
+
+    def test_093_challenge_search(self):
+        """ test DBstore.challenge_search failed """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
+        self.dbstore.order_add(data_dic)
+        data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
+        self.dbstore.authorization_add(data_dic)
+        data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
+        self.dbstore.challenge_add(data_dic)
+        self.assertFalse(self.dbstore.challenges_search('challenge.name', 'challenge'))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_094_db_update(self, mock_open, mock_close):
+        """ test dbupdate - not alter certificates table """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'poll_identifier'], [2, 'issue_uts'], [2, 'expire_uts']])
+        self.dbstore.cursor.fetchone = Mock(return_value=[1, 2, 3, 4, 5])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_095_db_update(self, mock_open, mock_close):
+        """ test dbupdate - not alter challenge table """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'validated']])
+        self.dbstore.cursor.fetchone = Mock(return_value=[1, 2, 3, 4, 5])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_096_db_update(self, mock_open, mock_close):
+        """ test dbupdate - not alter account table """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'eab_kid']])
+        self.dbstore.cursor.fetchone = Mock(return_value=[1, 2, 3, 4, 5])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_097_db_update(self, mock_open, mock_close):
+        """ test dbupdate - status update """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5]])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_098_db_update(self, mock_open, mock_close):
+        """ test dbupdate - housekeeping update """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [2, 2, 3, 4, 5]])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+
+    def test_099_order_update(self):
+        """ test DBstore.order_add() method for a new entry """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name': 'name', 'identifiers': 'identifiers', 'account': 'name1', 'status': 1, 'expires': '25'}
+        self.assertEqual(1, self.dbstore.order_add(data_dic))
+        update_dic = {'name': 'name', 'status': 'valid'}
+        self.dbstore.order_update(update_dic)
+        result = {'expires': 25, 'notbefore': 0, 'notafter': 0, 'identifiers': 'identifiers', 'status': 'valid'}
+        self.assertEqual(result, self.dbstore.order_lookup('name', 'name'))
+
+    def test_100_order_update(self):
+        """ test DBstore.order_add() method for a new entry """
+        data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
+        self.dbstore.account_add(data_dic)
+        data_dic = {'name': 'name1', 'identifiers': 'identifiers2', 'account': 'name1', 'status': 1, 'expires': '25'}
+        self.assertEqual(1, self.dbstore.order_add(data_dic))
+        data_dic = {'name': 'name2', 'identifiers': 'identifiers2', 'account': 'name1', 'status': 2, 'expires': '25'}
+        self.assertEqual(2, self.dbstore.order_add(data_dic))
+        expected_result = {'account__contact': 'contact1', 'account__id': 1, 'account__name': 'name1', 'expires': 25, 'id': 2, 'identifiers': 'identifiers2', 'name': 'name2', 'status__id': 2, 'status__name': 'pending'}
+        order_list = self.dbstore.orders_invalid_search('name', 'name2')
+        self.assertTrue(set(expected_result.items()).issubset( set(order_list[0].items())))
 
 if __name__ == '__main__':
 
