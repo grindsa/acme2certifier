@@ -354,23 +354,39 @@ class CAhandler(object):
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-    def _kue_generate(self, ku_val=23):
+    def _kue_generate(self, kuval=0, ku_csr=None):
         """ set genearte key usage extenstion """
-        self.logger.debug('CAhandler._extension_list_generate()')
+        self.logger.debug('CAhandler._kue_generate()')
+
+        # convert keyusage value from template
+        if kuval:
+            try:
+                kuval = int(kuval)
+            except BaseException:
+                self.logger.error('CAhandler._kue_generate(): convert to int failed defaulting ku_val to 0')
+                kuval = 0
+
+        if kuval:
+            # we have a key-usage value from template
+            self.logger.info('CAhandler._kue_generate() with data from template')
+            ku_string = self._ku_string_generate(kuval)
+        elif ku_csr:
+            # no data from template but data from csr
+            self.logger.info('CAhandler._kue_generate() with data from csr')
+            ku_string = ku_csr
+        else:
+            # no data from template no data from csr - default (23)
+            self.logger.info('CAhandler._kue_generate() with 23')
+            ku_string = self._ku_string_generate(23)
+
+        self.logger.debug('CAhandler._kue_generate() ended with: {0}'.format(ku_string))
+        return ku_string
+
+    def _ku_string_generate(self, kuval):
+        self.logger.debug('CAhandler._ku_string_generate({0})'.format(kuval))
 
         # generate and reverse key_usage_list
         key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
-
-        # convert keyusage value from template
-        try:
-            kuval = int(ku_val)
-        except BaseException:
-            self.logger.error('CAhandler._extension_list_generate(): convert to int failed defaulting ku_val to 23')
-            kuval = 23
-
-        if kuval == 0:
-            self.logger.error('CAhandler._extension_list_generate(): defaulting ku_val to 23')
-            kuval = 23
 
         kubin = '{0:b}'.format(kuval)[::-1]
         ku_list = []
@@ -379,7 +395,7 @@ class CAhandler(object):
                 ku_list.append(key_usage_list[idx])
         ku_string = ','.join(ku_list)
 
-        self.logger.debug('CAhandler._extension_list_generate() ended with: {0}'.format(ku_string))
+        self.logger.debug('CAhandler._ku_string_generate() endedt with: {0}'.format(ku_string))
         return ku_string
 
     def _pemcertchain_generate(self, ee_cert, issuer_cert):
@@ -662,10 +678,12 @@ class CAhandler(object):
                     cert.gmtime_adj_notBefore(0)
                     cert.gmtime_adj_notAfter(cert_validity * 86400)
 
-                    # get extension list
-                    extension_list = self._extension_list_generate(template_dic, cert, ca_cert)
+                    # get extension list from CSR
+                    csr_extensions_list = req.get_extensions()
+                    extension_list = self._extension_list_generate(template_dic, cert, ca_cert, csr_extensions_list)
+
                     # add extensions (copy from CSR and take the ones we constructed)
-                    cert.add_extensions(req.get_extensions())
+                    # cert.add_extensions(csr_extensions_list)
                     cert.add_extensions(extension_list)
 
                     if dn_dic:
@@ -693,17 +711,14 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
-    def _extension_list_generate(self, template_dic, cert, ca_cert):
+    def _extension_list_generate(self, template_dic, cert, ca_cert, csr_extensions_list):
         """ set extension list """
         self.logger.debug('CAhandler._extension_list_generate()')
-        default_extension_list = [
-            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-            crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
-            # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-        ]
+
+        csr_extensions_dic = {}
+        for ext in csr_extensions_list:
+            csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
+        print(csr_extensions_dic)
 
         if template_dic:
             extension_list = [
@@ -731,9 +746,20 @@ class CAhandler(object):
                         kuc = False
                 else:
                     kuc = False
-                # generate key-usage extension
-                ku_string = self._kue_generate(template_dic['keyUse'])
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
+                kup = template_dic['keyUse']
+            else:
+                kuc = False
+                kup = 0
+
+            if 'keyUsage' in csr_extensions_dic:
+                # get key usage field csr
+                ku_csr = csr_extensions_dic['keyUsage'].__str__()
+            else:
+                ku_csr = None
+
+            # generate key-usage extension
+            ku_string = self._kue_generate(kup, ku_csr)
+            extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
 
             # add cdp
             if 'crlDist' in template_dic and template_dic['crlDist']:
@@ -752,8 +778,22 @@ class CAhandler(object):
                     extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:TRUE')))
                 elif template_dic['ca'] == '2':
                     extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:FALSE')))
+
         else:
+            default_extension_list = [
+                crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+                crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+                crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
+                crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+                crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+                # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+            ]
             extension_list = default_extension_list
+
+        # add subjectAltName(s)
+        if 'subjectAltName' in csr_extensions_dic:
+            self.logger.debug('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
+            extension_list.append(csr_extensions_dic['subjectAltName'])
 
         self.logger.debug('CAhandler._extension_list_generate() ended')
         return extension_list
