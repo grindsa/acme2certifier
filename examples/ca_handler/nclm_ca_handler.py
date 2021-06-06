@@ -3,6 +3,7 @@
 """ ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class """
 from __future__ import print_function
 # import json
+import os
 import sys
 import time
 import requests
@@ -192,9 +193,23 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
             if 'api_host' in config_dic['CAhandler']:
                 self.api_host = config_dic['CAhandler']['api_host']
+            if 'api_user_variable' in config_dic['CAhandler']:
+                try:
+                    self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
             if 'api_user' in config_dic['CAhandler']:
+                if self.credential_dic['api_user']:
+                    self.logger.info('CAhandler._config_load() overwrite api_user')
                 self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+            if 'api_password_variable' in config_dic['CAhandler']:
+                try:
+                    self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
             if 'api_password' in config_dic['CAhandler']:
+                if self.credential_dic['api_password']:
+                    self.logger.info('CAhandler._config_load() overwrite api_password')                
                 self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
