@@ -253,11 +253,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_023_config_load(self, mock_load_cfg):
         """ test _config_load - load with user variable which does not exist """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'doesnotexist'}}
+        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'doesnotexist'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
-        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'doesnotexist'", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'doesnotexist'", lcm.output)
 
     @patch.dict('os.environ', {'user_variable': 'user'})
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')

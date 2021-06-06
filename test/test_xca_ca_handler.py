@@ -1822,7 +1822,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ku.called)
         self.assertTrue(mock_eku.called)
 
-
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
     @patch('OpenSSL.crypto.X509Extension')
