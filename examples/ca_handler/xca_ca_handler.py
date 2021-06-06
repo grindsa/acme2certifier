@@ -329,6 +329,36 @@ class CAhandler(object):
         self.dbs.close()
         # self.logger.debug('DBStore._db_close() ended')
 
+    def _extended_keyusage_generate(self, template_dic, csr_extensions_dic=None):
+        """ set generate extended key usage extenstion """
+        self.logger.debug('CAhandler._extended_keyusage_generate()')
+
+        if 'eKeyUse' in template_dic:
+            # eku included in tempalate
+            if 'ekuCritical' in template_dic:
+                try:
+                    ekuc = bool(int(template_dic['ekuCritical']))
+                except BaseException:
+                    ekuc = False
+            else:
+                ekuc = False
+            eku_string = template_dic['eKeyUse']
+            
+        elif 'extendedKeyUsage' in csr_extensions_dic:
+            # eku usage in extention
+            try:
+                ekuc = csr_extensions_dic['extendedKeyUsage'].get_critical()
+            except BaseException:
+                ekuc = False
+            eku_string = csr_extensions_dic['extendedKeyUsage'].__str__()
+
+        else:
+            # neither extension nor template
+            eku_string = None
+            ekuc = False
+
+        return(ekuc, eku_string)
+
     def _item_insert(self, item_dic):
         """ insert new entry to item_table """
         self.logger.debug('CAhandler._item_insert()')
@@ -354,8 +384,36 @@ class CAhandler(object):
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
+    def _keyusage_generate(self, template_dic, csr_extensions_dic=None):
+        """ set generate key usage extenstion """
+        self.logger.debug('CAhandler._keyusage_generate()')
+
+        if 'keyUse' in template_dic:
+            if 'kuCritical' in template_dic:
+                try:
+                    kuc = bool(int(template_dic['kuCritical']))
+                except BaseException:
+                    kuc = False
+            else:
+                kuc = False
+            kup = template_dic['keyUse']
+        else:
+            kuc = False
+            kup = 0
+
+        if 'keyUsage' in csr_extensions_dic:
+            # get key usage field csr
+            ku_csr = csr_extensions_dic['keyUsage'].__str__()
+        else:
+            ku_csr = None
+
+        # generate key-usage extension
+        ku_string = self._kue_generate(kup, ku_csr)
+
+        return(kuc, ku_string)
+
     def _kue_generate(self, kuval=0, ku_csr=None):
-        """ set genearte key usage extenstion """
+        """ set generate key usage extension """
         self.logger.debug('CAhandler._kue_generate()')
 
         # convert keyusage value from template
@@ -589,7 +647,10 @@ class CAhandler(object):
                 if idx > 0:
                     # strip the first character
                     ele = ele[1:]
-                parameter_list.append(ele.decode('utf-8'))
+                if ele == b'eKeyUse\xff\xff\xff\xff':
+                    self.logger.debug('_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca...')
+                else:
+                    parameter_list.append(ele.decode('utf-8'))
 
             if parameter_list:
                 if len(parameter_list) % 2 != 0:
@@ -726,40 +787,14 @@ class CAhandler(object):
                 crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
             ]
 
-            # extended key_usage
-            if 'eKeyUse' in template_dic:
-                if 'ekuCritical' in template_dic:
-                    try:
-                        ekuc = bool(int(template_dic['ekuCritical']))
-                    except BaseException:
-                        ekuc = False
-                else:
-                    ekuc = False
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(template_dic['eKeyUse'])))
-
             # key_usage
-            if 'keyUse' in template_dic:
-                if 'kuCritical' in template_dic:
-                    try:
-                        kuc = bool(int(template_dic['kuCritical']))
-                    except BaseException:
-                        kuc = False
-                else:
-                    kuc = False
-                kup = template_dic['keyUse']
-            else:
-                kuc = False
-                kup = 0
-
-            if 'keyUsage' in csr_extensions_dic:
-                # get key usage field csr
-                ku_csr = csr_extensions_dic['keyUsage'].__str__()
-            else:
-                ku_csr = None
-
-            # generate key-usage extension
-            ku_string = self._kue_generate(kup, ku_csr)
+            (kuc, ku_string) = self._keyusage_generate(template_dic, csr_extensions_dic)
             extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
+
+            # extended key_usage
+            (ekuc, eku_string) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
+            if eku_string:
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(eku_string)))
 
             # add cdp
             if 'crlDist' in template_dic and template_dic['crlDist']:
