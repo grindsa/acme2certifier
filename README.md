@@ -9,7 +9,6 @@
 [![Codecov main](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/master?label=test%20coverage%20master)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/master)
 [![Codecov devel](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/devel?label=test%20coverage%20devel)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/devel)
 
-
 acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
 protocol yet. It consists of two libraries:

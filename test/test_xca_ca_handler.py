@@ -1069,7 +1069,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, 'kue_string'), self.cahandler._keyusage_generate(template_dic, csr_extensions_dic))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
-    def test_147___keyusage_generate(self, mock_kuegen):
+    def test_148___keyusage_generate(self, mock_kuegen):
         """ key usage generate - keyUse in template_dic kuCritical triggers exception """
         template_dic = {'keyUse': 'foo', 'kuCritical': 'to fail'}
         csr_extensions_dic = {}
@@ -1077,7 +1077,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, 'kue_string'), self.cahandler._keyusage_generate(template_dic, csr_extensions_dic))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
-    def test_148___keyusage_generate(self, mock_kuegen):
+    def test_149___keyusage_generate(self, mock_kuegen):
         """ key usage generate - keyUse extension dic """
         template_dic = {}
         csr_keyusage = Mock()
@@ -1087,14 +1087,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, 'kue_string'), self.cahandler._keyusage_generate(template_dic, csr_extensions_dic))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._kue_generate')
-    def test_143___keyusage_generate(self, mock_kuegen):
+    def test_150___keyusage_generate(self, mock_kuegen):
         """ key usage generate - empty emplate dic and empty CSR dic """
         template_dic = {}
         csr_extensions_dic = {}
         mock_kuegen.return_value = 'kue_string'
         self.assertEqual((False, 'kue_string'), self.cahandler._keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_139__subject_modify(self):
+    def test_151__subject_modify(self):
         """ CAhandler._subject_modify() empty dn_dic """
         dn_dic = {}
         subject = Mock()
@@ -1112,7 +1112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
-    def test_140__subject_modify(self):
+    def test_152__subject_modify(self):
         """ CAhandler._subject_modify() wrong dn_dic """
         dn_dic = {'foo': 'bar'}
         subject = Mock()
@@ -1130,7 +1130,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
-    def test_141__subject_modify(self):
+    def test_153__subject_modify(self):
         """ CAhandler._subject_modify() c included """
         dn_dic = {'foo': 'bar', 'countryName': 'co'}
         subject = Mock()
@@ -1148,7 +1148,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
-    def test_142__subject_modify(self):
+    def test_154__subject_modify(self):
         """ CAhandler._subject_modify() c, st included """
         dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st'}
         subject = Mock()
@@ -1166,7 +1166,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
-    def test_143__subject_modify(self):
+    def test_155__subject_modify(self):
         """ CAhandler._subject_modify() c, st, l included """
         dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo'}
         subject = Mock()
@@ -1184,7 +1184,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
-    def test_144__subject_modify(self):
+    def test_156__subject_modify(self):
         """ CAhandler._subject_modify() c, st, l, o included """
         dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo', 'organizationName': 'or'}
         subject = Mock()
@@ -1202,36 +1202,54 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('or', rc_obj.organizationName)
         self.assertFalse(rc_obj.organizationalUnitName)
 
+    def test_157__subject_modify(self):
+        """ CAhandler._subject_modify() c, st, l, o included """
+        dn_dic = {'foo': 'bar', 'countryName': 'co', 'stateOrProvinceName': 'st', 'localityName': 'lo', 'organizationName': 'or', 'organizationalUnitName': 'ou'}
+        subject = Mock()
+        subject.CN = 'cn'
+        subject.countryName = None
+        subject.stateOrProvinceName = None
+        subject.localityName = None
+        subject.organizationName = None
+        subject.organizationalUnitName = None
+        rc_obj = self.cahandler._subject_modify(subject, dn_dic)
+        self.assertEqual('cn', rc_obj.CN)
+        self.assertEqual('co', rc_obj.countryName)
+        self.assertEqual('st', rc_obj.stateOrProvinceName)
+        self.assertEqual('lo', rc_obj.localityName)
+        self.assertEqual('or', rc_obj.organizationName)
+        self.assertEqual('ou', rc_obj.organizationalUnitName)
+
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_load')
-    def test_164__enter__(self, mock_cfg):
+    def test_158__enter__(self, mock_cfg):
         """ test enter """
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_load')
-    def test_165__enter__(self, mock_cfg):
+    def test_159__enter__(self, mock_cfg):
         """ test enter """
         self.cahandler.xdb_file = self.dir_path + '/ca/est_proxy.xdb'
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertFalse(mock_cfg.called)
 
-    def test_166_trigger(self):
+    def test_160_trigger(self):
         """ test trigger """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    def test_167_poll(self):
+    def test_161_poll(self):
         """ test poll """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier','csr'))
 
-    def test_168_stub_func(self):
+    def test_162_stub_func(self):
         """ test stubfunc """
         self.assertEqual('parameter', self.cahandler._stub_func('parameter'))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_insert')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._item_insert')
-    def test_169__store_cert(self, mock_i_insert, mock_c_insert):
+    def test_163__store_cert(self, mock_i_insert, mock_c_insert):
         """ test insert """
         mock_i_insert.return_value = 1
         mock_c_insert.return_value = 2
@@ -1242,7 +1260,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
-    def test_170_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+    def test_164_revocation_search(self, mock_open, mock_close, mock_dicfrow):
         """ revocation search  """
         mock_dicfrow.return_value = {'foo': 'bar'}
         mock_open.return_value = True
@@ -1256,7 +1274,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
-    def test_171_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+    def test_165_revocation_search(self, mock_open, mock_close, mock_dicfrow):
         """ revocation search  dicfromrow throws exception """
         mock_dicfrow.side_effect = Exception('exc_dicfromrow')
         mock_open.return_value = True
@@ -1270,7 +1288,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
-    def test_172_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+    def test_166_revocation_search(self, mock_open, mock_close, mock_dicfrow):
         """ revocation search  """
         mock_dicfrow.return_value = {'foo': 'bar'}
         mock_open.return_value = True
@@ -1284,7 +1302,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.dict_from_row')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_close')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_open')
-    def test_173_revocation_search(self, mock_open, mock_close, mock_dicfrow):
+    def test_167_revocation_search(self, mock_open, mock_close, mock_dicfrow):
         """ revocation search  dicfromrow throws exception """
         mock_dicfrow.side_effect = Exception('exc_dicfromrow')
         mock_open.return_value = True
@@ -1297,7 +1315,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_insert')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._item_insert')
-    def test_174__store_cert(self, mock_i_insert, mock_c_insert):
+    def test_168__store_cert(self, mock_i_insert, mock_c_insert):
         """ test insert """
         mock_i_insert.return_value = 1
         mock_c_insert.return_value = 2
@@ -1306,14 +1324,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_c_insert.called)
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_175_enroll(self, mock_chk):
+    def test_169_enroll(self, mock_chk):
         """ enroll test error returned from config_check"""
         mock_chk.return_value = 'error'
         self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_176_enroll(self, mock_chk, mock_nameget):
+    def test_170_enroll(self, mock_chk, mock_nameget):
         """ enroll test error returned no request name returned """
         mock_chk.return_value = None
         mock_nameget.return_value = None
@@ -1323,7 +1341,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_177_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+    def test_171_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
         """ enroll test error returned from ca_load failed """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1335,7 +1353,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_178_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+    def test_172_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
         """ enroll test error returned from ca_load failed """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1347,7 +1365,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_179_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
+    def test_173_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load):
         """ enroll test error returned from ca_load failed """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1366,7 +1384,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_180_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+    def test_174_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
         """ enroll test """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1399,7 +1417,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_181_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+    def test_175_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
         """ enroll test - default cert validity """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1433,7 +1451,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_182_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
+    def test_176_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_cbs, mock_b64e):
         """ enroll test - rewrite CN """
         mock_chk.return_value = None
         mock_nameget.return_value = 'reqname'
@@ -1469,7 +1487,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_183_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
+    def test_177_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
         """ enroll test - template load validity """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1509,7 +1527,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_184_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
+    def test_178_enroll(self, mock_chk, mock_nameget, mock_csrinfo, mock_ca_load, mock_csr_load, mock_509, mock_ext_get, mock_store, mock_dump, mock_tmp_load, mock_cbs, mock_b64e):
         """ enroll test - template load validity """
         mock_chk.return_value = None
         mock_nameget.return_value = 'name'
@@ -1537,49 +1555,49 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, 'foofoo', 'foo', None), self.cahandler.enroll('csr'))
         self.assertIn('INFO:test_a2c:modify subject with template data', lcm.output)
 
-    def test_143___extended_keyusage_generate(self):
+    def test_179___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic and csr_extensions_dic are empty """
         template_dic = {}
         csr_extensions_dic = {}
         self.assertEqual((False, None), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_144___extended_keyusage_generate(self):
+    def test_180___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template not critical """
         template_dic = {'eKeyUse': 'eKeyUse'}
         csr_extensions_dic = {}
         self.assertEqual((False, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_145___extended_keyusage_generate(self):
+    def test_181___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template critical string """
         template_dic = {'eKeyUse': 'eKeyUse', 'ekuCritical': '1'}
         csr_extensions_dic = {}
         self.assertEqual((True, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_146__extended_keyusage_generate(self):
+    def test_182__extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template critical in """
         template_dic = {'eKeyUse': 'eKeyUse', 'ekuCritical': 1}
         csr_extensions_dic = {}
         self.assertEqual((True, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_147___extended_keyusage_generate(self):
+    def test_183___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template critical zero """
         template_dic = {'eKeyUse': 'eKeyUse', 'ekuCritical': '0'}
         csr_extensions_dic = {}
         self.assertEqual((False, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_148___extended_keyusage_generate(self):
+    def test_184___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template critical int zero """
         template_dic = {'eKeyUse': 'eKeyUse', 'ekuCritical': 0}
         csr_extensions_dic = {}
         self.assertEqual((False, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_149___extended_keyusage_generate(self):
+    def test_185___extended_keyusage_generate(self):
         """ _extended_keyusage_generate template dic eKeyUse in template convert to int fail """
         template_dic = {'eKeyUse': 'eKeyUse', 'ekuCritical': 'convertfail'}
         csr_extensions_dic = {}
         self.assertEqual((False, 'eKeyUse'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_150___extended_keyusage_generate(self):
+    def test_186___extended_keyusage_generate(self):
         """ _extended_keyusage_generate extendedKeyUsage in csr_extensions_dic criticial true """
         template_dic = {}
         eku_ext = Mock()
@@ -1588,7 +1606,7 @@ class TestACMEHandler(unittest.TestCase):
         csr_extensions_dic = {'extendedKeyUsage': eku_ext}
         self.assertEqual((True, 'eku'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
 
-    def test_151___extended_keyusage_generate(self):
+    def test_187___extended_keyusage_generate(self):
         """ _extended_keyusage_generate extendedKeyUsage in csr_extensions_dic criticial false """
         template_dic = {}
         eku_ext = Mock()
@@ -1596,6 +1614,283 @@ class TestACMEHandler(unittest.TestCase):
         eku_ext.__str__ = Mock(return_value='eku')
         csr_extensions_dic = {'extendedKeyUsage': eku_ext}
         self.assertEqual((False, 'eku'), self.cahandler._extended_keyusage_generate(template_dic, csr_extensions_dic))
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_188__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - empty template """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, 'mock_eku')
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'digitalSignature,keyEncipherment'), (b'basicConstraints', True, b'CA:FALSE'), (b'extendedKeyUsage', False, b'serverAuth')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertFalse(mock_ku.called)
+        self.assertFalse(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_189__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - template with bogus values """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, 'mock_eku')
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'foo': 'bar'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'extendedKeyUsage', True, b'mock_eku')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_190__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - template with bogus values no ekustring returned """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'foo': 'bar'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_191__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - template with bogus values no ekustring returned """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'crlDist': 'crlDist'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'crlDistributionPoints', False, b'crlDist')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_192__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - basic constrain CA: 1 """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', False, b'CA:TRUE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_193__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - basic constrain CA: 2 """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_194__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - basic constrain CA: unknown """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': 'other'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_195__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - bccritial '1' """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2', 'bcCritical': '1'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', True, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_196__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - bccritial 1 """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2', 'bcCritical': 1}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', True, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_197__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - bccritial '0' """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2', 'bcCritical': '0'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_198__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - bccritial 0 """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2', 'bcCritical': 0}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._extended_keyusage_generate')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._keyusage_generate')
+    @patch('OpenSSL.crypto.X509Extension')
+    def test_199__extension_list_generate(self, mock_crypto, mock_ku, mock_eku):
+        """ CAhandler._extension_list_generate() - bccritial unknown """
+        mock_ku.return_value = (True, 'mock_ku')
+        mock_eku.return_value = (True, None)
+        ext2 = Mock()
+        ext2.get_short_name = Mock(return_value='get_short_name1')
+        ext2.__str__ = Mock(return_value='short_name1')
+        ext3 = Mock()
+        ext3.get_short_name = Mock(return_value='get_short_name2')
+        ext3.__str__ = Mock(return_value='short_name3')
+        csr_extension_list = [ext2, ext3]
+        template_dic = {'ca': '2', 'bcCritical': 'unknown'}
+        cert = 'cert'
+        ca_cert = 'cacert'
+        mock_crypto.side_effect = return_input
+        result = [(b'subjectKeyIdentifier', False, b'hash'), (b'authorityKeyIdentifier', False, b'keyid:always'), (b'keyUsage', True, b'mock_ku'), (b'basicConstraints', False, b'CA:FALSE')]
+        self.assertEqual(result, self.cahandler._extension_list_generate(template_dic, cert, ca_cert, csr_extension_list))
+        self.assertTrue(mock_ku.called)
+        self.assertTrue(mock_eku.called)
 
 if __name__ == '__main__':
 
