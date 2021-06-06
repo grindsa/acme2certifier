@@ -32,7 +32,9 @@ acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -
 |-server| 192.168.14.137:8080| address and port of CMPv2 server|
 |-path | pkix/ | path on CMPv2 server |
 |-ref | 1234 | reference number used for authentication towards CMPv2 server |
-|-secret | pass:xxx | secred used for authentication towards CMPv2 server |
+|-ref_variable | CMPV2_REF | name of the environment variable containing the reference number used for authentication (a configured `ref` parameter in acme_srv.cfg takes precedence)
+|-secret | pass:xxx | secret used for authentication towards CMPv2 server |
+|-secret_variable | CMPV2_SECRET | name of the environment variable containing the authentication secret (a configured `secret` parameter in acme_srv.cfg takes precedence)
 |-recipient | "/C=DE/CN=tst_sub_ca" | dn of issuing ca |
 |-newkey | pubkey.pem | public key extracted from CSR |
 |-cert | ra_cert.pem | public key of local registration authority |
