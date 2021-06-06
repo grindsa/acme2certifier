@@ -343,7 +343,7 @@ class CAhandler(object):
             else:
                 ekuc = False
             eku_string = template_dic['eKeyUse']
-            
+
         elif 'extendedKeyUsage' in csr_extensions_dic:
             # eku usage in extention
             try:
@@ -779,7 +779,6 @@ class CAhandler(object):
         csr_extensions_dic = {}
         for ext in csr_extensions_list:
             csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
-        print(csr_extensions_dic)
 
         if template_dic:
             extension_list = [
