@@ -42,11 +42,14 @@ ca_bundle: <filename>
 ```
 
 - est_host - URL of the est server service
+- est_host_variable - *optional* - name of the environment variable storing the est server url (a configured `est_host` parameter in acme_srv.cfg takes precedence)
 - est_client_key - Private key of the certificate used for TLS client-auth (acme/est/est.key.pem)
 - est_client_cert - Certificate used for TLS client-auth (acme/est/est.crt.pem)
 - est_user - username for HTTP basic Authentication
+- est_user_variable - *optional* - name of the environment variable specifying the username for HTTP basic authentication (a configured `est_user` parameter in acme_srv.cfg takes precedence)
 - est_password - password for HTTP basic Authentication
-- ca_bundle - CA certificate bundle needed to valiate the EST server certificate (acme/est/ca_bundle.pem). Setting to False disables the certificate check
+- est_password_variable - *optional* - name of the environment variable specifying the user password for HTTP basic authentication (a configured `est_password` parameter in acme_srv.cfg takes precedence)
+- ca_bundle - CA certificate bundle needed to validate the EST server certificate (acme/est/ca_bundle.pem). Setting to False disables the certificate check
 
 Important: TLSClientAuth and HTTP basic authentication cannot be combined with each other
 
