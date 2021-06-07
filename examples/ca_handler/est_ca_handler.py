@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ ca handler for generic EST server """
 from __future__ import print_function
+import os
 import textwrap
 import requests
 from requests.auth import HTTPBasicAuth
@@ -91,10 +92,17 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
 
+        if 'est_host_variable' in config_dic['CAhandler']:
+            try:
+                self.est_host = os.environ[config_dic['CAhandler']['est_host_variable']] + '/.well-known/est'
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load() could not load est_host_variable:{0}'.format(err))
         if 'est_host' in config_dic['CAhandler']:
+            if self.est_host:
+                self.logger.info('CAhandler._config_load() overwrite est_host')
             self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
-        else:
-            self.logger.error('CAhandler._config_load(): missing "est_host" parameter in config file')
+        if not self.est_host:
+            self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
 
         # check if we need to use clientauth
         if 'est_client_cert' in config_dic['CAhandler'] and 'est_client_key' in config_dic['CAhandler']:
@@ -105,10 +113,25 @@ class CAhandler(object):
             self.logger.error('CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file')
 
         # check if we need to use user-auth
-        if 'est_user' in config_dic['CAhandler'] and 'est_password' in config_dic['CAhandler']:
+        if 'est_user_variable' in config_dic['CAhandler']:
+            try:
+                self.est_user = os.environ[config_dic['CAhandler']['est_user_variable']]
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load() could not load est_user_variable:{0}'.format(err))
+        if 'est_user' in config_dic['CAhandler']:
+            if self.est_user:
+                self.logger.info('CAhandler._config_load() overwrite est_user')
             self.est_user = config_dic['CAhandler']['est_user']
+        if 'est_password_variable' in config_dic['CAhandler']:
+            try:
+                self.est_password = os.environ[config_dic['CAhandler']['est_password_variable']]
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load() could not load est_password:{0}'.format(err))
+        if 'est_password' in config_dic['CAhandler']:
+            if self.est_password:
+                self.logger.info('CAhandler._config_load() overwrite est_password')
             self.est_password = config_dic['CAhandler']['est_password']
-        elif 'est_user' in config_dic['CAhandler'] or 'est_password' in config_dic['CAhandler']:
+        if (self.est_user and not self.est_password) or (self.est_password and not self.est_user):
             self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
 
         # check if we have one authentication scheme
