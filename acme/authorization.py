@@ -51,7 +51,7 @@ class Authorization(object):
             try:
                 self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
             except BaseException as err_:
-                self.logger.critical('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
+                self.logger.error('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
             # get authorization information from db to be inserted in message
@@ -59,8 +59,9 @@ class Authorization(object):
             try:
                 auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
             except BaseException as err_:
-                self.logger.critical('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
+                self.logger.error('acme2certifier database error in Authorization._authz_info(): {0}'.format(err_))
                 auth_info = {}
+
             if auth_info:
                 if 'status__name' in auth_info[0]:
                     authz_info_dic['status'] = auth_info[0]['status__name']
@@ -71,6 +72,8 @@ class Authorization(object):
                     authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
                     if auth_info[0]['type'] == 'TNAuthList':
                         tnauth = True
+            else:
+                authz_info_dic['status'] = 'pending'
 
             with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
                 # get challenge data (either existing or new ones)
