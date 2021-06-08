@@ -135,7 +135,7 @@ jobs:
       run: |
         sudo apt-get install curl openssl patch
         sudo cp examples/ca_handler/est_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
+        # sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
     - name: "[ PREPARE ] setup using http-basic-auth"
       run: |
         sudo mkdir -p examples/Docker/data/est
@@ -184,7 +184,7 @@ jobs:
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        # sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
