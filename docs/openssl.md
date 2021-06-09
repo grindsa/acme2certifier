@@ -66,7 +66,7 @@ save_cert_as_hex: True
 - `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
 - `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates
 
-`whitelist` and `blecklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes presendence over the posivite result of a whitelist check.
+`whitelist` and `blacklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes precedence over the positive result of a whitelist check.
 
 The openssl_conf file allows customization of the certificate profile and must contain a section `[extensions]` containing the certificate extensions to be inserted.
 If not specified  the following extensions will be applied.
@@ -84,6 +84,6 @@ Enjoy enrolling and revoking certificates
 
 some remarks:
 
-- certificates and CRls will be signed with sha256
+- certificates and CRLs will be signed with sha256
 - during enrollment all extensions included in the csr will be copied to the certificate. Don’t tell me that this is a bad idea. Read the first two sentences of this page instead.
 - the CRL "next update interval" is 7days
