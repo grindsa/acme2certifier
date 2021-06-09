@@ -57,7 +57,7 @@ spec:
     name: acme2certifier
 ```
 
-- apply the configuration. Certificate enrollment shoud start immedeately
+- apply the configuration. Certificate enrollment should start immediately
 
 ```bash
 grindsa@ub-20:~$ microk8s.kubectl apply -f acme2certifier.yaml
