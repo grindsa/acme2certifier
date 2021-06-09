@@ -31,7 +31,7 @@ project's home page at: [https://github.com/grindsa/acme2certifier](https://gith
 
 ## ChangeLog
 
-Releasenotes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
+Release notes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
 
 ## Disclaimer
 
@@ -97,9 +97,9 @@ to let me know.
 
 ## Installation
 
-The proxy can run either as plain wsgi-script on either apache or ngix or as
+The proxy can run either as plain wsgi-script on either apache or nginx or as
 django project. Running acme2certifier as django project allows to use other
-database backendes than SQLite.
+database backends than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker
 containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/users/grindsa/packages/container/acme2certifier/)

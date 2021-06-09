@@ -3,7 +3,7 @@
 # Generic CMPv2 protocol handler
 
 The CMPv2 protocol handler is not bound to a specific ca server. Certificate enrollment is done by calling an [openssl binary with cmpossl support](https://github.com/mpeylo/cmpossl/wiki).
-That means that this handler just a wrapper calling openssl with special parameters by using the subprocess module.
+That means that this handler just a wrapper calling openssl with special parameters by using the `subprocess` module.
 As of today, revocation operations are not supported.
 
 The handler has been tested against [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier)
@@ -20,7 +20,7 @@ either Refnum/PSK or certificate authentication. Please consult your server conf
 The configuration could be a bid tricky and may require finetuning depending on type and configuration of your CMPv2 server. I strongly suggest to try enrollment via
 command line first and adapt the ca_handler accordingly.
 
-In my setup acme2certifier is authenticating via refnum/secred towards CMPv2 server. The later described ca-handler configuration maps to the below command line.
+In my setup acme2certifier is authenticating via refnum/secret towards CMPv2 server. The later described ca-handler configuration maps to the below command line.
 
 ```shell
 acme/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -newkey pubkey.pem -cert ra_cert.pem -trusted capubs.pem -popo 0 -subject /CN=test-cert -extracertsout ca_certs.pem -certout test-cert.pem  -ignore_keyusage
@@ -62,7 +62,7 @@ handler_file: examples/ca_handler/cmp_ca_handler.py
 ```
 
 - modify the server configuration (/acme/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler
-section. The entry is the name of the openssl parameter with the prefix "cmp_", value is the parameter value used in the openssl CLI command. In addtion you need to specify the
+section. The entry is the name of the openssl parameter with the prefix "cmp_", value is the parameter value used in the openssl CLI command. In addition you need to specify the
 path to the openssl binary supporting CMPv2 (`cmp_openssl_bin`) and a temporary directory to store files (`cmp_tmp_dir`).
 
 The above mentioned CLI commend will result in the below configuration to be inserted in acme_srv.cfg

@@ -138,13 +138,13 @@ and pick the appropriate release branch.
 **Bugfixes/Improvements**:
 
 - several fixes in unit-tests
-- unit-tests are splitted into separate files
+- unit-tests are split into separate files
 - unittests for `certifier_ca_handler.py`
 - documentation updates
 - Github actions to test
   - certificate enrollment for all four containerized deployment options
   - tnauth functionality
-  - image creation and dockerhup upload
+  - image creation and dockerhub upload
 
 ## Changes in 0.11.1
 
