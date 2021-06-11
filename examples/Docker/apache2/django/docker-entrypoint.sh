@@ -14,8 +14,14 @@ then
     cp  /var/www/acme2certifier/examples/apache_django_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
 fi
 
-# create ca_handler if not existing
-if [ ! -f /var/www/acme2certifier/volume/ca_handler.py ]
+# create ca_handler if:
+# - ca_handler.py does not exists in volume AND
+# - no entry hanlder_file: exists in acme_srv.cfg
+# - define ca_handler defined under handler_file does not exists
+if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
+     ! ( grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg &> /dev/null && \
+         [ -f $(grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg | awk -F":" '{print $2}') ] \
+        ))
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py"
     cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
