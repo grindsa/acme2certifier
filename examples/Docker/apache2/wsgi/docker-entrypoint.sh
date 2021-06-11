@@ -40,7 +40,7 @@ then
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme/ca_handler.py
 fi
 
-chown -R www-data.www-data /var/www/acme2certifier/volume
+chown -R www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/
 exec "$@"
 
