@@ -3,9 +3,9 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check
-from acme.db_handler import DBstore
-from acme.message import Message
+from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check
+from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
 
 class Challenge(object):
     """ Challenge handler """
@@ -16,7 +16,7 @@ class Challenge(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
+        self.path_dic = {'chall_path' : '/acme_srv/chall/', 'authz_path' : '/acme_srv/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.tnauthlist_support = False
@@ -247,7 +247,7 @@ class Challenge(object):
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
-        # which is base 64 encoded '0420' has been taken from acme.sh sources
+        # which is base 64 encoded '0420' has been taken from acme_srv.sh sources
         sha256_digest = sha256_hash_hex(self.logger, '{0}.{1}'.format(token, jwk_thumbprint))
         extension_value = b64_encode(self.logger, bytearray.fromhex('0420{0}'.format(sha256_digest)))
         self.logger.debug('computed value: {0}'.format(extension_value))

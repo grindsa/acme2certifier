@@ -3,10 +3,10 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
-from acme.certificate import Certificate
-from acme.db_handler import DBstore
-from acme.message import Message
+from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
+from acme_srv.certificate import Certificate
+from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
 
 class Order(object):
     """ class for order handling """
@@ -20,7 +20,7 @@ class Order(object):
         self.validity = 86400
         self.authz_validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
+        self.path_dic = {'authz_path' : '/acme_srv/authz/', 'order_path' : '/acme_srv/order/', 'cert_path' : '/acme_srv/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 

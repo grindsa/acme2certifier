@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 # pylint: disable=E0401
-from acme.helper import load_config
+from acme_srv.helper import load_config
 
 class EABhandler(object):
     """ EAB file handler """

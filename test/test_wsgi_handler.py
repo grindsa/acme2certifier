@@ -26,9 +26,9 @@ class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
         """ setup unittest """
-        # from acme.wsgi_handler import DBstore
+        # from acme_srv.wsgi_handler import DBstore
         from examples.db_handler.wsgi_handler import DBstore, initialize
-        from acme.version import __dbversion__
+        from acme_srv.version import __dbversion__
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')

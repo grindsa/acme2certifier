@@ -21,42 +21,42 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         models_mock = MagicMock()
-        models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
-        modules = {'acme.db_handler': models_mock}
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {'acme_srv.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from acme.challenge import Challenge
+        from acme_srv.challenge import Challenge
         self.challenge = Challenge(False, 'http://tester.local', self.logger)
 
-    @patch('acme.challenge.generate_random_string')
+    @patch('acme_srv.challenge.generate_random_string')
     def test_001_challenge__new(self, mock_random):
         """ test challenge generation """
         mock_random.return_value = 'foo'
         # self.order.dbstore.challenge_new.return_value = 1
-        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge._new('authz_name', 'mtype', 'token'))
+        self.assertEqual({'url': 'http://tester.local/acme_srv/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge._new('authz_name', 'mtype', 'token'))
 
-    @patch('acme.challenge.generate_random_string')
+    @patch('acme_srv.challenge.generate_random_string')
     def test_002_challenge__new(self, mock_random):
         """ test challenge generation for tnauthlist challenge """
         mock_random.return_value = 'foo'
         # self.order.dbstore.challenge_new.return_value = 1
-        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge._new('authz_name', 'tkauth-01', 'token'))
+        self.assertEqual({'url': 'http://tester.local/acme_srv/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge._new('authz_name', 'tkauth-01', 'token'))
 
-    @patch('acme.challenge.Challenge._new')
+    @patch('acme_srv.challenge.Challenge._new')
     def test_003_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}, {'foo': 'bar'}, {'foo': 'bar'}], self.challenge.new_set('authz_name', 'token'))
 
-    @patch('acme.challenge.Challenge._new')
+    @patch('acme_srv.challenge.Challenge._new')
     def test_004_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set with tnauth true """
         mock_challenge.return_value = {'foo' : 'bar'}
         self.assertEqual([{'foo': 'bar'}], self.challenge.new_set('authz_name', 'token', True))
 
-    @patch('acme.challenge.Challenge._new')
+    @patch('acme_srv.challenge.Challenge._new')
     def test_005_challenge_new_set(self, mock_challenge):
         """ test generation of a challenge set with empty challenge """
         mock_challenge.side_effect = [{'foo1' : 'bar1'}, {}, {'foo3' : 'bar3'}]
@@ -92,20 +92,20 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'valid', 'validated': 1543640400}
         self.assertEqual({'status': 'valid', 'token': 'token', 'type': 'http-01', 'validated': '2018-12-01T05:00:00Z'}, self.challenge._info('foo'))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_012_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed bcs. message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_013_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.message.Message.check')
     def test_014_challenge_parse(self, mock_mcheck, mock_cname):
         """ Challenge.parse() message check returns ok with tnauhlist enabled failed tnauth check """
         self.challenge.tnauthlist_support = True
@@ -113,9 +113,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_cname.return_value = None
         self.assertEqual({'code': 400, 'data' : {'detail': 'could not get challenge', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
-    @patch('acme.challenge.Challenge._info')
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.challenge.Challenge._info')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.message.Message.check')
     def test_015_challenge_parse(self, mock_mcheck, mock_cname, mock_info):
         """ Challenge.parse() message check returns challenge.info() failed """
         self.challenge.tnauthlist_support = True
@@ -124,10 +124,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {}
         self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
-    @patch('acme.challenge.Challenge._validate_tnauthlist_payload')
-    @patch('acme.challenge.Challenge._info')
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
+    @patch('acme_srv.challenge.Challenge._info')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.message.Message.check')
     def test_016_challenge_parse(self, mock_mcheck, mock_cname, mock_info, mock_tnauth):
         """ Challenge.parse() with tnauhlist enabled and failed tnauth check """
         self.challenge.tnauthlist_support = True
@@ -137,11 +137,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_tnauth.return_value = (400, 'foo', 'bar')
         self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'message': 'foo', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.challenge.Challenge._validate_tnauthlist_payload')
-    @patch('acme.challenge.Challenge._info')
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
+    @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
+    @patch('acme_srv.challenge.Challenge._info')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.message.Message.check')
     def test_017_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_tnauth, mock_nnonce):
         """ Challenge.parse() successful with TNauthlist enabled """
         self.challenge.tnauthlist_support = True
@@ -150,13 +150,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_cinfo.return_value = {'challenge_foo' : 'challenge_bar'}
         mock_tnauth.return_value = (200, 'foo', 'bar')
         mock_nnonce.return_value = 'new_nonce'
-        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme_srv/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.challenge.Challenge._validate_tnauthlist_payload')
-    @patch('acme.challenge.Challenge._info')
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
+    @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
+    @patch('acme_srv.challenge.Challenge._info')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.message.Message.check')
     def test_018_challenge_parse(self, mock_mcheck, mock_cname, mock_cinfo, mock_tnauth, mock_nnonce):
         """ Challenge.parse() successful with TNauthlist disabled """
         self.challenge.tnauthlist_support = False
@@ -165,7 +165,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cinfo.return_value = {'challenge_foo' : 'challenge_bar'}
         mock_tnauth.return_value = (200, 'foo', 'bar')
         mock_nnonce.return_value = 'new_nonce'
-        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme_srv/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     def test_019_challenge__validate_tnauthlist_payload(self):
         """ Challenge.validate_tnauthlist_payload with empty challenge_dic """
@@ -203,50 +203,50 @@ class TestACMEHandler(unittest.TestCase):
         challenge_dic = {'type': 'tkauth-01'}
         self.assertEqual((200, None, None), self.challenge._validate_tnauthlist_payload(payload, challenge_dic))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.url_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
     def test_025_challenge__validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
         mock_url.return_value = 'foo'
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.url_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
     def test_026_challenge__validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() with a correct challenge """
         mock_url.return_value = 'token.jwk_thumbprint'
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.url_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
     def test_027_challenge__validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() without response """
         mock_url.return_value = None
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.url_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
     def test_028_challenge__validate_http_challenge(self, mock_url, mock_resolve):
         """ test Challenge.validate_http_challenge() failed with NX-domain error """
         mock_url.return_value = None
         mock_resolve.return_value = (None, True)
         self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.url_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
     def test_029_challenge__validate_http_challenge(self, mock_url, mock_resolve):
         """ test Chalölenge.validate_http_challenge() failed with NX-domain error - non existing case but to be tested"""
         mock_url.return_value = 'foo'
         mock_resolve.return_value = ('foo', True)
         self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.sha256_hash')
-    @patch('acme.challenge.b64_url_encode')
-    @patch('acme.challenge.txt_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.sha256_hash')
+    @patch('acme_srv.challenge.b64_url_encode')
+    @patch('acme_srv.challenge.txt_get')
     def test_030_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with incorrect response """
         mock_dns.return_value = ['foo']
@@ -255,10 +255,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.sha256_hash')
-    @patch('acme.challenge.b64_url_encode')
-    @patch('acme.challenge.txt_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.sha256_hash')
+    @patch('acme_srv.challenge.b64_url_encode')
+    @patch('acme_srv.challenge.txt_get')
     def test_031_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Chalölenge.validate_dns_challenge() with correct response """
         mock_dns.return_value = ['foo']
@@ -267,10 +267,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.sha256_hash')
-    @patch('acme.challenge.b64_url_encode')
-    @patch('acme.challenge.txt_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.sha256_hash')
+    @patch('acme_srv.challenge.b64_url_encode')
+    @patch('acme_srv.challenge.txt_get')
     def test_032_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Challenge.validate_dns_challenge() with invalid response - obsolete """
         mock_dns.return_value = ['foo']
@@ -279,10 +279,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_resolve.return_value = (None, True)
         self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_resolve')
-    @patch('acme.challenge.sha256_hash')
-    @patch('acme.challenge.b64_url_encode')
-    @patch('acme.challenge.txt_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.sha256_hash')
+    @patch('acme_srv.challenge.b64_url_encode')
+    @patch('acme_srv.challenge.txt_get')
     def test_033_challenge__validate_dns_challenge(self, mock_dns, mock_code, mock_hash, mock_resolve):
         """ test Challenge.validate_dns_challenge() with invalid but correct fqdn returned - obsolete """
         mock_dns.return_value = ['foo']
@@ -307,8 +307,8 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.jwk_load.return_value = None
         self.assertEqual((False, False), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_alpn_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_alpn_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_037_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tls-alpn challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -318,8 +318,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
         self.assertTrue(mock_chall.called)
 
-    @patch('acme.challenge.Challenge._validate_alpn_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_alpn_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_038_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tls-alpn challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -329,8 +329,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
         self.assertTrue(mock_chall.called)
 
-    @patch('acme.challenge.Challenge._validate_http_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_http_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_039_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -339,8 +339,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_http_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_http_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_040_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -349,8 +349,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_dns_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_dns_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_041_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed dns challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -359,8 +359,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((True, 'foo'), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_dns_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_dns_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_042_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -369,8 +369,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertTrue((False, 'foo'), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_tkauth_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_tkauth_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_043_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support not configured """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -379,8 +379,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((False, True), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_tkauth_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_tkauth_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_044_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support True """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -390,8 +390,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((False, 'foo'), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_tkauth_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_tkauth_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_045_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist_support unset """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -401,8 +401,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_jwk.return_value = 'jwk_thumbprint'
         self.assertEqual((False, True), self.challenge._check('name', 'payload'))
 
-    @patch('acme.challenge.Challenge._validate_tkauth_challenge')
-    @patch('acme.challenge.jwk_thumbprint_get')
+    @patch('acme_srv.challenge.Challenge._validate_tkauth_challenge')
+    @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_046_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist support set """
         self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
@@ -501,24 +501,24 @@ class TestACMEHandler(unittest.TestCase):
             self.challenge._update_authz('name', {'foo': 'bar'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo', lcm.output)
 
-    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.fqdn_resolve')
     def test_060_challenge__validate_alpn_challenge(self, mock_resolve):
         """ test validate_alpn_challenge fqdn_resolve returned Invalid """
         mock_resolve.return_value = (None, True)
         self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.servercert_get')
-    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
     def test_061_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv):
         """ test validate_alpn_challenge no certificate returned """
         mock_resolve.return_value = ('foo', False)
         mock_srv.return_value = None
         self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.fqdn_in_san_check')
-    @patch('acme.challenge.cert_san_get')
-    @patch('acme.challenge.servercert_get')
-    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.fqdn_in_san_check')
+    @patch('acme_srv.challenge.cert_san_get')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
     def test_062_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk):
         """ test validate_alpn_challenge sancheck returned false """
         mock_resolve.return_value = ('foo', False)
@@ -527,12 +527,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_srv.return_value = 'cert'
         self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.cert_extensions_get')
-    @patch('acme.challenge.b64_encode')
-    @patch('acme.challenge.fqdn_in_san_check')
-    @patch('acme.challenge.cert_san_get')
-    @patch('acme.challenge.servercert_get')
-    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.cert_extensions_get')
+    @patch('acme_srv.challenge.b64_encode')
+    @patch('acme_srv.challenge.fqdn_in_san_check')
+    @patch('acme_srv.challenge.cert_san_get')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
     def test_063_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
         """ test validate_alpn_challenge extension check failed """
         mock_resolve.return_value = ('foo', False)
@@ -543,12 +543,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_ext.return_value = ['foobar', 'bar', 'foo1']
         self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.cert_extensions_get')
-    @patch('acme.challenge.b64_encode')
-    @patch('acme.challenge.fqdn_in_san_check')
-    @patch('acme.challenge.cert_san_get')
-    @patch('acme.challenge.servercert_get')
-    @patch('acme.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.cert_extensions_get')
+    @patch('acme_srv.challenge.b64_encode')
+    @patch('acme_srv.challenge.fqdn_in_san_check')
+    @patch('acme_srv.challenge.cert_san_get')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
     def test_064_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
         """ test validate_alpn_challenge extension sucessful """
         mock_resolve.return_value = ('foo', False)
@@ -559,21 +559,21 @@ class TestACMEHandler(unittest.TestCase):
         mock_ext.return_value = ['foobar', 'bar', 'foo']
         self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
-    @patch('acme.challenge.Challenge._validate')
+    @patch('acme_srv.challenge.Challenge._validate')
     def test_065__existing_challenge_validate(self, mock_validate):
         """ validate challenge with empty challenge list """
         challenge_list = []
         self.challenge._existing_challenge_validate(challenge_list)
         self.assertFalse(mock_validate.called)
 
-    @patch('acme.challenge.Challenge._validate')
+    @patch('acme_srv.challenge.Challenge._validate')
     def test_066__existing_challenge_validate(self, mock_validate):
         """ validate challenge with challenge list """
         challenge_list = ['foo']
         self.challenge._existing_challenge_validate(challenge_list)
         self.assertTrue(mock_validate.called)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_067_config_load(self, mock_load_cfg):
         """ test _config_load empty config """
         parser = configparser.ConfigParser()
@@ -584,7 +584,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list )
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_068_config_load(self, mock_load_cfg):
         """ test _config_load challenge_validation_disable False """
         parser = configparser.ConfigParser()
@@ -595,7 +595,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_069_config_load(self, mock_load_cfg):
         """ test _config_load challenge_validation_disable True """
         parser = configparser.ConfigParser()
@@ -606,7 +606,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_070_config_load(self, mock_load_cfg):
         """ test _config_load tnauthlist_support False """
         parser = configparser.ConfigParser()
@@ -617,7 +617,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_071_config_load(self, mock_load_cfg):
         """ test _config_load tnauthlist_support True """
         parser = configparser.ConfigParser()
@@ -628,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_072_config_load(self, mock_load_cfg):
         """ test _config_load one DNS """
         parser = configparser.ConfigParser()
@@ -639,7 +639,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertEqual(['10.10.10.10'], self.challenge.dns_server_list)
 
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_073_config_load(self, mock_load_cfg):
         """ test _config_load two DNS """
         parser = configparser.ConfigParser()
@@ -651,7 +651,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['10.10.10.10', '10.0.0.1'], self.challenge.dns_server_list)
 
     @patch('json.loads')
-    @patch('acme.challenge.load_config')
+    @patch('acme_srv.challenge.load_config')
     def test_074_config_load(self, mock_load_cfg, mock_json):
         """ test _config_load two DNS """
         parser = configparser.ConfigParser()
@@ -671,14 +671,14 @@ class TestACMEHandler(unittest.TestCase):
         url = 'foo'
         self.assertEqual('foo', self.challenge._name_get(url))
 
-    @patch('acme.challenge.parse_url')
+    @patch('acme_srv.challenge.parse_url')
     def test_076__name_get(self, mock_parse):
         """ test name get urlparse"""
         mock_parse.return_value = {'path': 'path'}
         url = 'foo'
         self.assertEqual('path', self.challenge._name_get(url))
 
-    @patch('acme.challenge.parse_url')
+    @patch('acme_srv.challenge.parse_url')
     def test_077__name_get(self, mock_parse):
         """ test name get challenge_path replace """
         mock_parse.return_value = {'path': 'foo/my_path'}
@@ -686,7 +686,7 @@ class TestACMEHandler(unittest.TestCase):
         url = 'foo'
         self.assertEqual('my_path', self.challenge._name_get(url))
 
-    @patch('acme.challenge.parse_url')
+    @patch('acme_srv.challenge.parse_url')
     def test_078__name_get(self, mock_parse):
         """ test name get challenge_path replace """
         mock_parse.return_value = {'path': 'foo/my/path'}
@@ -694,8 +694,8 @@ class TestACMEHandler(unittest.TestCase):
         url = 'foo'
         self.assertEqual('my', self.challenge._name_get(url))
 
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_079__validate(self, mock_update, mock_aupdate):
         """ test validate """
         challenge_name = 'challenge_name'
@@ -707,9 +707,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._check')
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._check')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_080__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:False/inv:False """
         challenge_name = 'challenge_name'
@@ -721,9 +721,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_update.called)
         self.assertFalse(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._check')
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._check')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_081__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:False/inv:True """
         challenge_name = 'challenge_name'
@@ -735,9 +735,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._check')
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._check')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_082__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:False """
         challenge_name = 'challenge_name'
@@ -749,9 +749,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._check')
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._check')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_083__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:True """
         challenge_name = 'challenge_name'
@@ -763,9 +763,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._check')
-    @patch('acme.challenge.Challenge._update_authz')
-    @patch('acme.challenge.Challenge._update')
+    @patch('acme_srv.challenge.Challenge._check')
+    @patch('acme_srv.challenge.Challenge._update_authz')
+    @patch('acme_srv.challenge.Challenge._update')
     def test_084__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:False """
         challenge_name = 'challenge_name'
@@ -777,8 +777,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch('acme.challenge.Challenge._name_get')
-    @patch('acme.challenge.Challenge._info')
+    @patch('acme_srv.challenge.Challenge._name_get')
+    @patch('acme_srv.challenge.Challenge._info')
     def test_085_get(self, mock_info, mock_name):
         """ test get """
         mock_info.return_value = 'chall_info'
@@ -786,9 +786,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'code': 200, 'data': 'chall_info'}, self.challenge.get('url'))
         self.assertTrue(mock_name.called)
 
-    @patch('acme.challenge.Challenge.new_set')
-    @patch('acme.challenge.Challenge._existing_challenge_validate')
-    @patch('acme.challenge.Challenge._challengelist_search')
+    @patch('acme_srv.challenge.Challenge.new_set')
+    @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
+    @patch('acme_srv.challenge.Challenge._challengelist_search')
     def test_086_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - no challenge_list returned """
         mock_chsearch.return_value = []
@@ -798,9 +798,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_set.called)
         self.assertFalse(mock_val.called)
 
-    @patch('acme.challenge.Challenge.new_set')
-    @patch('acme.challenge.Challenge._existing_challenge_validate')
-    @patch('acme.challenge.Challenge._challengelist_search')
+    @patch('acme_srv.challenge.Challenge.new_set')
+    @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
+    @patch('acme_srv.challenge.Challenge._challengelist_search')
     def test_087_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - challenge_list returned """
         mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
@@ -810,9 +810,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_set.called)
         self.assertFalse(mock_val.called)
 
-    @patch('acme.challenge.Challenge.new_set')
-    @patch('acme.challenge.Challenge._existing_challenge_validate')
-    @patch('acme.challenge.Challenge._challengelist_search')
+    @patch('acme_srv.challenge.Challenge.new_set')
+    @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
+    @patch('acme_srv.challenge.Challenge._challengelist_search')
     def test_088_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - challenge_list returned autzstatus pending """
         mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
