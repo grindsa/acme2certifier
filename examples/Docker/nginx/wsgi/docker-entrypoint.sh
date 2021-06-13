@@ -18,7 +18,7 @@ fi
 
 # create ca_handler if:
 # - ca_handler.py does not exists in volume AND
-# - no entry hanlder_file: exists in acme_srv.cfg
+# - no entry handler_file: exists in acme_srv.cfg
 # - define ca_handler defined under handler_file does not exists
 if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
      ! ( grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg &> /dev/null && \
