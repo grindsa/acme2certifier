@@ -20,6 +20,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
+- django migrations files will get stored on volume
 - avoidance of KU/EKU duplicates when using templates in xca_ca_handler
 - alpn challenge handling in django deployments
 - fix for handling of empty challenges

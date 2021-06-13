@@ -3,7 +3,7 @@
 # create acme-srv.cfg if not existing
 if [ ! -f /var/www/acme2certifier/volume/acme_srv.cfg ]
 then
-    echo "no acme_srv.cfg found! creating acme_srv.cfg"
+    echo "no acme_srv.cfg found! creating acme_srv.cfg" >> /proc/1/fd/1
     cp /var/www/acme2certifier/examples/acme_srv.cfg /var/www/acme2certifier/volume/
 fi
 
@@ -25,7 +25,7 @@ if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
          [ -f $(grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg | awk -F":" '{print $2}') ] \
         ))
 then
-    echo "no ca_handler.py found! creating from skeleton_ca_handler.py"
+    echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
     cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
 fi
 
