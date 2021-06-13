@@ -3,11 +3,11 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, load_config
-from acme.error import Error
-from acme.db_handler import DBstore
-from acme.nonce import Nonce
-from acme.signature import Signature
+from acme_srv.helper import decode_message, load_config
+from acme_srv.error import Error
+from acme_srv.db_handler import DBstore
+from acme_srv.nonce import Nonce
+from acme_srv.signature import Signature
 
 class Message(object):
     """ Message  handler """
@@ -18,7 +18,7 @@ class Message(object):
         self.nonce = Nonce(self.debug, self.logger)
         self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
-        self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
+        self.path_dic = {'acct_path' : '/acme_srv/acct/', 'revocation_path' : '/acme_srv/revokecert'}
         self.disable_dic = {'signature_check_disable' : False, 'nonce_check_disable' : False}
         self._config_load()
 

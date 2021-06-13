@@ -4,9 +4,9 @@
 from __future__ import print_function
 import json
 import importlib
-from acme.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get
-from acme.db_handler import DBstore
-from acme.message import Message
+from acme_srv.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get
+from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
 
 class Certificate(object):
     """ CA  handler """
@@ -18,7 +18,7 @@ class Certificate(object):
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
-        self.path_dic = {'cert_path' : '/acme/cert/'}
+        self.path_dic = {'cert_path' : '/acme_srv/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 
@@ -101,13 +101,13 @@ class Certificate(object):
             except BaseException as err_:
                 self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
                 try:
-                    ca_handler_module = importlib.import_module('acme.ca_handler')
+                    ca_handler_module = importlib.import_module('acme_srv.ca_handler')
                 except BaseException as err_:
                     ca_handler_module = None
                     self.logger.critical('Certificate._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
         else:
             if 'CAhandler' in config_dic:
-                ca_handler_module = importlib.import_module('acme.ca_handler')
+                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
             else:
                 self.logger.error('Certificate._config_load(): CAhandler configuration missing in config file')
                 ca_handler_module = None

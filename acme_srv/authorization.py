@@ -3,11 +3,11 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.db_handler import DBstore
-from acme.challenge import Challenge
-from acme.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
-from acme.message import Message
-from acme.nonce import Nonce
+from acme_srv.db_handler import DBstore
+from acme_srv.challenge import Challenge
+from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
+from acme_srv.message import Message
+from acme_srv.nonce import Nonce
 
 class Authorization(object):
     """ class for order handling """
@@ -21,7 +21,7 @@ class Authorization(object):
         self.nonce = Nonce(debug, self.logger)
         self.validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme/authz/'}
+        self.path_dic = {'authz_path' : '/acme_srv/authz/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """

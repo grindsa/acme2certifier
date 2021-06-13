@@ -405,7 +405,7 @@ def logger_info(logger, addr, url, dat_dic):
 
     if 'data' in data_dic:
         # remove cert from log entry
-        if url.startswith('/acme/cert'):
+        if url.startswith('/acme_srv/cert'):
             data_dic['data'] = ' - certificate - '
 
         # remove token from challenge

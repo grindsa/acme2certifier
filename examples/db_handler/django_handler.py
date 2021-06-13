@@ -14,7 +14,7 @@ def initialize():
     # pylint: disable=E1101
     django.setup()
 initialize()
-from acme.models import Account, Authorization, Certificate, Challenge, Housekeeping, Nonce, Order, Status
+from acme_srv.models import Account, Authorization, Certificate, Challenge, Housekeeping, Nonce, Order, Status
 
 class DBstore(object):
     """ helper to do datebase operations """

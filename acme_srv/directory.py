@@ -45,12 +45,12 @@ class Directory(object):
         self.logger.debug('Directory.directory_get()')
 
         d_dic = {
-            'newAuthz' : self.server_name + '/acme/new-authz',
-            'newNonce': self.server_name + '/acme/newnonce',
-            'newAccount': self.server_name + '/acme/newaccount',
-            "newOrder": self.server_name + '/acme/neworders',
-            'revokeCert' : self.server_name + '/acme/revokecert',
-            'keyChange' : self.server_name + '/acme/key-change',
+            'newAuthz' : self.server_name + '/acme_srv/new-authz',
+            'newNonce': self.server_name + '/acme_srv/newnonce',
+            'newAccount': self.server_name + '/acme_srv/newaccount',
+            "newOrder": self.server_name + '/acme_srv/neworders',
+            'revokeCert' : self.server_name + '/acme_srv/revokecert',
+            'keyChange' : self.server_name + '/acme_srv/key-change',
             'meta' : {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',

@@ -8,7 +8,7 @@ import sys
 import time
 import requests
 # pylint: disable=E0401
-from acme.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now
+from acme_srv.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now
 
 
 class CAhandler(object):

@@ -4,17 +4,17 @@ from __future__ import unicode_literals, print_function
 
 from django.http import HttpResponse
 from django.http import JsonResponse
-from acme.authorization import Authorization
-from acme.account import Account
-from acme.certificate import Certificate
-from acme.challenge import Challenge
-from acme.directory import Directory
-from acme.helper import get_url, load_config, logger_setup, logger_info
-from acme.housekeeping import Housekeeping
-from acme.nonce import Nonce
-from acme.order import Order
-from acme.trigger import Trigger
-from acme.version import __dbversion__, __version__
+from acme_srv.authorization import Authorization
+from acme_srv.account import Account
+from acme_srv.certificate import Certificate
+from acme_srv.challenge import Challenge
+from acme_srv.directory import Directory
+from acme_srv.helper import get_url, load_config, logger_setup, logger_info
+from acme_srv.housekeeping import Housekeeping
+from acme_srv.nonce import Nonce
+from acme_srv.order import Order
+from acme_srv.trigger import Trigger
+from acme_srv.version import __dbversion__, __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -281,6 +281,6 @@ def trigger(request):
 
 #def blubb(request):
 #    """ xxxx command """
-#    with ACMEsrv(request.META['HTTP_HOST']) as acm:
+#    with acme_srv(request.META['HTTP_HOST']) as acm:
 #        return HttpResponse('ok')
 # return JsonResponse(status=403, data={'status':403, 'message':'not that far', 'detail': 'we are ot that far.'})

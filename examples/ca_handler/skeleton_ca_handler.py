@@ -3,7 +3,7 @@
 """ skeleton for customized CA handler """
 from __future__ import print_function
 # pylint: disable=E0401
-from acme.helper import load_config
+from acme_srv.helper import load_config
 
 class CAhandler(object):
     """ EST CA  handler """

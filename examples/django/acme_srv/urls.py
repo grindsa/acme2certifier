@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """ urls for acme django database """
 from django.conf.urls import url
-from acme import views
+from acme_srv import views
 
 urlpatterns = [
     url(r'^acct', views.acct, name='acct'),

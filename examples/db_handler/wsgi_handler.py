@@ -6,8 +6,8 @@ import sqlite3
 import json
 import os
 # pylint: disable=E0401
-from acme.helper import datestr_to_date
-from acme.version import __dbversion__
+from acme_srv.helper import datestr_to_date
+from acme_srv.version import __dbversion__
 
 def initialize():
     """ run db_handler specific initialization functions  """
