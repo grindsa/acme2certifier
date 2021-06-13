@@ -1,0 +1,144 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+
+# mystuff
+/acme2certifier/
+db.sqlite3
+/manage.py
+acme/migrations/
+acme/admin.py
+acme/apps.py
+acme/models.py
+acme/tests.py
+acme/urls.py
+acme/views.py
+# acme/__init__.py
+commands.txt
+*.bat
+*.db
+acme/*.pem
+acme/cmp/*.pem
+acme/cmp/tmp/*.pem
+acme/est-myca/*.pem
+acme/est/*.pem
+acme/msca/*.pem
+test/ca/foo-ca-crl.pem
+
+*.csr
+*.old
+acne/*.my
+/acme2certifier_wsgi.py
+env.txt
+gna.py
+acme/db_handler.py
+acme/ca_handler.py
+acme/certifier_ca_handler.py
+acme/acme_srv.cfg
+acme/wsgi_handler.py
+acme/django_handler.py
+acme/ca/*
+acme/xca/*
+acme/fixture
+*.dll
+acme/cmp/WindowsCMPOpenSSL/openssl.exe
+acme/migrations.old
+# Docker data content
+examples/Docker/data/*
+!examples/Docker/.env

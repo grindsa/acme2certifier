@@ -1,0 +1,21 @@
+version: '3.2'
+services:
+  acme-srv:
+    build:
+      context: ../../.
+      dockerfile: examples/Docker/$WEBSERVER/$CONTEXT/Dockerfile
+    image: acme2certifier/$CONTEXT
+    volumes:
+      - type: bind
+        source: ./data
+        target: /var/www/acme2certifier/volume/
+        read_only: false
+    ports:
+      - "22280:80"
+      - "22443:443"
+    restart: always
+
+networks:
+  default:
+    external:
+      name: acme
