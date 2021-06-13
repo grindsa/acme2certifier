@@ -27,6 +27,6 @@ In parallel the ```order-status``` will be set to "valid" and a URL to ```certif
 polls the ```order```-resource.
 In case a CSR got rejected the order status will be changed to “invalid”.
 
-The handler for [NeCM/Insta certifier](certifier.md) contains an example implementation.
+The handler for [NCLM/Insta certifier](certifier.md) contains an example implementation.
 
 Further, an [example acme_srv.db](../examples/acme_srv.db.example) is available to give a better insight on the expected values especially in the certificate table.

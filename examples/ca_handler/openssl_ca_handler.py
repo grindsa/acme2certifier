@@ -117,10 +117,13 @@ class CAhandler(object):
         for extension in cert_extension_dic:
             self.logger.debug('adding extension: {0}: {1}: {2}'.format(extension, cert_extension_dic[extension]['critical'], cert_extension_dic[extension]['value']))
             if extension == 'subjectKeyIdentifier':
+                self.logger.info('_certificate_extensions_add(): subjectKeyIdentifier')
                 _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
             elif 'subject' in cert_extension_dic[extension]:
+                self.logger.info('_certificate_extensions_add(): subject')
                 _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
             elif 'issuer' in cert_extension_dic[extension]:
+                self.logger.info('_certificate_extensions_add(): issuer')
                 _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
             else:
                 _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
@@ -135,30 +138,31 @@ class CAhandler(object):
         file_dic = dict(load_config(self.logger, None, self.openssl_conf))
 
         cert_extention_dic = {}
-        for extension in file_dic['extensions']:
+        if 'extensions' in file_dic:
+            for extension in file_dic['extensions']:
 
-            cert_extention_dic[extension] = {}
-            parameters = file_dic['extensions'][extension].split(',')
+                cert_extention_dic[extension] = {}
+                parameters = file_dic['extensions'][extension].split(',')
 
-            # set crititcal task if applicable
-            if parameters[0] == 'critical':
-                cert_extention_dic[extension]['critical'] = bool(parameters.pop(0))
-            else:
-                cert_extention_dic[extension]['critical'] = False
+                # set crititcal task if applicable
+                if parameters[0] == 'critical':
+                    cert_extention_dic[extension]['critical'] = bool(parameters.pop(0))
+                else:
+                    cert_extention_dic[extension]['critical'] = False
 
-            # remove leading blank from first element
-            parameters[0] = parameters[0].lstrip()
+                # remove leading blank from first element
+                parameters[0] = parameters[0].lstrip()
 
-            # check if we have an issuer option (if so remove it and mark it as to be set)
-            if 'issuer:' in parameters[-1]:
-                cert_extention_dic[extension]['issuer'] = bool(parameters.pop(-1))
+                # check if we have an issuer option (if so remove it and mark it as to be set)
+                if 'issuer:' in parameters[-1]:
+                    cert_extention_dic[extension]['issuer'] = bool(parameters.pop(-1))
 
-            # check if we have an issuer option (if so remove it and mark it as to be set)
-            if 'subject:' in parameters[-1]:
-                cert_extention_dic[extension]['subject'] = bool(parameters.pop(-1))
+                # check if we have an issuer option (if so remove it and mark it as to be set)
+                if 'subject:' in parameters[-1]:
+                    cert_extention_dic[extension]['subject'] = bool(parameters.pop(-1))
 
-            # combine the remaining items and put them in as values
-            cert_extention_dic[extension]['value'] = ','.join(parameters)
+                # combine the remaining items and put them in as values
+                cert_extention_dic[extension]['value'] = ','.join(parameters)
 
         self.logger.debug('CAhandler._certificate_extensions_load() ended')
         return cert_extention_dic
@@ -176,11 +180,15 @@ class CAhandler(object):
 
             # determine filename
             if self.save_cert_as_hex:
+                self.logger.info('convert serial to hex: {0}: {1}'.format(serial, '{:X}'.format(serial)))
                 cert_file = '{:X}'.format(serial)
             else:
                 cert_file = str(serial)
             with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
                 fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+        else:
+            self.logger.error('CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing')
+
         self.logger.debug('CAhandler._certificate_store() ended')
 
     def _config_check(self):
@@ -237,7 +245,14 @@ class CAhandler(object):
             self.issuer_dict['issuing_ca_key'] = config_dic['CAhandler']['issuing_ca_key']
         if 'issuing_ca_cert' in config_dic['CAhandler']:
             self.issuer_dict['issuing_ca_cert'] = config_dic['CAhandler']['issuing_ca_cert']
+        if 'issuing_ca_key_passphrase_variable' in config_dic['CAhandler']:
+            try:
+                self.issuer_dict['passphrase'] = os.environ[config_dic['CAhandler']['issuing_ca_key_passphrase_variable']]
+            except BaseException as err:
+                self.logger.error('CAhandler._config_load() could not load issuing_ca_key_passphrase_variable:{0}'.format(err))
         if 'issuing_ca_key_passphrase' in config_dic['CAhandler']:
+            if 'passphrase' in self.issuer_dict and self.issuer_dict['passphrase']:
+                self.logger.info('CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable')
             self.issuer_dict['passphrase'] = config_dic['CAhandler']['issuing_ca_key_passphrase']
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
@@ -465,7 +480,6 @@ class CAhandler(object):
 
                     # store certifiate
                     self._certificate_store(cert)
-
                     # create bundle and raw cert
                     cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
                     cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
@@ -474,6 +488,7 @@ class CAhandler(object):
 
             except BaseException as err:
                 self.logger.error('CAhandler.enroll() error: {0}'.format(err))
+                error = 'Unknown exception'
 
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
@@ -508,46 +523,46 @@ class CAhandler(object):
             # result = self._certificate_chain_verify(cert, ca_cert)
             result = None
             # proceed if the cert and ca-cert belong together
-            if not result:
-                serial = cert_serial_get(self.logger, cert)
-                # serial = serial.replace('0x', '')
-                if ca_key and ca_cert and serial:
-                    serial = hex(serial).replace('0x', '')
-                    if os.path.exists(self.issuer_dict['issuing_ca_crl']):
-                        # existing CRL
-                        with open(self.issuer_dict['issuing_ca_crl'], 'r') as fso:
-                            crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
-                        # check CRL already contains serial
-                        sn_match = self._crl_check(crl, serial)
-                    else:
-                        # new CRL
-                        crl = crypto.CRL()
-                        sn_match = None
+            # if not result:
+            serial = cert_serial_get(self.logger, cert)
+            # serial = serial.replace('0x', '')
+            if ca_key and ca_cert and serial:
+                serial = hex(serial).replace('0x', '')
+                if os.path.exists(self.issuer_dict['issuing_ca_crl']):
+                    # existing CRL
+                    with open(self.issuer_dict['issuing_ca_crl'], 'r') as fso:
+                        crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
+                    # check CRL already contains serial
+                    sn_match = self._crl_check(crl, serial)
+                else:
+                    # new CRL
+                    crl = crypto.CRL()
+                    sn_match = None
 
-                    # this is the revocation operation
-                    if not sn_match:
-                        revoked = crypto.Revoked()
-                        revoked.set_reason(convert_string_to_byte(rev_reason))
-                        revoked.set_serial(convert_string_to_byte(serial))
-                        revoked.set_rev_date(convert_string_to_byte(rev_date))
-                        crl.add_revoked(revoked)
-                        # save CRL
-                        crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, convert_string_to_byte('sha256'))
-                        with open(self.issuer_dict['issuing_ca_crl'], 'wb') as fso:
-                            fso.write(crl_text)
-                        code = 200
-                    else:
-                        code = 400
-                        message = 'urn:ietf:params:acme:error:alreadyRevoked'
-                        detail = 'Certificate has already been revoked'
+                # this is the revocation operation
+                if not sn_match:
+                    revoked = crypto.Revoked()
+                    revoked.set_reason(convert_string_to_byte(rev_reason))
+                    revoked.set_serial(convert_string_to_byte(serial))
+                    revoked.set_rev_date(convert_string_to_byte(rev_date))
+                    crl.add_revoked(revoked)
+                    # save CRL
+                    crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, convert_string_to_byte('sha256'))
+                    with open(self.issuer_dict['issuing_ca_crl'], 'wb') as fso:
+                        fso.write(crl_text)
+                    code = 200
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:serverInternal'
-                    detail = 'configuration error'
+                    message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                    detail = 'Certificate has already been revoked'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:serverInternal'
-                detail = result
+                detail = 'configuration error'
+            #else:
+            #    code = 400
+            #    message = 'urn:ietf:params:acme:error:serverInternal'
+            #    detail = result
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:serverInternal'
