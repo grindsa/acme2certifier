@@ -5,6 +5,35 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.16
+
+**Features**:
+
+- CA-Handler configuration via environment variables:
+  - cmp_ca_handler: ref-num and passphrase
+  - certifier_ca_handler: api_user, api_password
+  - est_ca_handler: est_host, est_user, est_password
+  - mscertsrv_ca_handler: host, user, password
+  - nclm_ca_handler: api_user, api_password
+  - openssl_ca_handler: passphrase
+  - xca_ca_handler: passphrase
+
+**Bugfixes**:
+
+- don't overwrite group ownership for volume folder
+- don't copy ca_handler file if a valid ca_handler was defined under `CAhandler` section in acme_srv.cfg
+- django migrations files will get stored on volume
+- avoidance of KU/EKU duplicates when using templates in xca_ca_handler
+- alpn challenge handling in django deployments
+- fix for handling of empty challenges
+- more robust DNS challenge validation
+
+**Other improvements**:
+
+- [CodeCoverage measurement](https://app.codecov.io/gh/grindsa/acme2certifier/) via codecov.io
+- Switch to [acme.sh:latest](https://hub.docker.com/r/neilpang/acme.sh) in CI pipeline
+- Regression test-cases for django deployments using either mariadb or postgres backends
+
 ## Changes in 0.15.3
 
 **Upgrade notes**:
@@ -112,13 +141,13 @@ and pick the appropriate release branch.
 **Bugfixes/Improvements**:
 
 - several fixes in unit-tests
-- unit-tests are splitted into separate files
+- unit-tests are split into separate files
 - unittests for `certifier_ca_handler.py`
 - documentation updates
 - Github actions to test
   - certificate enrollment for all four containerized deployment options
   - tnauth functionality
-  - image creation and dockerhup upload
+  - image creation and dockerhub upload
 
 ## Changes in 0.11.1
 

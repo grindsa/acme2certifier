@@ -55,6 +55,7 @@ save_cert_as_hex: True
 
 - `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
 - `issuing_ca_key_passphrase` - password to access the private key
+- `issuing_ca_key_passphrase_variable` - *optional* - name of the environment variable containing the passphrase to access the CA key (a configured `issuing_ca_key_passphrase` parameter in acme_srv.cfg takes precedence)
 - `issuing_ca_cert` - Certificate of issuing CA in PEM format
 - `issuing_ca_crl` - CRL of issuing CA in PEM format
 - `ca_cert_chain_list` - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issueing CA cert must not be included)
@@ -65,7 +66,7 @@ save_cert_as_hex: True
 - `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
 - `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates
 
-`whitelist` and `blecklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes presendence over the posivite result of a whitelist check.
+`whitelist` and `blacklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes precedence over the positive result of a whitelist check.
 
 The openssl_conf file allows customization of the certificate profile and must contain a section `[extensions]` containing the certificate extensions to be inserted.
 If not specified  the following extensions will be applied.
@@ -83,6 +84,6 @@ Enjoy enrolling and revoking certificates
 
 some remarks:
 
-- certificates and CRls will be signed with sha256
+- certificates and CRLs will be signed with sha256
 - during enrollment all extensions included in the csr will be copied to the certificate. Don’t tell me that this is a bad idea. Read the first two sentences of this page instead.
 - the CRL "next update interval" is 7days

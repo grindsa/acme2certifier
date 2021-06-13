@@ -37,7 +37,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
     - name: "[ ENROLL ] register via http"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
@@ -89,7 +89,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
     - name: "[ ENROLL ] register via http"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
@@ -141,7 +141,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
     - name: "[ ENROLL ] register via http"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
@@ -194,7 +194,7 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
     - name: "[ ENROLL ] register via http"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2

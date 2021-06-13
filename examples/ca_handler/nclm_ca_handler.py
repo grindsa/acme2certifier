@@ -3,6 +3,7 @@
 """ ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class """
 from __future__ import print_function
 # import json
+import os
 import sys
 import time
 import requests
@@ -23,6 +24,7 @@ class CAhandler(object):
         self.headers = None
         self.ca_name = None
         self.error = None
+        self.wait_interval = 5
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -191,9 +193,23 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
             if 'api_host' in config_dic['CAhandler']:
                 self.api_host = config_dic['CAhandler']['api_host']
+            if 'api_user_variable' in config_dic['CAhandler']:
+                try:
+                    self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
             if 'api_user' in config_dic['CAhandler']:
+                if self.credential_dic['api_user']:
+                    self.logger.info('CAhandler._config_load() overwrite api_user')
                 self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+            if 'api_password_variable' in config_dic['CAhandler']:
+                try:
+                    self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
             if 'api_password' in config_dic['CAhandler']:
+                if self.credential_dic['api_password']:
+                    self.logger.info('CAhandler._config_load() overwrite api_password')                
                 self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
@@ -281,7 +297,7 @@ class CAhandler(object):
         else:
             # If response code is not ok (200), print the resulting http error code with description
             self.logger.error(api_response.raise_for_status())
-            sys.exit(0)
+            # sys.exit(0)
 
     def _request_import(self, csr):
         """ import certificate request to NCLM """
@@ -401,7 +417,7 @@ class CAhandler(object):
                         data_dic['templateID'] = self.template_info_dic['id']
                     self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
                     # wait for certificate enrollment to get finished
-                    time.sleep(5)
+                    time.sleep(self.wait_interval)
                     cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
                     if cert_id:
                         (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
@@ -439,16 +455,25 @@ class CAhandler(object):
         hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
 
         # search for certificate
-        cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        try:
+            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle).json()
+        except BaseException as err_:
+            self.logger.error('CAhandler.revoke(): request get aborted with err:'.format(err_))
+            cert_list = []
 
         if 'certificates' in cert_list:
             try:
                 cert_id = cert_list['certificates'][0]['certificateId']
                 data_dic = {'reason': rev_reason, 'time': rev_date}
-                detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
-                code = 200
-                message = None
-            except IndexError:
+                try:
+                    detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
+                    code = 200
+                    message = None
+                except BaseException as err:
+                    code = 500
+                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    detail = 'Revocation operation failed'
+            except BaseException:
                 code = 404
                 message = 'urn:ietf:params:acme:error:serverInternal'
                 detail = 'CertificateID could not be found'

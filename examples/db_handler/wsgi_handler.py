@@ -295,7 +295,11 @@ class DBstore(object):
         """ update existing account """
         self.logger.debug('DBStore.account_update({0})'.format(data_dic))
 
-        lookup = dict_from_row(self._account_search('name', data_dic['name']))
+        try:
+            lookup = dict_from_row(self._account_search('name', data_dic['name']))
+        except BaseException as _err:
+            lookup = None
+
         if lookup:
             if 'alg' not in data_dic:
                 data_dic['alg'] = lookup['alg']
@@ -303,7 +307,6 @@ class DBstore(object):
                 data_dic['contact'] = lookup['contact']
             if 'jwk' not in data_dic:
                 data_dic['jwk'] = lookup['jwk']
-
             self._db_open()
             self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
             self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
@@ -381,7 +384,6 @@ class DBstore(object):
             account_list.append(result)
 
         self._db_close()
-
         return(vlist, account_list)
 
     def authorization_add(self, data_dic):
@@ -415,9 +417,8 @@ class DBstore(object):
 
     def authorizations_expired_search(self, column, string, vlist=('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE'):
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(column, string))
+        self.logger.debug('DBStore.authorizations_expired_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
-
         pre_statement = '''SELECT
                                 authorization.*,
                                 status.name as status__name,
@@ -442,7 +443,7 @@ class DBstore(object):
             authorization_list.append(result)
 
         self._db_close()
-        self.logger.debug('DBStore.authorizations_invalid_search() ended')
+        self.logger.debug('DBStore.authorizations_expired_search-() ended')
         return authorization_list
 
     def authorization_update(self, data_dic):
@@ -584,7 +585,6 @@ class DBstore(object):
 
         self.cursor.execute(pre_statement)
         rows = self.cursor.fetchall()
-
         # process results
         cert_list = []
         for row in rows:
@@ -657,7 +657,7 @@ class DBstore(object):
         self.logger.debug('DBStore.certificates_search() ended')
         return cert_list
 
-    def challenges_search(self, column, string, vlist=('name', 'type', 'cert', 'status__name', 'token')):
+    def challenges_search(self, column, string, vlist=('name', 'type', 'status__name', 'token')):
         """ search challenge table for a certain key/value pair """
         self.logger.debug('DBStore._challenge_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -770,24 +770,23 @@ class DBstore(object):
         certificate_column_list = []
         for column in self.cursor.fetchall():
             certificate_column_list.append(column[1])
-
         if 'poll_identifier' not in certificate_column_list:
-            self.logger.debug('alter certificate table - add poll_identifier')
+            self.logger.info('alter certificate table - add poll_identifier')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
 
         if 'issue_uts' not in certificate_column_list:
-            self.logger.debug('alter certificate table - add issue_uts')
+            self.logger.info('alter certificate table - add issue_uts')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN issue_uts integer DEFAULT 0''')
 
         if 'expire_uts' not in certificate_column_list:
-            self.logger.debug('alter certificate table - add expire_uts')
+            self.logger.info('alter certificate table - add expire_uts')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
 
         # add additional values to status table
         pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format('name')
         self.cursor.execute(pre_statement, ['deactivated'])
         if not self.cursor.fetchone():
-            self.logger.debug('adding additional status')
+            self.logger.info('adding additional status')
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
             self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
@@ -798,7 +797,7 @@ class DBstore(object):
             challenges_column_list.append(column[1])
 
         if 'validated' not in challenges_column_list:
-            self.logger.debug('alter challenge table - add validated')
+            self.logger.info('alter challenge table - add validated')
             self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
 
         self.cursor.execute('''PRAGMA table_info(account)''')
@@ -806,7 +805,7 @@ class DBstore(object):
         for column in self.cursor.fetchall():
             account_column_list.append(column[1])
         if 'eab_kid' not in account_column_list:
-            self.logger.debug('alter account table - add eab_kid')
+            self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
         # housekeeping table
@@ -952,7 +951,7 @@ class DBstore(object):
         self._db_close()
         self.logger.debug('DBStore.order_update() ended')
 
-    def orders_invalid_search(self, column, string, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def orders_invalid_search(self, column, string, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()

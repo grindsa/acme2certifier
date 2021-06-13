@@ -2,8 +2,6 @@ name: CA handler Tests
 
 on:
   push:
-  pull_request:
-    branches: [ devel ]
   schedule:
     - cron:  '0 2 * * 6'
 
@@ -28,7 +26,7 @@ jobs:
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:dev daemon
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ PREPARE ] setup openssl ca_handler"
       run: |
@@ -64,6 +62,28 @@ jobs:
         docker-compose logs
 
     - name: "[ ENROLL ] via xca ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE ] setup msca ca_handler"
+      run: |
+        sudo cp examples/ca_handler/mscertsrv_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "host: ${{ secrets.MSCA_NAME }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: ${{ secrets.NCLM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: ${{ secrets.NCLM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: ${{ secrets.MSCA_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: ${{ secrets.MSCA_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ ENROLL ] via msca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
@@ -113,7 +133,7 @@ jobs:
       run: |
         sudo apt-get install curl openssl patch
         sudo cp examples/ca_handler/est_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
+        # sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
     - name: "[ PREPARE ] setup using http-basic-auth"
       run: |
         sudo mkdir -p examples/Docker/data/est
@@ -162,7 +182,7 @@ jobs:
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        # sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
@@ -172,5 +192,5 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        name: acme.sh.tar.gz
         path: ${{ github.workspace }}/artifact/upload/

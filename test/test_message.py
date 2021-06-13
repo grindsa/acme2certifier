@@ -4,6 +4,7 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
+import configparser
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, '.')
@@ -91,7 +92,27 @@ class TestACMEHandler(unittest.TestCase):
         mock_aname.return_value = 'account_name'
         mock_sig.return_value = (True, None, None)
         message = '{"foo" : "bar"}'
-        self.assertEqual((200, None, None, 'protected', 'payload', 'account_name'), self.message.check(message, skip_nonce_check=True))
+        self.message.disable_dic = {'nonce_check_disable': True, 'signature_check_disable': False}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((200, None, None, 'protected', 'payload', 'account_name'), self.message.check(message, skip_nonce_check=True))
+        self.assertIn('ERROR:test_a2c:**** NONCE CHECK DISABLED!!! Severe security issue ****', lcm.output)
+
+    @patch('acme.signature.Signature.check')
+    @patch('acme.message.Message._name_get')
+    @patch('acme.nonce.Nonce.check')
+    @patch('acme.message.decode_message')
+    def test_026_message_check(self, mock_decode, mock_nonce_check, mock_aname, mock_sig):
+        """ message check successful as nonce check is disabled """
+        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_nonce_check.return_value = (400, 'badnonce', None)
+        mock_aname.return_value = 'account_name'
+        mock_sig.return_value = (True, None, None)
+        message = '{"foo" : "bar"}'
+        self.message.disable_dic = {'nonce_check_disable': True, 'signature_check_disable': True}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((200, None, None, 'protected', 'payload', None), self.message.check(message, skip_nonce_check=True))
+        self.assertIn('ERROR:test_a2c:**** SIGNATURE_CHECK_DISABLE!!! Severe security issue ****', lcm.output)
+        self.assertIn('ERROR:test_a2c:**** NONCE CHECK DISABLED!!! Severe security issue ****', lcm.output)
 
     @patch('acme.nonce.Nonce.generate_and_add')
     def test_007_message_prepare_response(self, mock_nnonce):
@@ -207,6 +228,51 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.message._name_get(protected)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Message._name_get(): exc_mess__name_get', lcm.output)
+
+    def test_024__enter__(self):
+        """ test enter """
+        self.message.__enter__()
+
+    @patch('acme.message.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load empty config """
+        parser = configparser.ConfigParser()
+        # parser['Account'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.message._config_load()
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+
+    @patch('acme.message.load_config')
+    def test_026_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Nonce'] = {'nonce_check_disable': False, 'signature_check_disable': False}
+        mock_load_cfg.return_value = parser
+        self.message._config_load()
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+
+    @patch('acme.message.load_config')
+    def test_027_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Nonce'] = {'nonce_check_disable': True, 'signature_check_disable': False}
+        mock_load_cfg.return_value = parser
+        self.message._config_load()
+        self.assertTrue(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+
+    @patch('acme.message.load_config')
+    def test_028_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Nonce'] = {'nonce_check_disable': False, 'signature_check_disable': True}
+        mock_load_cfg.return_value = parser
+        self.message._config_load()
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertTrue(self.message.disable_dic['signature_check_disable'])
+
 
 if __name__ == '__main__':
     unittest.main()

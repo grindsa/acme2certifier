@@ -6,6 +6,7 @@ import textwrap
 import math
 import time
 import requests
+import os
 from requests.auth import HTTPBasicAuth
 # pylint: disable=E0401
 from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
@@ -140,14 +141,33 @@ class CAhandler(object):
                 self.api_host = config_dic['CAhandler']['api_host']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
-            if 'api_user' in config_dic['CAhandler']:
-                self.api_user = config_dic['CAhandler']['api_user']
+
+            if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
+                if 'api_user_variable' in config_dic['CAhandler']:
+                    try:
+                        self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
+                    except BaseException as err:
+                        self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+                if 'api_user' in config_dic['CAhandler']:
+                    if self.api_user:
+                        self.logger.info('CAhandler._config_load() overwrite api_user')
+                    self.api_user = config_dic['CAhandler']['api_user']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file')
-            if 'api_password' in config_dic['CAhandler']:
-                self.api_password = config_dic['CAhandler']['api_password']
+
+            if 'api_password' in config_dic['CAhandler'] or 'api_password_variable' in config_dic['CAhandler']:
+                if 'api_password_variable' in config_dic['CAhandler']:
+                    try:
+                        self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
+                    except BaseException as err:
+                        self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                if 'api_password' in config_dic['CAhandler']:
+                    if self.api_password:
+                        self.logger.info('CAhandler._config_load() overwrite api_password_variable')
+                    self.api_password = config_dic['CAhandler']['api_password']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file')
+
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
             else:
@@ -258,7 +278,13 @@ class CAhandler(object):
         poll_identifier = request_url
         rejected = False
 
-        request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
+        try:
+            request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle).json()
+        except BaseException as err:
+            self.logger.error('CAhandler._request.poll() returned: {0}'.format(err))
+            request_dic = {}
+            error = err
+
         # check response
         if 'status' in request_dic:
             if request_dic['status'] == 'accepted':
@@ -270,9 +296,17 @@ class CAhandler(object):
                         error = None
                         cert_bundle = self._pem_cert_chain_generate(cert_dic)
                         cert_raw = cert_dic['certificateBase64']
+                    else:
+                        error = 'certificateBase64 is missing in cert request response'
+                else:
+                    error = 'No certificate structure in request response'
             elif request_dic['status'] == 'rejected':
                 error = 'Request rejected by operator'
                 rejected = True
+            else:
+                error = 'Unknown request status: {0}'.format(request_dic['status'])
+        else:
+            error = '"status" field not found in response.'
 
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)

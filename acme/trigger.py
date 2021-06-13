@@ -58,8 +58,13 @@ class Trigger(object):
         if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
             try:
                 ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
-            except BaseException:
-                ca_handler_module = importlib.import_module('acme.ca_handler')
+            except BaseException as err_:
+                self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
+                try:
+                    ca_handler_module = importlib.import_module('acme.ca_handler')
+                except BaseException as err_:
+                    ca_handler_module = None
+                    self.logger.critical('Certificate._config_load(): loading default CAhandler failed with err: {0}'.format(err_))
         else:
             if 'CAhandler' in config_dic:
                 ca_handler_module = importlib.import_module('acme.ca_handler')

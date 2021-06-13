@@ -100,7 +100,10 @@ class Order(object):
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
             if 'retry_after_timeout' in config_dic['Order']:
-                self.retry_after = config_dic['Order']['retry_after_timeout']
+                try:
+                    self.retry_after = int(config_dic['Order']['retry_after_timeout'])
+                except BaseException:
+                    self.logger.warning('Order._config_load(): failed to parse retry_after: {0}'.format(config_dic['Order']['retry_after_timeout']))
             if 'validity' in config_dic['Order']:
                 try:
                     self.validity = int(config_dic['Order']['validity'])
@@ -279,7 +282,10 @@ class Order(object):
                 if tmp_dic['notafter'] != 0:
                     order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
             if 'identifiers' in tmp_dic:
-                order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
+                try:
+                    order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
+                except BaseException:
+                    self.logger.error('Order.lookup(): error while parsing the identifier {0}'.format(tmp_dic['identifiers']))
             try:
                 authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
             except BaseException as err_:
