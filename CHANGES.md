@@ -20,6 +20,8 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
+- don't overwrite group ownership for volume folder
+- don't copy ca_handler file if a valid ca_handler was defined under `CAhandler` section in acme_srv.cfg
 - django migrations files will get stored on volume
 - avoidance of KU/EKU duplicates when using templates in xca_ca_handler
 - alpn challenge handling in django deployments

@@ -10,12 +10,18 @@ fi
 # enable tls if acme2certifier.pem exists on volume
 if [ -f /var/www/acme2certifier/volume/acme2certifier.pem ]
 then
-    echo "found acme2certifier.pem! enalbe TLS" >> /proc/1/fd/1
+    echo "found acme2certifier.pem! enable TLS" >> /proc/1/fd/1
     cp  /var/www/acme2certifier/examples/apache_django_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
 fi
 
-# create ca_handler if not existing
-if [ ! -f /var/www/acme2certifier/volume/ca_handler.py ]
+# create ca_handler if:
+# - ca_handler.py does not exists in volume AND
+# - no entry handler_file: exists in acme_srv.cfg
+# - define ca_handler defined under handler_file does not exists
+if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
+     ! ( grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg &> /dev/null && \
+         [ -f $(grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg | awk -F":" '{print $2}') ] \
+        ))
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
     cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
@@ -69,9 +75,9 @@ if [ ! -L /var/www/acme2certifier/acme/migrations ]
 then
     if [ -d /var/www/acme2certifier/volume/migrations ]
     then
-        echo "delete migration directory" >> /proc/1/fd/1    
+        echo "delete migration directory" >> /proc/1/fd/1
         rm -rf /var/www/acme2certifier/acme/migrations
-    fi 
+    fi
 
     echo "create symlink for migration directory" >> /proc/1/fd/1
     ln -s /var/www/acme2certifier/volume/migrations /var/www/acme2certifier/acme/
@@ -87,10 +93,10 @@ then
 else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
     python3 /var/www/acme2certifier/tools/django_update.py
-    python3 manage.py loaddata acme/fixture/status.yaml    
+    python3 manage.py loaddata acme/fixture/status.yaml
 fi
 
-chown -R www-data.www-data /var/www/acme2certifier/volume
+chown -R www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/
 
 exec "$@"

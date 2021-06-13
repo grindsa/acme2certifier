@@ -7,16 +7,16 @@ then
     cp /var/www/acme2certifier/examples/acme_srv.cfg /var/www/acme2certifier/volume/
 fi
 
-# enable ssl if acme2certifier.pm exists on volume
+# enable tls if acme2certifier.pm exists on volume
 if [ -f /var/www/acme2certifier/volume/acme2certifier.pem ]
 then
-    echo "found acme2certifier.pem! enalbe TLS" >> /proc/1/fd/1  
+    echo "found acme2certifier.pem! enable TLS" >> /proc/1/fd/1
    cp  /var/www/acme2certifier/examples/apache_wsgi_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
 fi
 
 # create ca_handler if:
 # - ca_handler.py does not exists in volume AND
-# - no entry hanlder_file: exists in acme_srv.cfg
+# - no entry handler_file: exists in acme_srv.cfg
 # - define ca_handler defined under handler_file does not exists
 if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
      ! ( grep -E '^handler_file:' /var/www/acme2certifier/volume/acme_srv.cfg &> /dev/null && \
