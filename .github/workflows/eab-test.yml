@@ -1,0 +1,98 @@
+name: EAB Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  eab_apache2_wsgi:
+    name: "eab_apache2_wsgi"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        keylength: [2048]
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: examples/eab_handler/json_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: examples/eab_handler/key_file.json" >> examples/Docker/data/acme_srv.cfg
+        # sudo cat examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] create letsencrypt folder"
+      run: |
+        mkdir certbot
+
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        mkdir lego
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: eab-${{ matrix.keylength }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

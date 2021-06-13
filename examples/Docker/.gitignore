@@ -1,0 +1,4 @@
+# Local changes to docker compose can be placed here
+docker-compose.override.yaml
+# Configuration for the containers are held here
+data/

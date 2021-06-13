@@ -1,0 +1,37 @@
+-   model: acme.status
+    pk: 1
+    fields:
+        name: invalid
+-   model: acme.status
+    pk: 2
+    fields:
+        name: pending
+-   model: acme.status
+    pk: 3
+    fields:
+        name: ready
+-   model: acme.status
+    pk: 4
+    fields:
+        name: processing
+-   model: acme.status
+    pk: 5
+    fields:
+        name: valid
+-   model: acme.status
+    pk: 6
+    fields:
+        name: expired
+-   model: acme.status
+    pk: 7
+    fields:
+        name: deactivated
+-   model: acme.status
+    pk: 8
+    fields:
+        name: revoked
+-   model: acme.housekeeping
+    pk: 1
+    fields:
+        name: dbversion
+        value: 0.15.3
