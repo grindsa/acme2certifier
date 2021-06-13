@@ -6,8 +6,8 @@
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/devel.svg?label=last%20commit%20into%20devel)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2581/badge)](https://bestpractices.coreinfrastructure.org/projects/2581)
 
-![Codecov main](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/master?label=test%20coverage%20master)
-![Codecov devel](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/devel?label=test%20coverage%20devel)
+[![Codecov main](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/master?label=test%20coverage%20master)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/master)
+[![Codecov devel](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/devel?label=test%20coverage%20devel)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/devel)
 
 acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
@@ -31,7 +31,7 @@ project's home page at: [https://github.com/grindsa/acme2certifier](https://gith
 
 ## ChangeLog
 
-Releasenotes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
+Release notes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
 
 ## Disclaimer
 
@@ -97,9 +97,9 @@ to let me know.
 
 ## Installation
 
-The proxy can run either as plain wsgi-script on either apache or ngix or as
+The proxy can run either as plain wsgi-script on either apache or nginx or as
 django project. Running acme2certifier as django project allows to use other
-database backendes than SQLite.
+database backends than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker
 containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/users/grindsa/packages/container/acme2certifier/)

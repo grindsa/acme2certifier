@@ -10,7 +10,7 @@ django.setup()
 from django.conf import settings
 from acme.models import Status, Housekeeping
 from django.core.management import call_command
-from acme.version import __version__
+from acme.version import __dbversion__
 
 if __name__ == '__main__':
 
@@ -24,5 +24,5 @@ if __name__ == '__main__':
         OBJ, _CREATED = Status.objects.update_or_create(name=status, defaults={'name': status})
 
     # update dbversion
-    print('update dbversion to {0}...'.format(__version__))
-    OBJ, _CREATED = Housekeeping.objects.update_or_create(name='dbversion', defaults={'name': 'dbversion', 'value': __version__})
+    print('update dbversion to {0}...'.format(__dbversion__))
+    OBJ, _CREATED = Housekeeping.objects.update_or_create(name='dbversion', defaults={'name': 'dbversion', 'value': __dbversion__})

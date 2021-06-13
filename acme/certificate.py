@@ -98,8 +98,13 @@ class Certificate(object):
         if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
             try:
                 ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
-            except BaseException:
-                ca_handler_module = importlib.import_module('acme.ca_handler')
+            except BaseException as err_:
+                self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
+                try:
+                    ca_handler_module = importlib.import_module('acme.ca_handler')
+                except BaseException as err_:
+                    ca_handler_module = None
+                    self.logger.critical('Certificate._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
         else:
             if 'CAhandler' in config_dic:
                 ca_handler_module = importlib.import_module('acme.ca_handler')
@@ -150,7 +155,7 @@ class Certificate(object):
                         identifier_status = self._identifer_tnauth_list(identifier_dic, tnauthlist)
                     except BaseException as err_:
                         identifier_status = []
-                        self.logger.warning('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
+                        self.logger.warning('Certificate._csr_check() error while parsing csr.\nerror: {0}'.format(err_))
                 else:
                     # get sans and compare identifiers against san
                     try:
@@ -158,7 +163,7 @@ class Certificate(object):
                         identifier_status = self._identifer_status_list(identifiers, san_list)
                     except BaseException as err_:
                         identifier_status = []
-                        self.logger.warning('Certificate._csr_check() error while loading parsing csr.\nerror: {0}'.format(err_))
+                        self.logger.warning('Certificate._csr_check() error while checking csr.\nerror: {0}'.format(err_))
 
         csr_check_result = False
 
@@ -454,11 +459,12 @@ class Certificate(object):
             cert_list = certificate.certlist_search('issue_uts', 0, vlist=('id', 'name', 'cert', 'cert_raw', 'issue_uts', 'expire_uts'))
             self.logger.debug('Got {0} certificates to be updated...'.format(len(cert_list)))
             for cert in cert_list:
-                if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
-                    if cert['cert_raw']:
-                        (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
-                        if issue_uts or expire_uts:
-                            self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
+                if 'issue_uts' in cert and 'expire_uts' in cert:
+                    if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
+                        if cert['cert_raw']:
+                            (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
+                            if issue_uts or expire_uts:
+                                self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
         # return None
 
     def enroll_and_store(self, certificate_name, csr):

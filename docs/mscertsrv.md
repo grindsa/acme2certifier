@@ -13,7 +13,7 @@ When using the handler please be aware of the following limitations:
 ## Preparation
 
 1. Microsoft Certification Authority Web Enrollment Service must be enabled and configured - of course :-)
-2. You need to have a set of credentails with permissions to access the service and enrollment templates
+2. You need to have a set of credentials with permissions to access the service and enrollment templates
 3. Authentication method (basic or ntlm) to the service must be defined.
 
 It is helpful to verify the service access before starting the configuration of acme2certifier
@@ -30,7 +30,7 @@ root@rlh:~# curl -I --ntlm --user <user>:<password> -k https://<host>/certsrv/
 root@rlh:~# curl -I --user <user>:<password> -k https://<host>/certsrv/
 ```
 
-Access to the service is possible if you see the status code 200 returned as part of the reponse
+Access to the service is possible if you see the status code 200 returned as part of the response
 
 ```bash
 HTTP/1.1 200 OK
@@ -69,8 +69,11 @@ template: <name>
 ```
 
 - host - hostname of the system providing the Web enrollment service
+- host_variable - *optional* - name of the environment variable containing host address (a configured `host` parameter in acme_srv.cfg takes precedence)
 - user - username used to access the service
+- user_variable - *optional* - name of the environment variable containing the username used for service access (a configured `user` parameter in acme_srv.cfg takes precedence)
 - password - password
-- ca_bundle - CA certificate bundle in pem format needed to valiate the server certificate
+- password_variable - *optional* - name of the environment variable containing the password used for service access (a configured `password` parameter in acme_srv.cfg takes precedence)
+- ca_bundle - CA certificate bundle in pem format needed to validate the server certificate
 - auth_method - authentication method (either "basic" or "ntlm")
 - template - certificate template used for enrollment

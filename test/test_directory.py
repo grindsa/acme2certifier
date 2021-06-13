@@ -155,5 +155,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('tos_url', self.directory.tos_url)
         self.assertTrue(self.directory.eab)
 
+    @patch('acme.directory.Directory._config_load')
+    def test_016__enter__(self, mock_cfg):
+        """ test enter """
+        mock_cfg.return_value = True
+        self.directory.__enter__()
+        self.assertTrue(mock_cfg.called)
+
 if __name__ == '__main__':
     unittest.main()

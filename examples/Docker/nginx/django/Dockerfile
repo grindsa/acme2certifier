@@ -13,6 +13,7 @@ RUN apt-get install --no-install-recommends -y \
     python3-django \
     python3-mysqldb \
     python3-pymysql \
+    python3-psycopg2 \
     python3-yaml \
     python3-cryptography \
  && rm -rf /var/lib/apt/lists/*
