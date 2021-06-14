@@ -123,7 +123,8 @@ test/ca/foo-ca-crl.pem
 
 *.csr
 *.old
-acne/*.my
+acme_srv/*
+acme/*.my
 /acme2certifier_wsgi.py
 env.txt
 gna.py
