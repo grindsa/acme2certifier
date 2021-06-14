@@ -13,7 +13,7 @@ acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
 protocol yet. It consists of two libraries:
 
-- acme/*.py - a bunch of classes implementing ACME server functionality based
+- acme_srv/*.py - a bunch of classes implementing ACME server functionality based
 on [rfc8555](https://tools.ietf.org/html/rfc8555)
 - ca_handler.py - interface towards CA server. The intention of this library
 is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
@@ -34,8 +34,6 @@ project's home page at: [https://github.com/grindsa/acme2certifier](https://gith
 Release notes and ChangLog can be found at [https://github.com/grindsa/acme2certifier/releases](https://github.com/grindsa/acme2certifier/releases)
 
 ## Disclaimer
-
-I am running this project as my RnD guys told me that it won’t be possible :-)
 
 Following acme-clients are used for regular testing of server functionality
 
