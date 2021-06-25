@@ -329,7 +329,10 @@ URLS = [
 
 def application(environ, start_response):
     ''' The main WSGI application if nothing matches call the not_found function.'''
-    path = environ.get('PATH_INFO', '').lstrip('/')
+    prefix = '/'
+    if 'Directory' in CONFIG and 'url_prefix' in CONFIG['Directory']:
+        prefix = CONFIG['Directory']['url_prefix'] + '/'
+    path = environ.get('PATH_INFO', '').lstrip(prefix)
     for regex, callback in URLS:
         match = re.search(regex, path)
         if match is not None:

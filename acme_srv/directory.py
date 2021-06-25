@@ -16,6 +16,7 @@ class Directory(object):
         self.tos_url = None
         self.version = __version__
         self.eab = False
+        self.url_prefix = ""
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -37,6 +38,9 @@ class Directory(object):
         if 'EABhandler' in config_dic:
             if 'eab_handler_file' in config_dic['EABhandler']:
                 self.eab = True
+        if 'Directory' in config_dic:            
+            if 'url_prefix' in config_dic['Directory']:
+                self.url_prefix = config_dic['Directory']['url_prefix']
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -45,12 +49,12 @@ class Directory(object):
         self.logger.debug('Directory.directory_get()')
 
         d_dic = {
-            'newAuthz' : self.server_name + '/acme_srv/new-authz',
-            'newNonce': self.server_name + '/acme_srv/newnonce',
-            'newAccount': self.server_name + '/acme_srv/newaccount',
-            "newOrder": self.server_name + '/acme_srv/neworders',
-            'revokeCert' : self.server_name + '/acme_srv/revokecert',
-            'keyChange' : self.server_name + '/acme_srv/key-change',
+            'newAuthz' : self.server_name + self.url_prefix + '/acme_srv/new-authz',
+            'newNonce': self.server_name + self.url_prefix + '/acme_srv/newnonce',
+            'newAccount': self.server_name + self.url_prefix + '/acme_srv/newaccount',
+            "newOrder": self.server_name + self.url_prefix + '/acme_srv/neworders',
+            'revokeCert' : self.server_name + self.url_prefix + '/acme_srv/revokecert',
+            'keyChange' : self.server_name + self.url_prefix + '/acme_srv/key-change',
             'meta' : {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',
