@@ -35,6 +35,8 @@ class DBstore(object):
             else:
                 db_name = os.path.dirname(__file__)+'/'+'acme_srv.db'
 
+        self.db_name = db_name
+
         if not os.path.exists(self.db_name):
             self._db_create()
 
