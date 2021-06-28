@@ -6,7 +6,7 @@ import sqlite3
 import json
 import os
 # pylint: disable=E0401
-from acme_srv.helper import datestr_to_date
+from acme_srv.helper import datestr_to_date, load_config
 from acme_srv.version import __dbversion__
 
 def initialize():
@@ -21,13 +21,21 @@ def dict_from_row(row):
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, debug=False, logger=None, db_name=os.path.dirname(__file__)+'/'+'acme_srv.db'):
+    def __init__(self, debug=False, logger=None, db_name=None): #
         """ init """
         self.db_name = db_name
         self.debug = debug
         self.logger = logger
         self.dbs = None
         self.cursor = None
+        if not db_name:
+            cfg = load_config()
+            if 'DBhandler' in cfg and 'dbfile' in cfg['DBhandler']:
+                db_name = cfg['DBhandler']['dbfile']
+            else:
+                db_name = os.path.dirname(__file__)+'/'+'acme_srv.db'
+
+        self.db_name = db_name
 
         if not os.path.exists(self.db_name):
             self._db_create()
