@@ -28,7 +28,7 @@ class DBstore(object):
         self.logger = logger
         self.dbs = None
         self.cursor = None
-        if not db_name:
+        if not self.db_name:
             cfg = load_config()
             if 'DBhandler' in cfg and 'dbfile' in cfg['DBhandler']:
                 db_name = cfg['DBhandler']['dbfile']
