@@ -85,9 +85,12 @@ def newaccount(request):
 
 def newnonce(request):
     """ new nonce """
-    if request.method == 'HEAD':
+    if request.method in ['HEAD', 'GET']:
         with Nonce(DEBUG, LOGGER) as nonce:
-            response = HttpResponse('')
+            if request.method == 'HEAD':
+                response = HttpResponse('')
+            else:
+                response = HttpResponse(status=204)
             # generate nonce
             response['Replay-Nonce'] = nonce.generate_and_add()
 
@@ -96,7 +99,7 @@ def newnonce(request):
             # send response
             return response
     else:
-        return JsonResponse(status=400, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD.'})
+        return JsonResponse(status=400, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD or GET.'})
 
 def servername_get(request):
     """ get server name """
