@@ -604,7 +604,7 @@ def allowed_gai_family():
     family = socket.AF_INET    # force IPv4
     return family
 
-def url_get(logger, url, dns_server_list=None):
+def url_get(logger, url, dns_server_list=None, verify=True):
     """ http get """
     logger.debug('url_get({0})'.format(url))
     if dns_server_list:
@@ -619,7 +619,7 @@ def url_get(logger, url, dns_server_list=None):
             old_gai_family = urllib3_cn.allowed_gai_family
             try:
                 urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+                req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
                 result = req.text
             except BaseException as err_:
                 result = None
