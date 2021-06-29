@@ -3,6 +3,7 @@
 """ unittests for account.py """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import configparser
 import sys
 import datetime
 import socket
@@ -1254,6 +1255,12 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.txt_get(self.logger, 'foo'))
         self.assertIn('ERROR:test_a2c:txt_get() error: mock_resolve', lcm.output)
+
+    #@patch('configparser.RawConfigParser')
+    #def test_190_load_config(self, mock_cfg):
+    #    """ test load config """
+    #    mock_cfg =  configparser.ConfigParser()
+    #    self.assertTrue(self.load_config())
 
 if __name__ == '__main__':
     unittest.main()
