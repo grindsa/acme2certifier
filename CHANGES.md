@@ -10,12 +10,12 @@ and pick the appropriate release branch.
 **Features**:
 
 - wsgi_db_hander: allow DB file path configuration
-- Allow setting config file location via environment variable
+- allow setting config file location via environment variable
 
 **Improvements**:
 
- - allow GET method for newnonce
- - Don't verify SSL certificate during http-01 challenge validation
+- allow GET method for newnonce
+- don't verify SSL certificate during http-01 challenge validation
 
 ## Changes in 0.16
 
