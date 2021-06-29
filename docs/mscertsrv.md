@@ -53,10 +53,10 @@ root@rlh:~# pip install certsrv[ntlm]
 - copy the ca_handler into the acme directory
 
 ```bash
-root@rlh:~# cp example/mscertsrv_ca_handler.py acme/ca_handler.py
+root@rlh:~# cp example/mscertsrv_ca_handler.py acme_srv/ca_handler.py
 ```
 
-- modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
+- modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
 
 ```config
 [CAhandler]

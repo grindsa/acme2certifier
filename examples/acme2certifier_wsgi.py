@@ -7,17 +7,17 @@ import re
 import json
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
-from acme.account import Account
-from acme.authorization import Authorization
-from acme.certificate import Certificate
-from acme.challenge import Challenge
-from acme.directory import Directory
-from acme.housekeeping import Housekeeping
-from acme.nonce import Nonce
-from acme.order import Order
-from acme.trigger import Trigger
-from acme.helper import get_url, load_config, logger_setup, logger_info
-from acme.version import __dbversion__, __version__
+from acme_srv.account import Account
+from acme_srv.authorization import Authorization
+from acme_srv.certificate import Certificate
+from acme_srv.challenge import Challenge
+from acme_srv.directory import Directory
+from acme_srv.housekeeping import Housekeeping
+from acme_srv.nonce import Nonce
+from acme_srv.order import Order
+from acme_srv.trigger import Trigger
+from acme_srv.helper import get_url, load_config, logger_setup, logger_info
+from acme_srv.version import __dbversion__, __version__
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -213,14 +213,15 @@ def chall(environ, start_response):
 
 def newnonce(environ, start_response):
     """ generate a new nonce """
-    if environ['REQUEST_METHOD'] == 'HEAD':
+    if environ['REQUEST_METHOD'] in ['HEAD', 'GET']:
         nonce = Nonce(DEBUG, LOGGER)
         headers = [('Content-Type', 'text/plain'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
-        start_response('200 OK', headers)
+        status = '200 OK' if environ['REQUEST_METHOD'] == 'HEAD' else '204 No content'
+        start_response(status, headers)
         return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'}).encode('utf-8')]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
 
 def neworders(environ, start_response):
     """ generate a new order """
@@ -313,16 +314,16 @@ def not_found(_environ, start_response):
 # map urls to functions
 URLS = [
     (r'^$', directory),
-    (r'^acme/acct', acct),
-    (r'^acme/authz', authz),
-    (r'^acme/cert', cert),
-    (r'^acme/chall', chall),
-    (r'^acme/key-change', acct),
-    (r'^acme/newaccount$', newaccount),
-    (r'^acme/newnonce$', newnonce),
-    (r'^acme/neworders$', neworders),
-    (r'^acme/order', order),
-    (r'^acme/revokecert', revokecert),
+    (r'^acme_srv/acct', acct),
+    (r'^acme_srv/authz', authz),
+    (r'^acme_srv/cert', cert),
+    (r'^acme_srv/chall', chall),
+    (r'^acme_srv/key-change', acct),
+    (r'^acme_srv/newaccount$', newaccount),
+    (r'^acme_srv/newnonce$', newnonce),
+    (r'^acme_srv/neworders$', neworders),
+    (r'^acme_srv/order', order),
+    (r'^acme_srv/revokecert', revokecert),
     (r'^directory?$', directory),
     (r'^trigger', trigger),
 ]

@@ -28,25 +28,25 @@ then
 fi
 
 # create symlink for the acme_srv.cfg
-if [ ! -L /var/www/acme2certifier/acme/acme_srv.cfg ]
+if [ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
     chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 
 # create symlink for the acme_srv.db
-if [ ! -L /var/www/acme2certifier/acme/acme_srv.db ]
+if [ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme/acme_srv.db
+    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
 fi
 
 # apply database updates (if needed)
 python3 /var/www/acme2certifier/tools/db_update.py
 
 # create symlink for the ca_handler
-if [ ! -L /var/www/acme2certifier/acme/ca_handler.py ]
+if [ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]
 then
-    ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme/ca_handler.py
+    ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
 
 chown -R www-data /var/www/acme2certifier/volume

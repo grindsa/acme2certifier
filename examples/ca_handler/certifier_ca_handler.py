@@ -9,7 +9,7 @@ import requests
 import os
 from requests.auth import HTTPBasicAuth
 # pylint: disable=E0401
-from acme.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der
 
 class CAhandler(object):
     """ CA  handler """
