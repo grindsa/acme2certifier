@@ -8,9 +8,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
 import django
 django.setup()
 from django.conf import settings
-from acme.models import Status, Housekeeping
+from acme_srv.models import Status, Housekeeping
 from django.core.management import call_command
-from acme.version import __dbversion__
+from acme_srv.version import __dbversion__
 
 if __name__ == '__main__':
 

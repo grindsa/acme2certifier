@@ -72,18 +72,18 @@ Its should already be possible to access the directory Resources of our acme2cer
 user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network acme curlimages/curl http://acme-srv/directory | python -m json.tool
 {
     "6a01d6abe3a84de2831d24aa5451b3a2": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
-    "keyChange": "http://acme2certifier_srv_1/acme/key-change",
+    "keyChange": "http://acme2certifier_srv_1/acme_srv/key-change",
     "meta": {
         "author": "grindsa <grindelsack@gmail.com>",
         "home": "https://github.com/grindsa/acme2certifier",
         "name": "acme2certifier",
         "version": "0.9-dev"
     },
-    "newAccount": "http://acme2certifier_srv_1/acme/newaccount",
-    "newAuthz": "http://acme2certifier_srv_1/acme/new-authz",
-    "newNonce": "http://acme2certifier_srv_1/acme/newnonce",
-    "newOrder": "http://acme2certifier_srv_1/acme/neworders",
-    "revokeCert": "http://acme2certifier_srv_1/acme/revokecert"
+    "newAccount": "http://acme2certifier_srv_1/acme_srv/newaccount",
+    "newAuthz": "http://acme2certifier_srv_1/acme_srv/new-authz",
+    "newNonce": "http://acme2certifier_srv_1/acme_srv/newnonce",
+    "newOrder": "http://acme2certifier_srv_1/acme_srv/neworders",
+    "revokeCert": "http://acme2certifier_srv_1/acme_srv/revokecert"
 }
 ```
 

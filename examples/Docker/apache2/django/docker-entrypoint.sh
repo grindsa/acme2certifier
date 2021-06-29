@@ -28,22 +28,22 @@ then
 fi
 
 # create symlink for the acme_srv.cfg
-if [ ! -L /var/www/acme2certifier/acme/acme_srv.cfg ]
+if [ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
     chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 
 # create symlink for the acme_srv.db
-if [ ! -L /var/www/acme2certifier/acme/acme_srv.db ]
+if [ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme/acme_srv.db
+    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
 fi
 
 # create symlink for the ca_handler
-if [ ! -L /var/www/acme2certifier/acme/ca_handler.py ]
+if [ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]
 then
-    ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme/ca_handler.py
+    ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
 
 # create settings.py if not existing
@@ -66,21 +66,21 @@ fi
 if [ ! -d /var/www/acme2certifier/volume/migrations ]
 then
     echo "no acme_srv.cfg found! creating acme_srv.cfg" >> /proc/1/fd/1
-    cp  -R /var/www/acme2certifier/examples/django/acme/migrations /var/www/acme2certifier/volume/
+    cp  -R /var/www/acme2certifier/examples/django/acme_srv/migrations /var/www/acme2certifier/volume/
     # mkdir -p /var/www/acme2certifier/volume/migrations
 fi
 
 # create a symlink for migrations
-if [ ! -L /var/www/acme2certifier/acme/migrations ]
+if [ ! -L /var/www/acme2certifier/acme_srv/migrations ]
 then
     if [ -d /var/www/acme2certifier/volume/migrations ]
     then
         echo "delete migration directory" >> /proc/1/fd/1
-        rm -rf /var/www/acme2certifier/acme/migrations
+        rm -rf /var/www/acme2certifier/acme_srv/migrations
     fi
 
     echo "create symlink for migration directory" >> /proc/1/fd/1
-    ln -s /var/www/acme2certifier/volume/migrations /var/www/acme2certifier/acme/
+    ln -s /var/www/acme2certifier/volume/migrations /var/www/acme2certifier/acme_srv/
 fi
 
 # apply migrations or create a symlink for settings.py
@@ -89,11 +89,11 @@ then
     # apply migrations
     echo "apply migrations"  >> /proc/1/fd/1
     python3 /var/www/acme2certifier/tools/django_update.py
-    python3 manage.py loaddata acme/fixture/status.yaml
+    python3 manage.py loaddata acme_srv/fixture/status.yaml
 else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
     python3 /var/www/acme2certifier/tools/django_update.py
-    python3 manage.py loaddata acme/fixture/status.yaml
+    python3 manage.py loaddata acme_srv/fixture/status.yaml
 fi
 
 chown -R www-data /var/www/acme2certifier/volume
