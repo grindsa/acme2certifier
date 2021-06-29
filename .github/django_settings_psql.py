@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'acme'
+    'acme_srv'
 ]
 
 MIDDLEWARE = [
@@ -80,7 +80,7 @@ DATABASES = {
         'PASSWORD': '1mmSvDF',
         'HOST': 'postgresdbsrv',
         'PORT': '',
-    }    
+    }
 }
 
 

@@ -123,7 +123,7 @@ jobs:
         sudo mkdir -p data
         docker network create acme
         docker-compose up -d
-        docker-compose logs      
+        docker-compose logs
     - name: "[ PREPARE ] enable tls"
       run: |
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py

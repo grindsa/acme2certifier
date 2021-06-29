@@ -16,7 +16,7 @@ Including another URLconf
 # pylint: disable=C0330
 from django.conf.urls import include, url
 from django.contrib import admin
-from acme import views
+from acme_srv import views
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -24,5 +24,5 @@ urlpatterns = [
 	url(r'^directory$', views.directory, name='directory'),
 	url(r'^get_servername$', views.servername_get, name='servername_get'),
 	url(r'^trigger$', views.trigger, name='trigger'),
-    url(r'^acme/', include('acme.urls')),
+    url(r'^acme_srv/', include('acme_srv.urls')),
 ]
