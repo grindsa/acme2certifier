@@ -116,6 +116,10 @@ class Certificate(object):
             # store handler in variable
             self.cahandler = ca_handler_module.CAhandler
 
+        if 'Directory' in config_dic:            
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+                
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
 
