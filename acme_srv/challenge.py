@@ -316,7 +316,7 @@ class Challenge(object):
         (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         if not invalid:
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list)
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False)
             # make challenge validation unsuccessful
             # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
             if req:
