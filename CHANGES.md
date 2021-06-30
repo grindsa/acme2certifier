@@ -5,6 +5,18 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.17
+
+**Features**:
+
+- wsgi_db_hander: allow DB file path configuration
+- allow setting config file location via environment variable
+
+**Improvements**:
+
+- allow GET method for newnonce
+- don't verify SSL certificate during http-01 challenge validation
+
 ## Changes in 0.16
 
 **Features**:
@@ -113,7 +125,7 @@ and pick the appropriate release branch.
 - workflows for
   - code-scanning (CodeQL and Bandit)
   - ca_handler tests
-  - [phonito](https://phonito.io/) security scans
+  - phonito security scans
 
 ## Changes in 0.12.1
 

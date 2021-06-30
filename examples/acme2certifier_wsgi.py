@@ -213,14 +213,15 @@ def chall(environ, start_response):
 
 def newnonce(environ, start_response):
     """ generate a new nonce """
-    if environ['REQUEST_METHOD'] == 'HEAD':
+    if environ['REQUEST_METHOD'] in ['HEAD', 'GET']:
         nonce = Nonce(DEBUG, LOGGER)
         headers = [('Content-Type', 'text/plain'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
-        start_response('200 OK', headers)
+        status = '200 OK' if environ['REQUEST_METHOD'] == 'HEAD' else '204 No content'
+        start_response(status, headers)
         return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD.'}).encode('utf-8')]
+        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
 
 def neworders(environ, start_response):
     """ generate a new order """

@@ -120,7 +120,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
-          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          name: apache_wsgi.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   test_apache2_django:
@@ -175,7 +175,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
-          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          name: apache_django.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   nginx_wsgi:
@@ -227,7 +227,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
-          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          name: nginx_wsgi.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   test_nginx_django:
@@ -252,8 +252,8 @@ jobs:
       - name: "[ PREPARE ] nginx django container"
         run: |
           docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:nginx-django
-          docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
-          sudo chmod a+w examples/Docker/data/db.sqlite3
+          # docker exec acme-srv python3 /var/www/acme2certifier/tools/django_update.py
+          # sudo chmod a+w examples/Docker/data/db.sqlite3
 
       - name: "[ PREPARE ] prepare acme.sh container"
         run: |
@@ -282,5 +282,5 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
-          name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+          name: nginx_django.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

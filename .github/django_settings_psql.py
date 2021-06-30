@@ -80,7 +80,7 @@ DATABASES = {
         'PASSWORD': '1mmSvDF',
         'HOST': 'postgresdbsrv',
         'PORT': '',
-    }    
+    }
 }
 
 

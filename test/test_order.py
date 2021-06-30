@@ -916,7 +916,5 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn('WARNING:test_a2c:Order._config_load(): failed to parse authz validity: foo', lcm.output)
 
-
-
 if __name__ == '__main__':
     unittest.main()
