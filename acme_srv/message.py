@@ -37,6 +37,10 @@ class Message(object):
             self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
+        if 'Directory' in config_dic:            
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+
     def _name_get(self, content):
         """ get name for account """
         self.logger.debug('Message._name_get()')
