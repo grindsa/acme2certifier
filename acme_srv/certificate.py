@@ -18,7 +18,7 @@ class Certificate(object):
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
-        self.path_dic = {'cert_path' : '/acme_srv/cert/'}
+        self.path_dic = {'cert_path' : '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 

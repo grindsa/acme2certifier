@@ -64,7 +64,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test successful account add for a new account"""
         self.account.dbstore.account_add.return_value = (2, True)
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((201, 'randowm_string', None), self.account._add(content, payload, 'foo@example.com'))
 
@@ -73,19 +73,19 @@ class TestACMEHandler(unittest.TestCase):
         """ test successful account add for a new account"""
         self.account.dbstore.account_add.return_value = ('foo', False)
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((200, 'foo', None), self.account._add(content, payload, 'foo@example.com'))
 
     def test_009_account__add(self):
         """ test account add without ALG """
-        content = {'foo': 'bar', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'foo': 'bar', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protected payload'), self.account._add(content, payload, ['me@example.com']))
 
     def test_010_account__add(self):
         """ test account add without jwk """
-        content = {'alg': 'RS256', 'foo': {'foo': u'bar'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'foo': {'foo': u'bar'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protected payload'), self.account._add(content, payload, ['me@example.com']))
 
@@ -93,23 +93,23 @@ class TestACMEHandler(unittest.TestCase):
         """ test account add without contact """
         self.account.tos_check_disable = False
         self.account.contact_check_disable = False
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'incomplete protected payload'), self.account._add(content, payload, None))
 
     def test_012_account__name_get(self):
         """ test successfull get_id """
-        string = {'kid' : 'http://tester.local/acme_srv/acct/foo'}
+        string = {'kid' : 'http://tester.local/acme/acct/foo'}
         self.assertEqual('foo', self.account._name_get(string))
 
     def test_013_account__name_get(self):
         """ test failed get_id bcs of suffix """
-        string = 'http://tester.local/acme_srv/acct/bar/foo'
+        string = 'http://tester.local/acme/acct/bar/foo'
         self.assertFalse(self.account._name_get(string))
 
     def test_014_account__name_get(self):
         """ test failed get_id bcs wrong servername """
-        string = {'kid' : 'http://test.local/acme_srv/acct/foo'}
+        string = {'kid' : 'http://test.local/acme/acct/foo'}
         self.assertFalse(self.account._name_get(string))
 
     def test_015_account__name_get(self):
@@ -174,7 +174,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (201, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 201, 'data': {'contact': [u'mailto: foo@bar.com'], 'orders': 'http://tester.local/acme_srv/acct/1/orders', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 201, 'data': {'contact': [u'mailto: foo@bar.com'], 'orders': 'http://tester.local/acme/acct/1/orders', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -190,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (200, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.account.Account._onlyreturnexisting')
@@ -212,7 +212,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_existing.return_value = (200, 100, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/100', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/100', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     def test_024_account__name_get(self):
@@ -601,7 +601,7 @@ class TestACMEHandler(unittest.TestCase):
         # self.account.dbstore.account_add.return_value = (2, True)
         self.account.ecc_only = True
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((403, 'urn:ietf:params:acme:error:badPublicKey', 'Only ECC keys are supported'), self.account._add(content, payload, 'foo@example.com'))
 
@@ -611,7 +611,7 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.account_add.return_value = (2, True)
         self.account.ecc_only = True
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((201, 'randowm_string', None), self.account._add(content, payload, 'foo@example.com'))
 
@@ -621,7 +621,7 @@ class TestACMEHandler(unittest.TestCase):
         self.account.contact_check_disable = True
         self.account.dbstore.account_add.return_value = ('foo', False)
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         self.assertEqual((200, 'foo', None), self.account._add(content, payload, None))
 
@@ -631,7 +631,7 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.account_add.return_value = (2, True)
         self.account.ecc_only = True
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         self.account.eab_check = False
         payload = 'payload'
         self.assertEqual((201, 'randowm_string', None), self.account._add(content, payload, 'foo@example.com'))
@@ -642,7 +642,7 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.account_add.return_value = (2, True)
         self.account.ecc_only = True
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         self.account.eab_check = True
         payload = {'foo': 'bar'}
         self.assertEqual((201, 'randowm_string', None), self.account._add(content, payload, 'foo@example.com'))
@@ -654,7 +654,7 @@ class TestACMEHandler(unittest.TestCase):
         self.account.dbstore.account_add.return_value = (2, True)
         self.account.ecc_only = True
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'ES256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         self.account.eab_check = True
         payload = {'externalaccountbinding': {'protected': 'foo'}}
         mock_eabkid.return_value = 'eab_kid'
@@ -684,7 +684,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (200, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -700,7 +700,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (200, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -714,7 +714,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (200, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.account.Account._tos_check')
@@ -729,7 +729,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_aad.return_value = (200, 1, None)
         mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.account.Account._eab_check')
@@ -765,7 +765,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         mock_eab.return_value = (200, None, None)
         message = {'foo' : 'bar'}
-        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme_srv/acct/1', 'Replay-Nonce': 'new_nonce'}}
+        e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
     @patch('acme_srv.message.Message.check')
@@ -841,7 +841,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test account add - if dbstore.account_add raises an exception"""
         self.account.dbstore.account_add.side_effect = Exception('exc_acc_add')
         mock_name.return_value = 'randowm_string'
-        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme_srv/newaccount'}
+        content = {'alg': 'RS256', 'jwk': {'e': u'AQAB', 'kty': u'RSA', 'n': u'foo'}, 'nonce': u'bar', 'url': u'acme_srv.srv/acme/newaccount'}
         payload = 'payload'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._add(content, payload, 'foo@example.com')

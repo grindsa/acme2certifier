@@ -16,9 +16,9 @@ class Signature(object):
         cfg = load_config()
         if 'Directory' in cfg:            
             if 'url_prefix' in cfg['Directory']:
-                self.revocation_path = cfg['Directory']['url_prefix'] + '/acme_srv/revokecert' 
+                self.revocation_path = cfg['Directory']['url_prefix'] + '/acme/revokecert' 
             else:
-                self.revocation_path = '/acme_srv/revokecert' 
+                self.revocation_path = '/acme/revokecert' 
         
 
     def _jwk_load(self, kid):

@@ -1145,11 +1145,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
     def test_164_logger_info(self):
         """ logger info replace remnove cert """
         addr = 'addr'
-        url = '/acme_srv/cert/secret'
+        url = '/acme/cert/secret'
         data_dic = {'foo': 'bar', 'data': {'Replay-Nonce': 'Replay-Nonce'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.logger_info(self.logger, addr, url, data_dic)
-        self.assertIn("INFO:test_a2c:addr /acme_srv/cert/secret {'foo': 'bar', 'data': ' - certificate - '}", lcm.output)
+        self.assertIn("INFO:test_a2c:addr /acme/cert/secret {'foo': 'bar', 'data': ' - certificate - '}", lcm.output)
 
     def test_165_logger_info(self):
         """ logger info replace remove token """

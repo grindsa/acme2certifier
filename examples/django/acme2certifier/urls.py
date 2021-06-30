@@ -24,5 +24,5 @@ urlpatterns = [
 	url(r'^directory$', views.directory, name='directory'),
 	url(r'^get_servername$', views.servername_get, name='servername_get'),
 	url(r'^trigger$', views.trigger, name='trigger'),
-    url(r'^acme_srv/', include('acme_srv.urls')),
+    url(r'^acme/', include('acme_srv.urls')),
 ]

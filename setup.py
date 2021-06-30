@@ -1,7 +1,6 @@
 """ build script for acme2certifier """
 from setuptools import setup
 from glob import glob
-# exec(open('acme_srv/version.py').read())
 from acme_srv.version import __version__
 setup(name='acme2certifier',
       version=__version__,
@@ -19,9 +18,9 @@ setup(name='acme2certifier',
                   ('/var/lib/acme2certifier/examples/db_handler', glob('examples/db_handler/*.py')),
                   ('/var/lib/acme2certifier/examples/django', glob('examples/django/*.py')),
                   ('/var/lib/acme2certifier/examples/django/acme2certifier', glob('examples/django/acme2certifier/*.py')),
-                  ('/var/lib/acme2certifier/examples/django/acme', glob('examples/django/acme_srv/*.py')),
-                  ('/var/lib/acme2certifier/examples/django/acme_srv/fixture', glob('examples/django/acme_srv/fixture/*')),
-                  ('/var/lib/acme2certifier/examples/django/acme_srv/migrations', glob('examples/django/acme_srv/migrations/*.py')),
+                  ('/var/lib/acme2certifier/examples/django/acme', glob('examples/django/acme/*.py')),
+                  ('/var/lib/acme2certifier/examples/django/acme/fixture', glob('examples/django/acme/fixture/*')),
+                  ('/var/lib/acme2certifier/examples/django/acme/migrations', glob('examples/django/acme/migrations/*.py')),
                   ('/var/lib/acme2certifier/examples/nginx', glob('examples/nginx/*')),
                   ('/var/lib/acme2certifier/examples/trigger', glob('examples/trigger/*')),
                   ('/var/lib/acme2certifier/tools', glob('tools/*.py')),
