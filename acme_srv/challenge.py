@@ -16,7 +16,7 @@ class Challenge(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {'chall_path' : '/acme_srv/chall/', 'authz_path' : '/acme_srv/authz/'}
+        self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.tnauthlist_support = False

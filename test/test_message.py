@@ -180,12 +180,12 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_015_message__name_get(self):
         """ test Message.name_get() with wrong kid in content"""
-        protected = {'kid' : 'http://tester.local/acme_srv/account/account_name'}
+        protected = {'kid' : 'http://tester.local/acme/account/account_name'}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_016_message__name_get(self):
         """ test Message.name_get() with correct kid in content"""
-        protected = {'kid' : 'http://tester.local/acme_srv/acct/account_name'}
+        protected = {'kid' : 'http://tester.local/acme/acct/account_name'}
         self.assertEqual('account_name', self.message._name_get(protected))
 
     def test_017_message__name_get(self):
@@ -200,30 +200,30 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_019_message__name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' in content but no 'n' in jwk """
-        protected = {'jwk' : 'jwk', 'url' : 'http://tester.local/acme_srv/revokecert'}
+        protected = {'jwk' : 'jwk', 'url' : 'http://tester.local/acme/revokecert'}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_020_message__name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' but account lookup failed """
-        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme_srv/revokecert'}
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_021_message__name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
-        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme_srv/revokecert'}
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'bar' : 'foo'}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_022_message__name_get(self):
         """ test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
-        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme_srv/revokecert'}
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.return_value = {'name' : 'foo'}
         self.assertEqual('foo', self.message._name_get(protected))
 
     def test_023_message__name_get(self):
         """ test Message.name_get() - dbstore.account_lookup raises an exception """
-        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme_srv/revokecert'}
+        protected = {'jwk' : {'n' : 'n'}, 'url' : 'http://tester.local/acme/revokecert'}
         self.message.dbstore.account_lookup.side_effect = Exception('exc_mess__name_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.message._name_get(protected)

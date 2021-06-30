@@ -107,7 +107,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth': {u'type': u'dns', u'value': u'acme_srv.nclm-samba.local'}}, 'expires')
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {'Location': 'http://tester.local/acme_srv/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{u'type': u'dns', u'value': u'acme_srv.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme_srv/authz/foo_auth'], 'finalize': 'http://tester.local/acme_srv/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+        self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{u'type': u'dns', u'value': u'acme_srv.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
@@ -119,9 +119,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
         if sys.version_info[0] < 3:
-            self.assertEqual({'header': {'Location': 'http://tester.local/acme_srv/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme2.nclm-samba.local'}, {'type': 'dns', 'value': 'acme1.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme_srv/authz/foo_auth2', 'http://tester.local/acme_srv/authz/foo_auth1'], 'finalize': 'http://tester.local/acme_srv/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+            self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme2.nclm-samba.local'}, {'type': 'dns', 'value': 'acme1.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth2', 'http://tester.local/acme/authz/foo_auth1'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
         else:
-            self.assertEqual({'header': {'Location': 'http://tester.local/acme_srv/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme1.nclm-samba.local'}, {'type': 'dns', 'value': 'acme2.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme_srv/authz/foo_auth1', 'http://tester.local/acme_srv/authz/foo_auth2'], 'finalize': 'http://tester.local/acme_srv/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+            self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme1.nclm-samba.local'}, {'type': 'dns', 'value': 'acme2.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth1', 'http://tester.local/acme/authz/foo_auth2'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
@@ -132,7 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         mock_orderadd.return_value = (None, 'foo_order', {}, 'expires')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {'Location': 'http://tester.local/acme_srv/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme_srv/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+        self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
     @patch('acme_srv.order.Order._info')
     def test_010_order__lookup(self, mock_oinfo):
@@ -152,21 +152,21 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup with wrong hash and correct authorization hash"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
-        self.assertEqual({'authorizations': ['http://tester.local/acme_srv/authz/name']}, self.order._lookup('foo'))
+        self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name']}, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
     def test_013_order__lookup(self, mock_oinfo):
         """ test order lookup with wrong hash and authorization hash having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status_key' : 'status_value'}
-        self.assertEqual({'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2']}, self.order._lookup('foo'))
+        self.assertEqual({'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
     def test_014_order__lookup(self, mock_oinfo):
         """ test order lookup status in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value'}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2']}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2']}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -174,7 +174,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -182,7 +182,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore (0) in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -190,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (0) in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 0, 'notafter' : 0}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z'}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -198,7 +198,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid) in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -206,7 +206,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup status, expires, notbefore and notafter (valid), identifier, in dict and authorization dict having multiple entries"""
         self.order.dbstore.authorization_lookup.return_value = [{'name' : 'name', 'identifier_key' : 'identifier_value'}, {'name' : 'name2', 'identifier_key' : 'identifier_value2'}]
         mock_oinfo.return_value = {'status' : 'status_value', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifier': '"{"foo" : "bar"}"'}
-        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme_srv/authz/name', 'http://tester.local/acme_srv/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
+        e_result = {'status': 'status_value', 'authorizations': ['http://tester.local/acme/authz/name', 'http://tester.local/acme/authz/name2'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z',}
         self.assertEqual(e_result, self.order._lookup('foo'))
 
     @patch('acme_srv.order.Order._info')
@@ -241,7 +241,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup correct identifier for oder info status - pending order-update """
         self.order.dbstore.authorization_lookup.return_value = [{'name': 'name', 'status__name': 'valid'}]
         mock_oinfo.return_value = {'status' : 'pending', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifiers': '{"foo": "bar"}'}
-        e_result = {'status': 'pending', 'authorizations': ['http://tester.local/acme_srv/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
+        e_result = {'status': 'pending', 'authorizations': ['http://tester.local/acme/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
         self.assertEqual(e_result, self.order._lookup('foo'))
         self.assertTrue(mock_update.called)
 
@@ -251,7 +251,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup correct identifier for oder info status - pending order-update """
         self.order.dbstore.authorization_lookup.return_value = [{'name': 'name', 'status__name': 'valid'}]
         mock_oinfo.return_value = {'status' : 'notpending', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifiers': '{"foo": "bar"}'}
-        e_result = {'status': 'notpending', 'authorizations': ['http://tester.local/acme_srv/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
+        e_result = {'status': 'notpending', 'authorizations': ['http://tester.local/acme/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
         self.assertEqual(e_result, self.order._lookup('foo'))
         self.assertFalse(mock_update.called)
 
@@ -261,7 +261,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test order lookup correct identifier for oder info status - invalid statusname """
         self.order.dbstore.authorization_lookup.return_value = [{'name': 'name', 'status__name': 'invalid'}]
         mock_oinfo.return_value = {'status' : 'pending', 'expires' : 1543640400, 'notbefore' : 1543640400, 'notafter' : 1543640400, 'identifiers': '{"foo": "bar"}'}
-        e_result = {'status': 'pending', 'authorizations': ['http://tester.local/acme_srv/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
+        e_result = {'status': 'pending', 'authorizations': ['http://tester.local/acme/authz/name'], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z', 'identifiers': {'foo': 'bar'}}
         self.assertEqual(e_result, self.order._lookup('foo'))
         self.assertFalse(mock_update.called)
 
@@ -307,23 +307,23 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_030_order__name_get(self):
         """ Order.name_get() http"""
-        self.assertEqual('foo', self.order._name_get('http://tester.local/acme_srv/order/foo'))
+        self.assertEqual('foo', self.order._name_get('http://tester.local/acme/order/foo'))
 
     def test_031_order__name_get(self):
         """ Order.name_get() http with further path (finalize)"""
-        self.assertEqual('foo', self.order._name_get('http://tester.local/acme_srv/order/foo/bar'))
+        self.assertEqual('foo', self.order._name_get('http://tester.local/acme/order/foo/bar'))
 
     def test_032_order__name_get(self):
         """ Order.name_get() http with parameters"""
-        self.assertEqual('foo', self.order._name_get('http://tester.local/acme_srv/order/foo?bar'))
+        self.assertEqual('foo', self.order._name_get('http://tester.local/acme/order/foo?bar'))
 
     def test_033_order__name_get(self):
         """ Order.name_get() http with key/value parameters"""
-        self.assertEqual('foo', self.order._name_get('http://tester.local/acme_srv/order/foo?key=value'))
+        self.assertEqual('foo', self.order._name_get('http://tester.local/acme/order/foo?key=value'))
 
     def test_034_order__name_get(self):
         """ Order.name_get() https with key/value parameters"""
-        self.assertEqual('foo', self.order._name_get('https://tester.local/acme_srv/order/foo?key=value'))
+        self.assertEqual('foo', self.order._name_get('https://tester.local/acme/order/foo?key=value'))
 
     @patch('acme_srv.message.Message.check')
     def test_035_order_parse(self, mock_mcheck):
@@ -385,7 +385,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', None)
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
@@ -400,7 +400,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'certificate': 'http://tester.local/acme_srv/cert/certname', 'foo': 'bar', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'certificate': 'http://tester.local/acme/cert/certname', 'foo': 'bar', 'status': 'valid'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
@@ -415,7 +415,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
@@ -430,7 +430,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'foo': 'bar', 'status': 'foobar'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'foobar'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce'}}, self.order.parse(message))
 
     def test_044_order__identifiers_check(self):
         """ order identifers check with empty identifer list"""
@@ -607,7 +607,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '600'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '600'}}, self.order.parse(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
@@ -623,7 +623,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_process.return_value = (200, 'message', 'detail', 'certname')
         mock_nnonce.return_value = 'nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme_srv/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme_srv/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '60'}}, self.order.parse(message))
+        self.assertEqual({'code': 200, 'data': {'finalize': 'http://tester.local/acme/order/foo/finalize', 'foo': 'bar', 'status': 'processing'}, 'header': {'Location': 'http://tester.local/acme/order/foo', 'Replay-Nonce': 'nonce', 'Retry-After': '60'}}, self.order.parse(message))
 
     def test_071_order_invalidate(self):
         """ test Order.invalidate() empty order list """

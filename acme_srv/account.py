@@ -17,7 +17,7 @@ class Account(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {'acct_path' : '/acme_srv/acct/'}
+        self.path_dic = {'acct_path' : '/acme/acct/'}
         self.ecc_only = False
         self.contact_check_disable = False
         self.tos_check_disable = False

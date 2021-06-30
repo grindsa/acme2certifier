@@ -20,7 +20,7 @@ class Order(object):
         self.validity = 86400
         self.authz_validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme_srv/authz/', 'order_path' : '/acme_srv/order/', 'cert_path' : '/acme_srv/cert/'}
+        self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 
