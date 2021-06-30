@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ Signature class """
 from __future__ import print_function
-from acme_srv.helper import signature_check
+from acme_srv.helper import signature_check, load_config
 from acme_srv.db_handler import DBstore
 
 class Signature(object):
@@ -13,7 +13,13 @@ class Signature(object):
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
-        self.revocation_path = '/acme_srv/revokecert'
+        cfg = load_config()
+        if 'Directory' in cfg:            
+            if 'url_prefix' in cfg['Directory']:
+                self.revocation_path = cfg['Directory']['url_prefix'] + '/acme_srv/revokecert' 
+            else:
+                self.revocation_path = '/acme_srv/revokecert' 
+        
 
     def _jwk_load(self, kid):
         """ get key for a specific account id """
