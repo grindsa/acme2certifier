@@ -209,7 +209,7 @@ class CAhandler(object):
                     self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
             if 'api_password' in config_dic['CAhandler']:
                 if self.credential_dic['api_password']:
-                    self.logger.info('CAhandler._config_load() overwrite api_password')                
+                    self.logger.info('CAhandler._config_load() overwrite api_password')
                 self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
