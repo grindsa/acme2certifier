@@ -36,12 +36,12 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
-        output_dic = {'newNonce': 'http://tester.local/acme_srv/newnonce'}
+        output_dic = {'newNonce': 'http://tester.local/acme/newnonce'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_003_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
-        output_dic = {'newAccount': 'http://tester.local/acme_srv/newaccount'}
+        output_dic = {'newAccount': 'http://tester.local/acme/newaccount'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_004_directory_directory_get(self):

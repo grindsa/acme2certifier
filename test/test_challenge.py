@@ -35,14 +35,14 @@ class TestACMEHandler(unittest.TestCase):
         """ test challenge generation """
         mock_random.return_value = 'foo'
         # self.order.dbstore.challenge_new.return_value = 1
-        self.assertEqual({'url': 'http://tester.local/acme_srv/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge._new('authz_name', 'mtype', 'token'))
+        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'mtype'}, self.challenge._new('authz_name', 'mtype', 'token'))
 
     @patch('acme_srv.challenge.generate_random_string')
     def test_002_challenge__new(self, mock_random):
         """ test challenge generation for tnauthlist challenge """
         mock_random.return_value = 'foo'
         # self.order.dbstore.challenge_new.return_value = 1
-        self.assertEqual({'url': 'http://tester.local/acme_srv/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge._new('authz_name', 'tkauth-01', 'token'))
+        self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'token': 'token', 'type': 'tkauth-01', 'tkauth-type': 'atc'}, self.challenge._new('authz_name', 'tkauth-01', 'token'))
 
     @patch('acme_srv.challenge.Challenge._new')
     def test_003_challenge_new_set(self, mock_challenge):
@@ -150,7 +150,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cinfo.return_value = {'challenge_foo' : 'challenge_bar'}
         mock_tnauth.return_value = (200, 'foo', 'bar')
         mock_nnonce.return_value = 'new_nonce'
-        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme_srv/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
@@ -165,7 +165,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cinfo.return_value = {'challenge_foo' : 'challenge_bar'}
         mock_tnauth.return_value = (200, 'foo', 'bar')
         mock_nnonce.return_value = 'new_nonce'
-        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme_srv/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 200, 'header': {'Link': '<http://tester.local/acme/authz/>;rel="up"', 'Replay-Nonce': 'new_nonce'}, 'data': {'challenge_foo': 'challenge_bar', 'url': 'bar'}}, self.challenge.parse('content'))
 
     def test_019_challenge__validate_tnauthlist_payload(self):
         """ Challenge.validate_tnauthlist_payload with empty challenge_dic """

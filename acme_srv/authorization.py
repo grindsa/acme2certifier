@@ -21,7 +21,7 @@ class Authorization(object):
         self.nonce = Nonce(debug, self.logger)
         self.validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme_srv/authz/'}
+        self.path_dic = {'authz_path' : '/acme/authz/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """

@@ -18,7 +18,7 @@ class Message(object):
         self.nonce = Nonce(self.debug, self.logger)
         self.dbstore = DBstore(self.debug, self.logger)
         self.server_name = srv_name
-        self.path_dic = {'acct_path' : '/acme_srv/acct/', 'revocation_path' : '/acme_srv/revokecert'}
+        self.path_dic = {'acct_path' : '/acme/acct/', 'revocation_path' : '/acme/revokecert'}
         self.disable_dic = {'signature_check_disable' : False, 'nonce_check_disable' : False}
         self._config_load()
 
