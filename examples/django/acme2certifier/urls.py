@@ -17,12 +17,23 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 from acme_srv import views
+from acme_srv.helper import load_config
+
+# load config to set url_prefix
+CONFIG = load_config()
+
+if 'Directory' in CONFIG and 'url_prefix' in CONFIG['Directory']:
+    prefix = CONFIG['Directory']['url_prefix'] + '/'
+    if prefix.startswith('/'):
+        prefix = prefix.lstrip('/')
+else:
+    prefix = ''
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', views.directory, name='index'),
-	url(r'^directory$', views.directory, name='directory'),
-	url(r'^get_servername$', views.servername_get, name='servername_get'),
-	url(r'^trigger$', views.trigger, name='trigger'),
-    url(r'^acme/', include('acme_srv.urls')),
+	url(r'^{0}directory$'.format(prefix), views.directory, name='directory'),
+	url(r'^{0}get_servername$'.format(prefix), views.servername_get, name='servername_get'),
+	url(r'^{0}trigger$'.format(prefix), views.trigger, name='trigger'),
+    url(r'^{0}acme/'.format(prefix), include('acme_srv.urls')),
 ]
