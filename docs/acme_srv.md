@@ -19,6 +19,7 @@
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|
 | `Directory` | `supress_version` | Do not show version information when fetching the directory resource | True/False | False|
 | `Directory` | `tos_url` | Terms of Service URL | URL | None|
+| `Directory` | `url_prefix` | url prefix for acme2certifier ressources | '/foo' | None|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
 | `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURTIY ISSUE bypassing security checks and allowing message manipulations during transit. Please enable for testing/debugging purposes only. | True/False | False|
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURTIY ISSUE as it exposes the API for replay attacks! Should be enabled for testing/debugging purposes only. | True/False | False|

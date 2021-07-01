@@ -28,6 +28,8 @@ jobs:
         sudo echo "" >> data/acme_srv.cfg
         sudo echo "[DBhandler]" >> data/acme_srv.cfg
         sudo echo "dbfile: volume/a2c.db" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         docker-compose up -d
         docker-compose logs
 
@@ -97,6 +99,8 @@ jobs:
         sudo echo "" >> data/acme_srv.cfg
         sudo echo "[DBhandler]" >> data/acme_srv.cfg
         sudo echo "dbfile: volume/a2c.db" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg        
         docker-compose up -d
         docker-compose logs
         sleep 5
