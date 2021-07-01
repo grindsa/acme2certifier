@@ -54,6 +54,10 @@ jobs:
         sudo cp .github/django_settings_mariadb.py examples/Docker/data/settings.py
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         cd examples/Docker/
+        sudo chmod 777 data/acme_srv.cfg
+        sudo echo "" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         docker-compose restart
         docker-compose logs
 
@@ -150,6 +154,10 @@ jobs:
         sudo cp .github/django_settings_psql.py examples/Docker/data/settings.py
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         cd examples/Docker/
+        sudo chmod 777 data/acme_srv.cfg
+        sudo echo "" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         docker-compose restart
         docker-compose logs
 
