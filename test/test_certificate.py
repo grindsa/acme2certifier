@@ -1121,8 +1121,18 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate._config_load()
         self.assertTrue(self.certificate.cahandler)
 
+    @patch('acme_srv.certificate.load_config')
+    def test_139_config_load(self, mock_load_cfg):
+        """ test _config_load missing ca_handler """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertFalse(self.certificate.tnauthlist_support)
+        self.assertEqual({'cert_path': 'url_prefix/acme/cert/'}, self.certificate.path_dic)
+
     @patch('acme_srv.certificate.cert_san_get')
-    def test_139_certificate__authorization_check(self, mock_san):
+    def test_140_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1133,7 +1143,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.certificate.Certificate._identifer_status_list')
     @patch('acme_srv.certificate.cert_san_get')
-    def test_140_certificate__authorization_check(self, mock_san, mock_statlist):
+    def test_141_certificate__authorization_check(self, mock_san, mock_statlist):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1145,7 +1155,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     @patch('acme_srv.certificate.cert_extensions_get')
-    def test_141_certificate__authorization_check(self, mock_certext, mock_tnin):
+    def test_142_certificate__authorization_check(self, mock_certext, mock_tnin):
         """ test Certificate.authorization_check cert_extensions_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1159,7 +1169,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
     @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     @patch('acme_srv.certificate.cert_extensions_get')
-    def test_142_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
+    def test_143_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
         """ test Certificate.authorization_check _identifer_tnauth_list raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1172,13 +1182,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: tnauth_in_exc', lcm.output)
 
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_143_dates_update(self, mock_search):
+    def test_144_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'foo': 'bar'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()
 
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_144_dates_update(self, mock_search):
+    def test_145_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()

@@ -916,5 +916,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn('WARNING:test_a2c:Order._config_load(): failed to parse authz validity: foo', lcm.output)
 
+    @patch('acme_srv.order.load_config')
+    def test_101_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'url_prefix': 'url_prefix'}
+        mock_load_cfg.return_value = parser
+        self.order._config_load()
+        self.assertFalse(self.order.tnauthlist_support)
+        self.assertEqual({'authz_path': 'url_prefix/acme/authz/', 'cert_path': 'url_prefix/acme/cert/', 'order_path': 'url_prefix/acme/order/'}, self.order.path_dic)
+
 if __name__ == '__main__':
     unittest.main()
