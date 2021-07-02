@@ -20,7 +20,7 @@ RUN apt-get install --no-install-recommends -y \
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt && pip3 install django_rename_app
 
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
