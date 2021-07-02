@@ -94,8 +94,6 @@ class Authorization(object):
                 except BaseException:
                     self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
         if 'Directory' in config_dic:
-            if 'tos_url' in config_dic['Directory']:
-                self.tos_url = config_dic['Directory']['tos_url']
             if 'url_prefix' in config_dic['Directory']:
                 self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')

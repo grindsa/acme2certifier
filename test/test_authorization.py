@@ -264,12 +264,25 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.authorization.validity )
         self.assertIn('WARNING:test_a2c:Authorization._config_load(): failed to parse validity: foo', lcm.output)
 
+    @patch('acme_srv.authorization.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'url_prefix': 'url_prefix'}
+        mock_load_cfg.return_value = parser
+        self.authorization._config_load()
+        self.assertFalse(self.authorization.expiry_check_disable)
+        self.assertEqual(86400, self.authorization.validity )
+        self.assertEqual({'authz_path': 'url_prefix/acme/authz/'}, self.authorization.path_dic)
+
     @patch('acme_srv.authorization.Authorization._authz_info')
-    def test_025_new_get(self, mock_info):
+    def test_026_new_get(self, mock_info):
         """ new get """
         mock_info.return_value = 'foo'
         result = {'code': 200, 'data': 'foo', 'header': {}}
         self.assertEqual(result, self.authorization.new_get('url'))
+
+
 
 if __name__ == '__main__':
     unittest.main()

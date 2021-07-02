@@ -4,6 +4,7 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
+import configparser
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, '.')
@@ -129,6 +130,14 @@ class TestACMEHandler(unittest.TestCase):
         mock_sigchk.return_value = (False, 'error')
         self.assertEqual((False, None), self.signature.eab_check(content, mac_key))
 
+    @patch('acme_srv.signature.load_config')
+    def test_016__init(self, mock_load_cfg):
+        """ test _config_load account with url prefix without tailing slash configured """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
+        mock_load_cfg.return_value = parser
+        self.signature.__init__()
+        self.assertEqual('url_prefix/acme/revokecert', self.signature.revocation_path )
 
 if __name__ == '__main__':
     unittest.main()
