@@ -52,7 +52,7 @@ then
     echo "no settings.py found! copy settings.py"  >> /proc/1/fd/1
     egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/acme2certifier/settings.py > /var/www/acme2certifier/volume/settings.py
     ## generate SECRET_KEY
-    echo "generating SECRET_KEY"
+    echo "generating SECRET_KEY" >> /proc/1/fd/1
     DJANGO_SECRET_KEY=`python3 tools/django_secret_keygen.py`
     cat >>/var/www/acme2certifier/volume/settings.py <<EOF
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -84,17 +84,24 @@ then
 fi
 
 # apply migrations or create a symlink for settings.py
-if [ -L /var/www/acme2certifier/acme2certifier/settings.py ]
+if [ ! -L /var/www/acme2certifier/acme2certifier/settings.py ]
 then
-    # apply migrations
-    echo "apply migrations"  >> /proc/1/fd/1
-    python3 /var/www/acme2certifier/tools/django_update.py
-    python3 manage.py loaddata acme_srv/fixture/status.yaml
-else
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
-    python3 /var/www/acme2certifier/tools/django_update.py
-    python3 manage.py loaddata acme_srv/fixture/status.yaml
 fi
+
+# check if we need to rename the app
+if !( grep "    'acme_srv'" /var/www/acme2certifier/volume/settings.py &> /dev/null)
+then
+    echo "rename django application" >> /proc/1/fd/1
+    sed -i "s/    'acme'/    'django_rename_app',\n    'acme_srv'/g" /var/www/acme2certifier/volume/settings.py
+    rm -rf /var/www/acme2certifier/volume/migrations/*
+    cp  -R /var/www/acme2certifier/examples/django/acme_srv/migrations /var/www/acme2certifier/volume/
+    python3 manage.py rename_app acme acme_srv
+fi
+
+echo "apply migrations"  >> /proc/1/fd/1
+python3 /var/www/acme2certifier/tools/django_update.py
+python3 manage.py loaddata acme_srv/fixture/status.yaml
 
 chown -R www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/
