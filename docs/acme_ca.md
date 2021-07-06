@@ -6,7 +6,7 @@ The ACME CA handler is a very simple ca-handler performing signing and revocatio
 
 This only works (and makes any sense) if the back-end ACME endpoint does not issue any challenges, for example commercial services with pre-authenticated domains. The purpose is to provide ACME access across an organization without sharing the commercial endpoint account's private key, replacing it with standard ACME challenges.
 
-Functionality of the handler will be extended across the next acme2certifer releases.
+Functionality of the handler will be extended in the next acme2certifer releases.
 
 ## Configuration
 
