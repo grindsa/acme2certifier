@@ -27,7 +27,6 @@ acme_keyfile: /path/to/privkey.json
 - acme_account: acme account id
 - acme_keyfile: path to private key in json format (example below)
 
-
 ```json
 {"e": "AQAB",
  "d": "rL9Rf88G8Jg5zg1PKT1XBDwSIMYZrjld1mpZo-RE3qLBreusf8C6_rr_MIMTV7vneJT-AOPzSJHhELeA-9A2p5458KreekqWkXmFiP7L5gAUPdiZWkDxraOzoyqQdaidxaresxd7aaWH4BENbFimhfcCT453SX7GLSF9W_RKlgWfnE-yYGpT2Wq__Rkn2zOSZ5RvSOjI_Y5dIDBi8fBS-L5p6-5MhDcjyeDH8uUko8xLZZo2T_PGzY2oWu4xrC7iPBSN6fcAlHPyFvi1GqmC1_Flniy4aRooAgOq0fwIgLuVpmZpA5KSaEGRkrIx95eR-GjwgQ",
