@@ -14,7 +14,7 @@ import textwrap
 
 Only works with ACME endpoints that do not issue any challenge.
 
-Config file section: 
+Config file section:
 
 [CAhandler]
 # CA specific options
@@ -31,7 +31,7 @@ class CAhandler(object):
     def __init__(self, _debug=None, logger=None):
         self.logger = logger
         self.url = None
-        self.keyfile = None        
+        self.keyfile = None
         self.account = None
 
     def __enter__(self):
@@ -49,10 +49,9 @@ class CAhandler(object):
         config_dic = load_config()
         self.keyfile = config_dic['CAhandler']['acme_keyfile']
         self.url = config_dic['CAhandler']['acme_url']
-        self.account = config_dic['CAhandler']['acme_account']        
+        self.account = config_dic['CAhandler']['acme_account']
         self.logger.debug('CAhandler._config_load() ended')
     
-
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -68,7 +67,7 @@ class CAhandler(object):
         try:
             self.logger.debug('CAhandler.enroll() opening key')
             with open(self.keyfile, "r") as keyf:
-                key = josepy.JWKRSA.json_loads(keyf.read())            
+                key = josepy.JWKRSA.json_loads(keyf.read())
 
             net = client.ClientNetwork(key)
             directory = messages.Directory.from_json(net.get(self.url).json())
@@ -78,7 +77,7 @@ class CAhandler(object):
             self.logger.debug('CAhandler.enroll() checking remote registration status')
             regr = acmeclient.query_registration(regr)
 
-            if regr.body.status != "valid":                
+            if regr.body.status != "valid":
                 raise Exception("Bad ACME account: " + str(regr.body.error))
 
             self.logger.debug('CAhandler.enroll() issuing signing order')
@@ -94,7 +93,7 @@ class CAhandler(object):
             self.logger.debug('CAhandler.enroll() successful')
             cert_bundle = str(order.fullchain_pem)
             cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
-            
+
         except Exception as e:
             self.logger.error(str(e))
             error = str(e)
@@ -112,7 +111,7 @@ class CAhandler(object):
         error = "Not implemented"
         cert_bundle = None
         cert_raw = None
-        rejected = False        
+        rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
@@ -131,7 +130,7 @@ class CAhandler(object):
         try:
             self.logger.debug('CAhandler.revoke() opening key')
             with open(self.keyfile, "r") as keyf:
-                key = josepy.JWKRSA.json_loads(keyf.read())            
+                key = josepy.JWKRSA.json_loads(keyf.read())
 
             net = client.ClientNetwork(key)
             directory = messages.Directory.from_json(net.get(self.url).json())
@@ -141,14 +140,14 @@ class CAhandler(object):
             self.logger.debug('CAhandler.revoke() checking remote registration status')
             regr = acmeclient.query_registration(regr)
 
-            if regr.body.status != "valid":                
+            if regr.body.status != "valid":
                 raise Exception("Bad ACME account: " + str(regr.body.error))
 
             self.logger.debug('CAhandler.revoke() issuing revocation order')
             acmeclient.revoke(cert, 1)
             self.logger.debug('CAhandler.revoke() successfull')
 
-            
+
         except Exception as e:
             self.logger.error(str(e))
             code = 500
