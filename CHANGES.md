@@ -7,6 +7,12 @@ and pick the appropriate release branch.
 
 ## Changes in 0.17
 
+**Upgrade notes**:
+
+- database scheme gets updated. Please:
+  - backup your database before upgrading to the new version
+  - read the [upgrade instructions](docs/upgrading.md) if you are running acme2certifer in an django environment
+
 **Features**:
 
 - CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
@@ -15,6 +21,7 @@ and pick the appropriate release branch.
 
 **Improvements**:
 
+- `acme` module has been renamed to `acme_srv` to avoid naming clashes with [acme-python](https://acme-python.readthedocs.io/en/stable/)
 - allow GET method for newnonce
 - don't verify SSL certificate during http-01 challenge validation
 
