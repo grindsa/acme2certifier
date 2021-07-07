@@ -27,6 +27,11 @@ if ( [ ! -f /var/www/acme2certifier/volume/ca_handler.py ] && \
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
     cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
+else
+    if [ -f /var/www/acme2certifier/volume/ca_handler.py ]
+    then
+        sed -i "s/from acme.helper import/from acme_srv.helper import/g" /var/www/acme2certifier/volume/ca_handler.py
+    fi
 fi
 
 # create symlink for the acme_srv.cfg
