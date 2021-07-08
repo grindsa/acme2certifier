@@ -1,8 +1,7 @@
 """ build script for acme2certifier """
 from setuptools import setup
 from glob import glob
-# exec(open('acme/version.py').read())
-from acme.version import __version__
+from acme_srv.version import __version__
 setup(name='acme2certifier',
       version=__version__,
       description='ACMEv2 server',
@@ -13,7 +12,7 @@ setup(name='acme2certifier',
       # packages=['docs', 'acme', 'examples'],
       include_package_data = True,
       data_files=[('/usr/share/doc/acme2certifier/', glob('docs/*')),
-                  ('/var/lib/acme2certifier/acme/', glob('acme/*.py')),
+                  ('/var/lib/acme2certifier/acme_srv/', glob('acme_srv/*.py')),
                   ('/var/lib/acme2certifier/examples', glob('examples/*.*')),
                   ('/var/lib/acme2certifier/examples/ca_handler', glob('examples/ca_handler/*.py')),
                   ('/var/lib/acme2certifier/examples/db_handler', glob('examples/db_handler/*.py')),

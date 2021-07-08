@@ -19,35 +19,35 @@ root@rlh:~# openssl req -x509 -new -extensions v3_ca -newkey rsa:4096 -keyout ca
 - copy the ca_handler into the acme directory
 
 ```bash
-root@rlh:~# cp example/ca_handlers/openssl_ca_handler.py acme/ca_handler.py
+root@rlh:~# cp example/ca_handlers/openssl_ca_handler.py acme_srv/ca_handler.py
 ```
 
 - create a directory to store the (ca) certificate(s), key and CRL(s)
 
 ```bash
-root@rlh:~# mkdir acme/ca
-root@rlh:~# mkdir acme/ca/certs
+root@rlh:~# mkdir acme_srv/ca
+root@rlh:~# mkdir acme_srv/ca/certs
 ```
 
 - place the above generated key and cert into the "ca" directory
 
 ```bash
-root@rlh:~# mv ca-key.pem acme/ca/
-root@rlh:~# mv ca-cert.pem acme/ca/
+root@rlh:~# mv ca-key.pem acme_srv/ca/
+root@rlh:~# mv ca-cert.pem acme_srv/ca/
 ```
 
-- modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
+- modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
 
 ```config
 [CAhandler]
-issuing_ca_key: acme/ca/ca-key.pem
+issuing_ca_key: acme_srv/ca/ca-key.pem
 issuing_ca_key_passphrase: Test1234
-issuing_ca_cert: acme/ca/ca-cert.pem
-issuing_ca_crl: acme/ca/crl.pem
+issuing_ca_cert: acme_srv/ca/ca-cert.pem
+issuing_ca_crl: acme_srv/ca/crl.pem
 cert_validity_days: 30
-cert_save_path: acme/ca/certs
+cert_save_path: acme_srv/ca/certs
 ca_cert_chain_list: []
-openssl_conf: acme/ca/openssl.conf
+openssl_conf: acme_srv/ca/openssl.conf
 whitelist: ["foo.bar\\$", "foo1.bar.local"]
 blacklist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
 save_cert_as_hex: True

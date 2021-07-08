@@ -5,6 +5,27 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.17
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please:
+  - backup your database before upgrading to the new version
+  - read the [upgrade instructions](docs/upgrading.md) if you are running acme2certifer in an django environment
+
+**Features**:
+
+- [Generic ACME protocol handler](docs/acme_ca.md)
+- CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
+- wsgi_db_handler: allow DB file path configuration
+- allow setting config file location via environment variable
+
+**Improvements**:
+
+- `acme` module has been renamed to `acme_srv` to avoid naming clashes with [acme-python](https://acme-python.readthedocs.io/en/stable/)
+- allow GET method for newnonce
+- don't verify SSL certificate during http-01 challenge validation
+
 ## Changes in 0.16
 
 **Features**:

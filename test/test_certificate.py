@@ -23,18 +23,18 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         models_mock = MagicMock()
-        models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
-        modules = {'acme.db_handler': models_mock}
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {'acme_srv.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from acme.account import Account
-        from acme.certificate import Certificate
+        from acme_srv.account import Account
+        from acme_srv.certificate import Certificate
         self.account = Account(False, 'http://tester.local', self.logger)
         self.certificate = Certificate(False, 'http://tester.local', self.logger)
 
-    @patch('acme.certificate.generate_random_string')
+    @patch('acme_srv.certificate.generate_random_string')
     def test_001_certificate_store_csr(self, mock_name):
         """ test Certificate.store_csr() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'foo'
@@ -58,57 +58,57 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_lookup.return_value = 'foo'
         self.assertEqual('foo', self.certificate._info('cert_name'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_005_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without certificate"""
         mock_info.return_value = {}
         self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_006_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without unknown order_status_id"""
         mock_info.return_value = {'order__status_id': 'foo'}
         self.assertEqual({'code': 403, 'data': 'urn:ietf:params:acme:error:orderNotReady'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_007_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 4 (processing)"""
         mock_info.return_value = {'order__status_id': 4}
         self.assertEqual({'code': 403, 'data': 'urn:ietf:params:acme:error:rateLimited', 'header': {'Retry-After': '600'}}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_008_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) but no certificate in"""
         mock_info.return_value = {'order__status_id': 5}
         self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_009_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) and empty certificate field"""
         mock_info.return_value = {'order__status_id': 5, 'cert': None}
         self.assertEqual({'code': 500, 'data': 'urn:ietf:params:acme:error:serverInternal'}, self.certificate.new_get('url'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_010_certificate_new_get(self, mock_info):
         """ test Certificate.new_get() without order_status_id 5 (valid) but no certificate in"""
         mock_info.return_value = {'order__status_id': 5, 'cert': 'foo-bar'}
         self.assertEqual({'code': 200, 'data': 'foo-bar', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_011_certificate_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data':  json.dumps({'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'detail'})}, self.certificate.new_post('content'))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_012_certificate_new_post(self, mock_mcheck):
         """ test Certificate.new_post() message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
         self.assertEqual({'code': 400, 'header': {}, 'data': json.dumps({'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'url missing in protected header'})}, self.certificate.new_post('content'))
 
-    @patch('acme.message.Message.prepare_response')
-    @patch('acme.certificate.Certificate.new_get')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.prepare_response')
+    @patch('acme_srv.certificate.Certificate.new_get')
+    @patch('acme_srv.message.Message.check')
     def test_013_certificate_new_post(self, mock_mcheck, mock_certget, mock_response):
         """ test Certificate.new_post() message check returns ok  """
         mock_mcheck.return_value = (200, None, None, {'url' : 'example.com'}, 'payload', 'account_name')
@@ -126,77 +126,77 @@ class TestACMEHandler(unittest.TestCase):
         rev_reason = 8
         self.assertFalse(self.certificate._revocation_reason_check(rev_reason))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_016_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans but failed order lookup"""
         self.certificate.dbstore.order_lookup.return_value = {}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_017_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order returning wrong values (no 'identifiers' key) """
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_018_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with some sans and order lookup returning identifiers without json structure) """
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_019_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check  with wrong sans) """
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
         mock_san.return_value = ['san1.example.com', 'san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_020_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with SAN entry which is not in the identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_021_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with single SAN entry and correct entry in identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_022_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with multiple SAN entries and correct entries in identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com', 'DNS:san2.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_023_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with one SAN entry and multiple entries in identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:san1.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_024_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with uppercase SAN entries and lowercase entries in identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "dns", "value": "san1.example.com"}, {"type": "dns", "value": "san2.example.com"}]'}
         mock_san.return_value = ['DNS:SAN1.EXAMPLE.COM', 'DNS:SAN2.EXAMPLE.COM']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_025_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lowercase SAN entries and uppercase entries in identifier list"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"TYPE": "DNS", "VALUE": "SAN1.EXAMPLE.COM"}, {"TYPE": "DNS", "VALUE": "SAN2.EXAMPLE.COM"}]'}
         mock_san.return_value = ['dns:san1.example.com', 'dns:san2.example.com']
         self.assertTrue(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
+    @patch('acme_srv.certificate.cert_san_get')
     def test_026_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check with lSAN entries (return none) and entries in identifier containing None"""
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : '[{"type": "None", "value": "None"}]'}
@@ -208,23 +208,23 @@ class TestACMEHandler(unittest.TestCase):
         payload = {}
         self.assertEqual((400, 'unspecified'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate._revocation_reason_check')
+    @patch('acme_srv.certificate.Certificate._revocation_reason_check')
     def test_028_certificate__revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns None"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = False
         self.assertEqual((400, 'urn:ietf:params:acme:error:badRevocationReason'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate._revocation_reason_check')
+    @patch('acme_srv.certificate.Certificate._revocation_reason_check')
     def test_029_certificate__revocation_request_validate(self, mock_revrcheck):
         """ test Certificate.revocation_request_validate reason_check returns a reason"""
         payload = {'reason' : 0}
         mock_revrcheck.return_value = 'revrcheck'
         self.assertEqual((400, 'revrcheck'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate._authorization_check')
-    @patch('acme.certificate.Certificate._account_check')
-    @patch('acme.certificate.Certificate._revocation_reason_check')
+    @patch('acme_srv.certificate.Certificate._authorization_check')
+    @patch('acme_srv.certificate.Certificate._account_check')
+    @patch('acme_srv.certificate.Certificate._revocation_reason_check')
     def test_030_certificate__revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check failed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
@@ -233,9 +233,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_authz.return_value = False
         self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.certificate.Certificate._authorization_check')
-    @patch('acme.certificate.Certificate._account_check')
-    @patch('acme.certificate.Certificate._revocation_reason_check')
+    @patch('acme_srv.certificate.Certificate._authorization_check')
+    @patch('acme_srv.certificate.Certificate._account_check')
+    @patch('acme_srv.certificate.Certificate._revocation_reason_check')
     def test_031_certificate__revocation_request_validate(self, mock_revrcheck, mock_account, mock_authz):
         """ test Certificate.revocation_request_validate authz_check succeed"""
         payload = {'reason' : 0, 'certificate': 'certificate'}
@@ -244,29 +244,29 @@ class TestACMEHandler(unittest.TestCase):
         mock_authz.return_value = True
         self.assertEqual((200, 'revrcheck'), self.certificate._revocation_request_validate('account_name', payload))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_032_certificate_revoke(self, mock_mcheck):
         """ test Certificate.revoke with failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'message', 'detail': 'detail'}}, self.certificate.revoke('content'))
 
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.message.Message.check')
     def test_033_certificate_revoke(self, mock_mcheck):
         """ test Certificate.revoke with incorrect payload """
         mock_mcheck.return_value = (200, 'message', 'detail', None, {}, 'account_name')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'certificate not found'}}, self.certificate.revoke('content'))
 
-    @patch('acme.certificate.Certificate._revocation_request_validate')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.certificate.Certificate._revocation_request_validate')
+    @patch('acme_srv.message.Message.check')
     def test_034_certificate_revoke(self, mock_mcheck, mock_validate):
         """ test Certificate.revoke with failed request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (400, 'error')
         self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'error'}}, self.certificate.revoke('content'))
 
-    @patch('acme.nonce.Nonce.generate_and_add')
-    @patch('acme.certificate.Certificate._revocation_request_validate')
-    @patch('acme.message.Message.check')
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
+    @patch('acme_srv.certificate.Certificate._revocation_request_validate')
+    @patch('acme_srv.message.Message.check')
     def test_035_certificate_revoke(self, mock_mcheck, mock_validate, mock_nnonce):
         """ test Certificate.revoke with sucessful request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
@@ -461,35 +461,35 @@ class TestACMEHandler(unittest.TestCase):
         tnauthlist = 'foo'
         self.assertEqual([True, False], self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_069_certificate__csr_check(self, mock_certinfo):
         """ csr-check certname lookup failed """
         mock_certinfo.return_value = {}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_070_certificate__csr_check(self, mock_certinfo):
         """ csr-check order lookup failed """
         mock_certinfo.return_value = {'order': 'order'}
         self.certificate.dbstore.order_lookup.return_value = {}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_071_certificate__csr_check(self, mock_certinfo):
         """ csr-check order lookup returns rubbish """
         mock_certinfo.return_value = {'order': 'order'}
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_072_certificate__csr_check(self, mock_certinfo):
         """ csr-check order lookup returns an identifier """
         mock_certinfo.return_value = {'order': 'order'}
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_073_certificate__csr_check(self, mock_certinfo, mock_tnauthin):
         """ csr-check no tnauth """
         mock_certinfo.return_value = {'order': 'order'}
@@ -497,10 +497,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_074_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check no tnauth  status true """
         mock_certinfo.return_value = {'order': 'order'}
@@ -510,10 +510,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertTrue(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_075_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check no tnauth  status False """
         mock_certinfo.return_value = {'order': 'order'}
@@ -523,10 +523,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_076_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check no tnauth  status True, False """
         mock_certinfo.return_value = {'order': 'order'}
@@ -536,10 +536,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_077_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check no tnauth  status True, False, True """
         mock_certinfo.return_value = {'order': 'order'}
@@ -549,10 +549,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_san_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_078_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support off  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -562,10 +562,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_079_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support on and returns true  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -576,10 +576,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertTrue(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_080_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support on and returns true  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -590,10 +590,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_081_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support on and returns True, False  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -604,10 +604,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_082_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support on and returns True, False  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -618,10 +618,10 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._csr_check('cert_name', 'csr'))
 
-    @patch('acme.certificate.csr_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.csr_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_083_certificate__csr_check(self, mock_certinfo, mock_tnauthin, mock_status, mock_san):
         """ csr-check tnauth  but tnauthlist_support on and returns True, False  """
         mock_certinfo.return_value = {'order': 'order'}
@@ -649,16 +649,16 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('order_name', 'cert'))
 
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_087_certificate__authorization_check(self, mock_tnauthin):
         """ _authorization_check no tnauth """
         mock_tnauthin.return_value = False
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_088_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check no tnauth  status true """
         mock_san.return_value = ['foo']
@@ -667,9 +667,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_089_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check no tnauth  status true """
         mock_san.return_value = ['foo']
@@ -678,9 +678,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_090_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check no tnauth  status False """
         mock_san.return_value = ['foo']
@@ -689,9 +689,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_091_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check no tnauth  status True, False """
         mock_san.return_value = ['foo']
@@ -700,9 +700,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_092_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check no tnauth  status True, False, True """
         mock_san.return_value = ['foo']
@@ -711,9 +711,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_san_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_san_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_093_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check tnauth  but tnauthlist_support off  """
         mock_san.return_value = ['foo']
@@ -722,9 +722,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_094_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check tnauth  but tnauthlist_support on and returns true  """
         mock_san.return_value = ['foo']
@@ -734,9 +734,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertTrue(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_095_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check tnauth  but tnauthlist_support on and returns true  """
         mock_san.return_value = ['foo']
@@ -746,9 +746,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_096_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check tnauth  but tnauthlist_support on and returns True, False  """
         mock_san.return_value = ['foo']
@@ -758,9 +758,9 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.cert_extensions_get')
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     def test_097_certificate__authorization_check(self, mock_tnauthin, mock_status, mock_san):
         """ _authorization_check tnauth  but tnauthlist_support on and returns True, False  """
         mock_san.return_value = ['foo']
@@ -770,7 +770,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {'foo': 'bar', 'identifiers': 'bar'}
         self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
 
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_098_certificate_enroll_and_store(self, mock_csr):
         """ Certificate.enroll_and_store() csr_check failed """
         mock_csr.return_value = False
@@ -778,8 +778,8 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         self.assertEqual(('urn:ietf:params:acme:badCSR', 'CSR validation failed'), self.certificate.enroll_and_store(certificate_name, csr))
 
-    @patch('acme.certificate.Certificate._store_cert_error')
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_099_certificate_enroll_and_store(self, mock_csr, mock_store):
         """ Certificate.enroll_and_store() enrollment failed without polling_identifier """
         mock_csr.return_value = True
@@ -791,8 +791,8 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         self.assertEqual(('urn:ietf:params:acme:error:serverInternal', None), self.certificate.enroll_and_store(certificate_name, csr))
 
-    @patch('acme.certificate.Certificate._store_cert_error')
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_100_certificate_enroll_and_store(self, mock_csr, mock_store):
         """ Certificate.enroll_and_store() enrollment with polling_identifier"""
         mock_csr.return_value = True
@@ -804,9 +804,9 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         self.assertEqual(('error', 'poll_identifier'), self.certificate.enroll_and_store(certificate_name, csr))
 
-    @patch('acme.certificate.cert_dates_get')
-    @patch('acme.certificate.Certificate._store_cert')
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_101_certificate_enroll_and_store(self, mock_csr, mock_store, mock_dates):
         """ Certificate.enroll_and_store() enrollment with polling_identifier"""
         mock_csr.return_value = True
@@ -819,9 +819,9 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         self.assertEqual((None, None), self.certificate.enroll_and_store(certificate_name, csr))
 
-    @patch('acme.certificate.cert_dates_get')
-    @patch('acme.certificate.Certificate._store_cert')
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_102_certificate_enroll_and_store(self, mock_csr, mock_store, mock_dates):
         """ Certificate.enroll_and_store() enrollment with polling_identifier"""
         mock_csr.return_value = True
@@ -836,9 +836,9 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, None), self.certificate.enroll_and_store(certificate_name, csr))
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.enroll_and_store(): ex_cert_store', lcm.output)
 
-    @patch('acme.certificate.cert_dates_get')
-    @patch('acme.certificate.Certificate._store_cert_error')
-    @patch('acme.certificate.Certificate._csr_check')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    @patch('acme_srv.certificate.Certificate._csr_check')
     def test_103_certificate_enroll_and_store(self, mock_csr, mock_store, mock_dates):
         """ Certificate.enroll_and_store() enrollment with polling_identifier"""
         mock_csr.return_value = True
@@ -889,7 +889,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.cert_dates_get')
     def test_110_certificate__invalidation_check(self, mock_dates):
         """ test Certificate._invalidation_check() - with expiry date lower than timestamp """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
@@ -897,7 +897,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((True, {'expire_uts': 1596200000, 'issue_uts': 10, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.cert_dates_get')
     def test_111_certificate__invalidation_check(self, mock_dates):
         """ test Certificate._invalidation_check() - with expiry date at timestamp """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
@@ -905,7 +905,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'cert_raw': 'cert_raw'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.cert_dates_get')
     def test_112_certificate__invalidation_check(self, mock_dates):
         """ test Certificate._invalidation_check() - with expiry date higher than timestamp """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'cert_raw': 'cert_raw'}
@@ -919,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.date_to_uts_utc')
+    @patch('acme_srv.certificate.date_to_uts_utc')
     def test_114_certificate__invalidation_check(self, mock_date):
         """ test Certificate._invalidation_check() - with zero created_at date """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
@@ -927,7 +927,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((False, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.date_to_uts_utc')
+    @patch('acme_srv.certificate.date_to_uts_utc')
     def test_115_certificate__invalidation_check(self, mock_date):
         """ test Certificate._invalidation_check() - with zero created_at date lower than threshold"""
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
@@ -935,7 +935,7 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 1596240000
         self.assertEqual((True, {'expire_uts': 0, 'name': 'certname', 'csr': 'csr', 'created_at': 'created_at'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
-    @patch('acme.certificate.date_to_uts_utc')
+    @patch('acme_srv.certificate.date_to_uts_utc')
     def test_116_certificate__invalidation_check(self, mock_date):
         """ test Certificate._invalidation_check() - with zero created_at higher than threshold """
         cert_entry = {'name': 'certname', 'expire_uts': 0, 'csr': 'csr', 'created_at': 'created_at'}
@@ -1015,7 +1015,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._authorization_check('order_name', 'cert')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._authorization_check(): exc_authz_chk', lcm.output)
 
-    @patch('acme.certificate.Certificate._info')
+    @patch('acme_srv.certificate.Certificate._info')
     def test_127_certificate__csr_check(self, mock_certinfo):
         """ csr-check - dbstore.order_lookup() raises an exception """
         mock_certinfo.return_value = {'order': 'order'}
@@ -1032,7 +1032,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._info('cert_name')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._info(): exc_cert_info', lcm.output)
 
-    @patch('acme.certificate.Certificate._invalidation_check')
+    @patch('acme_srv.certificate.Certificate._invalidation_check')
     def test_129_certificate_cleanup(self, mock_chk):
         """ test Certificate.cleanup - dbstore.certificate_add() raises an exception  """
         mock_chk.return_value = (True, {'name': 'name', 'expire_uts': 1543640400, 'issue_uts': 1543640400, 'cert_raw': 'cert_raw'})
@@ -1042,7 +1042,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.cleanup(1543640400)
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() add: exc_cert_cleanup1', lcm.output)
 
-    @patch('acme.certificate.Certificate._invalidation_check')
+    @patch('acme_srv.certificate.Certificate._invalidation_check')
     def test_130_certificate_cleanup(self, mock_chk):
         """ test Certificate.cleanup - dbstore.certificate_delete() raises an exception  """
         mock_chk.return_value = (True, {'id': 2, 'name': 'name', 'expire_uts': 1543640400, 'issue_uts': 1543640400, 'cert_raw': 'cert_raw'})
@@ -1066,14 +1066,14 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.certlist_search('type', 'value')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search', lcm.output)
 
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_133_config_load(self, mock_load_cfg):
         """ test _config_load empty dictionary """
         mock_load_cfg.return_value = {}
         self.certificate._config_load()
         self.assertFalse(self.certificate.tnauthlist_support)
 
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_134_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         mock_load_cfg.return_value = {}
@@ -1081,7 +1081,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._config_load()
         self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
 
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_135_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
@@ -1090,7 +1090,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate._config_load()
         self.assertFalse(self.certificate.tnauthlist_support)
 
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_136_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
@@ -1099,7 +1099,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate._config_load()
         self.assertTrue(self.certificate.tnauthlist_support)
 
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_137_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
@@ -1108,10 +1108,10 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
         self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: No module named 'foo'", lcm.output)
-        # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default EABHandler failed with err: No module named 'acme.ca_handler'", lcm.output)
+        # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default EABHandler failed with err: No module named 'acme_srv.ca_handler'", lcm.output)
 
     @patch('importlib.import_module')
-    @patch('acme.certificate.load_config')
+    @patch('acme_srv.certificate.load_config')
     def test_138_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
@@ -1121,8 +1121,18 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate._config_load()
         self.assertTrue(self.certificate.cahandler)
 
-    @patch('acme.certificate.cert_san_get')
-    def test_139_certificate__authorization_check(self, mock_san):
+    @patch('acme_srv.certificate.load_config')
+    def test_139_config_load(self, mock_load_cfg):
+        """ test _config_load missing ca_handler """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertFalse(self.certificate.tnauthlist_support)
+        self.assertEqual({'cert_path': 'url_prefix/acme/cert/'}, self.certificate.path_dic)
+
+    @patch('acme_srv.certificate.cert_san_get')
+    def test_140_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1131,9 +1141,9 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_san_get', lcm.output)
 
-    @patch('acme.certificate.Certificate._identifer_status_list')
-    @patch('acme.certificate.cert_san_get')
-    def test_140_certificate__authorization_check(self, mock_san, mock_statlist):
+    @patch('acme_srv.certificate.Certificate._identifer_status_list')
+    @patch('acme_srv.certificate.cert_san_get')
+    def test_141_certificate__authorization_check(self, mock_san, mock_statlist):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1143,9 +1153,9 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: idstat_exc', lcm.output)
 
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.cert_extensions_get')
-    def test_141_certificate__authorization_check(self, mock_certext, mock_tnin):
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    def test_142_certificate__authorization_check(self, mock_certext, mock_tnin):
         """ test Certificate.authorization_check cert_extensions_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1156,10 +1166,10 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_ext_get', lcm.output)
 
-    @patch('acme.certificate.Certificate._identifer_tnauth_list')
-    @patch('acme.certificate.Certificate._tnauth_identifier_check')
-    @patch('acme.certificate.cert_extensions_get')
-    def test_142_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
+    @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
+    @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
+    @patch('acme_srv.certificate.cert_extensions_get')
+    def test_143_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
         """ test Certificate.authorization_check _identifer_tnauth_list raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1171,14 +1181,14 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.certificate._authorization_check('cert_name', 'cert'))
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: tnauth_in_exc', lcm.output)
 
-    @patch('acme.certificate.Certificate.certlist_search')
-    def test_143_dates_update(self, mock_search):
+    @patch('acme_srv.certificate.Certificate.certlist_search')
+    def test_144_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'foo': 'bar'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()
 
-    @patch('acme.certificate.Certificate.certlist_search')
-    def test_144_dates_update(self, mock_search):
+    @patch('acme_srv.certificate.Certificate.certlist_search')
+    def test_145_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()

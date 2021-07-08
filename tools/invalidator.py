@@ -5,8 +5,8 @@ import sys
 sys.path.insert(0, '..')
 sys.path.insert(1, '.')
 import time
-from acme.helper import logger_setup, uts_to_date_utc
-from acme.housekeeping import Housekeeping
+from acme_srv.helper import logger_setup, uts_to_date_utc
+from acme_srv.housekeeping import Housekeeping
 
 
 if __name__ == '__main__':

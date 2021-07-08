@@ -17,16 +17,16 @@ You need to have a ready-made xca database with CA certificate and keys imported
 - copy the ca_handler into the acme directory
 
 ```bash
-root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme/ca_handler.py
+root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
 ```
 
 - place the XCA database into a directory which is accessible by acme2certifier.
 
-- modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
+- modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
 
 ```config
 [CAhandler]
-xdb_file: acme/xca/acme2certifier.xdb
+xdb_file: acme_srv/xca/acme2certifier.xdb
 issuing_ca_name: sub-ca
 issuing_ca_key: sub-ca-key
 passphrase_variable: XCA_PASSPHRASE

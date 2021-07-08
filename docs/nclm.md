@@ -16,7 +16,7 @@
 root@rlh:~# cp example\nclm_ca_handler.py acme\ca_handler.py
 ```
 
-- modify the server configuration (/acme/acme_srv.cfg) and add the following parameters
+- modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
 
 ```config
 [CAhandler]
