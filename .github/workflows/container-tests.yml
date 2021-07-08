@@ -44,6 +44,22 @@ jobs:
     - name: "[ ENROLL ] register via https"
       run: |
         docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+    - name: "[ PREPARE ] test ca_handler_migration"
+      run: |
+        sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
+        cd examples/Docker/
+        docker-compose restart
+        head -n 13 data/ca_handler.py
+        docker-compose logs
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "[ ENROLL ] enroll certificate to verify handler migration"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
@@ -96,6 +112,22 @@ jobs:
     - name: "[ ENROLL ] register via https"
       run: |
         docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+    - name: "[ PREPARE ] test ca_handler_migration"
+      run: |
+        sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
+        cd examples/Docker/
+        docker-compose restart
+        head -n 13 data/ca_handler.py
+        docker-compose logs
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "[ ENROLL ] enroll certificate to verify handler migration"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
@@ -148,6 +180,22 @@ jobs:
     - name: "[ ENROLL ] register via https"
       run: |
         docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+    - name: "[ PREPARE ] test ca_handler_migration"
+      run: |
+        sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
+        cd examples/Docker/
+        docker-compose restart
+        head -n 13 data/ca_handler.py
+        docker-compose logs
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "[ ENROLL ] enroll certificate to verify handler migration"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
@@ -201,6 +249,22 @@ jobs:
     - name: "[ ENROLL ] register via https"
       run: |
         docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+    - name: "[ PREPARE ] test ca_handler_migration"
+      run: |
+        sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
+        cd examples/Docker/
+        docker-compose restart
+        head -n 13 data/ca_handler.py        
+        docker-compose logs
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "[ ENROLL ] enroll certificate to verify handler migration"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
