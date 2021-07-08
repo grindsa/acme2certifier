@@ -3,7 +3,7 @@
 """ Nonce class """
 from __future__ import print_function
 import uuid
-from acme.db_handler import DBstore
+from acme_srv.db_handler import DBstore
 
 class Nonce(object):
     """ Nonce handler """

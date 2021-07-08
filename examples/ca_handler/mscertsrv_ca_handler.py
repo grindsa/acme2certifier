@@ -9,7 +9,7 @@ from OpenSSL.crypto import _lib, _ffi, X509
 # pylint: disable=E0401
 from certsrv import Certsrv
 # pylint: disable=E0401
-from acme.helper import load_config, b64_url_recode, convert_byte_to_string
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string
 
 def _get_certificates(self):
     """

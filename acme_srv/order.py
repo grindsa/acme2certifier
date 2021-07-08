@@ -3,10 +3,10 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
-from acme.certificate import Certificate
-from acme.db_handler import DBstore
-from acme.message import Message
+from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
+from acme_srv.certificate import Certificate
+from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
 
 class Order(object):
     """ class for order handling """
@@ -115,6 +115,10 @@ class Order(object):
                     self.authz_validity = int(config_dic['Authorization']['validity'])
                 except BaseException:
                     self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
+
+        if 'Directory' in config_dic:            
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
         self.logger.debug('Order._config_load() ended.')
 

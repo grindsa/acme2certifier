@@ -3,11 +3,11 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-from acme.helper import decode_message, load_config
-from acme.error import Error
-from acme.db_handler import DBstore
-from acme.nonce import Nonce
-from acme.signature import Signature
+from acme_srv.helper import decode_message, load_config
+from acme_srv.error import Error
+from acme_srv.db_handler import DBstore
+from acme_srv.nonce import Nonce
+from acme_srv.signature import Signature
 
 class Message(object):
     """ Message  handler """
@@ -36,6 +36,10 @@ class Message(object):
         if 'Nonce' in config_dic:
             self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
+
+        if 'Directory' in config_dic:            
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
     def _name_get(self, content):
         """ get name for account """

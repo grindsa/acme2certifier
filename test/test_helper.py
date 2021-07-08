@@ -1,8 +1,9 @@
-#!/usr/bin/python
+7#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ unittests for account.py """
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+import configparser
 import sys
 import datetime
 import socket
@@ -23,12 +24,12 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         models_mock = MagicMock()
-        models_mock.acme.db_handler.DBstore.return_value = FakeDBStore
-        modules = {'acme.db_handler': models_mock}
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {'acme_srv.db_handler': models_mock}
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -708,26 +709,26 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         data_dic = {'HTTP_HOST': 'http_host'}
         self.assertEqual('http://http_host', self.get_url(data_dic, True))
 
-    @patch('acme.helper.requests.get')
+    @patch('acme_srv.helper.requests.get')
     def test_091_helper_url_get(self, mock_request):
         """ successful url get without dns servers """
         mock_request.return_value.text = 'foo'
         self.assertEqual('foo', self.url_get(self.logger, 'url'))
 
-    @patch('acme.helper.requests.get')
+    @patch('acme_srv.helper.requests.get')
     def test_092_helper_url_get(self, mock_request):
         """ unsuccessful url get without dns servers """
         # this is stupid but triggrs an expeption
         mock_request.return_value = {'foo': 'foo'}
         self.assertEqual(None, self.url_get(self.logger, 'url'))
 
-    @patch('acme.helper.url_get_with_own_dns')
+    @patch('acme_srv.helper.url_get_with_own_dns')
     def test_093_helper_url_get(self, mock_request):
         """ successful url get with dns servers """
         mock_request.return_value = 'foo'
         self.assertEqual('foo', self.url_get(self.logger, 'url', 'dns'))
 
-    @patch('acme.helper.requests.get', side_effect=Mock(side_effect=Exception('foo')))
+    @patch('acme_srv.helper.requests.get', side_effect=Mock(side_effect=Exception('foo')))
     def test_094_helper_url_get(self, mock_request):
         """ unsuccessful url_get """
         # mock_request.return_value.text = 'foo'
@@ -735,7 +736,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.assertFalse(self.url_get(self.logger, 'url'))
         self.assertIn('ERROR:test_a2c:url_get error: foo', lcm.output)
 
-    @patch('acme.helper.requests.get')
+    @patch('acme_srv.helper.requests.get')
     def test_095_helper_url_get(self, mock_request):
         """ unsuccessful url_get fallback to v4"""
         object = Mock()
@@ -743,43 +744,43 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_request.side_effect=[Exception('foo'), object]
         self.assertEqual('foo', self.url_get(self.logger, 'url'))
 
-    @patch('acme.helper.requests.get')
+    @patch('acme_srv.helper.requests.get')
     def test_096_helper_url_get_with_own_dns(self, mock_request):
         """ successful url_get_with_own_dns get with dns servers """
         mock_request.return_value.text = 'foo'
         self.assertEqual('foo', self.url_get_with_own_dns(self.logger, 'url'))
 
-    @patch('acme.helper.requests.get')
+    @patch('acme_srv.helper.requests.get')
     def test_097_helper_url_get_with_own_dns(self, mock_request):
         """ successful url_get_with_own_dns get with dns servers """
         mock_request.return_value = {'foo': 'foo'}
         self.assertEqual(None, self.url_get_with_own_dns(self.logger, 'url'))
 
-    @patch('acme.helper.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_098_helper_dns_server_list_load(self, mock_load_config):
         """ successful dns_server_list_load with empty config file """
         mock_load_config.return_value = {}
         self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
 
-    @patch('acme.helper.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_099_helper_dns_server_list_load(self, mock_load_config):
         """ successful dns_server_list_load with empty Challenge section """
         mock_load_config.return_value = {'Challenge': {}}
         self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
 
-    @patch('acme.helper.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_100_helper_dns_server_list_load(self, mock_load_config):
         """ successful dns_server_list_load with wrong Challenge section """
         mock_load_config.return_value = {'Challenge': {'foo': 'bar'}}
         self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
 
-    @patch('acme.helper.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_101_helper_dns_server_list_load(self, mock_load_config):
         """ successful dns_server_list_load with wrong json format """
         mock_load_config.return_value = {'Challenge': {'dns_server_list': 'bar'}}
         self.assertEqual(['9.9.9.9', '8.8.8.8'], self.dns_server_list_load())
 
-    @patch('acme.helper.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_102_helper_dns_server_list_load(self, mock_load_config):
         """ successful dns_server_list_load with wrong json format """
         mock_load_config.return_value = {'Challenge': {'dns_server_list': '["foo", "bar"]'}}
@@ -1254,6 +1255,12 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.txt_get(self.logger, 'foo'))
         self.assertIn('ERROR:test_a2c:txt_get() error: mock_resolve', lcm.output)
+
+    #@patch('configparser.RawConfigParser')
+    #def test_190_load_config(self, mock_cfg):
+    #    """ test load config """
+    #    mock_cfg =  configparser.ConfigParser()
+    #    self.assertTrue(self.load_config())
 
 if __name__ == '__main__':
     unittest.main()

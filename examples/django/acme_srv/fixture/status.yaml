@@ -1,36 +1,36 @@
--   model: acme.status
+-   model: acme_srv.status
     pk: 1
     fields:
         name: invalid
--   model: acme.status
+-   model: acme_srv.status
     pk: 2
     fields:
         name: pending
--   model: acme.status
+-   model: acme_srv.status
     pk: 3
     fields:
         name: ready
--   model: acme.status
+-   model: acme_srv.status
     pk: 4
     fields:
         name: processing
--   model: acme.status
+-   model: acme_srv.status
     pk: 5
     fields:
         name: valid
--   model: acme.status
+-   model: acme_srv.status
     pk: 6
     fields:
         name: expired
--   model: acme.status
+-   model: acme_srv.status
     pk: 7
     fields:
         name: deactivated
--   model: acme.status
+-   model: acme_srv.status
     pk: 8
     fields:
         name: revoked
--   model: acme.housekeeping
+-   model: acme_srv.housekeeping
     pk: 1
     fields:
         name: dbversion

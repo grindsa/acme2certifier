@@ -4,10 +4,10 @@
 from __future__ import print_function
 import json
 import importlib
-from acme.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get, b64decode_pad
-from acme.db_handler import DBstore
-from acme.message import Message
-from acme.signature import Signature
+from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get, b64decode_pad
+from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
+from acme_srv.signature import Signature
 
 class Account(object):
     """ ACME server class """
@@ -425,7 +425,7 @@ class Account(object):
                 except BaseException as err_:
                     self.logger.critical('Account._config_load(): loading EABHandler configured in cfg failed with err: {0}'.format(err_))
                     try:
-                        eab_handler_module = importlib.import_module('acme.eab_handler')
+                        eab_handler_module = importlib.import_module('acme_srv.eab_handler')
                     except BaseException as err_:
                         eab_handler_module = None
                         self.logger.critical('Account._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
@@ -439,6 +439,8 @@ class Account(object):
         if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Account._config_load() ended')
 
 

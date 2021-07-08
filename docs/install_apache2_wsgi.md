@@ -36,16 +36,16 @@ root@rlh:~# a2ensite acme2certifier_ssl.conf
 
 7. create a directory /var/www/acme2certifier
 8. copy the file acme2certifier_wsgi.py to /var/www/acme2certifier
-9. create a directory /var/www/acme2certifier/acme
-10. copy the content of the acme -directory to /var/www/acme2certifier/acme
+9. create a directory /var/www/acme2certifier/acme_srv
+10. copy the content of the acme -directory to /var/www/acme2certifier/acme_srv
 11. create a configuration file 'acme_srv.cfg' in /var/www/acme2certfier/acme or use the example stored in the example directory
 12. modify the [configuration file](acme_srv.md) according to you needs
-13. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme/acme/ca_handler.py
+13. pick the correct ca handler from the examples/ca_handler directory and copy it to /var/www/acme2certifier/acme_srv/ca_handler.py
 14. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
 15. activate the wsgi database handler
 
 ```bash
-root@rlh:~# cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme/acme2certfier/db_handler.py
+root@rlh:~# cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme_srv/acme2certfier/db_handler.py
 ```
 
 16. ensure that the all files and directories under /var/www/acme2certifier are owned by the user running the webserver (www-data is just an example!)
@@ -57,14 +57,14 @@ root@rlh:~# chown -R www-data.www-data /var/www/acme2certifier/
 17. set correct permissions to acme subdirectory
 
 ```bash
-root@rlh:~# chmod a+x /var/www/acme2certifier/acme
+root@rlh:~# chmod a+x /var/www/acme2certifier/acme_srv
 ```
 
 18. Check access to the directory resource to verify that everything works so far
 
 ```bash
 [root@srv ~]# curl http://127.0.0.1/directory
-{"newAccount": "http://127.0.0.1/acme/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme/key-change", "newNonce": "http://127.0.0.1/acme/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme/neworders", "revokeCert": "http://127.0.0.1/acme/revokecert"}[root@srv ~]#
+{"newAccount": "http://127.0.0.1/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme_srv/key-change", "newNonce": "http://127.0.0.1/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme_srv/neworders", "revokeCert": "http://127.0.0.1/acme_srv/revokecert"}[root@srv ~]#
 ```
 
 Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](acme_srv.md) in acme2certifier for further investigation.
