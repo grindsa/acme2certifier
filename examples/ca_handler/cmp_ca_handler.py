@@ -6,7 +6,7 @@ import os
 import time
 import subprocess
 # pylint: disable=E0401
-from acme.helper import load_config, csr_dn_get, csr_pubkey_get, csr_san_get
+from acme_srv.helper import load_config, csr_dn_get, csr_pubkey_get, csr_san_get
 
 class CAhandler(object):
     """ EST CA  handler """

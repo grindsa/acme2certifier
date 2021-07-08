@@ -5,8 +5,8 @@ import sys
 sys.path.insert(0, '..')
 sys.path.insert(1, '.')
 import time
-from acme.helper import logger_setup, uts_to_date_utc
-from acme.housekeeping import Housekeeping
+from acme_srv.helper import logger_setup, uts_to_date_utc
+from acme_srv.housekeeping import Housekeeping
 
 
 if __name__ == '__main__':
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # this is just for testing
     # from shutil import copyfile
     # copyfile('db.sqlite3.old', 'db.sqlite3')
-    # copyfile('acme/acme_srv.db.old', 'acme/acme_srv.db')
+    # copyfile('acme_srv/acme_srv.db.old', 'acme_srv/acme_srv.db')
 
     with Housekeeping(DEBUG, LOGGER) as housekeeping:
 

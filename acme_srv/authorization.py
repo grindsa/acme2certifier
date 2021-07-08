@@ -3,11 +3,11 @@
 """ Order class """
 from __future__ import print_function
 import json
-from acme.db_handler import DBstore
-from acme.challenge import Challenge
-from acme.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
-from acme.message import Message
-from acme.nonce import Nonce
+from acme_srv.db_handler import DBstore
+from acme_srv.challenge import Challenge
+from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
+from acme_srv.message import Message
+from acme_srv.nonce import Nonce
 
 class Authorization(object):
     """ class for order handling """
@@ -93,6 +93,9 @@ class Authorization(object):
                     self.validity = int(config_dic['Authorization']['validity'])
                 except BaseException:
                     self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
+        if 'Directory' in config_dic:
+            if 'url_prefix' in config_dic['Directory']:
+                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp=None):

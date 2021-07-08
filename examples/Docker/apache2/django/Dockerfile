@@ -20,7 +20,7 @@ RUN apt-get install --no-install-recommends -y \
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt && pip3 install django_rename_app
 
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
@@ -37,9 +37,9 @@ COPY examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 COPY examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 COPY examples/acme_srv.cfg /var/www/acme2certifier/examples/
 COPY examples/apache_django_ssl.conf /var/www/acme2certifier/examples/
-COPY acme/ /var/www/acme2certifier/acme
+COPY acme_srv/ /var/www/acme2certifier/acme_srv
 COPY tools/ /var/www/acme2certifier/tools
-COPY examples/db_handler/django_handler.py /var/www/acme2certifier/acme/db_handler.py
+COPY examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 RUN chown -R www-data:www-data /var/www/acme2certifier/
 RUN rm /var/www/acme2certifier/acme2certifier/settings.py
 

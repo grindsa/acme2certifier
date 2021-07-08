@@ -3,11 +3,11 @@
 # pylint: disable=E0401, C0413
 import sys
 sys.path.insert(0, '..')
-from acme.db_handler import initialize
+from acme_srv.db_handler import initialize
 initialize()
 
-from acme.helper import logger_setup
-from acme.certificate import Certificate
+from acme_srv.helper import logger_setup
+from acme_srv.certificate import Certificate
 
 if __name__ == '__main__':
 
