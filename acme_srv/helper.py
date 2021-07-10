@@ -587,6 +587,25 @@ def patched_create_connection(address, *args, **kwargs):
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
+def proxy_check(logger, fqdn, proxy_server_list):
+    """ check proxy server """
+    logger.debug('proxy_check({0})'.format(fqdn))
+    fqdn_list = list(proxy_server_list.keys())
+
+    proxy = None
+    for regex in sorted(proxy_server_list.keys(), reverse=True):
+        if regex.startswith('*.'):
+            regex_compiled = re.compile(regex.replace('*.', ''))
+        else:
+            regex_compiled = re.compile(regex)
+        if bool(regex_compiled.search(fqdn)):
+            # parameter is in - set flag accordingly and stop loop
+            proxy = proxy_server_list[regex]
+            logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
+            break
+    logger.debug('proxy_check() ended with {0}'.format(proxy))
+    return proxy
+
 def url_get_with_own_dns(logger, url):
     """ request by using an own dns resolver """
     logger.debug('url_get_with_own_dns({0})'.format(url))
