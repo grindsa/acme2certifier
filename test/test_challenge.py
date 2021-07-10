@@ -660,7 +660,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.side_effect = Exception('exc_mock_json')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.challenge._config_load()
-        self.assertIn('WARNING:test_a2c:Challenge._config_load() failed with error: exc_mock_json', lcm.output)
+        self.assertIn('WARNING:test_a2c:Challenge._config_load() dns_server_list failed with error: exc_mock_json', lcm.output)
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
@@ -677,20 +677,57 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.dns_server_list)
         self.assertEqual({'authz_path': 'url_prefix//acme/authz/','chall_path': 'url_prefix//acme/chall/'}, self.challenge.path_dic)
 
-    def test_076__name_get(self):
+    @patch('acme_srv.challenge.load_config')
+    def test_076_config_load(self, mock_load_cfg):
+        """ test _config_load one DNS """
+        parser = configparser.ConfigParser()
+        parser['DEFAULT'] = {'proxy_server_list': '{"key1.bar.local": "val1.bar.local"}'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertEqual({'key1.bar.local': 'val1.bar.local'}, self.challenge.proxy_server_list)
+
+    @patch('acme_srv.challenge.load_config')
+    def test_077_config_load(self, mock_load_cfg):
+        """ test _config_load one DNS """
+        parser = configparser.ConfigParser()
+        parser['DEFAULT'] = {'proxy_server_list': '{"key1.bar.local": "val1.bar.local", "key2.bar.local": "val2.bar.local"}'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertEqual({'key1.bar.local': 'val1.bar.local', 'key2.bar.local': 'val2.bar.local'}, self.challenge.proxy_server_list)
+
+    @patch('json.loads')
+    @patch('acme_srv.challenge.load_config')
+    def test_078_config_load(self, mock_load_cfg, mock_json):
+        """ test _config_load two DNS """
+        parser = configparser.ConfigParser()
+        parser['DEFAULT'] = {'proxy_server_list': '{"key1.bar.local": "val1.bar.local"}'}
+        mock_load_cfg.return_value = parser
+        mock_json.side_effect = Exception('exc_mock_json')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.challenge._config_load()
+        self.assertIn('WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: exc_mock_json', lcm.output)
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+
+    def test_079__name_get(self):
         """ test name get no touch"""
         url = 'foo'
         self.assertEqual('foo', self.challenge._name_get(url))
 
     @patch('acme_srv.challenge.parse_url')
-    def test_077__name_get(self, mock_parse):
+    def test_080__name_get(self, mock_parse):
         """ test name get urlparse"""
         mock_parse.return_value = {'path': 'path'}
         url = 'foo'
         self.assertEqual('path', self.challenge._name_get(url))
 
     @patch('acme_srv.challenge.parse_url')
-    def test_078__name_get(self, mock_parse):
+    def test_081__name_get(self, mock_parse):
         """ test name get challenge_path replace """
         mock_parse.return_value = {'path': 'foo/my_path'}
         self.challenge.path_dic = {'chall_path': 'foo/'}
@@ -698,7 +735,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('my_path', self.challenge._name_get(url))
 
     @patch('acme_srv.challenge.parse_url')
-    def test_079__name_get(self, mock_parse):
+    def test_082__name_get(self, mock_parse):
         """ test name get challenge_path replace """
         mock_parse.return_value = {'path': 'foo/my/path'}
         self.challenge.path_dic = {'chall_path': 'foo/'}
@@ -707,7 +744,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_080__validate(self, mock_update, mock_aupdate):
+    def test_083__validate(self, mock_update, mock_aupdate):
         """ test validate """
         challenge_name = 'challenge_name'
         payload = 'payload'
@@ -721,7 +758,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._check')
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_081__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_084__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:False/inv:False """
         challenge_name = 'challenge_name'
         payload = 'payload'
@@ -735,7 +772,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._check')
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_082__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_085__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:False/inv:True """
         challenge_name = 'challenge_name'
         payload = 'payload'
@@ -749,7 +786,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._check')
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_083__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_086__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:False """
         challenge_name = 'challenge_name'
         payload = 'payload'
@@ -763,7 +800,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._check')
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_084__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_087__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:True """
         challenge_name = 'challenge_name'
         payload = 'payload'
@@ -777,7 +814,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._check')
     @patch('acme_srv.challenge.Challenge._update_authz')
     @patch('acme_srv.challenge.Challenge._update')
-    def test_085__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_088__validate(self, mock_update, mock_aupdate, mock_check):
         """ test validate check returned ch:True/inv:False """
         challenge_name = 'challenge_name'
         payload = {'keyAuthorization': 'keyAuthorization'}
@@ -790,7 +827,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.challenge.Challenge._name_get')
     @patch('acme_srv.challenge.Challenge._info')
-    def test_086_get(self, mock_info, mock_name):
+    def test_089_get(self, mock_info, mock_name):
         """ test get """
         mock_info.return_value = 'chall_info'
         mock_name.return_value = 'foo'
@@ -800,7 +837,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
     @patch('acme_srv.challenge.Challenge._challengelist_search')
-    def test_087_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    def test_090_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - no challenge_list returned """
         mock_chsearch.return_value = []
         mock_val.return_value = True
@@ -812,7 +849,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
     @patch('acme_srv.challenge.Challenge._challengelist_search')
-    def test_088_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    def test_091_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - challenge_list returned """
         mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
         mock_val.return_value = True
@@ -824,7 +861,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
     @patch('acme_srv.challenge.Challenge._challengelist_search')
-    def test_089_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    def test_092_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """ test challengeset_get - challenge_list returned autzstatus pending """
         mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
         mock_val.return_value = True
