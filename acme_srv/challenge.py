@@ -21,7 +21,7 @@ class Challenge(object):
         self.challenge_validation_disable = False
         self.tnauthlist_support = False
         self.dns_server_list = None
-        self.proxy_list = []
+        self.proxy_server_list = {}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -148,7 +148,7 @@ class Challenge(object):
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                self.proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
             except BaseException as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
