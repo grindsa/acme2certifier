@@ -3,7 +3,7 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check
+from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
@@ -323,6 +323,11 @@ class Challenge(object):
         (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         if not invalid:
+            # check if we need to set a proxy
+            if self.proxy_list:
+                proxy_srv = proxy_check(self.logger, fqdn, self.proxy_list)
+            else:
+                proxy_srv = None
             req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False)
             # make challenge validation unsuccessful
             # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
