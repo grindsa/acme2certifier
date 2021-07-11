@@ -621,6 +621,7 @@ def url_get_with_own_dns(logger, url):
         logger.error('url_get error: {0}'.format(err_))
     # cleanup
     connection.create_connection = connection._orig_create_connection
+    sys.exit(0)
     return result
 
 def allowed_gai_family():
@@ -628,14 +629,20 @@ def allowed_gai_family():
     family = socket.AF_INET    # force IPv4
     return family
 
-def url_get(logger, url, dns_server_list=None, verify=True):
+def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
     """ http get """
     logger.debug('url_get({0})'.format(url))
-    if dns_server_list:
+
+    # configure proxy servers if specified
+    if proxy_server:
+        proxy_list = {'http': proxy_server, 'https': proxy_server}
+    else:
+        proxy_list = {}
+    if dns_server_list and not proxy_server:
         result = url_get_with_own_dns(logger, url)
     else:
         try:
-            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
             result = req.text
         except BaseException as err_:
             # force fallback to ipv4
@@ -643,7 +650,7 @@ def url_get(logger, url, dns_server_list=None, verify=True):
             old_gai_family = urllib3_cn.allowed_gai_family
             try:
                 urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+                req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
                 result = req.text
             except BaseException as err_:
                 result = None
