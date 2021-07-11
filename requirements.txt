@@ -7,3 +7,4 @@ pytz
 configparser
 python-dateutil
 requests
+pysocks
