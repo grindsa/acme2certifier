@@ -265,7 +265,12 @@ class Challenge(object):
         self.logger.debug('computed value: {0}'.format(extension_value))
 
         if not invalid:
-            cert = servercert_get(self.logger, fqdn)
+            # check if we need to set a proxy
+            if self.proxy_server_list:
+                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
+            else:
+                proxy_server = None
+            cert = servercert_get(self.logger, fqdn, 443, proxy_server)
             if cert:
                 san_list = cert_san_get(self.logger, cert, recode=False)
                 fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
