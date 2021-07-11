@@ -259,7 +259,7 @@ class Challenge(object):
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
-        # which is base 64 encoded '0420' has been taken from acme_srv.sh sources
+        # which is base64 encoded '0420' has been taken from acme_srv.sh sources
         sha256_digest = sha256_hash_hex(self.logger, '{0}.{1}'.format(token, jwk_thumbprint))
         extension_value = b64_encode(self.logger, bytearray.fromhex('0420{0}'.format(sha256_digest)))
         self.logger.debug('computed value: {0}'.format(extension_value))

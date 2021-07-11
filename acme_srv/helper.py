@@ -621,7 +621,6 @@ def url_get_with_own_dns(logger, url):
         logger.error('url_get error: {0}'.format(err_))
     # cleanup
     connection.create_connection = connection._orig_create_connection
-    sys.exit(0)
     return result
 
 def allowed_gai_family():
@@ -645,6 +644,7 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
             req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
             result = req.text
         except BaseException as err_:
+            logger.debug('url_get({0}): error'.format(err_))
             # force fallback to ipv4
             logger.debug('url_get({0}): fallback to v4'.format(url))
             old_gai_family = urllib3_cn.allowed_gai_family
