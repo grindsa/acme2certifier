@@ -15,13 +15,14 @@ import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
 import socket
+import ssl
+import logging
+import hashlib
+import socks
 try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-import logging
-import hashlib
-import ssl
 from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
@@ -590,7 +591,6 @@ def patched_create_connection(address, *args, **kwargs):
 def proxy_check(logger, fqdn, proxy_server_list):
     """ check proxy server """
     logger.debug('proxy_check({0})'.format(fqdn))
-    fqdn_list = list(proxy_server_list.keys())
 
     proxy = None
     for regex in sorted(proxy_server_list.keys(), reverse=True):
@@ -711,19 +711,39 @@ def datestr_to_date(datestr, tformat='%Y-%m-%dT%H:%M:%S'):
         result = None
     return result
 
-def servercert_get(logger, hostname, port=443):
+def proxystring_convert(logger, proxy_server):
+    """ convert proxy string """
+    logger.debug('proxystring_convert({0})'.format(proxy_server))
+    proxy_proto_dic = {'http': socks.PROXY_TYPE_HTTP, 'socks4': socks.PROXY_TYPE_SOCKS4, 'socks5': socks.PROXY_TYPE_SOCKS5}
+    (proxy_proto, proxy) = proxy_server.split('://')
+    (proxy_addr, proxy_port) = proxy.split(':')
+    if proxy_proto and proxy_addr and proxy_port:
+        try:
+            proto_string = proxy_proto_dic[proxy_proto]
+        except BaseException:
+            logger.error('proxystring_convert(): unknown proxy protocol: {0}'.format(proxy_proto))
+            proto_string = None
+    else:
+        proto_string = None
+    logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
+    return(proto_string, proxy_addr, proxy_port)
+
+def servercert_get(logger, hostname, port=443, proxy_server=None):
     """ get server certificate from an ssl connection """
     logger.debug('servercert_get({0}:{1})'.format(hostname, port))
 
     pem_cert = None
-    context = ssl.create_default_context()
-    # disable cert validation
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    with socket.create_connection((hostname, port)) as sock:
-        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
-            der_cert = sslsock.getpeercert(True)
-            # from binary DER format to PEM
+    sock = socks.socksocket()
+    if proxy_server:
+        (proxy_proto, proxy_ip, proxy_port) = proxystring_convert(logger, proxy_server)
+        if proxy_proto and proxy_ip and proxy_port:
+            logger.debug('servercert_get() configure proxy')
+            sock.setproxy(socks.PROXY_TYPE_HTTP, "192.168.14.135", port=8888)
+    sock.connect((hostname, port))
+    with(ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)) as sslsock:
+        der_cert = sslsock.getpeercert(True)
+        # from binary DER format to PEM
+        if der_cert:
             pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
 
     return pem_cert
