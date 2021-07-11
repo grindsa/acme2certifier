@@ -324,13 +324,11 @@ class Challenge(object):
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         if not invalid:
             # check if we need to set a proxy
-            if self.proxy_list:
-                proxy_srv = proxy_check(self.logger, fqdn, self.proxy_list)
+            if self.proxy_server_list:
+                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
             else:
-                proxy_srv = None
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False)
-            # make challenge validation unsuccessful
-            # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
+                proxy_server = None
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False, proxy_server=proxy_server)
             if req:
                 response_got = req.splitlines()[0]
                 response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
