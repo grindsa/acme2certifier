@@ -726,7 +726,7 @@ def proxystring_convert(logger, proxy_server):
     else:
         proto_string = None
     logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
-    return(proto_string, proxy_addr, proxy_port)
+    return(proto_string, proxy_addr, int(proxy_port))
 
 def servercert_get(logger, hostname, port=443, proxy_server=None):
     """ get server certificate from an ssl connection """
@@ -735,10 +735,10 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     pem_cert = None
     sock = socks.socksocket()
     if proxy_server:
-        (proxy_proto, proxy_ip, proxy_port) = proxystring_convert(logger, proxy_server)
-        if proxy_proto and proxy_ip and proxy_port:
+        (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
+        if proxy_proto and proxy_addr and proxy_port:
             logger.debug('servercert_get() configure proxy')
-            sock.setproxy(socks.PROXY_TYPE_HTTP, "192.168.14.135", port=8888)
+            sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     sock.connect((hostname, port))
     with(ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)) as sslsock:
         der_cert = sslsock.getpeercert(True)
