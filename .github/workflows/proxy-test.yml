@@ -1,0 +1,107 @@
+name: Proxy tests
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  proxy_tests:
+    name: "proxy_tests"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] create network"
+      run: |
+        docker network create acme
+
+    - name: "[ PREPARE ] proxy container"
+      run: |
+        docker pull mosajjal/pproxy:latest
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/proxy.acme:8080\", \"acme-sh.\$\": \"http\:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh - http challenge validation"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+          docker logs proxy | grep socks5 | grep -- "->"
+          docker logs proxy | grep http | grep -- "->"
+          docker stop proxy
+          docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ ENROLL ] acme.sh - alpn challenge validation"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+          docker logs proxy | grep socks5 | grep -- "->"
+          docker logs proxy | grep http | grep -- "->"
+          docker stop proxy
+          docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ stop ] proxy container"
+      run: |
+        docker stop proxy
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: proxy.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
