@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -80,6 +80,7 @@ class TestACMEHandler(unittest.TestCase):
         self.validate_csr = validate_csr
         self.sha256_hash = sha256_hash
         self.sha256_hash_hex = sha256_hash_hex
+        self.proxystring_convert = proxystring_convert
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -1220,11 +1221,13 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         """ patched_create_connection """
         self.assertTrue(self.validate_csr(self.logger, 'oder_dic', 'csr'))
 
+    @patch('acme_srv.helper.proxystring_convert')
     @patch('ssl.DER_cert_to_PEM_cert')
-    @patch('ssl.create_default_context')
-    @patch('socket.create_connection')
-    def test_175_servercert_get(self, mock_sock, mock_context, mock_cert):
+    @patch('ssl.wrap_socket')
+    @patch('socks.socksocket')
+    def test_175_servercert_get(self, mock_sock, mock_context, mock_cert, mock_convert):
         """ test servercert get """
+        mock_convert.return_value = ('proxy_proto', 'proxy_addr', 'proxy_port')
         mock_sock = Mock()
         mock_context = Mock()
         mock_cert.return_value = 'foo'
@@ -1256,11 +1259,29 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.assertFalse(self.txt_get(self.logger, 'foo'))
         self.assertIn('ERROR:test_a2c:txt_get() error: mock_resolve', lcm.output)
 
-    #@patch('configparser.RawConfigParser')
-    #def test_190_load_config(self, mock_cfg):
-    #    """ test load config """
-    #    mock_cfg =  configparser.ConfigParser()
-    #    self.assertTrue(self.load_config())
+    def test_179_proxystring_convert(self):
+        """ convert proxy_string http """
+        self.assertEqual((3, 'proxy', 8080), self.proxystring_convert(self.logger, 'http://proxy:8080'))
+
+    def test_180_proxystring_convert(self):
+        """ convert proxy_string socks4 """
+        self.assertEqual((1, 'proxy', 8080), self.proxystring_convert(self.logger, 'socks4://proxy:8080'))
+
+    def test_181_proxystring_convert(self):
+        """ convert proxy_string socks5 """
+        self.assertEqual((2, 'proxy', 8080), self.proxystring_convert(self.logger, 'socks5://proxy:8080'))
+
+    def test_182_proxystring_convert(self):
+        """ convert proxy_string unknown protocol """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'proxy', 8080), self.proxystring_convert(self.logger, 'unk://proxy:8080'))
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy protocol: unk', lcm.output)
+
+    def test_183_proxystring_convert(self):
+        """ convert proxy_string unknown protocol """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((3, 'proxy', None), self.proxystring_convert(self.logger, 'http://proxy:ftp'))
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy port: ftp', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
