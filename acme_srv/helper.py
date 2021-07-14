@@ -725,8 +725,15 @@ def proxystring_convert(logger, proxy_server):
             proto_string = None
     else:
         proto_string = None
+
+    try:
+        proxy_port = int(proxy_port)
+    except BaseException as err_:
+        logger.error('proxystring_convert(): unknown proxy port: {0}'.format(proxy_port))
+        proxy_port = None
+
     logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
-    return(proto_string, proxy_addr, int(proxy_port))
+    return(proto_string, proxy_addr, proxy_port)
 
 def servercert_get(logger, hostname, port=443, proxy_server=None):
     """ get server certificate from an ssl connection """
@@ -745,7 +752,6 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
         # from binary DER format to PEM
         if der_cert:
             pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
-
     return pem_cert
 
 def validate_csr(logger, order_dic, _csr):
