@@ -6,5 +6,5 @@ certsrv[ntlm]
 pytz
 configparser
 python-dateutil
-requests
+requests[use_chardet_on_py3]
 pysocks
