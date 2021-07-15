@@ -597,15 +597,21 @@ def proxy_check(logger, fqdn, proxy_server_list):
 
     proxy = None
     for regex in sorted(proxy_server_list_new.keys(), reverse=True):
-        if regex.startswith('*.'):
-            regex_compiled = re.compile(regex.replace('*.', ''))
-        else:
-            regex_compiled = re.compile(regex)
-        if bool(regex_compiled.search(fqdn)):
-            # parameter is in - set flag accordingly and stop loop
-            proxy = proxy_server_list_new[regex]
-            logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
-            break
+        if regex is not '*':
+            if regex.startswith('*.'):
+                regex_compiled = re.compile(regex.replace('*.', ''))
+            else:
+                regex_compiled = re.compile(regex)
+            if bool(regex_compiled.search(fqdn)):
+                # parameter is in - set flag accordingly and stop loop
+                proxy = proxy_server_list_new[regex]
+                logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
+                break
+
+    if '*' in proxy_server_list_new.keys() and not proxy:
+        logger.debug('proxy_check() wildcard match found: fqdn: {0}'.format(fqdn))
+        proxy = proxy_server_list_new['*']
+
     logger.debug('proxy_check() ended with {0}'.format(proxy))
     return proxy
 
