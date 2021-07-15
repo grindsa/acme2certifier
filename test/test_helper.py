@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -70,6 +70,7 @@ class TestACMEHandler(unittest.TestCase):
         self.logger_info = logger_info
         self.patched_create_connection = patched_create_connection
         self.print_debug = print_debug
+        self.proxy_check = proxy_check
         self.servercert_get = servercert_get
         self.signature_check = signature_check
         self.txt_get = txt_get
@@ -1282,6 +1283,66 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((3, 'proxy', None), self.proxystring_convert(self.logger, 'http://proxy:ftp'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy port: ftp', lcm.output)
+
+    def test_184_proxy_check(self):
+        """ check proxy for empty list  """
+        fqdn = 'foo.bar.local'
+        proxy_list = {}
+        self.assertFalse(self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_182_proxy_check(self):
+        """ check proxy - no match """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'foo1.bar.local': 'proxy_match'}
+        self.assertFalse(self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_185_proxy_check(self):
+        """ check proxy - single entry """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'foo.bar.local': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_186_proxy_check(self):
+        """ check proxy  - multiple entry """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'bar.bar.local': 'proxy_nomatch', 'foo.bar.local': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_187_proxy_check(self):
+        """ check proxy  -  multiple entrie domain match"""
+        fqdn = 'foo.bar.local'
+        proxy_list = {'bar.bar.local': 'proxy_nomatch', 'bar.local$': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_188_proxy_check(self):
+        """ check proxy for empty list  multiple entrie domain match"""
+        fqdn = 'foo.bar.local'
+        proxy_list = {'bar.local$': 'proxy_nomatch', 'foo.bar.local$': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_189_proxy_check(self):
+        """ check proxy - multiple entrie domain match"""
+        fqdn = 'foo.bar.local'
+        proxy_list = {'bar.local$': 'proxy_match', 'foo1.bar.local$': 'proxy_nomatch'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_190_proxy_check(self):
+        """ check proxy - wildcard """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'foo1.bar.local$': 'proxy_nomatch', '*.bar.local$': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_191_proxy_check(self):
+        """ check proxy - wildcard """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'.local$': 'proxy_nomatch', '*.bar.local$': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_192_proxy_check(self):
+        """ check proxy - wildcard """
+        fqdn = 'local'
+        proxy_list = {'local$': 'proxy_match', '*.bar.local$': 'proxy_no_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
 if __name__ == '__main__':
     unittest.main()

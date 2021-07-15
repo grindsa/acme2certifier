@@ -592,15 +592,18 @@ def proxy_check(logger, fqdn, proxy_server_list):
     """ check proxy server """
     logger.debug('proxy_check({0})'.format(fqdn))
 
+    # remove leading *.
+    proxy_server_list_new = { k.replace('*.', ''): v for k, v in proxy_server_list.items() }
+
     proxy = None
-    for regex in sorted(proxy_server_list.keys(), reverse=True):
+    for regex in sorted(proxy_server_list_new.keys(), reverse=True):
         if regex.startswith('*.'):
             regex_compiled = re.compile(regex.replace('*.', ''))
         else:
             regex_compiled = re.compile(regex)
         if bool(regex_compiled.search(fqdn)):
             # parameter is in - set flag accordingly and stop loop
-            proxy = proxy_server_list[regex]
+            proxy = proxy_server_list_new[regex]
             logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
             break
     logger.debug('proxy_check() ended with {0}'.format(proxy))
