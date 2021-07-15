@@ -333,7 +333,7 @@ class Challenge(object):
                 proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
             else:
                 proxy_server = None
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False, proxy_server=proxy_server)
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False)
             if req:
                 response_got = req.splitlines()[0]
                 response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
