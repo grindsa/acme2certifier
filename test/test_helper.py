@@ -1344,5 +1344,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         proxy_list = {'local$': 'proxy_match', '*.bar.local$': 'proxy_no_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
+    def test_193_proxy_check(self):
+        """ check proxy - wildcard """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'*': 'wildcard', 'notlocal$': 'proxy_no_match', '*.notbar.local$': 'proxy_no_match'}
+        self.assertEqual('wildcard', self.proxy_check(self.logger, fqdn, proxy_list))
+
 if __name__ == '__main__':
     unittest.main()
