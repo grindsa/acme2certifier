@@ -86,6 +86,37 @@ jobs:
           docker stop proxy
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
+    - name: "[ PREPARE ] setup certifier ca_handler for proxy usage"
+      run: |
+        sudo cp examples/ca_handler/certifier_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: ${{ secrets.NCM_API_HOST }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: ${{ secrets.NCM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: ${{ secrets.NCM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: ${{ secrets.NCM_CA_NAME }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: ${{ secrets.NCM_CA_BUNDLE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ ENROLL ] via certifier ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ REVOKE ] via certifier ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+          docker logs proxy | grep socks5 | grep -- "->"
+          docker stop proxy
+          docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
     - name: "[ stop ] proxy container"
       run: |
         docker stop proxy
