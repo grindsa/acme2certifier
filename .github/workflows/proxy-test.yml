@@ -117,6 +117,35 @@ jobs:
           docker stop proxy
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
+    - name: "[ PREPARE ] setup msca ca_handler  for proxy usage"
+      run: |
+        sudo cp examples/ca_handler/mscertsrv_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "host: ${{ secrets.MSCA_NAME }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: ${{ secrets.NCLM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: ${{ secrets.NCLM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: ${{ secrets.MSCA_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: ${{ secrets.MSCA_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ ENROLL ] via msca ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+          docker logs proxy | grep socks5 | grep -- "->"
+          docker stop proxy
+          docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
     - name: "[ stop ] proxy container"
       run: |
         docker stop proxy
