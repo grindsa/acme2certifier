@@ -593,11 +593,11 @@ def proxy_check(logger, fqdn, proxy_server_list):
     logger.debug('proxy_check({0})'.format(fqdn))
 
     # remove leading *.
-    proxy_server_list_new = { k.replace('*.', ''): v for k, v in proxy_server_list.items() }
+    proxy_server_list_new = {k.replace('*.', ''): v for k, v in proxy_server_list.items()}
 
     proxy = None
     for regex in sorted(proxy_server_list_new.keys(), reverse=True):
-        if regex is not '*':
+        if regex != '*':
             if regex.startswith('*.'):
                 regex_compiled = re.compile(regex.replace('*.', ''))
             else:
@@ -724,8 +724,24 @@ def proxystring_convert(logger, proxy_server):
     """ convert proxy string """
     logger.debug('proxystring_convert({0})'.format(proxy_server))
     proxy_proto_dic = {'http': socks.PROXY_TYPE_HTTP, 'socks4': socks.PROXY_TYPE_SOCKS4, 'socks5': socks.PROXY_TYPE_SOCKS5}
-    (proxy_proto, proxy) = proxy_server.split('://')
-    (proxy_addr, proxy_port) = proxy.split(':')
+    try:
+        (proxy_proto, proxy) = proxy_server.split('://')
+    except BaseException:
+        logger.error('proxystring_convert(): error splitting proxy_server string: {0}'.format(proxy_server))
+        proxy = None
+        proxy_proto = None
+
+    if proxy:
+        try:
+            (proxy_addr, proxy_port) = proxy.split(':')
+        except BaseException:
+            logger.error('proxystring_convert(): error splitting proxy into host/port: {0}'.format(proxy))
+            proxy_addr = None
+            proxy_port = None
+    else:
+        proxy_addr = None
+        proxy_port = None
+
     if proxy_proto and proxy_addr and proxy_port:
         try:
             proto_string = proxy_proto_dic[proxy_proto]
@@ -733,11 +749,12 @@ def proxystring_convert(logger, proxy_server):
             logger.error('proxystring_convert(): unknown proxy protocol: {0}'.format(proxy_proto))
             proto_string = None
     else:
+        logger.error('proxystring_convert(): proxy_proto ({0}), proxy_addr ({1}) or proxy_port ({2}) missing'.format(proxy_proto, proxy_addr, proxy_port))
         proto_string = None
 
     try:
         proxy_port = int(proxy_port)
-    except BaseException as err_:
+    except BaseException:
         logger.error('proxystring_convert(): unknown proxy port: {0}'.format(proxy_port))
         proxy_port = None
 

@@ -718,6 +718,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertEqual('foo', self.url_get(self.logger, 'url'))
 
     @patch('acme_srv.helper.requests.get')
+    def test_009_helper_url_get(self, mock_request):
+        """ successful url get without dns servers """
+        mock_request.return_value.text = 'foo'
+        self.assertEqual('foo', self.url_get(self.logger, 'url', 'dns', 'proxy'))
+
+    @patch('acme_srv.helper.requests.get')
     def test_092_helper_url_get(self, mock_request):
         """ unsuccessful url get without dns servers """
         # this is stupid but triggrs an expeption
@@ -1234,6 +1240,18 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_cert.return_value = 'foo'
         self.assertEqual('foo', self.servercert_get(self.logger, 'hostname'))
 
+    @patch('acme_srv.helper.proxystring_convert')
+    @patch('ssl.DER_cert_to_PEM_cert')
+    @patch('ssl.wrap_socket')
+    @patch('socks.socksocket')
+    def test_171_servercert_get(self, mock_sock, mock_context, mock_cert, mock_convert):
+        """ test servercert get with proxy """
+        mock_convert.return_value = ('proxy_proto', 'proxy_addr', 'proxy_port')
+        mock_sock = Mock()
+        mock_context = Mock()
+        mock_cert.return_value = 'foo'
+        self.assertEqual('foo', self.servercert_get(self.logger, 'hostname', 443, 'proxy'))
+
     @patch('dns.resolver.query')
     def test_176_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
@@ -1283,6 +1301,20 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((3, 'proxy', None), self.proxystring_convert(self.logger, 'http://proxy:ftp'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy port: ftp', lcm.output)
+
+    def test_184_proxystring_convert(self):
+        """ convert proxy_string porxy sting without protocol """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None), self.proxystring_convert(self.logger, 'proxy'))
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): error splitting proxy_server string: proxy',  lcm.output)
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): proxy_proto (None), proxy_addr (None) or proxy_port (None) missing', lcm.output)
+
+    def test_185_proxystring_convert(self):
+        """ convert proxy_string porxy sting without port """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None), self.proxystring_convert(self.logger, 'http://proxy'))
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): error splitting proxy into host/port: proxy', lcm.output)
+        self.assertIn('ERROR:test_a2c:proxystring_convert(): proxy_proto (http), proxy_addr (None) or proxy_port (None) missing', lcm.output)
 
     def test_184_proxy_check(self):
         """ check proxy for empty list  """
