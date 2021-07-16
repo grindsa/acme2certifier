@@ -219,6 +219,17 @@ class TestACMEHandler(unittest.TestCase):
         mock_resolve.return_value = ('foo', False)
         self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
+    @patch('acme_srv.challenge.proxy_check')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    @patch('acme_srv.challenge.url_get')
+    def test_023_challenge__validate_http_challenge(self, mock_url, mock_resolve, mock_proxy):
+        """ test Chalölenge.validate_http_challenge() with a correct challenge """
+        mock_url.return_value = 'token.jwk_thumbprint'
+        self.challenge.proxy_server_list = 'proxy_server_list'
+        mock_proxy.return_value = 'proxy'
+        mock_resolve.return_value = ('foo', False)
+        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.url_get')
     def test_027_challenge__validate_http_challenge(self, mock_url, mock_resolve):
@@ -513,6 +524,17 @@ class TestACMEHandler(unittest.TestCase):
         """ test validate_alpn_challenge no certificate returned """
         mock_resolve.return_value = ('foo', False)
         mock_srv.return_value = None
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+
+    @patch('acme_srv.challenge.proxy_check')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    def test_059_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_proxy):
+        """ test validate_alpn_challenge no certificate returned """
+        mock_resolve.return_value = ('foo', False)
+        mock_srv.return_value = None
+        self.challenge.proxy_server_list = 'proxy_list'
+        mock_proxy.return_value = 'proxy'
         self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_in_san_check')
