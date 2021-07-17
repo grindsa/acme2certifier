@@ -5,11 +5,12 @@ from __future__ import print_function
 import os
 import textwrap
 import requests
+import json
 from requests.auth import HTTPBasicAuth
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
 # pylint: disable=E0401
-from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string
+from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, parse_url, proxy_check
 
 def _get_certificates(self):
     """
@@ -52,6 +53,8 @@ class CAhandler(object):
         self.est_user = None
         self.est_password = None
         self.ca_bundle = True
+        self.proxy = None
+
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.est_host:
@@ -70,10 +73,10 @@ class CAhandler(object):
                 if self.est_client_cert:
                     self.logger.debug('CAhandler._cacerts_get() by using client-certs')
                     # client auth
-                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle)
+                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle, proxies=self.proxy)
                 else:
                     self.logger.debug('CAhandler._cacerts_get() by using userid/password')
-                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle)
+                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy)
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except BaseException as err_:
                 self.logger.error('CAhandler._cacerts_get() returned an error: {0}'.format(err_))
@@ -92,60 +95,72 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
 
-        if 'est_host_variable' in config_dic['CAhandler']:
-            try:
-                self.est_host = os.environ[config_dic['CAhandler']['est_host_variable']] + '/.well-known/est'
-            except BaseException as err:
-                self.logger.error('CAhandler._config_load() could not load est_host_variable:{0}'.format(err))
-        if 'est_host' in config_dic['CAhandler']:
-            if self.est_host:
-                self.logger.info('CAhandler._config_load() overwrite est_host')
-            self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
-        if not self.est_host:
-            self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
+        if 'CAhandler' in config_dic:
+            if 'est_host_variable' in config_dic['CAhandler']:
+                try:
+                    self.est_host = os.environ[config_dic['CAhandler']['est_host_variable']] + '/.well-known/est'
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load est_host_variable:{0}'.format(err))
+            if 'est_host' in config_dic['CAhandler']:
+                if self.est_host:
+                    self.logger.info('CAhandler._config_load() overwrite est_host')
+                self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
+            if not self.est_host:
+                self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
 
-        # check if we need to use clientauth
-        if 'est_client_cert' in config_dic['CAhandler'] and 'est_client_key' in config_dic['CAhandler']:
-            self.est_client_cert = []
-            self.est_client_cert.append(config_dic['CAhandler']['est_client_cert'])
-            self.est_client_cert.append(config_dic['CAhandler']['est_client_key'])
-        elif 'est_client_cert' in config_dic['CAhandler'] or 'est_client_key' in config_dic['CAhandler']:
-            self.logger.error('CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file')
+            # check if we need to use clientauth
+            if 'est_client_cert' in config_dic['CAhandler'] and 'est_client_key' in config_dic['CAhandler']:
+                self.est_client_cert = []
+                self.est_client_cert.append(config_dic['CAhandler']['est_client_cert'])
+                self.est_client_cert.append(config_dic['CAhandler']['est_client_key'])
+            elif 'est_client_cert' in config_dic['CAhandler'] or 'est_client_key' in config_dic['CAhandler']:
+                self.logger.error('CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file')
 
-        # check if we need to use user-auth
-        if 'est_user_variable' in config_dic['CAhandler']:
-            try:
-                self.est_user = os.environ[config_dic['CAhandler']['est_user_variable']]
-            except BaseException as err:
-                self.logger.error('CAhandler._config_load() could not load est_user_variable:{0}'.format(err))
-        if 'est_user' in config_dic['CAhandler']:
-            if self.est_user:
-                self.logger.info('CAhandler._config_load() overwrite est_user')
-            self.est_user = config_dic['CAhandler']['est_user']
-        if 'est_password_variable' in config_dic['CAhandler']:
-            try:
-                self.est_password = os.environ[config_dic['CAhandler']['est_password_variable']]
-            except BaseException as err:
-                self.logger.error('CAhandler._config_load() could not load est_password:{0}'.format(err))
-        if 'est_password' in config_dic['CAhandler']:
-            if self.est_password:
-                self.logger.info('CAhandler._config_load() overwrite est_password')
-            self.est_password = config_dic['CAhandler']['est_password']
-        if (self.est_user and not self.est_password) or (self.est_password and not self.est_user):
-            self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
+            # check if we need to use user-auth
+            if 'est_user_variable' in config_dic['CAhandler']:
+                try:
+                    self.est_user = os.environ[config_dic['CAhandler']['est_user_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load est_user_variable:{0}'.format(err))
+            if 'est_user' in config_dic['CAhandler']:
+                if self.est_user:
+                    self.logger.info('CAhandler._config_load() overwrite est_user')
+                self.est_user = config_dic['CAhandler']['est_user']
+            if 'est_password_variable' in config_dic['CAhandler']:
+                try:
+                    self.est_password = os.environ[config_dic['CAhandler']['est_password_variable']]
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load() could not load est_password:{0}'.format(err))
+            if 'est_password' in config_dic['CAhandler']:
+                if self.est_password:
+                    self.logger.info('CAhandler._config_load() overwrite est_password')
+                self.est_password = config_dic['CAhandler']['est_password']
+            if (self.est_user and not self.est_password) or (self.est_password and not self.est_user):
+                self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
 
-        # check if we have one authentication scheme
-        if not self.est_client_cert and not self.est_user:
-            self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured')
-        elif self.est_client_cert and self.est_user:
-            self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together')
+            # check if we have one authentication scheme
+            if not self.est_client_cert and not self.est_user:
+                self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured')
+            elif self.est_client_cert and self.est_user:
+                self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together')
 
-        # check if we get a ca bundle for verification
-        if 'ca_bundle' in config_dic['CAhandler']:
+            # check if we get a ca bundle for verification
+            if 'ca_bundle' in config_dic['CAhandler']:
+                try:
+                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+                except BaseException:
+                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-            except BaseException:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                url_dic = parse_url(self.logger, self.est_host)
+                if 'host' in url_dic:
+                    (fqdn, _port) = url_dic['host'].split(':')
+                    proxy_server = proxy_check(self.logger, fqdn, proxy_list)
+                    self.proxy = {'http': proxy_server, 'https': proxy_server}
+            except BaseException as err_:
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -185,9 +200,9 @@ class CAhandler(object):
             headers = {'Content-Type': 'application/pkcs10'}
             if self.est_client_cert:
                 # client auth
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle)
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle, proxies=self.proxy)
             else:
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle)
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle, proxies=self.proxy)
             # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except BaseException as err_:
