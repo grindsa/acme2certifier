@@ -9,6 +9,7 @@ As of today both http and socks5 proxies are being supported for:
 - validation of http and tls-alpn challenges
 - usage in following ca handlers:
   - `certifier_ca_handler.py`
+  - `est_ca_handler.py`  
   - `mscertsrv_ca_handler.py`
 
 Proxies will be configured in `acme_srv/acme_srv.cfg` and need to be set per destination:
