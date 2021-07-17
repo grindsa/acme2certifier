@@ -641,10 +641,56 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'api_password': 'api_password', 'api_user': None}, self.cahandler.credential_dic)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite api_password', lcm.output)
 
+    @patch('examples.ca_handler.nclm_ca_handler.parse_url')
+    @patch('json.loads')
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_056_config_load(self, mock_load_cfg, mock_json, mock_url):
+        """ test _config_load ca_handler configured load proxies """
+        mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
+        mock_url.return_value = {'foo': 'bar'}
+        mock_json.return_value = 'foo'
+        self.cahandler._config_load()
+        self.assertTrue(mock_json.called)
+        self.assertTrue(mock_url.called)
+
+    @patch('examples.ca_handler.nclm_ca_handler.proxy_check')
+    @patch('examples.ca_handler.nclm_ca_handler.parse_url')
+    @patch('json.loads')
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_057_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
+        """ test _config_load ca_handler configured load proxies """
+        mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
+        mock_url.return_value = {'host': 'bar:8888'}
+        mock_json.return_value = 'foo.bar.local'
+        mock_chk.return_value = 'proxy.bar.local'
+        self.cahandler._config_load()
+        self.assertTrue(mock_json.called)
+        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_chk.called)
+        self.assertEqual({'http': 'proxy.bar.local', 'https': 'proxy.bar.local'},self.cahandler.proxy )
+
+    @patch('examples.ca_handler.nclm_ca_handler.proxy_check')
+    @patch('examples.ca_handler.nclm_ca_handler.parse_url')
+    @patch('json.loads')
+    @patch('examples.ca_handler.nclm_ca_handler.load_config')
+    def test_058_config_load(self, mock_load_cfg, mock_json, mock_url, mock_chk):
+        """ test _config_load ca_handler configured load proxies """
+        mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
+        mock_url.return_value = {'host': 'bar'}
+        mock_json.return_value = 'foo.bar.local'
+        mock_chk.return_value = 'proxy.bar.local'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertTrue(mock_json.called)
+        self.assertTrue(mock_url.called)
+        self.assertFalse(mock_chk.called)
+        self.assertFalse(self.cahandler.proxy )
+        self.assertIn('WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)', lcm.output)
+
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_056__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_059__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - all ok """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 900
@@ -654,7 +700,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_057__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_060__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - no requestID in list """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 900
@@ -664,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_058__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_061__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - cn in mock_unureq not correctly ordered """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 900
@@ -674,7 +720,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_059__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_062__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - empty subjectName """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 900
@@ -684,7 +730,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_060__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_063__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - no subjectName """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 900
@@ -694,7 +740,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_061__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
+    def test_064__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts):
         """ CAhandler._csr_id_lookup - requests to old """
         mock_utsnow.return_value = 1000
         mock_uts.return_value = 100
@@ -706,7 +752,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_062__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_065__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  one san """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -723,7 +769,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_063__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_066__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  two sans """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -740,7 +786,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_064__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_067__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  two sans to be reordered """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -757,7 +803,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_065__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_068__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  two sans to be reordered """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -774,7 +820,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_066__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_069__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  no requestID """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -791,7 +837,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_067__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_070__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  sans are not matching """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -808,7 +854,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_068__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_071__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn  no pkcs10 """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -825,7 +871,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.date_to_uts_utc')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._unusedrequests_get')
     @patch('examples.ca_handler.nclm_ca_handler.uts_now')
-    def test_069__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
+    def test_072__csr_id_lookup(self, mock_utsnow, mock_unureq, mock_uts, mock_req, mock_san):
         """ CAhandler._csr_id_lookup - no csr_cn request throws an exception """
         self.cahandler.api_host = 'api_host'
         mock_utsnow.return_value = 1000
@@ -838,14 +884,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._csr_id_lookup() returned error: exc_csr_id_lookup', lcm.output)
 
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
-    def test_070__request_import(self, mock_req):
+    def test_073__request_import(self, mock_req):
         """ CAhandler._request_import """
         self.cahandler.api_host = 'api_host'
         mock_req.return_value = 'foo'
         self.assertEqual('foo', self.cahandler._request_import('csr'))
 
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
-    def test_071__request_import(self, mock_req):
+    def test_074__request_import(self, mock_req):
         """ CAhandler._request_import - req raises an exception """
         self.cahandler.api_host = 'api_host'
         mock_req.side_effect = Exception('exc_req_import')
@@ -854,7 +900,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._request_import() returned error: exc_req_import', lcm.output)
 
     @patch('requests.get')
-    def test_072__unusedrequests_get(self, mock_req):
+    def test_075__unusedrequests_get(self, mock_req):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -863,7 +909,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'foo': 'bar'}, self.cahandler._unusedrequests_get())
 
     @patch('requests.get')
-    def test_073__unusedrequests_get(self, mock_req):
+    def test_076__unusedrequests_get(self, mock_req):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mock_req.side_effect = Exception('exc_req_unused')
@@ -872,7 +918,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._unusedrequests_get() returned error: exc_req_unused', lcm.output)
 
     @patch('requests.get')
-    def test_074__login(self, mock_get):
+    def test_077__login(self, mock_get):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -887,7 +933,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('requests.post')
     @patch('requests.get')
-    def test_075__login(self, mock_get, mock_post):
+    def test_078__login(self, mock_get, mock_post):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -901,7 +947,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('requests.post')
     @patch('requests.get')
-    def test_076__login(self, mock_get, mock_post):
+    def test_079__login(self, mock_get, mock_post):
         """ CAhandler._unusedrequests_get  mock_post without username"""
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -915,7 +961,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('requests.post')
     @patch('requests.get')
-    def test_077__login(self, mock_get, mock_post):
+    def test_080__login(self, mock_get, mock_post):
         """ CAhandler._unusedrequests_get  mock_post without username"""
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -932,7 +978,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('requests.post')
     @patch('requests.get')
-    def test_078__login(self, mock_get, mock_post):
+    def test_081__login(self, mock_get, mock_post):
         """ CAhandler._unusedrequests_get mock_post without realms"""
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -946,7 +992,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('requests.post')
     @patch('requests.get')
-    def test_079__login(self, mock_get, mock_post):
+    def test_082__login(self, mock_get, mock_post):
         """ CAhandler._unusedrequests_get mock_post without access tooken"""
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
@@ -961,40 +1007,40 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.headers)
         self.assertIn('ERROR:test_a2c:CAhandler._login(): No token returned. Aborting...', lcm.output)
 
-    def test_080__san_compare(self):
+    def test_083__san_compare(self):
         """ CAhandler._san_compare all ok """
         csr_san_list = ['foo:foo']
         cert_san_list = {'foo': ['foo']}
         self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
 
-    def test_081__san_compare(self):
+    def test_084__san_compare(self):
         """ CAhandler._san_compare multiple """
         csr_san_list = ['foo:foo', 'foo:bar']
         cert_san_list = {'foo': ['foo', 'bar']}
         self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
 
-    def test_082__san_compare(self):
+    def test_085__san_compare(self):
         """ CAhandler._san_compare multiple """
         csr_san_list = ['foo:foo,foo:bar']
         cert_san_list = {'foo': ['foo', 'bar']}
         self.assertTrue(self.cahandler._san_compare(csr_san_list, cert_san_list))
 
-    def test_083__san_compare(self):
+    def test_086__san_compare(self):
         """ CAhandler._san_compare multiple """
         csr_san_list = ['foo:foo,foo:bar1']
         cert_san_list = {'foo': ['foo', 'bar']}
         self.assertFalse(self.cahandler._san_compare(csr_san_list, cert_san_list))
 
-    def test_084_poll(self):
+    def test_087_poll(self):
         """ CAhandler.poll() """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
 
-    def test_085_trigger(self):
+    def test_088_trigger(self):
         """ CAhandler.trigger() """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
     @patch('requests.get')
-    def test_086___tsg_id_lookup(self, mock_get):
+    def test_089___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - all ok """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1005,7 +1051,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_087___tsg_id_lookup(self, mock_get):
+    def test_090___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - multipe returned 1st matches """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1016,7 +1062,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_088___tsg_id_lookup(self, mock_get):
+    def test_091___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - multipe returned 2nd matches """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1027,7 +1073,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_089___tsg_id_lookup(self, mock_get):
+    def test_092___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - id is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1040,7 +1086,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'name': 'name'}", lcm.output)
 
     @patch('requests.get')
-    def test_090___tsg_id_lookup(self, mock_get):
+    def test_093___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - name is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1053,7 +1099,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'foo': 'bar', 'id': 'id'}", lcm.output)
 
     @patch('requests.get')
-    def test_091___tsg_id_lookup(self, mock_get):
+    def test_094___tsg_id_lookup(self, mock_get):
         """ CAhandler._tsg_id_lookup() - targetSystemGroups is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1066,7 +1112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() no target-system-groups found for filter: name...', lcm.output)
 
     @patch('requests.get')
-    def test_092__tsg_id_lookup(self, mock_req):
+    def test_095__tsg_id_lookup(self, mock_req):
         """ CAhandler._request_import - req raises an exception """
         self.cahandler.api_host = 'api_host'
         mock_req.side_effect = Exception('exc_tsg_id_lookup')
@@ -1075,7 +1121,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() returned error: exc_tsg_id_lookup', lcm.output)
 
     @patch('requests.get')
-    def test_093__template_id_lookup(self, mock_get):
+    def test_096__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - all ok """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1086,7 +1132,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': 10}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_094__template_id_lookup(self, mock_get):
+    def test_097__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - linkId None """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1097,7 +1143,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_095__template_id_lookup(self, mock_get):
+    def test_098__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - No linkId """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1108,7 +1154,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_096__template_id_lookup(self, mock_get):
+    def test_099__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - no match in template names """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1119,7 +1165,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_097__template_id_lookup(self, mock_get):
+    def test_100__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - allowed false """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1130,7 +1176,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_098__template_id_lookup(self, mock_get):
+    def test_101__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - template in lower cases """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1141,7 +1187,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': 10}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_099__template_id_lookup(self, mock_get):
+    def test_102__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - no template """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1152,7 +1198,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_100__template_id_lookup(self, mock_get):
+    def test_103__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - no linktype """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1163,7 +1209,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_101__template_id_lookup(self, mock_get):
+    def test_104__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - empty list """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1174,7 +1220,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_102__template_id_lookup(self, mock_get):
+    def test_105__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - no items """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1185,7 +1231,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_103__template_id_lookup(self, mock_get):
+    def test_106__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - wrong dict """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1196,7 +1242,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_104__template_id_lookup(self, mock_get):
+    def test_107__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - wrong dict """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1207,7 +1253,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_105__template_id_lookup(self, mock_get):
+    def test_108__template_id_lookup(self, mock_get):
         """ CAhandler._template_id_lookup() - empty response """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
@@ -1218,7 +1264,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'name': 'template_name', 'id': None}, self.cahandler.template_info_dic)
 
     @patch('requests.get')
-    def test_106__template_id_lookup(self, mock_req):
+    def test_109__template_id_lookup(self, mock_req):
         """ CAhandler._cert_id_lookup() - request raises exception """
         self.cahandler.api_host = 'api_host'
         mock_req.side_effect = Exception('req_exc')
@@ -1232,7 +1278,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_107__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_110__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter """
         self.cahandler.__enter__()
         self.assertTrue(mock_load.called)
@@ -1244,7 +1290,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_108__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_111__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter  with host already defined """
         self.cahandler.api_host = 'api_host'
         self.cahandler.__enter__()
@@ -1257,7 +1303,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_109__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_112__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with header defined """
         self.cahandler.headers = 'header'
         self.cahandler.__enter__()
@@ -1270,7 +1316,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_110__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_113__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with error defined """
         self.cahandler.error = 'error'
         self.cahandler.__enter__()
@@ -1283,7 +1329,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_111__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_114__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with tst_info_dic defined """
         self.cahandler.tsg_info_dic = {'id': 'foo'}
         self.cahandler.__enter__()
@@ -1296,7 +1342,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
-    def test_112__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
+    def test_115__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with error defined """
         self.cahandler.tsg_info_dic = {'id': 'foo'}
         self.cahandler.error = 'error'
@@ -1308,7 +1354,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')
-    def test_113_revoke(self, mock_get, mock_serial):
+    def test_116_revoke(self, mock_get, mock_serial):
         """ test revoke empty certificate list has been returned """
         self.cahandler.api_host = 'api_host'
         mock_serial.return_value = 11
@@ -1319,7 +1365,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')
-    def test_114_revoke(self, mock_get, mock_serial):
+    def test_117_revoke(self, mock_get, mock_serial):
         """ test revoke request get aborted with exception """
         self.cahandler.api_host = 'api_host'
         mock_serial.return_value = 11
@@ -1330,7 +1376,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')
-    def test_115_revoke(self, mock_get, mock_serial):
+    def test_118_revoke(self, mock_get, mock_serial):
         """ test revoke certificates in certificate_list but content is bogus """
         self.cahandler.api_host = 'api_host'
         mock_serial.return_value = 11
@@ -1342,7 +1388,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('requests.post')
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')
-    def test_116_revoke(self, mock_get, mock_serial, mock_post):
+    def test_119_revoke(self, mock_get, mock_serial, mock_post):
         """ test revoke certificates in certificate_list all good """
         self.cahandler.api_host = 'api_host'
         mock_serial.return_value = 11
@@ -1357,7 +1403,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')
-    def test_117_revoke(self, mock_get, mock_serial, mock_post):
+    def test_120_revoke(self, mock_get, mock_serial, mock_post):
         """ test revoke certificates in certificate_list but request.post returns execption """
         self.cahandler.api_host = 'api_host'
         mock_serial.return_value = 11
@@ -1367,14 +1413,14 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.side_effect = Exception('ex_req_post')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Revocation operation failed'), self.cahandler.revoke('cert', 'rev_reason', 'rev_date'))
 
-    def test_118_enroll(self):
+    def test_121_enroll(self):
         """ enroll() if there is an error """
         self.cahandler.error = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:foo', lcm.output)
 
-    def test_119_enroll(self):
+    def test_122_enroll(self):
         """ enroll() no target-system-id """
         self.cahandler.tsg_info_dic = {'id': None, 'name': 'name'}
         self.assertEqual(('CAhandler.eroll(): ID lookup for targetSystemGroup "name" failed.', None, None, None), self.cahandler.enroll('csr'))
@@ -1387,7 +1433,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
-    def test_120_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup):
+    def test_123_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup):
         """ enroll() without certid """
         self.cahandler.api_host = 'api_host'
         self.cahandler.tsg_info_dic = {'id': 10, 'name': 'name'}
@@ -1411,7 +1457,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
-    def test_121_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
+    def test_124_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  with certid """
         self.cahandler.api_host = 'api_host'
         self.cahandler.tsg_info_dic = {'id': 10, 'name': 'name'}
@@ -1436,7 +1482,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
-    def test_122_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
+    def test_125_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  no tmpload """
         self.cahandler.api_host = 'api_host'
         self.cahandler.tsg_info_dic = {'id': 10, 'name': 'name'}
@@ -1462,7 +1508,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
-    def test_123_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
+    def test_126_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  tmpload """
         self.cahandler.api_host = 'api_host'
         self.cahandler.tsg_info_dic = {'id': 10, 'name': 'name'}
@@ -1488,7 +1534,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
-    def test_124_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
+    def test_127_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  tmpload """
         self.cahandler.api_host = 'api_host'
         self.cahandler.tsg_info_dic = {'id': 'id', 'name': 'name'}
