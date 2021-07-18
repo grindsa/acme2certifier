@@ -47,11 +47,24 @@ class CAhandler(object):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config()
-        self.keyfile = config_dic['CAhandler']['acme_keyfile']
-        self.url = config_dic['CAhandler']['acme_url']
-        self.account = config_dic['CAhandler']['acme_account']
-        self.logger.debug('CAhandler._config_load() ended')
-    
+        if 'CAhandler' in config_dic:
+            if 'acme_keyfile' in  config_dic['CAhandler']:
+                self.keyfile = config_dic['CAhandler']['acme_keyfile']
+            else:
+                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
+
+            if 'acme_url' in  config_dic['CAhandler']:
+                self.url = config_dic['CAhandler']['acme_url']
+            else:
+                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
+
+            if 'acme_account' in  config_dic['CAhandler']:
+                self.account = config_dic['CAhandler']['acme_account']
+            else:
+                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_account" parameter is missing in config file')
+
+            self.logger.debug('CAhandler._config_load() ended')
+
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
