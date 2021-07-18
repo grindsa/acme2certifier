@@ -9,6 +9,7 @@ import josepy
 from OpenSSL import crypto
 import base64
 import textwrap
+import sys
 
 """
 
@@ -33,6 +34,7 @@ class CAhandler(object):
         self.url = None
         self.keyfile = None
         self.account = None
+        self.path_dic = {'directory_path': '', 'acct_path' : '/account/'}
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -48,20 +50,26 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config()
         if 'CAhandler' in config_dic:
-            if 'acme_keyfile' in  config_dic['CAhandler']:
+            if 'acme_keyfile' in config_dic['CAhandler']:
                 self.keyfile = config_dic['CAhandler']['acme_keyfile']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
 
-            if 'acme_url' in  config_dic['CAhandler']:
+            if 'acme_url' in config_dic['CAhandler']:
                 self.url = config_dic['CAhandler']['acme_url']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
 
-            if 'acme_account' in  config_dic['CAhandler']:
+            if 'acme_account' in config_dic['CAhandler']:
                 self.account = config_dic['CAhandler']['acme_account']
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "acme_account" parameter is missing in config file')
+
+            if 'account_path' in config_dic['CAhandler']:
+                self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
+
+            if 'directory_path' in config_dic['CAhandler']:
+                self.path_dic['directory_path'] = config_dic['CAhandler']['directory_path']
 
             self.logger.debug('CAhandler._config_load() ended')
 
@@ -83,12 +91,15 @@ class CAhandler(object):
                 key = josepy.JWKRSA.json_loads(keyf.read())
 
             net = client.ClientNetwork(key)
-            directory = messages.Directory.from_json(net.get(self.url).json())
+            directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
             acmeclient = client.ClientV2(directory, net=net)
             reg = messages.Registration.from_data(key=key, terms_of_service_agreed=True)
-            regr = messages.RegistrationResource(uri="{}/account/{}".format(self.url, self.account), body=reg)
+
+            regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
             self.logger.debug('CAhandler.enroll() checking remote registration status')
             regr = acmeclient.query_registration(regr)
+
+            sys.exit(0)
 
             if regr.body.status != "valid":
                 raise Exception("Bad ACME account: " + str(regr.body.error))
