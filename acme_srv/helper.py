@@ -597,7 +597,7 @@ def proxy_check(logger, fqdn, proxy_server_list):
 
     proxy = None
     for regex in sorted(proxy_server_list_new.keys(), reverse=True):
-        if regex is not '*':
+        if regex != '*':
             if regex.startswith('*.'):
                 regex_compiled = re.compile(regex.replace('*.', ''))
             else:
