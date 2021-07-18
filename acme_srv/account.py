@@ -244,6 +244,22 @@ class Account(object):
         self.logger.debug('Account._eab_signature_verify() ended with: {0}'.format(sig_check))
         return (sig_check, error)
 
+    def _info(self, account_obj):
+        """ account info """
+        self.logger.debug('Account._info()')
+
+        if account_obj:
+            response_dic = {}
+            response_dic['status'] = 'valid'
+            response_dic['key'] = json.loads(account_obj['jwk'])
+            response_dic['contact'] = json.loads(account_obj['contact'])
+            response_dic['createdAt'] = date_to_datestr(account_obj['created_at'])
+            if 'eab_kid' in account_obj and account_obj['eab_kid']:
+                response_dic['eab_kid'] =  account_obj['eab_kid']
+
+        self.logger.debug('Account._info() returns: {0}'.format(json.dumps(response_dic)))
+        return response_dic
+
     def _inner_jws_check(self, outer_protected, inner_protected):
         """ RFC8655 7.3.5 checs of inner JWS """
         self.logger.debug('Account._inner_jws_check()')
@@ -607,11 +623,7 @@ class Account(object):
                 (code, message, detail) = self._contacts_update(account_name, payload)
                 if code == 200:
                     account_obj = self._lookup(account_name)
-                    response_dic['data'] = {}
-                    response_dic['data']['status'] = 'valid'
-                    response_dic['data']['key'] = json.loads(account_obj['jwk'])
-                    response_dic['data']['contact'] = json.loads(account_obj['contact'])
-                    response_dic['data']['createdAt'] = date_to_datestr(account_obj['created_at'])
+                    response_dic['data'] = self._info(account_obj)
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:accountDoesNotExist'
@@ -623,11 +635,12 @@ class Account(object):
                     response_dic['data'] = {}
             elif not payload:
                 # this is a query for account information
-                foo = self._lookup(account_name, 'name')
-                print(foo)
-                code = 403
-                if code == 200:
-                    response_dic['data'] = {}
+                account_obj = self._lookup(account_name)
+                if account_obj:
+                    response_dic['data'] = self._info(account_obj)
+                    response_dic['data']['status'] = 'valid'
+                else:
+                    response_dic['data'] = {'status': 'invalid'}
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
