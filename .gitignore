@@ -135,6 +135,7 @@ acme_srv/wsgi_handler.py
 acme_srv/django_handler.py
 acme_srv/ca/*
 acme_srv/xca/*
+acme_srv/acme/*
 acme_srv/fixture
 *.dll
 acme_srv/cmp/WindowsCMPOpenSSL/openssl.exe
