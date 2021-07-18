@@ -621,6 +621,13 @@ class Account(object):
                 (code, message, detail) = self._key_change(account_name, payload, protected)
                 if code == 200:
                     response_dic['data'] = {}
+            elif not payload:
+                # this is a query for account information
+                foo = self._lookup(account_name, 'name')
+                print(foo)
+                code = 403
+                if code == 200:
+                    response_dic['data'] = {}
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
