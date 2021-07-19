@@ -73,6 +73,27 @@ class CAhandler(object):
 
             self.logger.debug('CAhandler._config_load() ended')
 
+    def _challenge_filter(self, authzr, chall_type='http-01'):
+        """ filter authorization for challenge """
+        self.logger.debug('CAhandler._challenge_filter({0})'.format(chall_type))
+        for challenge in authzr.body.challenges:
+            if challenge.chall.typ == chall_type:
+                return challenge
+        else:
+            self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type {0}'.format(chall_type))
+
+    def _http_challenge_info(self, authzr, user_key):
+        """ filter challenges and get challenge details """
+        self.logger.debug('CAhandler._http_challenge_info()')
+
+        challenge = self._challenge_filter(authzr)
+        chall_path = challenge.chall.path
+        chall_content = challenge.chall.validation(user_key)
+        (chall_name, _token) = chall_content.split('.', 2)
+
+        self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
+        return(chall_name, chall_content)
+
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -83,23 +104,21 @@ class CAhandler(object):
         error = None
         cert_raw = None
         poll_indentifier = None
-        key = None
+        user_key = None
 
         try:
-            self.logger.debug('CAhandler.enroll() opening key')
+            self.logger.debug('CAhandler.enroll() opening user_key')
             with open(self.keyfile, "r") as keyf:
-                key = josepy.JWKRSA.json_loads(keyf.read())
+                user_key = josepy.JWKRSA.json_loads(keyf.read())
 
-            net = client.ClientNetwork(key)
+            net = client.ClientNetwork(user_key)
             directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
             acmeclient = client.ClientV2(directory, net=net)
-            reg = messages.Registration.from_data(key=key, terms_of_service_agreed=True)
+            reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
             regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
             self.logger.debug('CAhandler.enroll() checking remote registration status')
             regr = acmeclient.query_registration(regr)
-
-            sys.exit(0)
 
             if regr.body.status != "valid":
                 raise Exception("Bad ACME account: " + str(regr.body.error))
@@ -108,6 +127,12 @@ class CAhandler(object):
             self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
             order = acmeclient.new_order(csr_pem)
 
+            # query challenges
+            for authzr in list(order.authorizations):
+                (chall_name, chall_content) = self._http_challenge_info(authzr, user_key)
+                print(chall_name, chall_content)
+
+            sys.exit(0)
             self.logger.debug('CAhandler.enroll() polling for certificate')
             order = acmeclient.poll_and_finalize(order)
 
@@ -123,7 +148,7 @@ class CAhandler(object):
             error = str(e)
 
         finally:
-            del key
+            del user_key
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, poll_indentifier)
