@@ -772,12 +772,16 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
         if proxy_proto and proxy_addr and proxy_port:
             logger.debug('servercert_get() configure proxy')
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
-    sock.connect((hostname, port))
-    with(ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)) as sslsock:
-        der_cert = sslsock.getpeercert(True)
-        # from binary DER format to PEM
-        if der_cert:
-            pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
+    try:
+        sock.connect((hostname, port))
+        with(ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)) as sslsock:
+            der_cert = sslsock.getpeercert(True)
+            # from binary DER format to PEM
+            if der_cert:
+                pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
+    except BaseException as err_:
+        logger.debug('servercert_get() failed with: {0}'.format(err_))
+        pem_cert = None
     return pem_cert
 
 def validate_csr(logger, order_dic, _csr):
