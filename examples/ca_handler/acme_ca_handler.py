@@ -142,8 +142,7 @@ class CAhandler(object):
                 if challenge_name and challenge_content:
                     # store challenge in database to allow challenge validation
                     self._challenge_store(challenge_name, challenge_content)
-
-            sys.exit(0)
+                    # order = acmeclient.poll(authzr)
             self.logger.debug('CAhandler.enroll() polling for certificate')
             order = acmeclient.poll_and_finalize(order)
 
