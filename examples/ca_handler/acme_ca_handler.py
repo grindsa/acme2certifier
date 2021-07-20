@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 # pylint: disable=E0401
+from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode
 from acme import client, messages
 import josepy
@@ -25,7 +26,6 @@ acme_keyfile: /path/to/privkey.json
 
 """
 
-
 class CAhandler(object):
     """ EST CA  handler """
 
@@ -35,6 +35,7 @@ class CAhandler(object):
         self.keyfile = None
         self.account = None
         self.path_dic = {'directory_path': '', 'acct_path' : '/account/'}
+        self.dbstore = DBstore(None, self.logger)
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -81,6 +82,14 @@ class CAhandler(object):
                 return challenge
         else:
             self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type {0}'.format(chall_type))
+
+    def _challenge_store(self, challenge_name, challenge_content):
+        """ store challenge into database """
+        self.logger.debug('CAhandler._challenge_store({0})'.format(challenge_name))
+        if challenge_name and challenge_content:
+            data_dic = {'name': challenge_name, 'value1': challenge_content}
+            # store challenge into db
+            (oid, created) = self.dbstore.cahandler_add(data_dic)
 
     def _http_challenge_info(self, authzr, user_key):
         """ filter challenges and get challenge details """
@@ -129,8 +138,10 @@ class CAhandler(object):
 
             # query challenges
             for authzr in list(order.authorizations):
-                (chall_name, chall_content) = self._http_challenge_info(authzr, user_key)
-                print(chall_name, chall_content)
+                (challenge_name, challenge_content) = self._http_challenge_info(authzr, user_key)
+                if challenge_name and challenge_content:
+                    # store challenge in database to allow challenge validation
+                    self._challenge_store(challenge_name, challenge_content)
 
             sys.exit(0)
             self.logger.debug('CAhandler.enroll() polling for certificate')
