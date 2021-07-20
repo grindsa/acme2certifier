@@ -15,6 +15,7 @@ from acme_srv.nonce import Nonce
 from acme_srv.order import Order
 from acme_srv.trigger import Trigger
 from acme_srv.version import __dbversion__, __version__
+from acme_srv.acmechallenge import Acmechallenge
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -281,6 +282,12 @@ def trigger(request):
             return response
     else:
         return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def acmechallenge_serve(request):
+    """ serving acme challenges """
+    with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
+        key_authorization = acmechallenge.lookup(request.META['PATH_INFO'])
+        return HttpResponse(key_authorization)
 
 #def blubb(request):
 #    """ xxxx command """
