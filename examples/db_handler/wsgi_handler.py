@@ -201,6 +201,9 @@ class DBstore(object):
         ''')
 
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
+        self.cursor.execute('''
+            CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self._db_close()
         self.logger.debug('DBStore._db_create() ended')
 
@@ -833,6 +836,14 @@ class DBstore(object):
                 BEGIN
                     update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
                 END
+            ''')
+
+        # cahandler table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
+        if not self.cursor.fetchone()[0] == 1:
+            self.logger.debug('create cahandler table')
+            self.cursor.execute('''
+                CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
 
         # version update
