@@ -142,7 +142,7 @@ class DBstore(object):
         return obj.id
 
     def cahandler_add(self, data_dic):
-        """ add cahanlder in database """
+        """ add cahandler to database """
         self.logger.debug('DBStore.cahandler_add({0})'.format(data_dic))
         cahandler_list = self.cahandler_lookup('name', data_dic['name'])
         if cahandler_list:
@@ -291,6 +291,23 @@ class DBstore(object):
             result = None
         self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
         return (result, 'tools/django_update.py')
+
+    def hkparameter_add(self, data_dic):
+        """ add housekeeping paramter to database """
+        self.logger.debug('DBStore.hkparameter_add({0})'.format(data_dic))
+        obj, created = Housekeeping.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj.save()
+
+    def hkparameter_get(self, parameter):
+        """ get parameter from housekeeping table """
+        self.logger.debug('DBStore.hkparameter_get()')
+        result_list = Housekeeping.objects.filter(name=parameter).values_list('value', flat=True)
+        if result_list:
+            result = result_list[0]
+        else:
+            result = None
+        self.logger.debug('DBStore.hkparameter_get() ended with {0}'.format(result))
+        return result
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """
