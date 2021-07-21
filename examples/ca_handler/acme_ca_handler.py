@@ -1,25 +1,21 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+""" generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
-# pylint: disable=E0401
-from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from acme import client, messages
-import josepy
-from OpenSSL import crypto
-import base64
-import textwrap
-import sys
+# pylint: disable=E0401, W0105
 import os.path
 import json
+import textwrap
+import base64
+import josepy
+from OpenSSL import crypto
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+from acme import client, messages
+from acme_srv.db_handler import DBstore
+from acme_srv.helper import load_config, b64_url_recode
 
 """
-
-Only works with ACME endpoints that do not issue any challenge.
-
 Config file section:
 
 [CAhandler]
@@ -69,8 +65,11 @@ class CAhandler(object):
 
             if 'acme_account' in config_dic['CAhandler']:
                 self.account = config_dic['CAhandler']['acme_account']
-            # else:
-            #    self.logger.error('CAhandler._config_load() configuration incomplete: "acme_account" parameter is missing in config file')
+            else:
+                # try to fetch acme-account id from housekeeping table
+                self.account = self.dbstore.hkparameter_get('acme_account')
+                if self.account:
+                    self.logger.debug('CAhandler._config_load() found acme_account in housekeeping table: {0}'.format(self.account))
 
             if 'account_path' in config_dic['CAhandler']:
                 self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
@@ -89,11 +88,14 @@ class CAhandler(object):
     def _challenge_filter(self, authzr, chall_type='http-01'):
         """ filter authorization for challenge """
         self.logger.debug('CAhandler._challenge_filter({0})'.format(chall_type))
+        result = None
         for challenge in authzr.body.challenges:
             if challenge.chall.typ == chall_type:
-                return challenge
-        else:
+                result = challenge
+                break
+        if not result:
             self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type {0}'.format(chall_type))
+        return result
 
     def _challenge_store(self, challenge_name, challenge_content):
         """ store challenge into database """
@@ -101,14 +103,13 @@ class CAhandler(object):
         if challenge_name and challenge_content:
             data_dic = {'name': challenge_name, 'value1': challenge_content}
             # store challenge into db
-            (oid, created) = self.dbstore.cahandler_add(data_dic)
+            self.dbstore.cahandler_add(data_dic)
 
     def _http_challenge_info(self, authzr, user_key):
         """ filter challenges and get challenge details """
         self.logger.debug('CAhandler._http_challenge_info()')
 
         challenge = self._challenge_filter(authzr)
-        chall_path = challenge.chall.path
         chall_content = challenge.chall.validation(user_key)
         (chall_name, _token) = chall_content.split('.', 2)
 
@@ -156,7 +157,7 @@ class CAhandler(object):
             regr = acmeclient._regr_from_response(response)
             regr = acmeclient.query_registration(regr)
             self.logger.debug('CAhandler.__account_register(): found existing account: {0}'.format(regr.uri))
-        except BaseException as err_:
+        except BaseException:
             if self.email:
                 self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
                 # account does not exists - register
@@ -171,6 +172,8 @@ class CAhandler(object):
             self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
                 self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
+                # store account-id in housekeeping table to avoid unneccary rquests towards acme-server
+                self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
 
         return regr
 
@@ -225,9 +228,9 @@ class CAhandler(object):
             cert_bundle = str(order.fullchain_pem)
             cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
 
-        except Exception as e:
-            self.logger.error(str(e))
-            error = str(e)
+        except Exception as err:
+            self.logger.error(str(err))
+            error = str(err)
 
         finally:
             del user_key
@@ -235,7 +238,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -278,12 +281,11 @@ class CAhandler(object):
             acmeclient.revoke(cert, 1)
             self.logger.debug('CAhandler.revoke() successfull')
 
-
-        except Exception as e:
-            self.logger.error(str(e))
+        except Exception as err:
+            self.logger.error(str(err))
             code = 500
             message = 'urn:ietf:params:acme:error:serverInternal'
-            detail = str(e)
+            detail = str(err)
 
         finally:
             del key
@@ -291,7 +293,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return(code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, _payload):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
