@@ -5,12 +5,16 @@ from __future__ import print_function
 # pylint: disable=E0401
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
 from acme import client, messages
 import josepy
 from OpenSSL import crypto
 import base64
 import textwrap
 import sys
+import os.path
+import json
 
 """
 
@@ -33,7 +37,9 @@ class CAhandler(object):
         self.logger = logger
         self.url = None
         self.keyfile = None
+        self.key_size = 2048
         self.account = None
+        self.email = None
         self.path_dic = {'directory_path': '', 'acct_path' : '/account/'}
         self.dbstore = DBstore(None, self.logger)
 
@@ -63,14 +69,20 @@ class CAhandler(object):
 
             if 'acme_account' in config_dic['CAhandler']:
                 self.account = config_dic['CAhandler']['acme_account']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_account" parameter is missing in config file')
+            # else:
+            #    self.logger.error('CAhandler._config_load() configuration incomplete: "acme_account" parameter is missing in config file')
 
             if 'account_path' in config_dic['CAhandler']:
                 self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
 
             if 'directory_path' in config_dic['CAhandler']:
                 self.path_dic['directory_path'] = config_dic['CAhandler']['directory_path']
+
+            if 'acme_account_keysize' in config_dic['CAhandler']:
+                self.key_size = config_dic['CAhandler']['acme_account_keysize']
+
+            if 'acme_account_email' in config_dic['CAhandler']:
+                self.email = config_dic['CAhandler']['acme_account_email']
 
             self.logger.debug('CAhandler._config_load() ended')
 
@@ -103,6 +115,65 @@ class CAhandler(object):
         self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
         return(chall_name, chall_content)
 
+    def _key_generate(self):
+        """ generate key """
+        self.logger.debug('CAhandler._key_generate({0})'.format(self.key_size))
+        user_key = josepy.JWKRSA(
+            key=rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=self.key_size,
+                backend=default_backend()
+            )
+        )
+        return user_key
+
+    def _user_key_load(self):
+        """ enroll certificate  """
+        self.logger.debug('CAhandler._user_key_load()')
+
+        if os.path.exists(self.keyfile):
+            self.logger.debug('CAhandler.enroll() opening user_key')
+            with open(self.keyfile, "r") as keyf:
+                user_key = josepy.JWKRSA.json_loads(keyf.read())
+        else:
+            self.logger.debug('CAhandler.enroll() generate and register key')
+            user_key = self._key_generate()
+            # dump keyfile to file
+            with open(self.keyfile, "w") as keyf:
+                keyf.write(json.dumps(user_key.to_json()))
+
+        self.logger.debug('CAhandler._user_key_load() ended')
+        return user_key
+
+    def _account_register(self, acmeclient, user_key, directory):
+        """ register account / check registration """
+        self.logger.debug('CAhandler._account_register({0})'.format(self.email))
+
+        try:
+            # we assume that the account exist and need to query the account id
+            reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
+            response = acmeclient._post(directory['newAccount'], reg)
+            regr = acmeclient._regr_from_response(response)
+            regr = acmeclient.query_registration(regr)
+            self.logger.debug('CAhandler.__account_register(): found existing account: {0}'.format(regr.uri))
+        except BaseException as err_:
+            if self.email:
+                self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
+                # account does not exists - register
+                reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
+                regr = acmeclient.new_account(reg)
+                self.logger.debug('CAhandler.__account_register(): new account reqistered: {0}'.format(regr.uri))
+            else:
+                self.logger.error('CAhandler.__account_register(): registration aborted. Email address is missing')
+                regr = None
+
+        if regr:
+            self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
+            if self.account:
+                self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
+
+        return regr
+
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -116,18 +187,19 @@ class CAhandler(object):
         user_key = None
 
         try:
-            self.logger.debug('CAhandler.enroll() opening user_key')
-            with open(self.keyfile, "r") as keyf:
-                user_key = josepy.JWKRSA.json_loads(keyf.read())
-
+            user_key = self._user_key_load()
             net = client.ClientNetwork(user_key)
             directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
             acmeclient = client.ClientV2(directory, net=net)
             reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
-            regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
-            self.logger.debug('CAhandler.enroll() checking remote registration status')
-            regr = acmeclient.query_registration(regr)
+            if self.account:
+                regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                self.logger.debug('CAhandler.enroll(): checking remote registration status')
+                regr = acmeclient.query_registration(regr)
+            else:
+                # new account or existing account with missing account id
+                regr = self._account_register(acmeclient, user_key, directory)
 
             if regr.body.status != "valid":
                 raise Exception("Bad ACME account: " + str(regr.body.error))
