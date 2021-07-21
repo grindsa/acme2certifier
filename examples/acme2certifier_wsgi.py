@@ -8,6 +8,7 @@ import json
 import sys
 from wsgiref.simple_server import make_server, WSGIRequestHandler
 from acme_srv.account import Account
+from acme_srv.acmechallenge import Acmechallenge
 from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
 from acme_srv.challenge import Challenge
@@ -88,6 +89,19 @@ def acct(environ, start_response):
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
         return [json.dumps(response_dic['data']).encode('utf-8')]
 
+def acmechallenge_serve(environ, start_response):
+    """ directory listing """
+    with Acmechallenge(DEBUG, get_url(environ), LOGGER) as acmechallenge:
+        request_body = get_request_body(environ)
+        key_authorization = acmechallenge.lookup(environ['PATH_INFO'])
+        if not key_authorization:
+            key_authorization = ''
+            start_response('404 {0}'.format(HTTP_CODE_DIC[404]), [('Content-Type', 'application/text')])
+        else:
+            start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/text')])
+        # logging
+        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], {})
+        return [key_authorization.encode('utf-8')]
 
 def authz(environ, start_response):
     """ authorization handling """
@@ -330,10 +344,16 @@ URLS = [
 
 def application(environ, start_response):
     ''' The main WSGI application if nothing matches call the not_found function.'''
+
+    # check if we need to activate the url pattern for challenge verification
+    if 'CAhandler' in CONFIG and 'acme_url' in CONFIG['CAhandler']:
+        URLS.append((r'^.well-known/acme-challenge/', acmechallenge_serve))
+
     prefix = '/'
     if 'Directory' in CONFIG and 'url_prefix' in CONFIG['Directory']:
         prefix = CONFIG['Directory']['url_prefix'] + '/'
     path = environ.get('PATH_INFO', '').lstrip(prefix)
+
     for regex, callback in URLS:
         match = re.search(regex, path)
         if match is not None:
