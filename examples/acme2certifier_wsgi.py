@@ -95,10 +95,10 @@ def acmechallenge_serve(environ, start_response):
         request_body = get_request_body(environ)
         key_authorization = acmechallenge.lookup(environ['PATH_INFO'])
         if not key_authorization:
-            key_authorization = ''
-            start_response('404 {0}'.format(HTTP_CODE_DIC[404]), [('Content-Type', 'application/text')])
+            key_authorization = 'NOT FOUND'
+            start_response('404 {0}'.format(HTTP_CODE_DIC[404]), [('Content-Type', 'text/html')])
         else:
-            start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/text')])
+            start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'text/html')])
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], {})
         return [key_authorization.encode('utf-8')]
