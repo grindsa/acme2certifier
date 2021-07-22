@@ -867,7 +867,7 @@ class DBstore(object):
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
         if not self.cursor.fetchone()[0] == 1:
-            self.logger.debug('create housekeeping table and trigger')
+            self.logger.info('create housekeeping table and trigger')
             self.cursor.execute('''
                 CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
@@ -885,8 +885,9 @@ class DBstore(object):
 
         # cahandler table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
+        # print(self.cursor.fetchone())
         if not self.cursor.fetchone()[0] == 1:
-            self.logger.debug('create cahandler table')
+            self.logger.info('create cahandler table')
             self.cursor.execute('''
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
