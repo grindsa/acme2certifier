@@ -536,9 +536,19 @@ class DBstore(object):
         if not 'value2' in data_dic:
             data_dic['value2'] = ''
 
+        # check if we alredy have an entry for the key
+        exists = self.cahandler_lookup('name', data_dic['name'])
         self._db_open()
-        self.cursor.execute('''INSERT INTO cahandler(name, value1, value2) VALUES(:name, :value1, :value2)''', data_dic)
-        rid = self.cursor.lastrowid
+        if bool(exists):
+            # update
+            self.logger.debug('parameter existss: {0} id: {1}'.format('name', data_dic['name']))
+            self.cursor.execute('''UPDATE CAHANDLER SET name = :name, value1 = :value1, 'value2' = :value2 WHERE name = :name''', data_dic)
+            rid = exists
+        else:
+            # insert
+            self.cursor.execute('''INSERT INTO cahandler(name, value1, value2) VALUES(:name, :value1, :value2)''', data_dic)
+            rid = self.cursor.lastrowid
+
         self._db_close()
         self.logger.debug('DBStore.authorization_add() ended with: {0}'.format(rid))
         return rid
@@ -867,7 +877,7 @@ class DBstore(object):
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
         if not self.cursor.fetchone()[0] == 1:
-            self.logger.info('create housekeeping table and trigger')
+            self.logger.debug('create housekeeping table and trigger')
             self.cursor.execute('''
                 CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
@@ -885,9 +895,8 @@ class DBstore(object):
 
         # cahandler table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
-        # print(self.cursor.fetchone())
         if not self.cursor.fetchone()[0] == 1:
-            self.logger.info('create cahandler table')
+            self.logger.debug('create cahandler table')
             self.cursor.execute('''
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
