@@ -2,7 +2,7 @@
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotFound
 from django.http import JsonResponse
 from acme_srv.authorization import Authorization
 from acme_srv.account import Account
@@ -287,7 +287,10 @@ def acmechallenge_serve(request):
     """ serving acme challenges """
     with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
         key_authorization = acmechallenge.lookup(request.META['PATH_INFO'])
-        return HttpResponse(key_authorization)
+        if key_authorization:
+            return HttpResponse(key_authorization)
+        else:
+            return HttpResponseNotFound('NOT FOUND')
 
 #def blubb(request):
 #    """ xxxx command """
