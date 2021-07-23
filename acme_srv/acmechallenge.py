@@ -33,7 +33,6 @@ class Acmechallenge(object):
         if path_info:
             token = path_info.replace('/.well-known/acme-challenge/', '')
             challenge_dic = self.dbstore.cahandler_lookup('name', token)
-            print(challenge_dic)
             if challenge_dic and 'value1' in challenge_dic:
                 key_authorization = challenge_dic[ 'value1']
             else:
