@@ -14,6 +14,7 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode
+import time
 
 """
 Config file section:
@@ -67,7 +68,7 @@ class CAhandler(object):
                 self.account = config_dic['CAhandler']['acme_account']
             else:
                 # try to fetch acme-account id from housekeeping table
-                self.account = self.dbstore.hkparameter_get('acme_account')
+                # self.account = self.dbstore.hkparameter_get('acme_account')
                 if self.account:
                     self.logger.debug('CAhandler._config_load() found acme_account in housekeeping table: {0}'.format(self.account))
 
@@ -114,7 +115,7 @@ class CAhandler(object):
         (chall_name, _token) = chall_content.split('.', 2)
 
         self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
-        return(chall_name, chall_content)
+        return(chall_name, chall_content, challenge)
 
     def _key_generate(self):
         """ generate key """
@@ -173,7 +174,7 @@ class CAhandler(object):
             if self.account:
                 self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
                 # store account-id in housekeeping table to avoid unneccary rquests towards acme-server
-                self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
+                # self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
 
         return regr
 
@@ -213,11 +214,14 @@ class CAhandler(object):
 
             # query challenges
             for authzr in list(order.authorizations):
-                (challenge_name, challenge_content) = self._http_challenge_info(authzr, user_key)
+                (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
                 if challenge_name and challenge_content:
                     # store challenge in database to allow challenge validation
                     self._challenge_store(challenge_name, challenge_content)
-                    # order = acmeclient.poll(authzr)
+                    # response = challenge.chall.response(user_key)
+                    # response.simple_verify(challenge.chall, 'foo', user_key.public_key())
+                    auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
+
             self.logger.debug('CAhandler.enroll() polling for certificate')
             order = acmeclient.poll_and_finalize(order)
 
