@@ -37,7 +37,7 @@ class CAhandler(object):
         self.key_size = 2048
         self.account = None
         self.email = None
-        self.path_dic = {'directory_path': '', 'acct_path' : '/account/'}
+        self.path_dic = {'directory_path': '/directory', 'acct_path' : '/acme/acct/'}
         self.dbstore = DBstore(None, self.logger)
 
     def __enter__(self):
