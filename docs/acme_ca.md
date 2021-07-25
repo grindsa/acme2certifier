@@ -2,30 +2,61 @@
 <!-- wiki-title ACME CA handler -->
 # ACME CA handler
 
-The ACME CA handler is a very simple ca-handler performing signing and revocation operations using another ACME endpoint.
+Using acme2certifier to proxy requests towards acme-endpoints sounds like a silly idea?
 
-This only works (and makes any sense) if the back-end ACME endpoint does not issue any challenges, for example commercial services with pre-authenticated domains. The purpose is to provide ACME access across an organization without sharing the commercial endpoint account's private key, replacing it with standard ACME challenges.
+Not at all... Just think about the following use-cases:
 
-Functionality of the handler will be extended in the next acme2certifer releases.
+- You are using a commercial acme-server (Entrust, Netnumber, Gobalsign) with pre-authenticated domains. You would like to provide access across an organization without sharing the commercial endpoint private key.
+- You would like to use certificates from Letsencrypt or ZeroSSL for servers in your internal network without exposing them to the internet
+
+As of today following operations are supported
+
+- account registration
+- http challenge validation
+- certificate enrollment
+- certificate revocation
+
+## Prerequisites
+
+The handler validates challenges over http. Thus, it must be ensured that the http requests from the acme-CA server are ending up at acme2certifier.
 
 ## Configuration
+
+The handler must be configured via `acme_srv`.
+
+| Option | Description | mandantory | default |
+| :------| :---------- | :--------: | :------ |
+|handler_file | path to ca_handler file | yes | None |
+| acme_url | url of the acme endpoint | yes | None |
+| acme_account | acme account name. If not specified acme2certifer will try to lookup the account name based on the key-file | yes | None |
+| acme_keyfile | Path to private key json-format. If specified in config but not existing on file-system acme2certifer will generate a new key and try to register it |
+| acme_account_email | email address used to register a new account | no | None | account_path | path to account ressource on ca server | no | '/acme/acct' |
+| directory_path | path to directory ressource on ca server | no | '/directory' |
 
 - copy the ca_handler into the `acme_srv` directory or add a handler_file parameter into (`acme_srv.cfg`
 
 - modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters
 
+Below the configuration example can be used to connect to Letsencrypt staging server .
+
 ```config
 [CAhandler]
-# CA specific options
-handler_file: examples/ca_handler/acme_ca_handler.py
-acme_url: https://some.acme/endpoint
-acme_account: <account-id>
-acme_keyfile: /path/to/privkey.json
+account_path: /acme/acct/
+directory_path: /directory
+acme_keyfile: acme_srv/acme/le_staging_private_key.json
+# use this url to connect to LE staging server for testing
+acme_url: https://acme-staging-v02.api.letsencrypt.org
+acme_account_email: grinsa@github.com
 ```
 
-- acme_url:  URL of the acme server issuing certificates
-- acme_account: acme account id
-- acme_keyfile: path to private key in json format (example below)
+if you are able to enroll from the LE staging server move to production by changing the `acme_keyfile` and `acme_url`.
+
+```cfg
+acme_url: https://acme-v02.api.letsencrypt.org
+acme_keyfile: /var/www/acme2certifier/volume/acme/le_private_key.json
+```
+
+An example key-file
 
 ```json
 {"e": "AQAB",
