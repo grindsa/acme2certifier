@@ -123,7 +123,7 @@ test/ca/foo-ca-crl.pem
 
 *.csr
 *.old
-acne/*.my
+acme/*.my
 /acme2certifier_wsgi.py
 env.txt
 gna.py
@@ -144,3 +144,4 @@ acme_srv/migrations.old
 examples/Docker/data/*
 !examples/Docker/.env
 # acme/
+acme_srv/acme_srv.db.old.*
