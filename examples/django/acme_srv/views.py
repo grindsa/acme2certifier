@@ -2,7 +2,7 @@
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotFound
 from django.http import JsonResponse
 from acme_srv.authorization import Authorization
 from acme_srv.account import Account
@@ -15,6 +15,7 @@ from acme_srv.nonce import Nonce
 from acme_srv.order import Order
 from acme_srv.trigger import Trigger
 from acme_srv.version import __dbversion__, __version__
+from acme_srv.acmechallenge import Acmechallenge
 
 # load config to set debug mode
 CONFIG = load_config()
@@ -281,6 +282,15 @@ def trigger(request):
             return response
     else:
         return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
+def acmechallenge_serve(request):
+    """ serving acme challenges """
+    with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
+        key_authorization = acmechallenge.lookup(request.META['PATH_INFO'])
+        if key_authorization:
+            return HttpResponse(key_authorization)
+        else:
+            return HttpResponseNotFound('NOT FOUND')
 
 #def blubb(request):
 #    """ xxxx command """
