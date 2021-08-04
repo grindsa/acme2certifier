@@ -109,7 +109,7 @@ jobs:
     - name: "[ ENROLL ] via nclm ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup certifier ca_handler"
       run: |
@@ -135,6 +135,7 @@ jobs:
       run: |
         sudo apt-get install curl openssl patch
         # sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
+
     - name: "[ PREPARE ] setup using http-basic-auth"
       run: |
         sudo mkdir -p examples/Docker/data/est
@@ -179,7 +180,7 @@ jobs:
     - name: "[ ENROLL ] via est using tls-client-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
