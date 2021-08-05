@@ -26,6 +26,7 @@ jobs:
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
+        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ PREPARE ] setup openssl ca_handler"
@@ -41,17 +42,18 @@ jobs:
     - name: "[ ENROLL ] via openssl ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup xca ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
-        sudo cp examples/ca_handler/xca_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo rm examples/Docker/data/ca_handler.py
         sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/acme2certifier.xdb
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "xdb_file: volume/xca/acme2certifier.xdb" >> examples/Docker/data/acme_srv.cfg
         sudo echo "issuing_ca_name: sub-ca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "passphrase: test1234" >> examples/Docker/data/acme_srv.cfg
@@ -64,15 +66,15 @@ jobs:
     - name: "[ ENROLL ] via xca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup msca ca_handler"
       run: |
-        sudo cp examples/ca_handler/mscertsrv_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: ${{ secrets.MSCA_NAME }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "user: ${{ secrets.NCLM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "password: ${{ secrets.NCLM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
@@ -86,14 +88,14 @@ jobs:
     - name: "[ ENROLL ] via msca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup nclm ca_handler"
       run: |
-        sudo cp examples/ca_handler/nclm_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/nclm_ca_handler" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_host: ${{ secrets.NCLM_API_HOST }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: ${{ secrets.NCLM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: ${{ secrets.NCLM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
@@ -107,14 +109,14 @@ jobs:
     - name: "[ ENROLL ] via nclm ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup certifier ca_handler"
       run: |
-        sudo cp examples/ca_handler/certifier_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_host: ${{ secrets.NCM_API_HOST }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: ${{ secrets.NCM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: ${{ secrets.NCM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
@@ -127,13 +129,13 @@ jobs:
     - name: "[ ENROLL ] via certifier ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] patch est_ca handler for testrfc7030.com"
       run: |
         sudo apt-get install curl openssl patch
-        sudo cp examples/ca_handler/est_ca_handler.py examples/Docker/data/ca_handler.py
         # sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
+
     - name: "[ PREPARE ] setup using http-basic-auth"
       run: |
         sudo mkdir -p examples/Docker/data/est
@@ -148,7 +150,8 @@ jobs:
         sudo openssl base64 -d -in /tmp/cert.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out examples/Docker/data/est/est_client_cert.pem
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/est_ca_handler" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_host: https://testrfc7030.com:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_password: estpwd" >> examples/Docker/data/acme_srv.cfg
@@ -160,11 +163,12 @@ jobs:
     - name: "[ ENROLL ] via EST using http-basic-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup using tls-client-auth"
       run: |
-        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/est_ca_handler" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
@@ -176,7 +180,7 @@ jobs:
     - name: "[ ENROLL ] via est using tls-client-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
@@ -192,5 +196,5 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh.tar.gz
+        name: ca_handler.tar.gz
         path: ${{ github.workspace }}/artifact/upload/

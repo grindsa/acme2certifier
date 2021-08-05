@@ -2,30 +2,87 @@
 <!-- wiki-title ACME CA handler -->
 # ACME CA handler
 
-The ACME CA handler is a very simple ca-handler performing signing and revocation operations using another ACME endpoint.
+Using acme2certifier to proxy requests towards acme-endpoints sounds like a silly idea?
 
-This only works (and makes any sense) if the back-end ACME endpoint does not issue any challenges, for example commercial services with pre-authenticated domains. The purpose is to provide ACME access across an organization without sharing the commercial endpoint account's private key, replacing it with standard ACME challenges.
+Not at all... Just think about the following use-cases:
 
-Functionality of the handler will be extended in the next acme2certifer releases.
+- You would like to use certificates from Letsencrypt or ZeroSSL for servers in your internal network without exposing your systems to the internet
+- You are using a commercial acme-server (Entrust, Netnumber, Sectigo) with pre-authenticated domains. You would like to provide access across an organization without sharing the commercial endpoint private key.
+
+Especially the first use-case is an interesting one. However it comes with a couple of requirements related to your network and your dns configuration as CAs used for certificate issuance need to connect to acme2certier for http challenge validation. That means that:
+
+- your acme2certifer server need to be accessible from the Internet.
+- the DNS domain you are using internally must be a official one and you need to have ownership on it
+- you need to provide different sets of dns information depending on the source address of the DNS request. Your internal clients and server (including acme2certifier) need to resolve the addresses of your internal network while external systems (especially the CA servers) need get the (external) address of acme2certifier when querying the same namespace. In my test environment I fulfill this requirement by:
+  - separating external and internal DNS onto different systems
+  - creating a wildcard record on my external DNS (`*.foo.com`) pointing to acme2certifier
+  - using the internal DNS on my acme2certifier instance
+  - optional: using the external DNS server as forwarder for the internal DNS server
+
+As of today the acme_ca_handler supports following operations:
+
+- account registration
+- http challenge validation
+- certificate enrollment
+- certificate revocation
+
+## Prerequisites
+
+Again, it is important to mention that the handler validates challenges over http. Thus, it must be ensured that the http requests from the CA server are ending up at acme2certifier.
 
 ## Configuration
 
+The handler must be configured via `acme_srv`.
+
+| Option | Description | mandantory | default |
+| :------| :---------- | :--------: | :------ |
+|handler_file | path to ca_handler file | yes | None |
+| acme_url | url of the acme endpoint | yes | None |
+| acme_account | acme account name. If not specified acme2certifer will try to lookup the account name based on the key-file | yes | None |
+| acme_keyfile | Path to private key json-format. If specified in config but not existing on file-system acme2certifer will generate a new key and try to register it |
+| acme_account_email | email address used to register a new account | no | None | account_path | path to account ressource on ca server | no | '/acme/acct' |
+| directory_path | path to directory ressource on ca server | no | '/directory' |
+
 - copy the ca_handler into the `acme_srv` directory or add a handler_file parameter into (`acme_srv.cfg`
 
-- modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters
+- modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters.
 
-```config
+```cfg
 [CAhandler]
 # CA specific options
 handler_file: examples/ca_handler/acme_ca_handler.py
 acme_url: https://some.acme/endpoint
-acme_account: <account-id>
 acme_keyfile: /path/to/privkey.json
 ```
 
-- acme_url:  URL of the acme server issuing certificates
-- acme_account: acme account id
-- acme_keyfile: path to private key in json format (example below)
+## Example configuration for Letsencrypt
+
+Below the configuration example can be used to connect to Letsencrypt staging server .
+
+```config
+[CAhandler]
+account_path: /acme/acct/
+directory_path: /directory
+acme_keyfile: acme_srv/acme/le_staging_private_key.json
+# use this url to connect to LE staging server for testing
+acme_url: https://acme-staging-v02.api.letsencrypt.org
+acme_account_email: grinsa@github.com
+```
+
+if you are able to enroll from the LE staging server move to production by changing the `acme_keyfile` and `acme_url` as below.
+
+```cfg
+acme_url: https://acme-v02.api.letsencrypt.org
+acme_keyfile: /var/www/acme2certifier/volume/acme/le_private_key.json
+```
+
+## Example key-file in json format
+
+This is just an example for your reference. DO NOT USE IT ON YOUR SYSTEM!
+
+As said above. The key-file gets generated by the ca-handler if configured but not present on the system.
+
+You can also use existing keys generated by `certbot` which are usually stored in `/etc/letsencrypt/account`
 
 ```json
 {"e": "AQAB",
