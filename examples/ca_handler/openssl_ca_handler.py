@@ -29,6 +29,7 @@ class CAhandler(object):
         self.save_cert_as_hex = False
         self.whitelist = []
         self.blacklist = []
+        self.cn_enforce = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -271,6 +272,12 @@ class CAhandler(object):
             self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
         if 'blacklist' in config_dic['CAhandler']:
             self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])
+        try:
+            self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
+        except BaseException:
+            self.logger.error('CAhandler._config_load() variable cn_enforce cannot be parsed')        
+            pass
+
         self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -521,7 +528,7 @@ class CAhandler(object):
             (ca_key, ca_cert) = self._ca_load()
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
-            result = None
+
             # proceed if the cert and ca-cert belong together
             # if not result:
             serial = cert_serial_get(self.logger, cert)
