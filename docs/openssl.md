@@ -51,6 +51,7 @@ openssl_conf: acme_srv/ca/openssl.conf
 whitelist: ["foo.bar\\$", "foo1.bar.local"]
 blacklist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
 save_cert_as_hex: True
+cn_enforce: True
 ```
 
 - `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
@@ -64,7 +65,8 @@ save_cert_as_hex: True
 - `openssl_conf` -  *optional* - file in openssl.conf format containing certificate extensions to be applied
 - `whitelist` - *optional* - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)- To be stored in json format
 - `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
-- `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates
+- `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates - default is `False`
+- `cn_enforce` - *optional* - use first SAN as CN in case there is no CN included in CSR - default is `False`
 
 `whitelist` and `blacklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes precedence over the positive result of a whitelist check.
 
