@@ -157,9 +157,9 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"protected": "eyJub25jZSI6ICI3N2M3MmViMDE5NDc0YzBjOWIzODk5MmU4ZjRkMDIzYSIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYWNjdC8xIiwgImFsZyI6ICJSUzI1NiIsICJraWQiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYWNjdC8xIn0","payload": "eyJzdGF0dXMiOiJkZWFjdGl2YXRlZCJ9","signature": "QYbMYZ1Dk8dHKqOwWBQHvWdnGD7donGZObb2Ry_Y5PsHpcTrj8Y2CM57SNVAR9V0ePg4vhK3-IbwYAKbhZV8jF7E-ylZaYm4PSQcumKLI55qvDiEvDiZ0gmjf_GAcsC40TwBa11lzR1u0dQYxOlQ_y9ak6705c5bM_V4_ttQeslJXCfVIQoV-sZS0Z6tJfy5dPVDR7JYG77bZbD3K-HCCaVbT7ilqcf00rA16lvw13zZnIgbcZsbW-eJ2BM_QxE24PGqc_vMfAxIiUG0VY7DqrKumLs91lHHTEie8I-CapH6AetsBhGtRcB6EL_Rn6qGQZK9YBpvoXANv_qF2-zQkQ"}'
 
         if int('%i%i' % (sys.version_info[0], sys.version_info[1])) <= 36:
-            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed {InvalidSignature()}\',)]"]')
+            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed\',)]"]')
         else:
-            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed {InvalidSignature()}\')]"]')
+            result = (False, 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed\')]"]')
 
         self.assertEqual(result, self.signature_check(self.logger, message, mkey))
 
@@ -283,11 +283,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.side_effect = Exception('exc_mock_json')
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         if int('%i%i' % (sys.version_info[0], sys.version_info[1])) < 37:
-            result = 'ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format] {Exception(\'exc_mock_json\',)}'
-            e_result = (False, "Invalid JWS Object [Invalid format] {Exception('exc_mock_json',)}", {}, {}, None)
+            result = 'ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format]'
+            e_result = (False, "Invalid JWS Object [Invalid format]", {}, {}, None)
         else:
-            result = 'ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format] {Exception(\'exc_mock_json\')}'
-            e_result = (False, "Invalid JWS Object [Invalid format] {Exception('exc_mock_json')}", {}, {}, None)
+            result = 'ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format]'
+            e_result = (False, "Invalid JWS Object [Invalid format]", {}, {}, None)
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
         self.assertIn(result, lcm.output)
@@ -971,9 +971,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         message = '{"payload": "eyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm5kN3ZWUTNraW4zS3BKdTd6RUZNTlVPb0ZIQmVDUWRFRTUyOF9iOHo2djNDNnYtQS0zeUdBcTFWTjZmRTluUXdYSmNlZ2ZNdm1MczlCVVllVjZ2M1FzdGhkVFRCdW5FS1l0TVVZUVRmNkpwaHNEb1pHTkt1dnpCY2ZxSlN2TXpCNHdwa3hORm1Pa2M1QVhwRzhnQWJiTTRuS3JDQkdCQ21lZ2RJUEc3U0g3Mk9tejN6YjIwemZfZlo4dHVoUzk1eUJKdndKRjhZRGtCdDViWUV5ZnQ4aVoyWVFGVmRZZW5FMDhKOGRBUGNVQy1HYld6NmJXUm9Xc0xOT21VNkVjSndsSV9tRXRqazA5aTNlVEhOa2Vna3NrZUJOeXhlSkdtaVRtMHRtS1MwOEVvY0VQTDA1UktxSm9XNnhVcHNITDcwSzdzUVRaUDBHSUY1VXBwSkZXMnlVdyJ9", "protected": "eyJ1cmwiOiAiaHR0cDovL2FjbWUtc3J2LmJhci5sb2NhbC9hY21lL25ld2FjY291bnQiLCAiYWxnIjogIkhTMjU2IiwgImtpZCI6ICJiYXIifQ", "signature": "VXYLfPuoClsn_rhPPV8qjspZV1Q7HyX8rXv6odWYnLI"}'
 
         if int('%i%i' % (sys.version_info[0], sys.version_info[1])) <= 36:
-            error = "Verification failed for all signatures['Failed: [InvalidJWSSignature(\"Verification failed {InvalidSignature(\\\'Signature did not match digest.\\\',)}\",)]\']"
+            error = 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed\',)]"]'
         else:
-            error = "Verification failed for all signatures['Failed: [InvalidJWSSignature(\"Verification failed {InvalidSignature(\\\'Signature did not match digest.\\\')}\")]\']"
+            error = 'Verification failed for all signatures["Failed: [InvalidJWSSignature(\'Verification failed\')]"]'
         self.assertEqual((False, error), self.signature_check(self.logger, message, mkey, json_=True))
 
     def test_138_helper_signature_check(self):
@@ -990,7 +990,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """ sucessful validation invalid key """
         mkey = 'invalid key'
         message = '{"payload": "eyJlIjogIkFRQUIiLCAia3R5IjogIlJTQSIsICJuIjogIm5kN3ZWUTNraW4zS3BKdTd6RUZNTlVPb0ZIQmVDUWRFRTUyOF9iOHo2djNDNnYtQS0zeUdBcTFWTjZmRTluUXdYSmNlZ2ZNdm1MczlCVVllVjZ2M1FzdGhkVFRCdW5FS1l0TVVZUVRmNkpwaHNEb1pHTkt1dnpCY2ZxSlN2TXpCNHdwa3hORm1Pa2M1QVhwRzhnQWJiTTRuS3JDQkdCQ21lZ2RJUEc3U0g3Mk9tejN6YjIwemZfZlo4dHVoUzk1eUJKdndKRjhZRGtCdDViWUV5ZnQ4aVoyWVFGVmRZZW5FMDhKOGRBUGNVQy1HYld6NmJXUm9Xc0xOT21VNkVjSndsSV9tRXRqazA5aTNlVEhOa2Vna3NrZUJOeXhlSkdtaVRtMHRtS1MwOEVvY0VQTDA1UktxSm9XNnhVcHNITDcwSzdzUVRaUDBHSUY1VXBwSkZXMnlVdyJ9", "protected": "eyJ1cmwiOiAiaHR0cDovL2FjbWUtc3J2LmJhci5sb2NhbC9hY21lL25ld2FjY291bnQiLCAiYWxnIjogIkhTMjU2IiwgImtpZCI6ICJiYXIifQ", "signature": "VXYLfPuoClsn_rhPPV8qjspZV1Q7HyX8rXv6odWYnLI"}'
-        self.assertEqual((False, 'Expecting value: line 1 column 1 (char 0)'), self.signature_check(self.logger, message, mkey, json_=True))
+        self.assertEqual((False, ''), self.signature_check(self.logger, message, mkey, json_=True))
 
     def test_140_fqdn_in_san_check(self):
         """ successful check one entry one match """
