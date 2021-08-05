@@ -985,7 +985,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test dbupdate - status update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
-        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5]])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [1, 2]])
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1003,7 +1003,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test dbupdate - housekeeping update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
-        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [2, 2, 3, 4, 5]])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [2, 2, 3, 4, 5], [1, 2]])
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1015,6 +1015,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
         self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
         self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:create housekeeping table and trigger', lcm.output)
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_105_db_update(self, mock_open, mock_close):
+        """ test dbupdate - cajamdöer update """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [2, 2]])
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue = self.dbstore.db_update()
+        self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
+        self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
+        self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
+        self.assertIn('INFO:test_a2c:create cahandler table', lcm.output)
 
     def test_105_order_update(self):
         """ test DBstore.order_add() method for a new entry """

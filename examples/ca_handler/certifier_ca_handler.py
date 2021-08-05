@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca hanlder for Insta Certifier via REST-API class """
+""" ca handler for Insta Certifier via REST-API class """
 from __future__ import print_function
 import textwrap
 import math
