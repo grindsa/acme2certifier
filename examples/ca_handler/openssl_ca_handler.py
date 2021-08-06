@@ -275,8 +275,7 @@ class CAhandler(object):
         try:
             self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
         except BaseException:
-            self.logger.error('CAhandler._config_load() variable cn_enforce cannot be parsed')        
-            pass
+            self.logger.error('CAhandler._config_load() variable cn_enforce cannot be parsed')
 
         self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
@@ -305,14 +304,13 @@ class CAhandler(object):
         """ check CSR against definied whitelists """
         self.logger.debug('CAhandler._csr_check()')
 
-        if self.whitelist or self.blacklist:
-            result = False
-            # get sans and build a list
-            _san_list = csr_san_get(self.logger, csr)
+        # get sans and build a list
+        _san_list = csr_san_get(self.logger, csr)
 
-            san_list = []
-            check_list = []
+        check_list = []
+        san_list = []
 
+        if _san_list:
             for san in _san_list:
                 try:
                     # SAN list must be modified/filtered)
@@ -321,16 +319,26 @@ class CAhandler(object):
                 except BaseException:
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
-                    self.logger.debug('san_list parsing failed at entry: {0}'.format(san))
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
 
-            # get common name and atttach it to san_list
-            cn_ = csr_cn_get(self.logger, csr)
-            if cn_:
-                cn_ = cn_.lower()
-                if cn_ not in san_list:
-                    # append cn to san_list
-                    self.logger.debug('append cn to san_list')
-                    san_list.append(cn_)
+        # get common name and attach it to san_list
+        cn_ = csr_cn_get(self.logger, csr)
+
+        if not cn_ and san_list:
+            enforced_cn = san_list[0]
+            self.logger.info('CAhandler._csr_check(): enforce CN to {0}'.format(enforced_cn))
+        else:
+            enforced_cn = None
+
+        if cn_:
+            cn_ = cn_.lower()
+            if cn_ not in san_list:
+                # append cn to san_list
+                self.logger.debug('Ahandler._csr_check(): append cn to san_list')
+                san_list.append(cn_)
+
+        if self.whitelist or self.blacklist:
+            result = False
 
             # go over the san list and check each entry
             for san in san_list:
@@ -342,12 +350,11 @@ class CAhandler(object):
                     result = False
                 else:
                     result = True
-
         else:
             result = True
 
-        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
-        return result
+        self.logger.debug('CAhandler._csr_check() ended with: {0} enforce_cn: {1}'.format(result, enforced_cn))
+        return (result, enforced_cn)
 
     def _list_check(self, entry, list_, toggle=False):
         """ check string against list """
@@ -430,7 +437,7 @@ class CAhandler(object):
         if not error:
             try:
                 # check CN and SAN against black/whitlist
-                result = self._csr_check(csr)
+                (result, enforce_cn) = self._csr_check(csr)
 
                 if result:
                     # prepare the CSR
@@ -447,12 +454,16 @@ class CAhandler(object):
 
                     # creating a rest form CSR
                     req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+                    subject = req.get_subject()
+                    if self.cn_enforce and enforce_cn:
+                        setattr(subject, 'CN', enforce_cn)
+
                     # sign csr
                     cert = crypto.X509()
                     cert.gmtime_adj_notBefore(0)
                     cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
                     cert.set_issuer(ca_cert.get_subject())
-                    cert.set_subject(req.get_subject())
+                    cert.set_subject(subject)
                     cert.set_pubkey(req.get_pubkey())
                     cert.set_serial_number(uuid.uuid4().int)
                     cert.set_version(2)
