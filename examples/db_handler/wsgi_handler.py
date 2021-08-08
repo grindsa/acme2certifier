@@ -537,13 +537,13 @@ class DBstore(object):
             data_dic['value2'] = ''
 
         # check if we alredy have an entry for the key
-        exists = self.cahandler_lookup('name', data_dic['name'])
+        exists = self.cahandler_lookup('name', data_dic['name'], ['id', 'name'])
         self._db_open()
         if bool(exists):
             # update
             self.logger.debug('parameter existss: {0} id: {1}'.format('name', data_dic['name']))
             self.cursor.execute('''UPDATE CAHANDLER SET name = :name, value1 = :value1, 'value2' = :value2 WHERE name = :name''', data_dic)
-            rid = exists
+            rid = exists['id']
         else:
             # insert
             self.cursor.execute('''INSERT INTO cahandler(name, value1, value2) VALUES(:name, :value1, :value2)''', data_dic)

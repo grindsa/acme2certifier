@@ -1103,6 +1103,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cfg.called)
         self.assertIn('foo.db', self.dbstore.db_name)
 
+    def test_111_cahandler_add(self):
+        """ test DBstore.cahandler_add() method for a new entry  """
+        data_dic = {'name' : 'name1', 'value1' : 'value1'}
+        self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
+        data_dic = {'name' : 'name2', 'value1' : 'value1', 'value2' : 'value2'}
+        self.assertEqual(2, self.dbstore.cahandler_add(data_dic))
+
+    def test_112_cahandler_add(self):
+        """ test DBstore.cahandler_add() method for an existing entry  """
+        data_dic = {'name' : 'name1', 'value1' : 'value1'}
+        self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
+        data_dic = {'name' : 'name1', 'value1' : 'value1', 'value2' : 'value2'}
+        self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
+
+    def test_113_cahandler_lookup(self):
+        """ test DBstore.cahandler_lookup() method  """
+        data_dic = {'name' : 'name1', 'value1' : 'value1'}
+        self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
+        result = {'name': 'name1', 'value1': 'value1', 'value2': ''}
+        self.assertEqual(result, self.dbstore.cahandler_lookup('name', 'name1', ('name', 'value1', 'value2')))
+
+    def test_114_cahandler_search(self):
+        """ test DBstore.cahandler_lookup() method  """
+        data_dic = {'name' : 'name1', 'value1' : 'value1'}
+        self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
+        result = {'name': 'name1', 'value1': 'value1', 'value2': ''}
+        self.assertIn(('name1'), self.dbstore._cahandler_search('name', 'name1'))
+
 if __name__ == '__main__':
 
     unittest.main()
