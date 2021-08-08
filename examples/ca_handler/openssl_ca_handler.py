@@ -456,6 +456,7 @@ class CAhandler(object):
                     req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
                     subject = req.get_subject()
                     if self.cn_enforce and enforce_cn:
+                        self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
                         setattr(subject, 'CN', enforce_cn)
 
                     # sign csr
@@ -510,7 +511,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
-
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
