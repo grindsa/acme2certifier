@@ -933,7 +933,7 @@ class DBstore(object):
         self._db_open()
         if bool(exists):
             # update
-            self.logger.debug('parameter existss: {0} id: {1}'.format(name, data_dic['name']))
+            self.logger.debug('parameter exists: {0}'.format(data_dic['name']))
             self.cursor.execute('''UPDATE HOUSEKEEPING SET name = :name, value = :value WHERE name = :name''', data_dic)
         else:
             # insert
