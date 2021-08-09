@@ -1,8 +1,12 @@
 name: phonito security scans
 on:
-  schedule:
-    # * daily checks at 05:00am
-    - cron:  '0 5 * * *'
+  # temporarily disable
+  push:
+    branches-ignore:
+      - '**'
+  #schedule:
+  #  # * daily checks at 05:00am
+  #  - cron:  '0 5 * * *'
 jobs:
 
   apache2_wsgi:
