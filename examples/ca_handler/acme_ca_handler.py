@@ -85,6 +85,8 @@ class CAhandler(object):
                 self.email = config_dic['CAhandler']['acme_account_email']
 
             self.logger.debug('CAhandler._config_load() ended')
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file')
 
     def _challenge_filter(self, authzr, chall_type='http-01'):
         """ filter authorization for challenge """
