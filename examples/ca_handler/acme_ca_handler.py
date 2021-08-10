@@ -112,9 +112,22 @@ class CAhandler(object):
         """ filter challenges and get challenge details """
         self.logger.debug('CAhandler._http_challenge_info()')
 
-        challenge = self._challenge_filter(authzr)
-        chall_content = challenge.chall.validation(user_key)
-        (chall_name, _token) = chall_content.split('.', 2)
+        chall_name = None
+        chall_content = None
+
+        if authzr and user_key:
+            challenge = self._challenge_filter(authzr)
+            chall_content = challenge.chall.validation(user_key)
+            try:
+                (chall_name, _token) = chall_content.split('.', 2)
+            except BaseException:
+                self.logger.error('CAhandler._http_challenge_info() challenge split failed: {0}'.format(chall_content))
+        else:
+            if authzr:
+                self.logger.error('CAhandler._http_challenge_info() userkey is missing')
+            else:
+                self.logger.error('CAhandler._http_challenge_info() authzr is missing')
+            challenge = None
 
         self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
         return(chall_name, chall_content, challenge)
