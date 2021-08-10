@@ -5,12 +5,17 @@
 import sys
 import os
 import unittest
-from unittest.mock import patch, mock_open, Mock
+from unittest.mock import patch, mock_open, Mock, MagicMock
 # from OpenSSL import crypto
 import shutil
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
+
+class FakeDBStore(object):
+    """ face DBStore class needed for mocking """
+    # pylint: disable=W0107, R0903
+    pass
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -18,6 +23,10 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         from examples.ca_handler.acme_ca_handler import CAhandler
+        #models_mock = MagicMock()
+        #models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        # modules = {'acme_srv.db_handler': models_mock}
+        # patch.dict('sys.modules', modules).start()
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
         self.cahandler = CAhandler(False, self.logger)
@@ -230,6 +239,75 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.cahandler._challenge_filter(authz))
         self.assertIn('ERROR:test_a2c:CAhandler._challenge_filter() ended. Could not find challenge of type http-01', lcm.output)
+
+    @patch('acme_srv.db_handler.DBstore.cahandler_add')
+    def test_017__challenge_store(self, mock_add):
+        """ test _challenge_store() """
+        # mock_add.return_value = 'ff'
+        self.cahandler._challenge_store('challenge_name', 'challenge_content')
+        self.assertTrue(mock_add.called)
+
+    @patch('acme_srv.db_handler.DBstore.cahandler_add')
+    def test_018__challenge_store(self, mock_add):
+        """ test _challenge_store() no challenge_content """
+        # mock_add.return_value = 'ff'
+        self.cahandler._challenge_store('challenge_name', None)
+        self.assertFalse(mock_add.called)
+
+    @patch('acme_srv.db_handler.DBstore.cahandler_add')
+    def test_019__challenge_store(self, mock_add):
+        """ test _challenge_store() no challenge_content """
+        # mock_add.return_value = 'ff'
+        self.cahandler._challenge_store(None, 'challenge_content')
+        self.assertFalse(mock_add.called)
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter')
+    def test_020__http_challenge_info(self, mock_filter):
+        """ test _http_challenge_info - all ok """
+        response = Mock()
+        response.chall.validation = Mock(return_value='foo.bar')
+        mock_filter.return_value = response
+        self.assertIn('foo', self.cahandler._http_challenge_info('authzr', 'user_key')[0])
+        self.assertIn('foo.bar', self.cahandler._http_challenge_info('authzr', 'user_key')[1])
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter')
+    def test_021__http_challenge_info(self, mock_filter):
+        """ test _http_challenge_info - wrong split """
+        response = Mock()
+        response.chall.validation = Mock(return_value='foobar')
+        mock_filter.return_value = response
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            response = self.cahandler._http_challenge_info('authzr', 'user_key')
+        self.assertFalse(response[0])
+        self.assertIn('foobar', response[1])
+        self.assertIn('ERROR:test_a2c:CAhandler._http_challenge_info() challenge split failed: foobar', lcm.output)
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter')
+    def test_022__http_challenge_info(self, mock_filter):
+        """ test _http_challenge_info - wrong split """
+        response = Mock()
+        response.chall.validation = Mock(return_value='foobar')
+        mock_filter.return_value = response
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None), self.cahandler._http_challenge_info(None, 'user_key'))
+        self.assertIn('ERROR:test_a2c:CAhandler._http_challenge_info() authzr is missing', lcm.output)
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter')
+    def test_023__http_challenge_info(self, mock_filter):
+        """ test _http_challenge_info - wrong split """
+        response = Mock()
+        response.chall.validation = Mock(return_value='foobar')
+        mock_filter.return_value = response
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None), self.cahandler._http_challenge_info('authzr', None))
+        self.assertIn('ERROR:test_a2c:CAhandler._http_challenge_info() userkey is missing', lcm.output)
+
+    @patch('josepy.JWKRSA')
+    def test_024__key_generate(self, mock_key):
+        """ test _key_generate()  """
+        mock_key.return_value = 'key'
+        self.assertEqual('key', self.cahandler._key_generate())
+
 
 if __name__ == '__main__':
 
