@@ -21,12 +21,12 @@ class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
     def setUp(self):
         """ setup unittest """
+        models_mock = MagicMock()
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {'acme_srv.db_handler': models_mock}
+        patch.dict('sys.modules', modules).start()
         import logging
         from examples.ca_handler.acme_ca_handler import CAhandler
-        #models_mock = MagicMock()
-        #models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        # modules = {'acme_srv.db_handler': models_mock}
-        # patch.dict('sys.modules', modules).start()
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
         self.cahandler = CAhandler(False, self.logger)
@@ -240,26 +240,22 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._challenge_filter(authz))
         self.assertIn('ERROR:test_a2c:CAhandler._challenge_filter() ended. Could not find challenge of type http-01', lcm.output)
 
-    @patch('acme_srv.db_handler.DBstore.cahandler_add')
-    def test_017__challenge_store(self, mock_add):
-        """ test _challenge_store() """
-        # mock_add.return_value = 'ff'
-        self.cahandler._challenge_store('challenge_name', 'challenge_content')
-        self.assertTrue(mock_add.called)
-
-    @patch('acme_srv.db_handler.DBstore.cahandler_add')
-    def test_018__challenge_store(self, mock_add):
+    def test_017__challenge_store(self):
         """ test _challenge_store() no challenge_content """
         # mock_add.return_value = 'ff'
         self.cahandler._challenge_store('challenge_name', None)
-        self.assertFalse(mock_add.called)
+        self.assertFalse(self.cahandler.dbstore.cahandler_add.called)
 
-    @patch('acme_srv.db_handler.DBstore.cahandler_add')
-    def test_019__challenge_store(self, mock_add):
+    def test_018__challenge_store(self):
         """ test _challenge_store() no challenge_content """
         # mock_add.return_value = 'ff'
         self.cahandler._challenge_store(None, 'challenge_content')
-        self.assertFalse(mock_add.called)
+        self.assertFalse(self.cahandler.dbstore.cahandler_add.called)
+
+    def test_019__challenge_store(self):
+        """ test _challenge_store() """
+        self.cahandler._challenge_store('challenge_name', 'challenge_content')
+        self.assertTrue(self.cahandler.dbstore.cahandler_add.called)
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter')
     def test_020__http_challenge_info(self, mock_filter):
