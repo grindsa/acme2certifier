@@ -165,7 +165,6 @@ class CAhandler(object):
     def _account_register(self, acmeclient, user_key, directory):
         """ register account / check registration """
         self.logger.debug('CAhandler._account_register({0})'.format(self.email))
-
         try:
             # we assume that the account exist and need to query the account id
             reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
@@ -185,12 +184,12 @@ class CAhandler(object):
                 regr = None
 
         if regr:
-            self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
+            if self.url and 'acct_path' in self.path_dic:
+                self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
                 self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
                 # store account-id in housekeeping table to avoid unneccary rquests towards acme-server
                 # self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
-
         return regr
 
     def enroll(self, csr):
