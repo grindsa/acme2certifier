@@ -304,6 +304,143 @@ class TestACMEHandler(unittest.TestCase):
         mock_key.return_value = 'key'
         self.assertEqual('key', self.cahandler._key_generate())
 
+    @patch('josepy.JWKRSA.json_loads')
+    @patch("builtins.open", mock_open(read_data='csv_dump'), create=True)
+    @patch('os.path.exists')
+    def test_025__user_key_load(self, mock_file, mock_key):
+        """ test user_key_load for an existing file """
+        mock_file.return_value = True
+        mock_key.return_value = 'loaded_key'
+        self.assertEqual('loaded_key', self.cahandler._user_key_load())
+        self.assertTrue(mock_key.called)
+
+    @patch('json.dumps')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._key_generate')
+    @patch("builtins.open", mock_open(read_data='csv_dump'), create=True)
+    @patch('os.path.exists')
+    def test_026__user_key_load(self, mock_file, mock_key, mock_json):
+        """ test user_key_load for an existing file """
+        mock_file.return_value = False
+        mock_key.to_json.return_value = {'foo': 'generate_key'}
+        mock_json.return_value = 'foo'
+        self.assertTrue(self.cahandler._user_key_load())
+        self.assertTrue(mock_key.called)
+        self.assertTrue(mock_json.called)
+
+    @patch('acme.messages')
+    def test_027__account_register(self, mock_messages):
+        """ test account register existing account - no replacement """
+        response = Mock()
+        response.uri = 'uri'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('uri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
+        self.assertIn('INFO:test_a2c:acme-account id is uri. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', lcm.output)
+        self.assertEqual('uri', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_028__account_register(self, mock_messages):
+        """ test account register existing account - url replacement """
+        response = Mock()
+        response.uri = 'urluri'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('urluri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
+        self.assertIn('INFO:test_a2c:acme-account id is uri. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', lcm.output)
+        self.assertEqual('uri', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_029__account_register(self, mock_messages):
+        """ test account register existing account - acct_path replacement """
+        response = Mock()
+        response.uri = 'acct_pathuri'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('acct_pathuri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
+        self.assertIn('INFO:test_a2c:acme-account id is uri. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', lcm.output)
+        self.assertEqual('uri', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_030__account_register(self, mock_messages):
+        """ test account register existing account - with email """
+        response = Mock()
+        response.uri = 'newuri'
+        acmeclient = Mock()
+        acmeclient.new_account = Mock(return_value = response)
+        mock_messages = Mock()
+        self.cahandler.email = 'email'
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('newuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
+        self.assertIn('INFO:test_a2c:acme-account id is newuri. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', lcm.output)
+        self.assertEqual('newuri', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_031__account_register(self, mock_messages):
+        """ test account register existing account - no email """
+        response = Mock()
+        response.uri = 'newuri'
+        acmeclient = Mock()
+        acmeclient.new_account = Mock(return_value = response)
+        mock_messages = Mock()
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._account_register(acmeclient, 'user_key', 'directory'))
+        self.assertFalse(self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_032__account_register(self, mock_messages):
+        """ test account register existing account - no url """
+        response = Mock()
+        response.uri = 'newuri'
+        acmeclient = Mock()
+        acmeclient.new_account = Mock(return_value = response)
+        mock_messages = Mock()
+        self.cahandler.email = 'email'
+        self.cahandler.path_dic = {'acct_path': 'acct_path'}
+        self.assertEqual('newuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
+        self.assertFalse(self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_033__account_register(self, mock_messages):
+        """ test account register existing account - wrong pathdic """
+        response = Mock()
+        response.uri = 'newuri'
+        acmeclient = Mock()
+        acmeclient.new_account = Mock(return_value = response)
+        mock_messages = Mock()
+        self.cahandler.email = 'email'
+        self.cahandler.path_dic = {'acct_path1': 'acct_path'}
+        self.cahandler.url = 'url'
+        self.assertEqual('newuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
+        self.assertFalse(self.cahandler.account)
+
+    def test_034_trigger(self):
+        """ test trigger """
+        self.assertEqual(('Not implemented', None, None), self.cahandler.trigger('payload'))
+
+    def test_035_poll(self):
+        """ test poll """
+        self.assertEqual(('Not implemented', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier','csr'))
+
+
 
 if __name__ == '__main__':
 
