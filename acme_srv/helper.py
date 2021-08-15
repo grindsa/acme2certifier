@@ -780,7 +780,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
             if der_cert:
                 pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
     except BaseException as err_:
-        logger.debug('servercert_get() failed with: {0}'.format(err_))
+        logger.error('servercert_get() failed with: {0}'.format(err_))
         pem_cert = None
     return pem_cert
 
