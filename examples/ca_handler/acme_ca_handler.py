@@ -66,11 +66,11 @@ class CAhandler(object):
 
             if 'acme_account' in config_dic['CAhandler']:
                 self.account = config_dic['CAhandler']['acme_account']
-            else:
+            # else:
                 # try to fetch acme-account id from housekeeping table
                 # self.account = self.dbstore.hkparameter_get('acme_account')
-                if self.account:
-                    self.logger.debug('CAhandler._config_load() found acme_account in housekeeping table: {0}'.format(self.account))
+                # if self.account:
+                #    self.logger.debug('CAhandler._config_load() found acme_account in housekeeping table: {0}'.format(self.account))
 
             if 'account_path' in config_dic['CAhandler']:
                 self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
@@ -270,10 +270,20 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+    def _account_lookup(self, acmeclient, reg, directory):
+        """ lookup account """
+        self.logger.debug('CAhandler.revoke(): lookkup account as its not configured')
+        response = acmeclient._post(directory['newAccount'], reg)
+        regr = acmeclient._regr_from_response(response)
+        regr = acmeclient.query_registration(regr)
+        self.logger.debug('CAhandler._account_lookup: found existing account: {0}'.format(regr.uri))
+        if regr:
+            if self.url and 'acct_path' in self.path_dic:
+                self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
+
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
-
         certpem = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64))
         cert = josepy.ComparableX509(crypto.load_certificate(crypto.FILETYPE_PEM, certpem))
 
@@ -281,16 +291,21 @@ class CAhandler(object):
         message = None
         detail = None
 
-        try:
-            self.logger.debug('CAhandler.revoke() opening key')
-            with open(self.keyfile, "r") as keyf:
-                key = josepy.JWKRSA.json_loads(keyf.read())
+        # try:
+        self.logger.debug('CAhandler.revoke() opening key')
+        user_key = None
+        with open(self.keyfile, "r") as keyf:
+            user_key = josepy.JWKRSA.json_loads(keyf.read())
 
-            net = client.ClientNetwork(key)
-            directory = messages.Directory.from_json(net.get(self.url).json())
-            acmeclient = client.ClientV2(directory, net=net)
-            reg = messages.Registration.from_data(key=key, terms_of_service_agreed=True)
-            regr = messages.RegistrationResource(uri="{}/account/{}".format(self.url, self.account), body=reg)
+        net = client.ClientNetwork(user_key)
+        directory = messages.Directory.from_json(net.get(self.url).json())
+        acmeclient = client.ClientV2(directory, net=net)
+        reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
+        if not self.account:
+            self._account_lookup(acmeclient, reg, directory)
+
+        if self.account:
+            regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
             self.logger.debug('CAhandler.revoke() checking remote registration status')
             regr = acmeclient.query_registration(regr)
 
@@ -300,15 +315,17 @@ class CAhandler(object):
             self.logger.debug('CAhandler.revoke() issuing revocation order')
             acmeclient.revoke(cert, 1)
             self.logger.debug('CAhandler.revoke() successfull')
+        else:
+            self.logger.error('CAhandler.revoke(): could not fine account key and lookup at acme-endpoint failed.')
 
-        except Exception as err:
-            self.logger.error(str(err))
-            code = 500
-            message = 'urn:ietf:params:acme:error:serverInternal'
-            detail = str(err)
+        #except Exception as err:
+        #        self.logger.error(str(err))
+        #    code = 500
+        #    message = 'urn:ietf:params:acme:error:serverInternal'
+        #    detail = str(err)
 
-        finally:
-            del key
+        #finally:
+        #    del key
 
         self.logger.debug('Certificate.revoke() ended')
         return(code, message, detail)
