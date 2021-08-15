@@ -207,6 +207,7 @@ class CAhandler(object):
         try:
             user_key = self._user_key_load()
             net = client.ClientNetwork(user_key)
+
             directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
             acmeclient = client.ClientV2(directory, net=net)
             reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
@@ -219,37 +220,38 @@ class CAhandler(object):
                 # new account or existing account with missing account id
                 regr = self._account_register(acmeclient, user_key, directory)
 
-            if regr.body.status != "valid":
-                raise Exception("Bad ACME account: " + str(regr.body.error))
+            if regr.body.status == "valid":
+                self.logger.debug('CAhandler.enroll() issuing signing order')
+                self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
+                order = acmeclient.new_order(csr_pem)
 
-            self.logger.debug('CAhandler.enroll() issuing signing order')
-            self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
-            order = acmeclient.new_order(csr_pem)
+                # query challenges
+                for authzr in list(order.authorizations):
+                    (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
+                    if challenge_name and challenge_content:
+                        # store challenge in database to allow challenge validation
+                        self._challenge_store(challenge_name, challenge_content)
+                        auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
 
-            # query challenges
-            for authzr in list(order.authorizations):
-                (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
-                if challenge_name and challenge_content:
-                    # store challenge in database to allow challenge validation
-                    self._challenge_store(challenge_name, challenge_content)
-                    # response = challenge.chall.response(user_key)
-                    # response.simple_verify(challenge.chall, 'foo', user_key.public_key())
-                    auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
+                self.logger.debug('CAhandler.enroll() polling for certificate')
+                order = acmeclient.poll_and_finalize(order)
 
-            self.logger.debug('CAhandler.enroll() polling for certificate')
-            order = acmeclient.poll_and_finalize(order)
+                if order.fullchain_pem:
+                    self.logger.debug('CAhandler.enroll() successful')
+                    cert_bundle = str(order.fullchain_pem)
+                    cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
+                else:
+                    # raise Exception("Error getting certificate: " + str(order.error))
+                    self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
+                    error = 'Error getting certificate: {0}'.format(order.error)
+            else:
+                self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
+                error = 'Bad ACME account: {0}'.format(regr.body.error)
+                # raise Exception("Bad ACME account: " + str(regr.body.error))
 
-            if not order.fullchain_pem:
-                raise Exception("Error getting certificate: " + str(order.error))
-
-            self.logger.debug('CAhandler.enroll() successful')
-            cert_bundle = str(order.fullchain_pem)
-            cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
-
-        except Exception as err:
-            self.logger.error(str(err))
+        except BaseException as err:
+            self.logger.error('CAhandler.enroll: error: {0}'.format(err))
             error = str(err)
-
         finally:
             del user_key
 

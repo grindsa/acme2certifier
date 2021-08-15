@@ -440,7 +440,164 @@ class TestACMEHandler(unittest.TestCase):
         """ test poll """
         self.assertEqual(('Not implemented', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier','csr'))
 
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_info')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientV2.poll_and_finalize')
+    @patch('acme.client.ClientV2.answer_challenge')
+    @patch('acme.client.ClientV2.new_order')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_036_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
+        """ test enroll with no account configured """
+        mock_key.return_value = 'key'
+        mock_messages = Mock()
+        response = Mock()
+        response.body.status = 'valid'
+        mock_reg.return_value = response
+        mock_norder = Mock()
+        mock_norder.authorizations = ['1', '2']
+        mock_c2o.return_value = mock_norder
+        chall = Mock()
+        mock_ach.return_value = 'auth_response'
+        mock_cinfo.return_value = ('challenge_name', 'challenge_content', chall)
+        resp_pof = Mock()
+        resp_pof.fullchain_pem = 'fullchain'
+        mock_pof.return_value = resp_pof
+        mock_dumpcert.return_value = b'mock_dumpcert'
+        mock_loadcert.return_value = 'mock_loadcert'
+        self.assertEqual((None, 'fullchain', 'bW9ja19kdW1wY2VydA==', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_store.called)
+        self.assertTrue(mock_ach.called)
+        self.assertTrue(mock_reg.called)
 
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_info')
+    @patch('acme.client.ClientV2.query_registration')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientV2.poll_and_finalize')
+    @patch('acme.client.ClientV2.answer_challenge')
+    @patch('acme.client.ClientV2.new_order')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_037_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
+        """ test enroll with existing account """
+        self.cahandler.account = 'account'
+        mock_key.return_value = 'key'
+        mock_messages = Mock()
+        response = Mock()
+        response.body.status = 'valid'
+        mock_reg.return_value = response
+        mock_norder = Mock()
+        mock_norder.authorizations = ['1', '2']
+        mock_c2o.return_value = mock_norder
+        chall = Mock()
+        mock_ach.return_value = 'auth_response'
+        mock_cinfo.return_value = ('challenge_name', 'challenge_content', chall)
+        resp_pof = Mock()
+        resp_pof.fullchain_pem = 'fullchain'
+        mock_pof.return_value = resp_pof
+        mock_dumpcert.return_value = b'mock_dumpcert'
+        mock_loadcert.return_value = 'mock_loadcert'
+        self.assertEqual((None, 'fullchain', 'bW9ja19kdW1wY2VydA==', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_store.called)
+        self.assertTrue(mock_ach.called)
+        self.assertTrue(mock_reg.called)
+
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_info')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientV2.poll_and_finalize')
+    @patch('acme.client.ClientV2.answer_challenge')
+    @patch('acme.client.ClientV2.new_order')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_038_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
+        """ test enroll with bodystatus invalid """
+        mock_key.return_value = 'key'
+        mock_messages = Mock()
+        response = Mock()
+        response.body.status = 'invalid'
+        response.body.error = 'error'
+        mock_reg.return_value = response
+        mock_norder = Mock()
+        mock_norder.authorizations = ['1', '2']
+        mock_c2o.return_value = mock_norder
+        chall = Mock()
+        mock_ach.return_value = 'auth_response'
+        mock_cinfo.return_value = ('challenge_name', 'challenge_content', chall)
+        resp_pof = Mock()
+        resp_pof.fullchain_pem = 'fullchain'
+        mock_pof.return_value = resp_pof
+        mock_dumpcert.return_value = b'mock_dumpcert'
+        mock_loadcert.return_value = 'mock_loadcert'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('Bad ACME account: error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_store.called)
+        self.assertFalse(mock_ach.called)
+        self.assertTrue(mock_reg.called)
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: Bad ACME account: error', lcm.output)
+
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_info')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientV2.poll_and_finalize')
+    @patch('acme.client.ClientV2.answer_challenge')
+    @patch('acme.client.ClientV2.new_order')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_039_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
+        """ test enroll with no fullchain """
+        mock_key.return_value = 'key'
+        mock_messages = Mock()
+        response = Mock()
+        response.body.status = 'valid'
+        mock_reg.return_value = response
+        mock_norder = Mock()
+        mock_norder.authorizations = ['1', '2']
+        mock_c2o.return_value = mock_norder
+        chall = Mock()
+        mock_ach.return_value = 'auth_response'
+        mock_cinfo.return_value = ('challenge_name', 'challenge_content', chall)
+        resp_pof = Mock()
+        resp_pof.fullchain_pem = None
+        resp_pof.error = 'order_error'
+        mock_pof.return_value = resp_pof
+        mock_dumpcert.return_value = b'mock_dumpcert'
+        mock_loadcert.return_value = 'mock_loadcert'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('Error getting certificate: order_error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: Error getting certificate: order_error', lcm.output)
+        self.assertTrue(mock_store.called)
+        self.assertTrue(mock_ach.called)
+        self.assertTrue(mock_reg.called)
+
+    @patch('acme.client.ClientV2.query_registration')
+    @patch('acme.client.ClientNetwork')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    def test_040_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg):
+        """ test enroll exception during enrollment  """
+        mock_key.side_effect = Exception('ex_user_key_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('ex_user_key_load', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load', lcm.output)
+        self.assertFalse(mock_store.called)
+        self.assertFalse(mock_nw.called)
+        self.assertFalse(mock_reg.called)
+        self.assertFalse(mock_newreg.called)
 
 if __name__ == '__main__':
 
