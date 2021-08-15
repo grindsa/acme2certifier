@@ -599,6 +599,148 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
+    @patch('acme.messages')
+    def test_041__account_lookup(self, mock_messages):
+        """ test account register existing account - no replacement """
+        response = Mock()
+        response.uri = 'urluriacc_info'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._account_lookup(acmeclient, 'reg', directory)
+        self.assertIn('INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info', lcm.output)
+        self.assertEqual('urluriacc_info', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_042__account_lookup(self, mock_messages):
+        """ test account register existing account - url replacement """
+        response = Mock()
+        response.uri = 'urluriacc_info'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.url = 'url'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._account_lookup(acmeclient, 'reg', directory)
+        self.assertIn('INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info', lcm.output)
+        self.assertEqual('uriacc_info', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_043__account_lookup(self, mock_messages):
+        """ test account register existing account - acct_path replacement """
+        response = Mock()
+        response.uri = 'urluriacc_info'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.path_dic = {'acct_path': 'acc_info'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._account_lookup(acmeclient, 'reg', directory)
+        self.assertIn('INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info', lcm.output)
+        self.assertEqual('urluri', self.cahandler.account)
+
+    @patch('acme.messages')
+    def test_044__account_lookup(self, mock_messages):
+        """ test account register existing account - acct_path replacement """
+        response = Mock()
+        response.uri = 'urluriacc_info'
+        acmeclient = Mock()
+        acmeclient.query_registration = Mock(return_value = response)
+        mock_messages = Mock()
+        directory = {'newAccount': 'newAccount'}
+        self.cahandler.url = 'url'
+        self.cahandler.path_dic = {'acct_path': 'acc_info'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._account_lookup(acmeclient, 'reg', directory)
+        self.assertIn('INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info', lcm.output)
+        self.assertEqual('uri', self.cahandler.account)
+
+    @patch('acme.client.ClientV2.revoke')
+    @patch('acme.client.ClientV2.query_registration')
+    @patch('acme.messages')
+    @patch('acme.client.ClientNetwork')
+    @patch('josepy.JWKRSA')
+    @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
+    @patch('josepy.ComparableX509')
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('os.path.exists')
+    def test_045_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_reg, mock_revoke):
+        """ test revoke successful """
+        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.account = 'account'
+        mock_exists.return_value = True
+        response = Mock()
+        response.body.status = 'valid'
+        mock_reg.return_value = response
+        self.assertEqual((200, None, None), self.cahandler.revoke('cert', 'reason', 'date'))
+
+    @patch('acme.client.ClientV2.revoke')
+    @patch('acme.client.ClientV2.query_registration')
+    @patch('acme.messages')
+    @patch('acme.client.ClientNetwork')
+    @patch('josepy.JWKRSA')
+    @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
+    @patch('josepy.ComparableX509')
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('os.path.exists')
+    def test_046_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_reg, mock_revoke):
+        """ test revoke invalid status after reglookup """
+        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.account = 'account'
+        mock_exists.return_value = True
+        response = Mock()
+        response.body.status = 'invalid'
+        response.body.error = 'error'
+        mock_reg.return_value = response
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Bad ACME account: error'), self.cahandler.revoke('cert', 'reason', 'date'))
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_lookup')
+    @patch('acme.messages')
+    @patch('acme.client.ClientNetwork')
+    @patch('josepy.JWKRSA')
+    @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
+    @patch('josepy.ComparableX509')
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('os.path.exists')
+    def test_047_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
+        """ test revoke account lookup failed """
+        self.cahandler.keyfile = 'keyfile'
+        mock_exists.return_value = True
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'account lookup failed'), self.cahandler.revoke('cert', 'reason', 'date'))
+        self.assertTrue(mock_lookup.called)
+
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_lookup')
+    @patch('acme.messages')
+    @patch('acme.client.ClientNetwork')
+    @patch('josepy.JWKRSA')
+    @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
+    @patch('josepy.ComparableX509')
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('os.path.exists')
+    def test_048_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
+        """ test revoke user key load failed """
+        self.cahandler.keyfile = 'keyfile'
+        mock_exists.return_value = False
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Internal Error'), self.cahandler.revoke('cert', 'reason', 'date'))
+        self.assertFalse(mock_lookup.called)
+        self.assertIn('ERROR:test_a2c:CAhandler.revoke(): could not load user_key keyfile', lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
+    @patch('josepy.ComparableX509')
+    @patch('OpenSSL.crypto.load_certificate')
+    def test_049_revoke(self, mock_load, mock_comp):
+        """ test revoke exception during processing """
+        self.cahandler.keyfile = 'keyfile'
+        mock_load.side_effect = Exception('ex_user_key_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'ex_user_key_load'), self.cahandler.revoke('cert', 'reason', 'date'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load', lcm.output)
+
 if __name__ == '__main__':
 
     unittest.main()
