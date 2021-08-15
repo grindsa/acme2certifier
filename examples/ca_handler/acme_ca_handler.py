@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
-# pylint: disable=E0401, W0105
+# pylint: disable=E0401, W0105, R0914, W0212
 import os.path
 import json
 import textwrap
@@ -14,7 +14,6 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode
-import time
 
 """
 Config file section:
@@ -162,6 +161,22 @@ class CAhandler(object):
         self.logger.debug('CAhandler._user_key_load() ended')
         return user_key
 
+    def _account_lookup(self, acmeclient, reg, directory):
+        """ lookup account """
+        self.logger.debug('CAhandler._account_lookup()')
+        response = acmeclient._post(directory['newAccount'], reg)
+        regr = acmeclient._regr_from_response(response)
+        regr = acmeclient.query_registration(regr)
+        if regr:
+            self.logger.info('CAhandler._account_lookup: found existing account: {0}'.format(regr.uri))
+            self.account = regr.uri
+            if self.url:
+                # remove url from string
+                self.account = self.account.replace(self.url, '')
+            if 'acct_path' in self.path_dic and self.path_dic['acct_path']:
+                # remove acc_path
+                self.account = self.account.replace(self.path_dic['acct_path'], '')
+
     def _account_register(self, acmeclient, user_key, directory):
         """ register account / check registration """
         self.logger.debug('CAhandler._account_register({0})'.format(self.email))
@@ -231,7 +246,7 @@ class CAhandler(object):
                     if challenge_name and challenge_content:
                         # store challenge in database to allow challenge validation
                         self._challenge_store(challenge_name, challenge_content)
-                        auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
+                        _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
 
                 self.logger.debug('CAhandler.enroll() polling for certificate')
                 order = acmeclient.poll_and_finalize(order)
@@ -270,62 +285,59 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def _account_lookup(self, acmeclient, reg, directory):
-        """ lookup account """
-        self.logger.debug('CAhandler.revoke(): lookkup account as its not configured')
-        response = acmeclient._post(directory['newAccount'], reg)
-        regr = acmeclient._regr_from_response(response)
-        regr = acmeclient.query_registration(regr)
-        self.logger.debug('CAhandler._account_lookup: found existing account: {0}'.format(regr.uri))
-        if regr:
-            if self.url and 'acct_path' in self.path_dic:
-                self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
-
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
-        certpem = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64))
-        cert = josepy.ComparableX509(crypto.load_certificate(crypto.FILETYPE_PEM, certpem))
 
-        code = 200
-        message = None
+        user_key = None
+        code = 500
+        message = 'urn:ietf:params:acme:error:serverInternal'
         detail = None
 
-        # try:
-        self.logger.debug('CAhandler.revoke() opening key')
-        user_key = None
-        with open(self.keyfile, "r") as keyf:
-            user_key = josepy.JWKRSA.json_loads(keyf.read())
+        try:
+            certpem = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64))
+            cert = josepy.ComparableX509(crypto.load_certificate(crypto.FILETYPE_PEM, certpem))
 
-        net = client.ClientNetwork(user_key)
-        directory = messages.Directory.from_json(net.get(self.url).json())
-        acmeclient = client.ClientV2(directory, net=net)
-        reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
-        if not self.account:
-            self._account_lookup(acmeclient, reg, directory)
+            if os.path.exists(self.keyfile):
+                user_key = self._user_key_load()
+            net = client.ClientNetwork(user_key)
 
-        if self.account:
-            regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
-            self.logger.debug('CAhandler.revoke() checking remote registration status')
-            regr = acmeclient.query_registration(regr)
+            if user_key:
+                directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
+                acmeclient = client.ClientV2(directory, net=net)
+                reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
 
-            if regr.body.status != "valid":
-                raise Exception("Bad ACME account: " + str(regr.body.error))
+                if not self.account:
+                    self._account_lookup(acmeclient, reg, directory)
 
-            self.logger.debug('CAhandler.revoke() issuing revocation order')
-            acmeclient.revoke(cert, 1)
-            self.logger.debug('CAhandler.revoke() successfull')
-        else:
-            self.logger.error('CAhandler.revoke(): could not fine account key and lookup at acme-endpoint failed.')
+                if self.account:
+                    regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                    self.logger.debug('CAhandler.revoke() checking remote registration status')
+                    regr = acmeclient.query_registration(regr)
 
-        #except Exception as err:
-        #        self.logger.error(str(err))
-        #    code = 500
-        #    message = 'urn:ietf:params:acme:error:serverInternal'
-        #    detail = str(err)
+                    if regr.body.status == "valid":
+                        self.logger.debug('CAhandler.revoke() issuing revocation order')
+                        acmeclient.revoke(cert, 1)
+                        self.logger.debug('CAhandler.revoke() successfull')
+                        code = 200
+                        message = None
+                    else:
+                        self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
+                        detail = 'Bad ACME account: {0}'.format(regr.body.error)
 
-        #finally:
-        #    del key
+                else:
+                    self.logger.error('CAhandler.revoke(): could not find account key and lookup at acme-endpoint failed.')
+                    detail = 'account lookup failed'
+            else:
+                self.logger.error('CAhandler.revoke(): could not load user_key {0}'.format(self.keyfile))
+                detail = 'Internal Error'
+
+        except BaseException as err:
+            self.logger.error('CAhandler.enroll: error: {0}'.format(err))
+            detail = str(err)
+
+        finally:
+            del user_key
 
         self.logger.debug('Certificate.revoke() ended')
         return(code, message, detail)
