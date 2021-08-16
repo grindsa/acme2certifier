@@ -92,6 +92,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except BaseException as err:
             self.logger.error('DBStore._cahandler_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+            result = None
         self._db_close()
         self.logger.debug('DBStore._cahandler_search() ended')
         return result
@@ -919,6 +920,7 @@ class DBstore(object):
         if query:
             result = query[0]
         else:
+            self.logger.error('DBStore.dbversion_get() lookup failed')
             result = None
         self._db_close()
         self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
