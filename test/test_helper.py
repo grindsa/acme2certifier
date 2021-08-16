@@ -1140,7 +1140,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         """ logger setup """
         self.assertTrue(self.logger_setup(True))
 
-    @patch('examples.ca_handler.est_ca_handler.load_config')
+    @patch('acme_srv.helper.load_config')
     def test_164_logger_setup(self, mock_load_cfg):
         """ logger setup """
         mock_load_cfg.return_value = {'Helper': {'log_format': 'foo'}}
@@ -1437,6 +1437,12 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         exc_value = Mock()
         exc_traceback = Mock()
         self.handle_exception(exc_type, exc_value, exc_traceback)
+
+    def test_206_proxy_check(self):
+        """ check proxy - wildcard """
+        fqdn = 'foo.bar.local'
+        proxy_list = {'*.bar.local$': 'proxy_match'}
+        self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
 if __name__ == '__main__':
     unittest.main()
