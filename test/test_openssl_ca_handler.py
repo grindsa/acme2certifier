@@ -1223,6 +1223,43 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, 'pem', 'b2s', None), self.cahandler.enroll('csr'))
         self.assertIn('INFO:test_a2c:CAhandler.enroll(): overwrite CN with foo', lcm.output)
 
+    @patch("builtins.open", mock_open(read_data='cacert'), create=True)
+    @patch('base64.b64encode')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._pemcertchain_generate')
+    @patch('examples.ca_handler.openssl_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._certificate_store')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('OpenSSL.crypto.X509Extension')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
+    def test_128_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+        """ enroll enrollment without extenstions """
+        mock_ext = Mock()
+        mock_cfgchk.return_value = None
+        mock_csrchk.return_value = (True, None)
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_caload.return_value = ('ca_key', ca_obj)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csrload.return_value = Mock()
+        mock_csrload.return_value.get_subject = Mock(return_value=dn_obj)
+        extension = Mock()
+        extension.get_short_name = Mock(return_value=b'keyUsage')
+        mock_csrload.return_value.get_extensions = Mock(return_value=[extension])
+        mock_x509 = Mock()
+        mock_dmp.return_value = 'dump'
+        mock_store.return_value = True
+        mock_b2s.return_value = 'keyUsage'
+        mock_pem.return_value = 'pem'
+        mock_b64e.return_value = 'b64e'
+        self.assertEqual((None, 'pem', 'keyUsage', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_caload.called)
+        self.assertTrue(mock_csrload.called)
+
 if __name__ == '__main__':
 
     unittest.main()
