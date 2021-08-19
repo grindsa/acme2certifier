@@ -367,6 +367,8 @@ class CAhandler(object):
         if entry:
             if list_:
                 for regex in list_:
+                    if regex.startswith('*.'):
+                       regex = regex.replace('*.', '.')
                     regex_compiled = re.compile(regex)
                     if bool(regex_compiled.search(entry)):
                         # parameter is in set flag accordingly and stop loop
