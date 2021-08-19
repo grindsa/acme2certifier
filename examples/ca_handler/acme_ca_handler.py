@@ -8,12 +8,13 @@ import json
 import textwrap
 import base64
 import josepy
+import re
 from OpenSSL import crypto
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode
+from acme_srv.helper import load_config, b64_url_recode, csr_cn_get, csr_san_get
 
 """
 Config file section:
@@ -38,7 +39,7 @@ class CAhandler(object):
         self.email = None
         self.path_dic = {'directory_path': '/directory', 'acct_path' : '/acme/acct/'}
         self.dbstore = DBstore(None, self.logger)
-
+        self.allowdomainlist = []
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.url:
@@ -83,6 +84,12 @@ class CAhandler(object):
             if 'acme_account_email' in config_dic['CAhandler']:
                 self.email = config_dic['CAhandler']['acme_account_email']
 
+            if 'allowdomainlist' in config_dic['CAhandler']:
+                try:
+                    self.allowdomainlist = json.loads(config_dic['CAhandler']['allowdomainlist'])
+                except BaseException as err:
+                    self.logger.error('CAhandler._config_load(): failed to parse allowdomainlist: {0}'.format(err))
+
             self.logger.debug('CAhandler._config_load() ended')
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file')
@@ -106,6 +113,85 @@ class CAhandler(object):
             data_dic = {'name': challenge_name, 'value1': challenge_content}
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
+
+    def _csr_check(self, csr):
+        """ check CSR against definied whitelists """
+        self.logger.debug('CAhandler._csr_check()')
+
+        if self.allowdomainlist:
+
+            result = False
+
+            # get sans and build a list
+            _san_list = csr_san_get(self.logger, csr)
+
+            check_list = []
+            san_list = []
+
+            if _san_list:
+                for san in _san_list:
+                    try:
+                        # SAN list must be modified/filtered)
+                        (_san_type, san_value) = san.lower().split(':')
+                        san_list.append(san_value)
+                    except BaseException:
+                        # force check to fail as something went wrong during parsing
+                        check_list.append(False)
+                        self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
+
+            # get common name and attach it to san_list
+            cn_ = csr_cn_get(self.logger, csr)
+
+            if cn_:
+                cn_ = cn_.lower()
+                if cn_ not in san_list:
+                    # append cn to san_list
+                    self.logger.debug('Ahandler._csr_check(): append cn to san_list')
+                    san_list.append(cn_)
+
+            # go over the san list and check each entry
+            for san in san_list:
+                check_list.append(self._list_check(san, self.allowdomainlist))
+
+            if check_list:
+                # cover a cornercase with empty checklist (no san, no cn)
+                if False in check_list:
+                    result = False
+                else:
+                    result = True
+        else:
+            result = True
+
+        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
+        return result
+
+    def _list_check(self, entry, list_, toggle=False):
+        """ check string against list """
+        self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
+        self.logger.debug('check against list: {0}'.format(list_))
+
+        # default setting
+        check_result = False
+
+        if entry:
+            if list_:
+                for regex in list_:
+                    if regex.startswith('*.'):
+                        regex = regex.replace('*.', '.')
+                    regex_compiled = re.compile(regex)
+                    if bool(regex_compiled.search(entry)):
+                        # parameter is in set flag accordingly and stop loop
+                        check_result = True
+            else:
+                # empty list, flip parameter to make the check successful
+                check_result = True
+
+        if toggle:
+            # toggle result if this is a blacklist
+            check_result = not check_result
+
+        self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
+        return check_result
 
     def _http_challenge_info(self, authzr, user_key):
         """ filter challenges and get challenge details """
@@ -219,56 +305,64 @@ class CAhandler(object):
         poll_indentifier = None
         user_key = None
 
-        try:
-            user_key = self._user_key_load()
-            net = client.ClientNetwork(user_key)
+        # check CN and SAN against black/whitlist
+        result = self._csr_check(csr)
+        
+        if result:
+            try:
+                user_key = self._user_key_load()
+                net = client.ClientNetwork(user_key)
 
-            directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
-            acmeclient = client.ClientV2(directory, net=net)
-            reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
+                directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
+                acmeclient = client.ClientV2(directory, net=net)
+                reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
-            if self.account:
-                regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
-                self.logger.debug('CAhandler.enroll(): checking remote registration status')
-                regr = acmeclient.query_registration(regr)
-            else:
-                # new account or existing account with missing account id
-                regr = self._account_register(acmeclient, user_key, directory)
-
-            if regr.body.status == "valid":
-                self.logger.debug('CAhandler.enroll() issuing signing order')
-                self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
-                order = acmeclient.new_order(csr_pem)
-
-                # query challenges
-                for authzr in list(order.authorizations):
-                    (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
-                    if challenge_name and challenge_content:
-                        # store challenge in database to allow challenge validation
-                        self._challenge_store(challenge_name, challenge_content)
-                        _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
-
-                self.logger.debug('CAhandler.enroll() polling for certificate')
-                order = acmeclient.poll_and_finalize(order)
-
-                if order.fullchain_pem:
-                    self.logger.debug('CAhandler.enroll() successful')
-                    cert_bundle = str(order.fullchain_pem)
-                    cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
+                if self.account:
+                    regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                    self.logger.debug('CAhandler.enroll(): checking remote registration status')
+                    regr = acmeclient.query_registration(regr)
                 else:
-                    # raise Exception("Error getting certificate: " + str(order.error))
-                    self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
-                    error = 'Error getting certificate: {0}'.format(order.error)
-            else:
-                self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
-                error = 'Bad ACME account: {0}'.format(regr.body.error)
-                # raise Exception("Bad ACME account: " + str(regr.body.error))
+                    # new account or existing account with missing account id
+                    regr = self._account_register(acmeclient, user_key, directory)
 
-        except BaseException as err:
-            self.logger.error('CAhandler.enroll: error: {0}'.format(err))
-            error = str(err)
-        finally:
-            del user_key
+                if regr.body.status == "valid":
+                    self.logger.debug('CAhandler.enroll() issuing signing order')
+                    self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
+                    order = acmeclient.new_order(csr_pem)
+
+                    # query challenges
+                    for authzr in list(order.authorizations):
+                        (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
+                        if challenge_name and challenge_content:
+                            # store challenge in database to allow challenge validation
+                            self._challenge_store(challenge_name, challenge_content)
+                            _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
+
+                    self.logger.debug('CAhandler.enroll() polling for certificate')
+                    order = acmeclient.poll_and_finalize(order)
+
+                    if order.fullchain_pem:
+                        self.logger.debug('CAhandler.enroll() successful')
+                        cert_bundle = str(order.fullchain_pem)
+                        cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
+                    else:
+                        # raise Exception("Error getting certificate: " + str(order.error))
+                        self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
+                        error = 'Error getting certificate: {0}'.format(order.error)
+                else:
+                    self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
+                    error = 'Bad ACME account: {0}'.format(regr.body.error)
+                    # raise Exception("Bad ACME account: " + str(regr.body.error))
+
+            except BaseException as err:
+                self.logger.error('CAhandler.enroll: error: {0}'.format(err))
+                error = str(err)
+            finally:
+                del user_key
+
+        else:
+            error = 'CSR rejected. Either CN or SANs are not allowed by policy'
+            self.logger.error('CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.')
 
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, poll_indentifier)
