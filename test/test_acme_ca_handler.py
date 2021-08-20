@@ -193,7 +193,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_013__config_load(self, mock_load_cfg):
         """ test _config_load allowlist """
-        mock_load_cfg.return_value = {'CAhandler': {'allowdomainlist': '["foo", "bar"]'}}
+        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': '["foo", "bar"]'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.keyfile)
@@ -202,14 +202,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
-        self.assertEqual(['foo', 'bar'], self.cahandler.allowdomainlist)
+        self.assertEqual(['foo', 'bar'], self.cahandler.allowed_domainlist)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_014__config_load(self, mock_load_cfg):
         """ test _config_load allowlist - failed json parse """
-        mock_load_cfg.return_value = {'CAhandler': {'allowdomainlist': 'foo'}}
+        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.keyfile)
@@ -218,10 +218,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
-        self.assertFalse(self.cahandler.allowdomainlist)
+        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowdomainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     def test_015__challenge_filter(self):
         """ test _challenge_filter single http """
@@ -895,8 +895,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.acme_ca_handler.csr_san_get')
     def test_068_csr_check(self,  mock_san, mock_cn):
-        """ CAhandler._check_csr with empty allowdomainlist """
-        self.cahandler.allowdomainlist = []
+        """ CAhandler._check_csr with empty allowed_domainlist """
+        self.cahandler.allowed_domainlist = []
         self.cahandler.blacklist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
@@ -908,7 +908,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.csr_san_get')
     def test_069_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr with list and failed check """
-        self.cahandler.allowdomainlist = ['foo.bar']
+        self.cahandler.allowed_domainlist = ['foo.bar']
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, False]
@@ -920,7 +920,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.csr_san_get')
     def test_070_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr with list and successful check """
-        self.cahandler.allowdomainlist = ['foo.bar']
+        self.cahandler.allowed_domainlist = ['foo.bar']
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, True]
@@ -932,7 +932,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.csr_san_get')
     def test_071_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.allowdomainlist = ['foo.bar']
+        self.cahandler.allowed_domainlist = ['foo.bar']
         mock_san.return_value = ['host.google.com']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, True]
@@ -943,7 +943,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.csr_san_get')
     def test_072_csr_check(self, mock_san, mock_cn):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.allowdomainlist = ['foo.bar']
+        self.cahandler.allowed_domainlist = ['foo.bar']
         mock_san.return_value = []
         mock_cn.return_value = None
         csr = 'csr'

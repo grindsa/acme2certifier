@@ -27,8 +27,8 @@ class CAhandler(object):
         self.openssl_conf = None
         self.cert_save_path = None
         self.save_cert_as_hex = False
-        self.whitelist = []
-        self.blacklist = []
+        self.allowed_domainlist = []
+        self.blocked_domainlist = []
         self.cn_enforce = False
 
     def __enter__(self):
@@ -268,10 +268,16 @@ class CAhandler(object):
             self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
         if 'openssl_conf' in config_dic['CAhandler']:
             self.openssl_conf = config_dic['CAhandler']['openssl_conf']
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        if 'blocked_domainlist' in config_dic['CAhandler']:
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blocked_domainlist'])
         if 'whitelist' in config_dic['CAhandler']:
-            self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.logger.error('CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"')
         if 'blacklist' in config_dic['CAhandler']:
-            self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
         try:
             self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
         except BaseException:
@@ -301,7 +307,7 @@ class CAhandler(object):
         return sn_match
 
     def _csr_check(self, csr):
-        """ check CSR against definied whitelists """
+        """ check CSR against definied allowed_domainlists """
         self.logger.debug('CAhandler._csr_check()')
 
         # get sans and build a list
@@ -337,12 +343,12 @@ class CAhandler(object):
                 self.logger.debug('Ahandler._csr_check(): append cn to san_list')
                 san_list.append(cn_)
 
-        if self.whitelist or self.blacklist:
+        if self.allowed_domainlist or self.blocked_domainlist:
             result = False
 
             # go over the san list and check each entry
             for san in san_list:
-                check_list.append(self._string_wlbl_check(san, self.whitelist, self.blacklist))
+                check_list.append(self._string_wlbl_check(san, self.allowed_domainlist, self.blocked_domainlist))
 
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)
@@ -378,7 +384,7 @@ class CAhandler(object):
                 check_result = True
 
         if toggle:
-            # toggle result if this is a blacklist
+            # toggle result if this is a blocked_domainlist
             check_result = not check_result
 
         self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
@@ -402,7 +408,7 @@ class CAhandler(object):
         return pem_chain
 
     def _string_wlbl_check(self, entry, white_list, black_list):
-        """ check single against whitelist and blacklist """
+        """ check single against allowed_domainlist and blocked_domainlist """
         self.logger.debug('CAhandler._string_wlbl_check({0})'.format(entry))
 
         # default setting
@@ -413,7 +419,7 @@ class CAhandler(object):
         if wl_check:
             self.logger.debug('{0} in white_list'.format(entry))
             if black_list:
-                # we need to check blacklist if there is a blacklist and wl check passed
+                # we need to check blocked_domainlist if there is a blocked_domainlist and wl check passed
                 if self._list_check(entry, black_list):
                     self.logger.debug('{0} in black_list'.format(entry))
                 else:

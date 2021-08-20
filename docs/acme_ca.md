@@ -42,7 +42,7 @@ The handler must be configured via `acme_srv`.
 | acme_account | acme account name. If not specified acme2certifer will try to lookup the account name based on the key-file | yes | None |
 | acme_keyfile | Path to private key json-format. If specified in config but not existing on file-system acme2certifer will generate a new key and try to register it |
 | acme_account_email | email address used to register a new account | no | None |
-| allowdomainlist | list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] | no | [] |
+| allowed_domainlist | list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] | no | [] |
 | directory_path | path to directory ressource on ca server | no | '/directory' |
 
 - copy the ca_handler into the `acme_srv` directory or add a handler_file parameter into (`acme_srv.cfg`

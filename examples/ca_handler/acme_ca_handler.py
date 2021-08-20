@@ -39,7 +39,7 @@ class CAhandler(object):
         self.email = None
         self.path_dic = {'directory_path': '/directory', 'acct_path' : '/acme/acct/'}
         self.dbstore = DBstore(None, self.logger)
-        self.allowdomainlist = []
+        self.allowed_domainlist = []
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.url:
@@ -84,11 +84,11 @@ class CAhandler(object):
             if 'acme_account_email' in config_dic['CAhandler']:
                 self.email = config_dic['CAhandler']['acme_account_email']
 
-            if 'allowdomainlist' in config_dic['CAhandler']:
+            if 'allowed_domainlist' in config_dic['CAhandler']:
                 try:
-                    self.allowdomainlist = json.loads(config_dic['CAhandler']['allowdomainlist'])
+                    self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
                 except BaseException as err:
-                    self.logger.error('CAhandler._config_load(): failed to parse allowdomainlist: {0}'.format(err))
+                    self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
 
             self.logger.debug('CAhandler._config_load() ended')
         else:
@@ -118,7 +118,7 @@ class CAhandler(object):
         """ check CSR against definied whitelists """
         self.logger.debug('CAhandler._csr_check()')
 
-        if self.allowdomainlist:
+        if self.allowed_domainlist:
 
             result = False
 
@@ -151,7 +151,7 @@ class CAhandler(object):
 
             # go over the san list and check each entry
             for san in san_list:
-                check_list.append(self._list_check(san, self.allowdomainlist))
+                check_list.append(self._list_check(san, self.allowed_domainlist))
 
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)
@@ -307,7 +307,7 @@ class CAhandler(object):
 
         # check CN and SAN against black/whitlist
         result = self._csr_check(csr)
-        
+
         if result:
             try:
                 user_key = self._user_key_load()
