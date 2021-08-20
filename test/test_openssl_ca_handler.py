@@ -484,14 +484,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_061_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check against empty whitlist but match in blacklist """
+        """ CAhandler._string_wlbl_check against empty whitlist but match in blocked_domainlist """
         white_list = []
         black_list = ['host.bar.foo$']
         entry = 'host.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_062_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check against empty whitlist but no match in blacklist """
+        """ CAhandler._string_wlbl_check against empty whitlist but no match in blocked_domainlist """
         white_list = []
         black_list = ['faulty.bar.foo$']
         entry = 'host.bar.foo'
@@ -547,7 +547,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
     def test_070_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check successful wildcard blacklisting - no match"""
+        """ CAhandler._string_wlbl_check successful wildcard blocked_domainlisting - no match"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = [r'\*.bar.foo']
         entry = 'host.bar.foo'
@@ -591,9 +591,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_076_csr_check(self,  mock_san, mock_cn):
-        """ CAhandler._check_csr with empty whitelist and blacklists """
-        self.cahandler.whitelist = []
-        self.cahandler.blacklist = []
+        """ CAhandler._check_csr with empty allowed_domainlist and blocked_domainlists """
+        self.cahandler.allowed_domainlist = []
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
         csr = 'csr'
@@ -604,8 +604,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_077_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr with list and failed check """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, False]
@@ -617,8 +617,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_078_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr with list and successful check """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, True]
@@ -630,8 +630,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_079_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['host.google.com']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, True]
@@ -642,8 +642,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_080_csr_check(self, mock_san, mock_cn):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = []
         mock_cn.return_value = None
         csr = 'csr'
@@ -760,22 +760,48 @@ class TestACMEHandler(unittest.TestCase):
     def test_092__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'blocked_domainlist': 'foo.json'}
+        mock_load_cfg.return_value = parser
+        mock_jl.return_value = 'blocked_domainlist'
+        self.cahandler._config_load()
+        self.assertEqual('blocked_domainlist', self.cahandler.blocked_domainlist)
+
+    @patch('json.loads')
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_192__config_load(self, mock_load_cfg, mock_jl):
+        """ config load """
+        parser = configparser.ConfigParser()
         parser['CAhandler'] = {'blacklist': 'foo.json'}
         mock_load_cfg.return_value = parser
-        mock_jl.return_value = 'blacklist'
-        self.cahandler._config_load()
-        self.assertEqual('blacklist', self.cahandler.blacklist)
+        mock_jl.return_value = 'blocked_domainlist'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('blocked_domainlist', self.cahandler.blocked_domainlist)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"', lcm.output)
+
+    @patch('json.loads')
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_193__config_load(self, mock_load_cfg, mock_jl):
+        """ config load """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'whitelist': 'foo.json'}
+        mock_load_cfg.return_value = parser
+        mock_jl.return_value = 'allowed_domainlist'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('allowed_domainlist', self.cahandler.allowed_domainlist)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"', lcm.output)
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
     def test_093__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'whitelist': 'foo.json'}
+        parser['CAhandler'] = {'allowed_domainlist': 'foo.json'}
         mock_load_cfg.return_value = parser
-        mock_jl.return_value = 'whitelist'
+        mock_jl.return_value = 'allowed_domainlist'
         self.cahandler._config_load()
-        self.assertEqual('whitelist', self.cahandler.whitelist)
+        self.assertEqual('allowed_domainlist', self.cahandler.allowed_domainlist)
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
