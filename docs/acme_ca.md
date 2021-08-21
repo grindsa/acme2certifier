@@ -59,23 +59,50 @@ acme_keyfile: /path/to/privkey.json
 
 ## Example configuration for Letsencrypt
 
-Below the configuration example can be used to connect to Letsencrypt staging server .
+Below the configuration example can be used to connect to Letsencrypt staging server.
 
 ```config
 [CAhandler]
-account_path: /acme/acct/
-directory_path: /directory
 acme_keyfile: acme_srv/acme/le_staging_private_key.json
 # use this url to connect to LE staging server for testing
 acme_url: https://acme-staging-v02.api.letsencrypt.org
-acme_account_email: grinsa@github.com
+acme_account_email: email@example.com
 ```
 
-if you are able to enroll from the LE staging server move to production by changing the `acme_keyfile` and `acme_url` as below.
+If you are able to enroll from the LE staging server move to production by changing the `acme_keyfile` and `acme_url` as below.
 
 ```cfg
 acme_url: https://acme-v02.api.letsencrypt.org
 acme_keyfile: /var/www/acme2certifier/volume/acme/le_private_key.json
+```
+
+## Example configuration for BuyPass.com CA
+
+Below the configuration example which can be used to connect to Buypass test server.
+
+```config
+acme_keyfile: acme_srv/acme/bypass_test_private_key.json
+acme_url: https://api.test4.buypass.no/acme
+acme_account_email: email@example.com
+```
+
+Once you are able to enroll you can move to the production environment with the below changes.
+
+```cfg
+acme_keyfile: acme_srv/acme/bypass_prod_private_key.json
+acme_url: https://api.buypass.com/acme
+acme_account_email: email@example.com
+```
+
+# Example for ZeroSSL CA
+
+Below a configuration to connect to ZeroSSL
+
+```cfg
+acme_keyfile: acme_srv/acme/zerossl.json
+acme_url: https://acme.zerossl.com/v2/DV90
+acme_account_email: email@example.com
+account_path: /account/
 ```
 
 ## Example key-file in json format
