@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Change in 0.18
+
+**Features and Improvements**:
+
+- [proxy support](docs/proxy_support.md) for http and tls-alpn challenge validation and in several ca handlers
+- [acme_ca_handler](docs/acme_ca.md)
+  - support for account registration and http_challenge validation
+- [openssl_ca_handler](docs/openssl.md):
+  - `cn_enforce` parameter to enfore setting a common name in certificate
+  - `whitelist` parameter got renamed to `allowed_domainlist`
+  - `blocklist` parameter got renamed to `blocked_domainlist`   
+- [xca_ca_handler](docs/xca.md):
+  - `cn_enforce` parameter to enfore setting a common name in certificate
+
 ## Changes in 0.17
 
 **Upgrade notes**:
