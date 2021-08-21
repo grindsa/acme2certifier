@@ -3,6 +3,7 @@
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
 # pylint: disable=E0401, W0105, R0914, W0212
+import requests
 import os.path
 import json
 import textwrap
@@ -40,6 +41,9 @@ class CAhandler(object):
         self.path_dic = {'directory_path': '/directory', 'acct_path' : '/acme/acct/'}
         self.dbstore = DBstore(None, self.logger)
         self.allowed_domainlist = []
+        self.eab_kid = None
+        self.eab_hmac_key = None
+
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
         if not self.url:
@@ -89,6 +93,13 @@ class CAhandler(object):
                     self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
                 except BaseException as err:
                     self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
+
+            if 'eab_kid' in  config_dic['CAhandler']:
+                self.eab_kid = config_dic['CAhandler']['eab_kid']
+
+            if 'eab_hmac_key' in  config_dic['CAhandler']:
+                self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
+
 
             self.logger.debug('CAhandler._config_load() ended')
         else:
@@ -276,8 +287,16 @@ class CAhandler(object):
         except BaseException:
             if self.email:
                 self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
-                # account does not exists - register
-                reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
+                if self.url and 'zerossl.com' in self.url:
+                    # get zerossl eab credentials
+                    self._zerossl_eab_get()
+                if self.eab_kid and self.eab_hmac_key:
+                    # we have to do some freaky eab to keep ZeroSSL happy
+                    eab = messages.ExternalAccountBinding.from_data(account_public_key=user_key, kid=self.eab_kid, hmac_key=self.eab_hmac_key, directory=directory)
+                    reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, external_account_binding=eab)
+                else:
+                    # register with email
+                    reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
                 regr = acmeclient.new_account(reg)
                 self.logger.debug('CAhandler.__account_register(): new account reqistered: {0}'.format(regr.uri))
             else:
@@ -292,6 +311,21 @@ class CAhandler(object):
                 # store account-id in housekeeping table to avoid unneccary rquests towards acme-server
                 # self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
         return regr
+
+    def _zerossl_eab_get(self):
+        """ get eab credentials from zerossl """
+        self.logger.debug('CAhandler._zerossl_eab_get()')
+
+        zero_eab_email = "http://api.zerossl.com/acme/eab-credentials-email"
+        data = {'email': self.email}
+
+        response = requests.post(zero_eab_email, data = data)
+        if 'success' in response.json() and response.json()['success'] and 'eab_kid' in response.json() and 'eab_hmac_key' in response.json():
+            self.eab_kid = response.json()['eab_kid']
+            self.eab_hmac_key = response.json()['eab_hmac_key']
+            self.logger.debug('CAhandler._zerossl_eab_get() ended successfully')
+        else:
+            self.logger.error('CAhandler._zerossl_eab_get() failed: {0}'.format(response.text))
 
     def enroll(self, csr):
         """ enroll certificate  """
