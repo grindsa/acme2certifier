@@ -7,6 +7,12 @@ and pick the appropriate release branch.
 
 ## Change in 0.18
 
+**Upgrade notes**:
+
+database scheme gets updated. Please:
+backup your database before upgrading to the new version
+read the upgrade instructions if you are running acme2certifer in an django environment
+
 **Features and Improvements**:
 
 - [proxy support](docs/proxy_support.md) for http and tls-alpn challenge validation and in several ca-handlers
@@ -21,17 +27,17 @@ and pick the appropriate release branch.
 
 ## Changes in 0.17.1
 
-  **Bugfixes**:
+**Bugfixes**:
 
-  - python request module - version pinning to 2.25.1
+- python request module - version pinning to 2.25.1
 
 ## Changes in 0.17
 
 **Upgrade notes**:
 
-- database scheme gets updated. Please:
-  - backup your database before upgrading to the new version
-  - read the [upgrade instructions](docs/upgrading.md) if you are running acme2certifer in an django environment
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
 
 **Features**:
 
