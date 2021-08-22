@@ -27,8 +27,9 @@ class CAhandler(object):
         self.openssl_conf = None
         self.cert_save_path = None
         self.save_cert_as_hex = False
-        self.whitelist = []
-        self.blacklist = []
+        self.allowed_domainlist = []
+        self.blocked_domainlist = []
+        self.cn_enforce = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -267,10 +268,21 @@ class CAhandler(object):
             self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
         if 'openssl_conf' in config_dic['CAhandler']:
             self.openssl_conf = config_dic['CAhandler']['openssl_conf']
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        if 'blocked_domainlist' in config_dic['CAhandler']:
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blocked_domainlist'])
         if 'whitelist' in config_dic['CAhandler']:
-            self.whitelist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.logger.error('CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"')
         if 'blacklist' in config_dic['CAhandler']:
-            self.blacklist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
+        try:
+            self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
+        except BaseException:
+            self.logger.error('CAhandler._config_load() variable cn_enforce cannot be parsed')
+
         self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -295,17 +307,16 @@ class CAhandler(object):
         return sn_match
 
     def _csr_check(self, csr):
-        """ check CSR against definied whitelists """
+        """ check CSR against definied allowed_domainlists """
         self.logger.debug('CAhandler._csr_check()')
 
-        if self.whitelist or self.blacklist:
-            result = False
-            # get sans and build a list
-            _san_list = csr_san_get(self.logger, csr)
+        # get sans and build a list
+        _san_list = csr_san_get(self.logger, csr)
 
-            san_list = []
-            check_list = []
+        check_list = []
+        san_list = []
 
+        if _san_list:
             for san in _san_list:
                 try:
                     # SAN list must be modified/filtered)
@@ -314,20 +325,30 @@ class CAhandler(object):
                 except BaseException:
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
-                    self.logger.debug('san_list parsing failed at entry: {0}'.format(san))
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
 
-            # get common name and atttach it to san_list
-            cn_ = csr_cn_get(self.logger, csr)
-            if cn_:
-                cn_ = cn_.lower()
-                if cn_ not in san_list:
-                    # append cn to san_list
-                    self.logger.debug('append cn to san_list')
-                    san_list.append(cn_)
+        # get common name and attach it to san_list
+        cn_ = csr_cn_get(self.logger, csr)
+
+        if not cn_ and san_list:
+            enforced_cn = san_list[0]
+            self.logger.info('CAhandler._csr_check(): enforce CN to {0}'.format(enforced_cn))
+        else:
+            enforced_cn = None
+
+        if cn_:
+            cn_ = cn_.lower()
+            if cn_ not in san_list:
+                # append cn to san_list
+                self.logger.debug('Ahandler._csr_check(): append cn to san_list')
+                san_list.append(cn_)
+
+        if self.allowed_domainlist or self.blocked_domainlist:
+            result = False
 
             # go over the san list and check each entry
             for san in san_list:
-                check_list.append(self._string_wlbl_check(san, self.whitelist, self.blacklist))
+                check_list.append(self._string_wlbl_check(san, self.allowed_domainlist, self.blocked_domainlist))
 
             if check_list:
                 # cover a cornercase with empty checklist (no san, no cn)
@@ -335,12 +356,11 @@ class CAhandler(object):
                     result = False
                 else:
                     result = True
-
         else:
             result = True
 
-        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
-        return result
+        self.logger.debug('CAhandler._csr_check() ended with: {0} enforce_cn: {1}'.format(result, enforced_cn))
+        return (result, enforced_cn)
 
     def _list_check(self, entry, list_, toggle=False):
         """ check string against list """
@@ -353,6 +373,8 @@ class CAhandler(object):
         if entry:
             if list_:
                 for regex in list_:
+                    if regex.startswith('*.'):
+                       regex = regex.replace('*.', '.')
                     regex_compiled = re.compile(regex)
                     if bool(regex_compiled.search(entry)):
                         # parameter is in set flag accordingly and stop loop
@@ -362,7 +384,7 @@ class CAhandler(object):
                 check_result = True
 
         if toggle:
-            # toggle result if this is a blacklist
+            # toggle result if this is a blocked_domainlist
             check_result = not check_result
 
         self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
@@ -386,7 +408,7 @@ class CAhandler(object):
         return pem_chain
 
     def _string_wlbl_check(self, entry, white_list, black_list):
-        """ check single against whitelist and blacklist """
+        """ check single against allowed_domainlist and blocked_domainlist """
         self.logger.debug('CAhandler._string_wlbl_check({0})'.format(entry))
 
         # default setting
@@ -397,7 +419,7 @@ class CAhandler(object):
         if wl_check:
             self.logger.debug('{0} in white_list'.format(entry))
             if black_list:
-                # we need to check blacklist if there is a blacklist and wl check passed
+                # we need to check blocked_domainlist if there is a blocked_domainlist and wl check passed
                 if self._list_check(entry, black_list):
                     self.logger.debug('{0} in black_list'.format(entry))
                 else:
@@ -423,7 +445,7 @@ class CAhandler(object):
         if not error:
             try:
                 # check CN and SAN against black/whitlist
-                result = self._csr_check(csr)
+                (result, enforce_cn) = self._csr_check(csr)
 
                 if result:
                     # prepare the CSR
@@ -440,12 +462,17 @@ class CAhandler(object):
 
                     # creating a rest form CSR
                     req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+                    subject = req.get_subject()
+                    if self.cn_enforce and enforce_cn:
+                        self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
+                        setattr(subject, 'CN', enforce_cn)
+
                     # sign csr
                     cert = crypto.X509()
                     cert.gmtime_adj_notBefore(0)
                     cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
                     cert.set_issuer(ca_cert.get_subject())
-                    cert.set_subject(req.get_subject())
+                    cert.set_subject(subject)
                     cert.set_pubkey(req.get_pubkey())
                     cert.set_serial_number(uuid.uuid4().int)
                     cert.set_version(2)
@@ -493,7 +520,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return(error, cert_bundle, cert_raw, None)
 
-
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
@@ -521,7 +547,7 @@ class CAhandler(object):
             (ca_key, ca_cert) = self._ca_load()
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
-            result = None
+
             # proceed if the cert and ca-cert belong together
             # if not result:
             serial = cert_serial_get(self.logger, cert)

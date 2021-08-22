@@ -7,6 +7,7 @@
 | Section | Option | Description | Values | default|
 | :-------| :------| :-----------| :------| :------|
 | `DEFAULT` | `debug`  | Debug mode| True/False| False|
+| `DEFAULT` | `proxy_server_list`  | [Proxy-server configuration](proxy_support.md)| {"bar.local$": "http​://10.0.0.1:3128", "foo.local$": "socks5://10.0.0.1:1080"}| None|
 | `Account` | `ecc_only` | mandates the usage of ECC for account key generation | True/False | False|
 | `Account` | `inner_header_nonce_allow` | allow nonce header on inner JWS during key-rollover | True/False | False|
 | `Account` | `tos_check_disable` | turn off "Terms of Service" acceptance check  | True/False | False|

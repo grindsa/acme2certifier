@@ -15,13 +15,14 @@ import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
 import socket
+import ssl
+import logging
+import hashlib
+import socks
 try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-import logging
-import hashlib
-import ssl
 from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
@@ -587,6 +588,30 @@ def patched_create_connection(address, *args, **kwargs):
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
+def proxy_check(logger, fqdn, proxy_server_list):
+    """ check proxy server """
+    logger.debug('proxy_check({0})'.format(fqdn))
+
+    # remove leading *.
+    proxy_server_list_new = {k.replace('*.', ''): v for k, v in proxy_server_list.items()}
+
+    proxy = None
+    for regex in sorted(proxy_server_list_new.keys(), reverse=True):
+        if regex != '*':
+            regex_compiled = re.compile(regex)
+            if bool(regex_compiled.search(fqdn)):
+                # parameter is in - set flag accordingly and stop loop
+                proxy = proxy_server_list_new[regex]
+                logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
+                break
+
+    if '*' in proxy_server_list_new.keys() and not proxy:
+        logger.debug('proxy_check() wildcard match found: fqdn: {0}'.format(fqdn))
+        proxy = proxy_server_list_new['*']
+
+    logger.debug('proxy_check() ended with {0}'.format(proxy))
+    return proxy
+
 def url_get_with_own_dns(logger, url):
     """ request by using an own dns resolver """
     logger.debug('url_get_with_own_dns({0})'.format(url))
@@ -609,22 +634,29 @@ def allowed_gai_family():
     family = socket.AF_INET    # force IPv4
     return family
 
-def url_get(logger, url, dns_server_list=None, verify=True):
+def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
     """ http get """
     logger.debug('url_get({0})'.format(url))
-    if dns_server_list:
+
+    # configure proxy servers if specified
+    if proxy_server:
+        proxy_list = {'http': proxy_server, 'https': proxy_server}
+    else:
+        proxy_list = {}
+    if dns_server_list and not proxy_server:
         result = url_get_with_own_dns(logger, url)
     else:
         try:
-            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
             result = req.text
         except BaseException as err_:
+            logger.debug('url_get({0}): error'.format(err_))
             # force fallback to ipv4
             logger.debug('url_get({0}): fallback to v4'.format(url))
             old_gai_family = urllib3_cn.allowed_gai_family
             try:
                 urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+                req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
                 result = req.text
             except BaseException as err_:
                 result = None
@@ -685,21 +717,68 @@ def datestr_to_date(datestr, tformat='%Y-%m-%dT%H:%M:%S'):
         result = None
     return result
 
-def servercert_get(logger, hostname, port=443):
+def proxystring_convert(logger, proxy_server):
+    """ convert proxy string """
+    logger.debug('proxystring_convert({0})'.format(proxy_server))
+    proxy_proto_dic = {'http': socks.PROXY_TYPE_HTTP, 'socks4': socks.PROXY_TYPE_SOCKS4, 'socks5': socks.PROXY_TYPE_SOCKS5}
+    try:
+        (proxy_proto, proxy) = proxy_server.split('://')
+    except BaseException:
+        logger.error('proxystring_convert(): error splitting proxy_server string: {0}'.format(proxy_server))
+        proxy = None
+        proxy_proto = None
+
+    if proxy:
+        try:
+            (proxy_addr, proxy_port) = proxy.split(':')
+        except BaseException:
+            logger.error('proxystring_convert(): error splitting proxy into host/port: {0}'.format(proxy))
+            proxy_addr = None
+            proxy_port = None
+    else:
+        proxy_addr = None
+        proxy_port = None
+
+    if proxy_proto and proxy_addr and proxy_port:
+        try:
+            proto_string = proxy_proto_dic[proxy_proto]
+        except BaseException:
+            logger.error('proxystring_convert(): unknown proxy protocol: {0}'.format(proxy_proto))
+            proto_string = None
+    else:
+        logger.error('proxystring_convert(): proxy_proto ({0}), proxy_addr ({1}) or proxy_port ({2}) missing'.format(proxy_proto, proxy_addr, proxy_port))
+        proto_string = None
+
+    try:
+        proxy_port = int(proxy_port)
+    except BaseException:
+        logger.error('proxystring_convert(): unknown proxy port: {0}'.format(proxy_port))
+        proxy_port = None
+
+    logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
+    return(proto_string, proxy_addr, proxy_port)
+
+def servercert_get(logger, hostname, port=443, proxy_server=None):
     """ get server certificate from an ssl connection """
     logger.debug('servercert_get({0}:{1})'.format(hostname, port))
 
     pem_cert = None
-    context = ssl.create_default_context()
-    # disable cert validation
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    with socket.create_connection((hostname, port)) as sock:
-        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+    sock = socks.socksocket()
+    if proxy_server:
+        (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
+        if proxy_proto and proxy_addr and proxy_port:
+            logger.debug('servercert_get() configure proxy')
+            sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
+    try:
+        sock.connect((hostname, port))
+        with(ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)) as sslsock:
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
-            pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
-
+            if der_cert:
+                pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
+    except BaseException as err_:
+        logger.error('servercert_get() failed with: {0}'.format(err_))
+        pem_cert = None
     return pem_cert
 
 def validate_csr(logger, order_dic, _csr):
