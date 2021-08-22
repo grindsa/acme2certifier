@@ -21,9 +21,9 @@ and pick the appropriate release branch.
 
 ## Changes in 0.17.1
 
-  **Bugfixes**:
+**Bugfixes**:
 
-  - python request module - version pinning to 2.25.1
+- python request module - version pinning to 2.25.1
 
 ## Changes in 0.17
 
