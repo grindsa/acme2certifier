@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch, mock_open, Mock
 # from OpenSSL import crypto
 import shutil
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -207,10 +208,10 @@ class TestACMEHandler(unittest.TestCase):
     def test_023_config_load(self, mock_load_cfg):
         """ test _config_load - load template overwrite ref variable """
         mock_load_cfg.return_value = {'CAhandler': {'cmp_ref_variable': 'cmp_ref', 'cmp_ref': 'cmp_ref_local'}}
-        self.cahandler._config_load()
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
         self.assertEqual('cmp_ref_local', self.cahandler.ref)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cmp_ref variable', lcm.output)
 
     @patch.dict('os.environ', {'cmp_secret': 'cmp_secret'})
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
@@ -230,16 +231,33 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.secret)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load cmp_secret_variable:'does_not_exist'", lcm.output)
 
-    @patch.dict('os.environ', {'cmp_ref': 'cmp_ref'})
+    @patch.dict('os.environ', {'cmp_secret': 'cmp_secret'})
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_026_config_load(self, mock_load_cfg):
         """ test _config_load - load template overwrite ref variable """
         mock_load_cfg.return_value = {'CAhandler': {'cmp_secret_variable': 'cmp_secret', 'cmp_secret': 'cmp_secret_local'}}
-        self.cahandler._config_load()
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
         self.assertEqual('cmp_secret_local', self.cahandler.secret)
-        # self.assertIn("foo", lcm.output)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cmp_secret variable', lcm.output)
 
+    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    def test_027__config_load(self, mock_load_cfg):
+        """ config load enforce cmp_boolean True """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_bool': 'True'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual({'bool': True, 'cmd': 'ir', 'popo': 0}, self.cahandler.config_dic)
+
+    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    def test_028__config_load(self, mock_load_cfg):
+        """ config load enforce cmp_boolean False """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_bool': 'False'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertEqual({'bool': False, 'cmd': 'ir', 'popo': 0}, self.cahandler.config_dic)
 
     @patch('examples.ca_handler.cmp_ca_handler.csr_san_get')
     def test_027_csr_san_get(self, mock_san):

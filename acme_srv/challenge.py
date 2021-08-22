@@ -3,7 +3,7 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check
+from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
@@ -21,6 +21,7 @@ class Challenge(object):
         self.challenge_validation_disable = False
         self.tnauthlist_support = False
         self.dns_server_list = None
+        self.proxy_server_list = {}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -136,14 +137,20 @@ class Challenge(object):
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
                 except BaseException as err_:
-                    self.logger.warning('Challenge._config_load() failed with error: {0}'.format(err_))
+                    self.logger.warning('Challenge._config_load() dns_server_list failed with error: {0}'.format(err_))
 
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
 
-        if 'Directory' in config_dic:            
+        if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
                 self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
+            try:
+                self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+            except BaseException as err_:
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('Challenge._config_load() ended.')
 
@@ -252,13 +259,18 @@ class Challenge(object):
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
-        # which is base 64 encoded '0420' has been taken from acme_srv.sh sources
+        # which is base64 encoded '0420' has been taken from acme_srv.sh sources
         sha256_digest = sha256_hash_hex(self.logger, '{0}.{1}'.format(token, jwk_thumbprint))
         extension_value = b64_encode(self.logger, bytearray.fromhex('0420{0}'.format(sha256_digest)))
         self.logger.debug('computed value: {0}'.format(extension_value))
 
         if not invalid:
-            cert = servercert_get(self.logger, fqdn)
+            # check if we need to set a proxy
+            if self.proxy_server_list:
+                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
+            else:
+                proxy_server = None
+            cert = servercert_get(self.logger, fqdn, 443, proxy_server)
             if cert:
                 san_list = cert_san_get(self.logger, cert, recode=False)
                 fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
@@ -316,9 +328,12 @@ class Challenge(object):
         (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
         self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         if not invalid:
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), self.dns_server_list, verify=False)
-            # make challenge validation unsuccessful
-            # req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format('test.test', 'foo.bar.some.not.existing.ressource'))
+            # check if we need to set a proxy
+            if self.proxy_server_list:
+                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
+            else:
+                proxy_server = None
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False)
             if req:
                 response_got = req.splitlines()[0]
                 response_expected = '{0}.{1}'.format(token, jwk_thumbprint)

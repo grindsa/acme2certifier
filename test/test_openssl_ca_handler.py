@@ -470,191 +470,219 @@ class TestACMEHandler(unittest.TestCase):
         entry = '*.bar.foo'
         self.assertTrue(self.cahandler._list_check(entry, list_))
 
-    def test_059_string_wlbl_check(self):
+    def test_059_list_check(self):
+        """ CAhandler._list_check successful whildcard in list but not in string """
+        list_ = ['foo.bar$', '*.bar.foo']
+        entry = 'foo.bar.foo'
+        self.assertTrue(self.cahandler._list_check(entry, list_))
+
+    def test_060_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty lists"""
         white_list = []
         black_list = []
         entry = 'host.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_060_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check against empty whitlist but match in blacklist """
+    def test_061_string_wlbl_check(self):
+        """ CAhandler._string_wlbl_check against empty whitlist but match in blocked_domainlist """
         white_list = []
         black_list = ['host.bar.foo$']
         entry = 'host.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_061_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check against empty whitlist but no match in blacklist """
+    def test_062_string_wlbl_check(self):
+        """ CAhandler._string_wlbl_check against empty whitlist but no match in blocked_domainlist """
         white_list = []
         black_list = ['faulty.bar.foo$']
         entry = 'host.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_062_string_wlbl_check(self):
+    def test_063_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist wildcard check does not hit """
         white_list = []
         black_list = [r'\*.bar.foo$']
         entry = 'host.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_063_string_wlbl_check(self):
+    def test_064_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check against empty whitlist wildcard check hit """
         white_list = []
         black_list = [r'\*.bar.foo$']
         entry = '*.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_064_string_wlbl_check(self):
+    def test_065_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check successful wl check with empty bl"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = []
         entry = 'host.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_065_string_wlbl_check(self):
+    def test_066_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful empty bl """
         white_list = ['foo.foo$', 'host.bar.foo$']
         black_list = []
         entry = 'host.bar.foo.bar'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_066_string_wlbl_check(self):
+    def test_067_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful host in bl"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['host.bar.foo']
         entry = 'host.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_067_string_wlbl_check(self):
+    def test_068_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check unsuccessful host in bl but not on first position"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['foo.bar$', 'host.bar.foo', 'foo.foo']
         entry = 'host.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_068_string_wlbl_check(self):
+    def test_069_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check successful wildcard in entry not n bl """
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['host.bar.foo']
         entry = '*.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_069_string_wlbl_check(self):
-        """ CAhandler._string_wlbl_check successful wildcard blacklisting - no match"""
+    def test_070_string_wlbl_check(self):
+        """ CAhandler._string_wlbl_check successful wildcard blocked_domainlisting - no match"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = [r'\*.bar.foo']
         entry = 'host.bar.foo'
         self.assertTrue(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_070_string_wlbl_check(self):
+    def test_071_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check  failed wildcard black-listing """
         white_list = ['foo.foo', 'bar.foo$']
         black_list = [r'\*.bar.foo']
         entry = '*.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_071_string_wlbl_check(self):
+    def test_072_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked domain"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['google.com.bar.foo']
         entry = 'foo.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_072_string_wlbl_check(self):
+    def test_073_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked wc domain"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['google.com.bar.foo$']
         entry = '*.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_073_string_wlbl_check(self):
+    def test_074_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked domain"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['google.com']
         entry = '*.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_074_string_wlbl_check(self):
+    def test_075_string_wlbl_check(self):
         """ CAhandler._string_wlbl_check faked hostname and domain"""
         white_list = ['foo.foo', 'bar.foo$']
         black_list = ['google.com']
         entry = 'www.google.com.bar.foo'
         self.assertFalse(self.cahandler._string_wlbl_check(entry, white_list, black_list))
 
-    def test_075_csr_check(self):
-        """ CAhandler._check_csr with empty whitelist and blacklists """
-        self.cahandler.whitelist = []
-        self.cahandler.blacklist = []
-        csr = 'csr'
-        self.assertTrue(self.cahandler._csr_check(csr))
-
-    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
-    def test_076_csr_check(self, mock_san, mock_cn, mock_lcheck):
-        """ CAhandler._check_csr with list and failed check """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+    def test_076_csr_check(self,  mock_san, mock_cn):
+        """ CAhandler._check_csr with empty allowed_domainlist and blocked_domainlists """
+        self.cahandler.allowed_domainlist = []
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
-        mock_lcheck.side_effect = [True, False]
         csr = 'csr'
-        self.assertFalse(self.cahandler._csr_check(csr))
+        self.assertEqual((True, None), self.cahandler._csr_check(csr))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_077_csr_check(self, mock_san, mock_cn, mock_lcheck):
-        """ CAhandler._check_csr with list and successful check """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        """ CAhandler._check_csr with list and failed check """
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
         mock_cn.return_value = 'host2.foo.bar'
-        mock_lcheck.side_effect = [True, True]
+        mock_lcheck.side_effect = [True, False]
         csr = 'csr'
-        self.assertTrue(self.cahandler._csr_check(csr))
+        self.assertEqual((False, None), self.cahandler._csr_check(csr))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
     def test_078_csr_check(self, mock_san, mock_cn, mock_lcheck):
+        """ CAhandler._check_csr with list and successful check """
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
+        mock_san.return_value = ['DNS:host.foo.bar']
+        mock_cn.return_value = 'host2.foo.bar'
+        mock_lcheck.side_effect = [True, True]
+        csr = 'csr'
+        self.assertEqual((True, None), self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._string_wlbl_check')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_079_csr_check(self, mock_san, mock_cn, mock_lcheck):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = ['host.google.com']
         mock_cn.return_value = 'host2.foo.bar'
         mock_lcheck.side_effect = [True, True]
         csr = 'csr'
-        self.assertFalse(self.cahandler._csr_check(csr))
+        self.assertEqual((False, None), self.cahandler._csr_check(csr))
 
     @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
     @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
-    def test_079_csr_check(self, mock_san, mock_cn):
+    def test_080_csr_check(self, mock_san, mock_cn):
         """ CAhandler._check_csr san parsing failed """
-        self.cahandler.whitelist = ['foo.bar']
-        self.cahandler.blacklist = []
+        self.cahandler.allowed_domainlist = ['foo.bar']
+        self.cahandler.blocked_domainlist = []
         mock_san.return_value = []
         mock_cn.return_value = None
         csr = 'csr'
-        self.assertFalse(self.cahandler._csr_check(csr))
+        self.assertEqual((False, None), self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_081_csr_check(self,  mock_san, mock_cn):
+        """ CAhandler._check_csr cn_enforce """
+        mock_san.return_value = ['DNS:host.foo.bar']
+        mock_cn.return_value = None
+        csr = 'csr'
+        self.assertEqual((True, 'host.foo.bar'), self.cahandler._csr_check(csr))
+
+    @patch('examples.ca_handler.openssl_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.openssl_ca_handler.csr_san_get')
+    def test_082_csr_check(self,  mock_san, mock_cn):
+        """ CAhandler._check_csr cn_enforce  but no san"""
+        mock_san.return_value = []
+        mock_cn.return_value = None
+        csr = 'csr'
+        self.assertEqual((True, None), self.cahandler._csr_check(csr))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_load')
-    def test_080__enter__(self, mock_cfg):
+    def test_083__enter__(self, mock_cfg):
         """ test enter """
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    def test_081_trigger(self):
+    def test_084_trigger(self):
         """ test trigger """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    def test_082_poll(self):
+    def test_085_poll(self):
         """ test poll """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier','csr'))
 
-    def test_083_certificate_store(self):
+    def test_086_certificate_store(self):
         """ _certificate_store() """
         cert = Mock()
         cert.get_serial_number = Mock(return_value=42)
@@ -666,7 +694,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('builtins.open', mock_open(read_data="foo"))
     @patch('os.mkdir')
     @patch('os.path.isdir')
-    def test_084_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_087_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """ _certificate_store() """
         mock_os.return_value = True
         mock_mkdir.return_value = Mock()
@@ -681,7 +709,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('builtins.open', mock_open(read_data="foo"))
     @patch('os.mkdir')
     @patch('os.path.isdir')
-    def test_085_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_088_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """ _certificate_store() """
         mock_os.return_value = False
         mock_mkdir.return_value = Mock()
@@ -696,7 +724,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('builtins.open', mock_open(read_data="foo"))
     @patch('os.mkdir')
     @patch('os.path.isdir')
-    def test_086_certificate_store(self, mock_os, mock_mkdir, mock_dump):
+    def test_089_certificate_store(self, mock_os, mock_mkdir, mock_dump):
         """ _certificate_store() """
         mock_os.return_value = True
         mock_mkdir.return_value = Mock()
@@ -710,7 +738,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:convert serial to hex: 42: 2A', lcm.output)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_087__config_load(self, mock_load_cfg):
+    def test_090__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'save_cert_as_hex': False}
@@ -719,7 +747,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.save_cert_as_hex )
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_088__config_load(self, mock_load_cfg):
+    def test_091__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'save_cert_as_hex': True}
@@ -729,29 +757,55 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_089__config_load(self, mock_load_cfg, mock_jl):
+    def test_092__config_load(self, mock_load_cfg, mock_jl):
+        """ config load """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'blocked_domainlist': 'foo.json'}
+        mock_load_cfg.return_value = parser
+        mock_jl.return_value = 'blocked_domainlist'
+        self.cahandler._config_load()
+        self.assertEqual('blocked_domainlist', self.cahandler.blocked_domainlist)
+
+    @patch('json.loads')
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_192__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'blacklist': 'foo.json'}
         mock_load_cfg.return_value = parser
-        mock_jl.return_value = 'blacklist'
-        self.cahandler._config_load()
-        self.assertEqual('blacklist', self.cahandler.blacklist)
+        mock_jl.return_value = 'blocked_domainlist'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('blocked_domainlist', self.cahandler.blocked_domainlist)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"', lcm.output)
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_090__config_load(self, mock_load_cfg, mock_jl):
+    def test_193__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'whitelist': 'foo.json'}
         mock_load_cfg.return_value = parser
-        mock_jl.return_value = 'whitelist'
-        self.cahandler._config_load()
-        self.assertEqual('whitelist', self.cahandler.whitelist)
+        mock_jl.return_value = 'allowed_domainlist'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('allowed_domainlist', self.cahandler.allowed_domainlist)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"', lcm.output)
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_091__config_load(self, mock_load_cfg, mock_jl):
+    def test_093__config_load(self, mock_load_cfg, mock_jl):
+        """ config load """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': 'foo.json'}
+        mock_load_cfg.return_value = parser
+        mock_jl.return_value = 'allowed_domainlist'
+        self.cahandler._config_load()
+        self.assertEqual('allowed_domainlist', self.cahandler.allowed_domainlist)
+
+    @patch('json.loads')
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_094__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'openssl_conf': 'openssl_conf'}
@@ -761,7 +815,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('openssl_conf', self.cahandler.openssl_conf)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_092__config_load(self, mock_load_cfg):
+    def test_095__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key': 'issuing_ca_key'}
@@ -770,7 +824,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('issuing_ca_key', self.cahandler.issuer_dict['issuing_ca_key'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_093__config_load(self, mock_load_cfg):
+    def test_096__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_cert': 'issuing_ca_cert'}
@@ -779,7 +833,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('issuing_ca_cert', self.cahandler.issuer_dict['issuing_ca_cert'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_094__config_load(self, mock_load_cfg):
+    def test_097__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase': 'issuing_ca_key_passphrase'}
@@ -788,7 +842,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(b'issuing_ca_key_passphrase', self.cahandler.issuer_dict['passphrase'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_095__config_load(self, mock_load_cfg):
+    def test_098__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cert_validity_days': 10}
@@ -797,7 +851,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.cert_validity_days )
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_096__config_load(self, mock_load_cfg):
+    def test_099__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cert_save_path': 'cert_save_path'}
@@ -806,7 +860,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('cert_save_path', self.cahandler.cert_save_path)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_097__config_load(self, mock_load_cfg):
+    def test_100__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'ca_cert_chain_list': '["root_ca"]'}
@@ -815,7 +869,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['root_ca'], self.cahandler.ca_cert_chain_list)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_098__config_load(self, mock_load_cfg):
+    def test_101__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'ca_cert_chain_list': '["root_ca", "sub_ca"]'}
@@ -824,7 +878,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['root_ca', 'sub_ca'], self.cahandler.ca_cert_chain_list)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_099__config_load(self, mock_load_cfg):
+    def test_102__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_crl': 'issuing_ca_crl'}
@@ -834,7 +888,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_100_config_load(self, mock_load_cfg):
+    def test_103_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'foo'}
@@ -844,7 +898,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_101_config_load(self, mock_load_cfg):
+    def test_104_config_load(self, mock_load_cfg):
         """ test _config_load - load template passpharese variable configured but does not exist """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'does_not_exist'}
@@ -855,7 +909,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_102_config_load(self, mock_load_cfg):
+    def test_105_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable  - overwritten bei cfg file"""
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'foo', 'issuing_ca_key_passphrase': 'foo_file'}
@@ -865,8 +919,46 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(b'foo_file', self.cahandler.issuer_dict['passphrase'])
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable', lcm.output)
 
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_106__config_load(self, mock_load_cfg):
+        """ config load no cn_enforce """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.cn_enforce)
+
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_107__config_load(self, mock_load_cfg):
+        """ config load cn_enforce True """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cn_enforce': True}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertTrue(self.cahandler.cn_enforce)
+
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_108__config_load(self, mock_load_cfg):
+        """ config load cn_enforce True """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cn_enforce': False}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.cn_enforce)
+
+    @patch('examples.ca_handler.openssl_ca_handler.load_config')
+    def test_109__config_load(self, mock_load_cfg):
+        """ config load cn_enforce True """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cn_enforce': 'bar'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.cn_enforce)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() variable cn_enforce cannot be parsed', lcm.output)
+
     @patch('OpenSSL.crypto.X509Extension')
-    def test_103___certificate_extensions_add(self, mock_ext):
+    def test_110___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo1': {'critical': False, 'value': 'bar'}}
         mock_ext.side_effect = ['foo1']
@@ -874,7 +966,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_add(cert_extension_dic, 'cert', 'ca_cert'))
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_104___certificate_extensions_add(self, mock_ext):
+    def test_111___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'subjectKeyIdentifier': {'critical': False, 'value': 'bar'}}
         mock_ext.side_effect = ['foo1']
@@ -884,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): subjectKeyIdentifier', lcm.output)
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_105___certificate_extensions_add(self, mock_ext):
+    def test_112___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo': {'critical': False, 'value': 'bar', 'subject': True}}
         mock_ext.side_effect = ['foo1']
@@ -894,7 +986,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): subject', lcm.output)
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_106___certificate_extensions_add(self, mock_ext):
+    def test_113___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo': {'critical': False, 'value': 'bar', 'issuer': True}}
         mock_ext.side_effect = ['foo1']
@@ -904,7 +996,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): issuer', lcm.output)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_107___certificate_extensions_load(self, mock_load_cfg):
+    def test_114___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar'}}
@@ -912,7 +1004,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_108___certificate_extensions_load(self, mock_load_cfg):
+    def test_115___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar, foobar'}}
@@ -920,7 +1012,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_109___certificate_extensions_load(self, mock_load_cfg):
+    def test_116___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar', 'foo1': 'bar1'}}
@@ -928,14 +1020,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_110___certificate_extensions_load(self, mock_load_cfg):
+    def test_117___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         mock_load_cfg.return_value = {'extensions': {'foo': 'critical, bar'}}
         result = {'foo': {'critical': True, 'value': 'bar'}}
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_111___certificate_extensions_load(self, mock_load_cfg):
+    def test_118___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, foobar'}}
@@ -943,7 +1035,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_112___certificate_extensions_load(self, mock_load_cfg):
+    def test_119___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, issuer:'}}
@@ -951,7 +1043,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_113___certificate_extensions_load(self, mock_load_cfg):
+    def test_120___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, subject:'}}
@@ -959,22 +1051,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_114_enroll(self, mock_chk):
+    def test_121_enroll(self, mock_chk):
         """ enroll test error returned from config_check"""
         mock_chk.return_value = 'error'
         self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_115_enroll(self, mock_cfgchk, mock_csrchk):
+    def test_122_enroll(self, mock_cfgchk, mock_csrchk):
         """ enroll test error returned from config_check"""
         mock_cfgchk.return_value = None
-        mock_csrchk.return_value = False
+        mock_csrchk.return_value = (False, None)
         self.assertEqual(('urn:ietf:params:acme:badCSR', None, None, None), self.cahandler.enroll('csr'))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_116_enroll(self, mock_cfgchk, mock_csrchk):
+    def test_123_enroll(self, mock_cfgchk, mock_csrchk):
         """ enroll test error returned from config_check"""
         mock_cfgchk.return_value = None
         mock_csrchk.side_effect = Exception('exc_csr_check')
@@ -993,11 +1085,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_117_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_b2s, mock_pem, mock_b64e):
+    def test_124_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_b2s, mock_pem, mock_b64e):
         """ enroll test error cert_save_path is missing """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = (True, None)
         ca_obj = Mock()
         ca_obj.subject_name_hash = Mock(return_value=42)
         mock_caload.return_value = ('ca_key', ca_obj)
@@ -1029,11 +1121,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_118_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_125_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = (True, None)
         ca_obj = Mock()
         ca_obj.subject_name_hash = Mock(return_value=42)
         mock_caload.return_value = ('ca_key', ca_obj)
@@ -1065,12 +1157,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_119_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_ext_load,  mock_b2s, mock_pem, mock_b64e):
+    def test_126_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_ext_load,  mock_b2s, mock_pem, mock_b64e):
         """ enroll  with extensions from openssl.cnf """
         mock_ext_load.return_value = {'foo': 'bar'}
         mock_ext = Mock()
         mock_cfgchk.return_value = None
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = (True, None)
         ca_obj = Mock()
         ca_obj.subject_name_hash = Mock(return_value=42)
         mock_caload.return_value = ('ca_key', ca_obj)
@@ -1102,11 +1194,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_120_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_127_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll enrollment without extenstions """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = (True, None)
         ca_obj = Mock()
         ca_obj.subject_name_hash = Mock(return_value=42)
         mock_caload.return_value = ('ca_key', ca_obj)
@@ -1125,7 +1217,80 @@ class TestACMEHandler(unittest.TestCase):
         mock_b64e.return_value = 'b64e'
         self.assertEqual((None, 'pem', 'b2s', None), self.cahandler.enroll('csr'))
 
+    @patch("builtins.open", mock_open(read_data='cacert'), create=True)
+    @patch('base64.b64encode')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._pemcertchain_generate')
+    @patch('examples.ca_handler.openssl_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._certificate_store')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('OpenSSL.crypto.X509Extension')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
+    def test_128_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+        """ enroll with enforce cn """
+        self.cahandler.cn_enforce = True
+        mock_ext = Mock()
+        mock_cfgchk.return_value = None
+        mock_csrchk.return_value = (True, 'foo')
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_caload.return_value = ('ca_key', ca_obj)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csrload.return_value = Mock()
+        mock_csrload.return_value.get_subject = Mock(return_value=dn_obj)
+        extension = Mock()
+        extension.get_short_name = Mock(return_value='keyUsage')
+        mock_csrload.return_value.get_extensions = Mock(return_value=[extension])
+        mock_x509 = Mock()
+        mock_dmp.return_value = 'dump'
+        mock_store.return_value = True
+        mock_b2s.return_value = 'b2s'
+        mock_pem.return_value = 'pem'
+        mock_b64e.return_value = 'b64e'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'pem', 'b2s', None), self.cahandler.enroll('csr'))
+        self.assertIn('INFO:test_a2c:CAhandler.enroll(): overwrite CN with foo', lcm.output)
 
+    @patch("builtins.open", mock_open(read_data='cacert'), create=True)
+    @patch('base64.b64encode')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._pemcertchain_generate')
+    @patch('examples.ca_handler.openssl_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._certificate_store')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('OpenSSL.crypto.X509Extension')
+    @patch('OpenSSL.crypto.X509')
+    @patch('OpenSSL.crypto.load_certificate_request')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
+    def test_129_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+        """ enroll enrollment without extenstions """
+        mock_ext = Mock()
+        mock_cfgchk.return_value = None
+        mock_csrchk.return_value = (True, None)
+        ca_obj = Mock()
+        ca_obj.subject_name_hash = Mock(return_value=42)
+        mock_caload.return_value = ('ca_key', ca_obj)
+        dn_obj = Mock()
+        dn_obj.CN = 'foo'
+        mock_csrload.return_value = Mock()
+        mock_csrload.return_value.get_subject = Mock(return_value=dn_obj)
+        extension = Mock()
+        extension.get_short_name = Mock(return_value=b'keyUsage')
+        mock_csrload.return_value.get_extensions = Mock(return_value=[extension])
+        mock_x509 = Mock()
+        mock_dmp.return_value = 'dump'
+        mock_store.return_value = True
+        mock_b2s.return_value = 'keyUsage'
+        mock_pem.return_value = 'pem'
+        mock_b64e.return_value = 'b64e'
+        self.assertEqual((None, 'pem', 'keyUsage', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_caload.called)
+        self.assertTrue(mock_csrload.called)
 
 if __name__ == '__main__':
 

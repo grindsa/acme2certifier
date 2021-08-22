@@ -88,3 +88,10 @@ class Housekeeping(models.Model):
     name = models.CharField(max_length=15, unique=True)
     value = models.CharField(max_length=30, blank=True)
     modified_at = models.DateTimeField('value', auto_now_add=True, null=True)
+
+class Cahandler(models.Model):
+    """ housekeeping """
+    name = models.CharField(max_length=50, unique=True)
+    value1 = models.CharField(max_length=250, blank=True)
+    value2 = models.CharField(max_length=250, blank=True)
+    created_at = models.DateTimeField('value', auto_now_add=True, null=True)

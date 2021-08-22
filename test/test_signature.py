@@ -139,5 +139,15 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__()
         self.assertEqual('url_prefix/acme/revokecert', self.signature.revocation_path )
 
+    @patch('acme_srv.signature.load_config')
+    def test_017__init(self, mock_load_cfg):
+        """ test _config_load account with url prefix without tailing slash configured """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.signature.__init__()
+        self.assertEqual('/acme/revokecert', self.signature.revocation_path )
+
+
 if __name__ == '__main__':
     unittest.main()

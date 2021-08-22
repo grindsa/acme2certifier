@@ -648,7 +648,7 @@ class CAhandler(object):
                     # strip the first character
                     ele = ele[1:]
                 if ele == b'eKeyUse\xff\xff\xff\xff':
-                    self.logger.debug('_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca...')
+                    self.logger.info('_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca...')
                 else:
                     parameter_list.append(ele.decode('utf-8'))
 
@@ -826,7 +826,7 @@ class CAhandler(object):
 
         # add subjectAltName(s)
         if 'subjectAltName' in csr_extensions_dic:
-            self.logger.debug('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
+            self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
             extension_list.append(csr_extensions_dic['subjectAltName'])
 
         self.logger.debug('CAhandler._extension_list_generate() ended')

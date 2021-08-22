@@ -582,6 +582,20 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((200, None, 'detail', 'cert_name'), self.order._process(order_name, protected, payload))
         self.assertTrue(mock_update.called)
 
+    @patch('acme_srv.order.Order._update')
+    @patch('acme_srv.order.Order._csr_process')
+    @patch('acme_srv.order.Order._info')
+    def test_068_order__process(self, mock_info, mock_process_csr, mock_update):
+        """ Order.prcoess() finalize request with detail none """
+        mock_info.return_value = {'status': 'ready'}
+        order_name = 'order_name'
+        protected = {'url': {'finalize': 'foo', 'foo': 'bar'}}
+        payload = {'csr': 'csr'}
+        mock_process_csr.return_value = (200, 'cert_name', None)
+        mock_update.return_value = None
+        self.assertEqual((200, None, None, 'cert_name'), self.order._process(order_name, protected, payload))
+        self.assertTrue(mock_update.called)
+
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.Certificate.enroll_and_store')
     @patch('acme_srv.certificate.Certificate.store_csr')

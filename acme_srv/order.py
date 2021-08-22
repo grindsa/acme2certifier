@@ -116,7 +116,7 @@ class Order(object):
                 except BaseException:
                     self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
 
-        if 'Directory' in config_dic:            
+        if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
                 self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 

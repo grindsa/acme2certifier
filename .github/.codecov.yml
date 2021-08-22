@@ -1,5 +1,6 @@
 ignore:
   - "examples/ca_handler/skeleton_ca_handler.py"
+  - "examples/ca_handler/certsrv.py"
   - "examples/eab_handler/skeleton_eab_handler.py"
   - "docs/__init__.py"  
   - "setup.py"

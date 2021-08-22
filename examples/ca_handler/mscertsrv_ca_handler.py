@@ -4,12 +4,13 @@
 from __future__ import print_function
 import os
 import textwrap
+import json
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
 # pylint: disable=E0401
-from certsrv import Certsrv
+from examples.ca_handler.certsrv import Certsrv
 # pylint: disable=E0401
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, parse_url, proxy_check
 
 def _get_certificates(self):
     """
@@ -53,6 +54,7 @@ class CAhandler(object):
         self.auth_method = 'basic'
         self.ca_bundle = False
         self.template = None
+        self.proxy = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -70,9 +72,9 @@ class CAhandler(object):
             try:
                 pkcs7 = crypto.load_pkcs7_data(filetype, pkcs7_content)
                 break
-            except crypto.Error as _err:
+            except BaseException as err:
+                self.logger.error('CAhandler._pkcs7_to_pem() failed with error: {0}'.format(err))
                 pkcs7 = None
-                # print(err)
 
         cert_pem_list = []
         if pkcs7:
@@ -108,7 +110,7 @@ class CAhandler(object):
 
         if self.host and self.user and self.password and self.template:
             # setup certserv
-            ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle)
+            ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, proxies=self.proxy)
 
             # check connection and credentials
             auth_check = self._check_credentials(ca_server)
@@ -192,6 +194,15 @@ class CAhandler(object):
             # check if we get a ca bundle for verification
             if 'ca_bundle' in config_dic['CAhandler']:
                 self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
+            try:
+                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_server = proxy_check(self.logger, self.host, proxy_list)
+                self.proxy = {'http': proxy_server, 'https': proxy_server}
+            except BaseException as err_:
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+
         self.logger.debug('CAhandler._config_load() ended')
 
     def poll(self, _cert_name, poll_identifier, _csr):

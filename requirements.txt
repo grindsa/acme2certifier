@@ -6,4 +6,7 @@ certsrv[ntlm]
 pytz
 configparser
 python-dateutil
-requests==2.25.1
+requests[use_chardet_on_py3]
+pysocks
+josepy
+acme

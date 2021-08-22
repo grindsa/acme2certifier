@@ -48,9 +48,10 @@ cert_validity_days: 30
 cert_save_path: acme_srv/ca/certs
 ca_cert_chain_list: []
 openssl_conf: acme_srv/ca/openssl.conf
-whitelist: ["foo.bar\\$", "foo1.bar.local"]
-blacklist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
+allowed_domainlist: ["foo.bar\\$", "foo1.bar.local"]
+blocked_domainlist: ["google.com.foo.bar\\$", "host.foo.bar$", "\\*.foo.bar"]
 save_cert_as_hex: True
+cn_enforce: True
 ```
 
 - `issuing_ca_key` - private key of the issuing CA (in PEM format) used to sign certificates and CRLs
@@ -62,11 +63,12 @@ save_cert_as_hex: True
 - `cert_validity_days` - *optional* - certificate lifetime in days (default 365)
 - `cert_save_path` - *optional* - directory to store then enrolled certificates
 - `openssl_conf` -  *optional* - file in openssl.conf format containing certificate extensions to be applied
-- `whitelist` - *optional* - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)- To be stored in json format
-- `blacklist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
-- `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates
+- `allowed_domainlist` - *optional* - list of allowed common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html)- To be stored in json format
+- `blocked_domainlist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
+- `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates - default is `False`
+- `cn_enforce` - *optional* - use first SAN as CN in case there is no CN included in CSR - default is `False`
 
-`whitelist` and `blacklist` options can be used independently from each other. When used together please note that that a positive result of a blacklist check takes precedence over the positive result of a whitelist check.
+`allowed_domainlist` and `blocked_domainlist` options can be used independently from each other. When used together please note that that a positive result of a blocked_domainlist check takes precedence over the positive result of a allowed_domainlist check.
 
 The openssl_conf file allows customization of the certificate profile and must contain a section `[extensions]` containing the certificate extensions to be inserted.
 If not specified  the following extensions will be applied.
