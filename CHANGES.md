@@ -9,9 +9,9 @@ and pick the appropriate release branch.
 
 **Upgrade notes**:
 
-database scheme gets updated. Please:
-backup your database before upgrading to the new version
-read the upgrade instructions if you are running acme2certifer in an django environment
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
 
 **Features and Improvements**:
 
