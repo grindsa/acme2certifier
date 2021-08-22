@@ -82,6 +82,21 @@ class DBstore(object):
         self.logger.debug('DBStore._authorization_search() ended')
         return result
 
+    def _cahandler_search(self, column, string):
+        """ search cahandler table for a certain key/value pair """
+        self.logger.debug('DBStore._cahandler_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        pre_statement = '''SELECT cahandler.* from cahandler WHERE {0} LIKE ?'''.format(column)
+        try:
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except BaseException as err:
+            self.logger.error('DBStore._cahandler_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+            result = None
+        self._db_close()
+        self.logger.debug('DBStore._cahandler_search() ended')
+        return result
+
     def _certificate_search(self, column, string):
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore._certificate_search(column:{0}, pattern:{1})'.format(column, string))
@@ -201,6 +216,9 @@ class DBstore(object):
         ''')
 
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
+        self.cursor.execute('''
+            CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self._db_close()
         self.logger.debug('DBStore._db_create() ended')
 
@@ -513,6 +531,47 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
 
+    def cahandler_add(self, data_dic):
+        """ add cahandler values to database """
+        self.logger.debug('DBStore.cahandler_add({0})'.format(data_dic))
+        if not 'value2' in data_dic:
+            data_dic['value2'] = ''
+
+        # check if we alredy have an entry for the key
+        exists = self.cahandler_lookup('name', data_dic['name'], ['id', 'name'])
+        self._db_open()
+        if bool(exists):
+            # update
+            self.logger.debug('parameter existss: {0} id: {1}'.format('name', data_dic['name']))
+            self.cursor.execute('''UPDATE CAHANDLER SET name = :name, value1 = :value1, 'value2' = :value2 WHERE name = :name''', data_dic)
+            rid = exists['id']
+        else:
+            # insert
+            self.cursor.execute('''INSERT INTO cahandler(name, value1, value2) VALUES(:name, :value1, :value2)''', data_dic)
+            rid = self.cursor.lastrowid
+
+        self._db_close()
+        self.logger.debug('DBStore.authorization_add() ended with: {0}'.format(rid))
+        return rid
+
+    def cahandler_lookup(self, column, string, vlist=('name', 'value1', 'value2', 'created_at')):
+        self.logger.debug('DBStore.cahandler_lookup(column:{0}, pattern:{1})'.format(column, string))
+
+        try:
+            lookup = dict_from_row(self._cahandler_search(column, string))
+        except BaseException:
+            lookup = None
+
+        result = {}
+        if lookup:
+            for ele in vlist:
+                result[ele] = lookup[ele]
+        else:
+            result = {}
+
+        self.logger.debug('DBStore.cahandler_lookup() ended')
+        return result
+
     def certificate_add(self, data_dic):
         """ add csr/certificate to database """
         self.logger.debug('DBStore.certificate_add({0})'.format(data_dic['name']))
@@ -819,7 +878,7 @@ class DBstore(object):
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
         if not self.cursor.fetchone()[0] == 1:
-            self.logger.debug('create housekeeping table and trigger')
+            self.logger.info('create housekeeping table and trigger')
             self.cursor.execute('''
                 CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
@@ -835,8 +894,16 @@ class DBstore(object):
                 END
             ''')
 
+        # cahandler table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
+        if not self.cursor.fetchone()[0] == 1:
+            self.logger.info('create cahandler table')
+            self.cursor.execute('''
+                CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
+
         # version update
-        self.logger.debug('update dbversion to {0}'.format(__dbversion__))
+        self.logger.info('update dbversion to {0}'.format(__dbversion__))
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
         self.cursor.execute('''UPDATE housekeeping SET value = "{0}" WHERE name="dbversion"'''.format(__dbversion__))
 
@@ -853,10 +920,50 @@ class DBstore(object):
         if query:
             result = query[0]
         else:
+            self.logger.error('DBStore.dbversion_get() lookup failed')
             result = None
         self._db_close()
         self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
         return (result, 'tools/db_update.py')
+
+    def hkparameter_add(self, data_dic):
+        """ add housekeeping paramter to database """
+        # we need this for compability with django
+        created = False
+        # check if we alredy have an entry for the key
+        exists = self.hkparameter_get(data_dic['name'])
+        self._db_open()
+        if bool(exists):
+            # update
+            self.logger.debug('parameter exists: {0}'.format(data_dic['name']))
+            self.cursor.execute('''UPDATE HOUSEKEEPING SET name = :name, value = :value WHERE name = :name''', data_dic)
+        else:
+            # insert
+            self.cursor.execute('''INSERT INTO HOUSEKEEPING(name, value) VALUES(:name, :value)''', data_dic)
+            created = True
+
+        self._db_close()
+        self.logger.debug('DBStore.account_add() ended')
+        return(data_dic['name'], created)
+
+    def hkparameter_get(self, parameter):
+        """ get parameter from housekeeping table """
+        self.logger.debug('DBStore.hkparameter_get()')
+        self._db_open()
+        pre_statement = 'SELECT value from housekeeping WHERE housekeeping.{0} LIKE ?'.format('name')
+        self.cursor.execute(pre_statement, [parameter])
+        try:
+            query = list(self.cursor.fetchone())
+        except BaseException:
+            query = None
+
+        if query:
+            result = query[0]
+        else:
+            result = None
+        self._db_close()
+        self.logger.debug('DBStore.hkparameter_get() ended with {0}'.format(result))
+        return result
 
     def jwk_load(self, aname):
         """ looad account informatino and build jwk key dictionary """

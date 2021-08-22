@@ -37,7 +37,7 @@ class Message(object):
             self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
-        if 'Directory' in config_dic:            
+        if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
                 self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
@@ -53,17 +53,14 @@ class Message(object):
         elif 'jwk' in content and 'url' in content:
             if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing)
-                if 'jwk' in content:
-                    try:
-                        account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
-                    except BaseException as err_:
-                        self.logger.critical('acme2certifier database error in Message._name_get(): {0}'.format(err_))
-                        account_list = []
-                    if account_list:
-                        if 'name' in account_list:
-                            kid = account_list['name']
-                        else:
-                            kid = None
+                try:
+                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
+                except BaseException as err_:
+                    self.logger.critical('acme2certifier database error in Message._name_get(): {0}'.format(err_))
+                    account_list = []
+                if account_list:
+                    if 'name' in account_list:
+                        kid = account_list['name']
                     else:
                         kid = None
                 else:
@@ -95,7 +92,7 @@ class Message(object):
                 if self.disable_dic['nonce_check_disable']:
                     self.logger.error('**** NONCE CHECK DISABLED!!! Severe security issue ****')
                 else:
-                    self.logger.debug('skip nonce check of inner payload during keyrollover')
+                    self.logger.info('skip nonce check of inner payload during keyrollover')
                 code = 200
                 message = None
                 detail = None

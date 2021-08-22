@@ -24,9 +24,9 @@ should be straight forward. As of today the following handlers are available:
   - [Generic EST protocol handler](docs/est.md)
   - [Generic CMPv2 protocol handler](docs/cmp.md)
   - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
+  - [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md)
   - [XCA](docs/xca.md)
   - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
-  - [Generic ACME protocol handler](docs/acme_ca.md)
 
 For more up-to-date information and further documentation, please visit the
 project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
