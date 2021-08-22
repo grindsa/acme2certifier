@@ -26,6 +26,12 @@ As of today the acme_ca_handler supports following operations:
 - certificate enrollment
 - certificate revocation
 
+## Supported CAs
+
+- [Letsencrypt.org](https://letsencrypt.org/)
+- [BuyPass.com](https://www.buypass.com/)
+- [ZeroSSL](https://zerossl.com/)
+
 ## Prerequisites
 
 Again, it is important to mention that the handler validates challenges over http. Thus, it must be ensured that the http requests from the CA server are ending up at acme2certifier.
