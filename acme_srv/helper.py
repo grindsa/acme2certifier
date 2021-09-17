@@ -11,6 +11,7 @@ import copy
 import configparser
 import os
 import sys
+import importlib
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
@@ -102,6 +103,35 @@ def ca_handler_get(logger, ca_handler_name):
     ca_handler_name = ca_handler_name.replace('\\', '.')
     logger.debug('Certificate._ca_handler_get() ended with: {0}'.format(ca_handler_name))
     return ca_handler_name
+
+def ca_handler_load(logger, config_dic):
+    """ load and return ca_handler """
+    logger.debug('Helper.ca_handler_load()')
+
+    if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
+        # try to load handler from file
+        try:
+            # ca_handler_module = importlib.import_module(ca_handler_get(logger, config_dic['CAhandler']['handler_file']))
+            spec = importlib.util.spec_from_file_location('CAhandler', config_dic['CAhandler']['handler_file'])
+            ca_handler_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ca_handler_module)
+            # ca_handler_module = ca_handler_module.CAhandler()
+        except BaseException as err_:
+            logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
+            try:
+                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+            except BaseException as err_:
+                ca_handler_module = None
+                logger.critical('Certificate._config_load(): loading default CAhandler failed with err: {0}'.format(err_))
+    else:
+
+        if 'CAhandler' in config_dic:
+            ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+        else:
+            logger.error('Certificate._config_load(): CAhandler configuration missing in config file')
+            ca_handler_module = None
+
+    return ca_handler_module
 
 def cert_dates_get(logger, certificate):
     """ get serial number form certificate """
