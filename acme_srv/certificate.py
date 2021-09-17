@@ -101,6 +101,8 @@ class Certificate(object):
         if ca_handler_module:
             # store handler in variable
             self.cahandler = ca_handler_module.CAhandler
+        else:
+            self.logger.critical('Certificate._config_load(): No ca_handler loaded')
 
         if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
