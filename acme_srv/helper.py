@@ -126,7 +126,11 @@ def ca_handler_load(logger, config_dic):
     else:
 
         if 'CAhandler' in config_dic:
-            ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+            try:
+                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+            except BaseException as err_:
+                logger.critical('Certificate._config_load(): loading default CAhandler failed with err: {0}'.format(err_))
+                ca_handler_module = None                             
         else:
             logger.error('Certificate._config_load(): CAhandler configuration missing in config file')
             ca_handler_module = None
