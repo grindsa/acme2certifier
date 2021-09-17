@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 import importlib
-from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, ca_handler_get, b64decode_pad
+from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.signature import Signature
@@ -436,21 +436,17 @@ class Account(object):
             if 'eab_handler_file' in config_dic['EABhandler']:
                 # mandate eab check regardless if handler could get loaded or not
                 self.eab_check = True
-                try:
-                    eab_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['EABhandler']['eab_handler_file']))
-                except BaseException as err_:
-                    self.logger.critical('Account._config_load(): loading EABHandler configured in cfg failed with err: {0}'.format(err_))
-                    try:
-                        eab_handler_module = importlib.import_module('acme_srv.eab_handler')
-                    except BaseException as err_:
-                        eab_handler_module = None
-                        self.logger.critical('Account._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
+                # load eab_handler according to configuration
+                eab_handler_module = eab_handler_load(self.logger, config_dic)
 
                 if eab_handler_module:
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
-                    self.logger.critical('Account._config_load(): EABHandler configuration is missing in config file')
+                    self.logger.critical('Account._config_load(): EABHandler could not get loaded')
+            else:
+                self.logger.critical('Account._config_load(): EABHandler configuration is missing in config file')
+
 
         if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
