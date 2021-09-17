@@ -1164,12 +1164,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.account.contact_check_disable)
         self.assertFalse(self.account.eab_check)
 
+    @patch('acme_srv.account.eab_handler_load')
     @patch('acme_srv.account.load_config')
-    def test_122_config_load(self, mock_load_cfg):
-        """ test _config_load account with contact_check_disable True """
+    def test_122_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load account with failed eab load """
         parser = configparser.ConfigParser()
         parser['EABhandler'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
         mock_load_cfg.return_value = parser
+        mock_eab.return_value = False
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.account._config_load()
         self.assertFalse(self.account.inner_header_nonce_allow)
@@ -1177,9 +1179,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.tos_check_disable)
         self.assertFalse(self.account.contact_check_disable)
         self.assertTrue(self.account.eab_check)
-        self.assertIn("CRITICAL:test_a2c:Account._config_load(): loading EABHandler configured in cfg failed with err: No module named 'foo'", lcm.output)
-        self.assertIn("CRITICAL:test_a2c:Account._config_load(): loading default EABHandler failed with err: No module named 'acme_srv.eab_handler'", lcm.output)
-        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler configuration is missing in config file', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+
+    @patch('acme_srv.account.eab_handler_load')
+    @patch('acme_srv.account.load_config')
+    def test_222_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load account with failed eab load """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
+        mock_load_cfg.return_value = parser
+        mock_eab.EABhandler.return_value = 'foo'
+        self.account._config_load()
+        self.assertFalse(self.account.inner_header_nonce_allow)
+        self.assertFalse(self.account.ecc_only)
+        self.assertFalse(self.account.tos_check_disable)
+        self.assertFalse(self.account.contact_check_disable)
+        self.assertTrue(self.account.eab_check)
+        self.assertTrue(self.account.eab_handler)
 
     @patch('importlib.import_module')
     @patch('acme_srv.account.load_config')
