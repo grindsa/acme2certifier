@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -61,6 +61,7 @@ class TestACMEHandler(unittest.TestCase):
         self.decode_message = decode_message
         self.dkeys_lower = dkeys_lower
         self.dns_server_list_load = dns_server_list_load
+        self.eab_handler_load = eab_handler_load
         self.fqdn_resolve = fqdn_resolve
         self.fqdn_in_san_check = fqdn_in_san_check
         self.generate_random_string = generate_random_string
@@ -1455,7 +1456,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         config_dic = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('importlib.import_module')
     def test_209_ca_handler_load(self, mock_imp):
@@ -1464,7 +1465,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
     @patch('importlib.import_module')
     def test_210_ca_handler_load(self, mock_imp):
@@ -1489,7 +1490,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.return_value = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: exc_mock_util', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: exc_mock_util', lcm.output)
 
     @patch('importlib.import_module')
     @patch('importlib.util')
@@ -1500,7 +1501,59 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+
+    def test_214_eab_handler_load(self):
+        """ test eab_handler_load """
+        config_dic = {'foo': 'bar'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.eab_handler_load(self.logger, config_dic))
+        self.assertIn('ERROR:test_a2c:Helper.eab_handler_load(): EABhandler configuration missing in config file', lcm.output)
+
+    @patch('importlib.import_module')
+    def test_215_eab_handler_load(self, mock_imp):
+        """ test eab_handler_load """
+        config_dic = {'EABhandler': {'foo': 'bar'}}
+        mock_imp.side_effect = Exception('exc_mock_imp')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.eab_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
+
+    @patch('importlib.import_module')
+    def test_216_eab_handler_load(self, mock_imp):
+        """ test eab_handler_load """
+        config_dic = {'EABhandler': {'foo': 'bar'}}
+        mock_imp.return_value = 'foo'
+        self.assertEqual('foo', self.eab_handler_load(self.logger, config_dic))
+
+    @patch('importlib.util')
+    def test_217_eab_handler_load(self, mock_util):
+        """ test eab_handler_load """
+        config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
+        mock_util.module_from_spec = Mock(return_value='foo')
+        self.assertEqual('foo', self.eab_handler_load(self.logger, config_dic))
+
+    @patch('importlib.import_module')
+    @patch('importlib.util')
+    def test_218_eab_handler_load(self, mock_util, mock_imp):
+        """ test eab_handler_load """
+        config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
+        mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
+        mock_imp.return_value = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('foo', self.eab_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: exc_mock_util', lcm.output)
+
+    @patch('importlib.import_module')
+    @patch('importlib.util')
+    def test_219_eab_handler_load(self, mock_util, mock_imp):
+        """ test eab_handler_load """
+        config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
+        mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
+        mock_imp.side_effect = Exception('exc_mock_imp')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.eab_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
