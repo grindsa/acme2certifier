@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, ca_handler_get, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -39,6 +39,7 @@ class TestACMEHandler(unittest.TestCase):
         self.b64decode_pad = b64decode_pad
         self.build_pem_file = build_pem_file
         self.ca_handler_get = ca_handler_get
+        self.ca_handler_load = ca_handler_load
         self.cert_dates_get = cert_dates_get
         self.cert_extensions_get = cert_extensions_get
         self.cert_pubkey_get = cert_pubkey_get
@@ -1443,6 +1444,63 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         fqdn = 'foo.bar.local'
         proxy_list = {'*.bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
+
+    def test_207_ca_handler_load(self):
+        """ test ca_handler_load """
+        config_dic = {'foo': 'bar'}
+        self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+
+    def test_208_ca_handler_load(self):
+        """ test ca_handler_load """
+        config_dic = {'foo': 'bar'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+        self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
+
+    @patch('importlib.import_module')
+    def test_209_ca_handler_load(self, mock_imp):
+        """ test ca_handler_load """
+        config_dic = {'CAhandler': {'foo': 'bar'}}
+        mock_imp.side_effect = Exception('exc_mock_imp')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+
+    @patch('importlib.import_module')
+    def test_210_ca_handler_load(self, mock_imp):
+        """ test ca_handler_load """
+        config_dic = {'CAhandler': {'foo': 'bar'}}
+        mock_imp.return_value = 'foo'
+        self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
+
+    @patch('importlib.util')
+    def test_211_ca_handler_load(self, mock_util):
+        """ test ca_handler_load """
+        config_dic = {'CAhandler': {'handler_file': 'foo'}}
+        mock_util.module_from_spec = Mock(return_value='foo')
+        self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
+
+    @patch('importlib.import_module')
+    @patch('importlib.util')
+    def test_212_ca_handler_load(self, mock_util, mock_imp):
+        """ test ca_handler_load """
+        config_dic = {'CAhandler': {'handler_file': 'foo'}}
+        mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
+        mock_imp.return_value = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: exc_mock_util', lcm.output)
+
+    @patch('importlib.import_module')
+    @patch('importlib.util')
+    def test_213_ca_handler_load(self, mock_util, mock_imp):
+        """ test ca_handler_load """
+        config_dic = {'CAhandler': {'handler_file': 'foo'}}
+        mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
+        mock_imp.side_effect = Exception('exc_mock_imp')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.ca_handler_load(self.logger, config_dic))
+        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()
