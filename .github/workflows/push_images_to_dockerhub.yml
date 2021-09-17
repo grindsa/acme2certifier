@@ -125,6 +125,7 @@ jobs:
 
   test_apache2_django:
     name: Test acme2certifier:apache2-django image
+    needs: [build_and_upload_images_to_hub]    
     runs-on: ubuntu-latest
     steps:
 
