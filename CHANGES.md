@@ -9,11 +9,11 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
-  - absolute path support for CA- and EABhandler
+- absolute path support for CA- and EABhandler
 
 **Bugfixes**:
 
-  - fixed race condition in push_to_docker workflow
+- fixed race condition in push_to_docker workflow
 
 ## Changes in 0.18
 
