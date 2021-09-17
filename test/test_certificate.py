@@ -1088,7 +1088,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
-        self.assertIn('ERROR:test_a2c:Certificate._config_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('acme_srv.certificate.load_config')
     def test_136_config_load(self, mock_load_cfg):
@@ -1108,15 +1108,17 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate._config_load()
         self.assertTrue(self.certificate.tnauthlist_support)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_138_config_load(self, mock_load_cfg):
+    def test_138_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'handler_file': 'foo'}
         mock_load_cfg.return_value = parser
+        mock_handler.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
-        self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: No module named 'foo'", lcm.output)
+        self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): No ca_handler loaded', lcm.output)
         # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default EABHandler failed with err: No module named 'acme_srv.ca_handler'", lcm.output)
 
     @patch('importlib.import_module')

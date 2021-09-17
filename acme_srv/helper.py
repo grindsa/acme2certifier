@@ -11,6 +11,7 @@ import copy
 import configparser
 import os
 import sys
+import importlib
 import textwrap
 from datetime import datetime
 from string import digits, ascii_letters
@@ -102,6 +103,66 @@ def ca_handler_get(logger, ca_handler_name):
     ca_handler_name = ca_handler_name.replace('\\', '.')
     logger.debug('Certificate._ca_handler_get() ended with: {0}'.format(ca_handler_name))
     return ca_handler_name
+
+def ca_handler_load(logger, config_dic):
+    """ load and return ca_handler """
+    logger.debug('Helper.ca_handler_load()')
+
+    if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
+        # try to load handler from file
+        try:
+            spec = importlib.util.spec_from_file_location('CAhandler', config_dic['CAhandler']['handler_file'])
+            ca_handler_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ca_handler_module)
+        except BaseException as err_:
+            logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
+            try:
+                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+            except BaseException as err_:
+                ca_handler_module = None
+                logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
+    else:
+        if 'CAhandler' in config_dic:
+            try:
+                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+            except BaseException as err_:
+                logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
+                ca_handler_module = None
+        else:
+            logger.error('Helper.ca_handler_load(): CAhandler configuration missing in config file')
+            ca_handler_module = None
+
+    return ca_handler_module
+
+def eab_handler_load(logger, config_dic):
+    """ load and return eab_handler """
+    logger.debug('Helper.eab_handler_load()')
+
+    if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
+        # try to load handler from file
+        try:
+            spec = importlib.util.spec_from_file_location('EABhandler', config_dic['EABhandler']['eab_handler_file'])
+            eab_handler_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(eab_handler_module)
+        except BaseException as err_:
+            logger.critical('Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: {0}'.format(err_))
+            try:
+                eab_handler_module = importlib.import_module('acme_srv.eab_handler')
+            except BaseException as err_:
+                eab_handler_module = None
+                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: {0}'.format(err_))
+    else:
+        if 'EABhandler' in config_dic:
+            try:
+                eab_handler_module = importlib.import_module('acme_srv.eab_handler')
+            except BaseException as err_:
+                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: {0}'.format(err_))
+                eab_handler_module = None
+        else:
+            logger.error('Helper.eab_handler_load(): EABhandler configuration missing in config file')
+            eab_handler_module = None
+
+    return eab_handler_module
 
 def cert_dates_get(logger, certificate):
     """ get serial number form certificate """

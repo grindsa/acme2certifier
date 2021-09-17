@@ -3,8 +3,7 @@
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
-import importlib
-from acme_srv.helper import b64_url_recode, generate_random_string, ca_handler_get, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
@@ -95,26 +94,15 @@ class Certificate(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
-            try:
-                ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
-            except BaseException as err_:
-                self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
-                try:
-                    ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-                except BaseException as err_:
-                    ca_handler_module = None
-                    self.logger.critical('Certificate._config_load(): loading default EABHandler failed with err: {0}'.format(err_))
-        else:
-            if 'CAhandler' in config_dic:
-                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-            else:
-                self.logger.error('Certificate._config_load(): CAhandler configuration missing in config file')
-                ca_handler_module = None
+
+        # load ca_handler according to configuration
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
 
         if ca_handler_module:
             # store handler in variable
             self.cahandler = ca_handler_module.CAhandler
+        else:
+            self.logger.critical('Certificate._config_load(): No ca_handler loaded')
 
         if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
