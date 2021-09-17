@@ -433,19 +433,18 @@ class Account(object):
 
         if 'EABhandler' in config_dic:
             self.logger.debug('Account._config.load(): loading eab_handler')
+            # mandate eab check regardless if handler is configured or could get loaded or not
+            self.eab_check = True
             if 'eab_handler_file' in config_dic['EABhandler']:
-                # mandate eab check regardless if handler could get loaded or not
-                self.eab_check = True
                 # load eab_handler according to configuration
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
-
                 if eab_handler_module:
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
                     self.logger.critical('Account._config_load(): EABHandler could not get loaded')
             else:
-                self.logger.critical('Account._config_load(): EABHandler configuration is missing in config file')
+                self.logger.critical('Account._config_load(): EABHandler configuration incomplete')
 
 
         if 'Directory' in config_dic:
