@@ -1119,8 +1119,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
         self.assertIn('CRITICAL:test_a2c:Certificate._config_load(): No ca_handler loaded', lcm.output)
-        # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default EABHandler failed with err: No module named 'acme_srv.ca_handler'", lcm.output)
-
+    
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.load_config')
     def test_139_config_load(self, mock_load_cfg, mock_imp):
