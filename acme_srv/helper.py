@@ -673,7 +673,7 @@ def proxy_check(logger, fqdn, proxy_server_list):
     logger.debug('proxy_check() ended with {0}'.format(proxy))
     return proxy
 
-def url_get_with_own_dns(logger, url):
+def url_get_with_own_dns(logger, url, verify=True):
     """ request by using an own dns resolver """
     logger.debug('url_get_with_own_dns({0})'.format(url))
     # patch an own connection handler into URL lib
@@ -681,11 +681,11 @@ def url_get_with_own_dns(logger, url):
     connection._orig_create_connection = connection.create_connection
     connection.create_connection = patched_create_connection
     try:
-        req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+        req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
         result = req.text
     except BaseException as err_:
         result = None
-        logger.error('url_get error: {0}'.format(err_))
+        logger.error('url_get_with_own_dns error: {0}'.format(err_))
     # cleanup
     connection.create_connection = connection._orig_create_connection
     return result
@@ -705,10 +705,10 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
     else:
         proxy_list = {}
     if dns_server_list and not proxy_server:
-        result = url_get_with_own_dns(logger, url)
+        result = url_get_with_own_dns(logger, url, verify)
     else:
         try:
-            req = requests.get(url, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
+            req = requests.get(url, verify=verify, headers={'Connection':'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
             result = req.text
         except BaseException as err_:
             logger.debug('url_get({0}): error'.format(err_))
