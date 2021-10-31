@@ -5,7 +5,17 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-## Change in 0.18
+## Changes in 0.18.1
+
+**Features and Improvements**:
+
+- absolute path support for CA- and EABhandler
+
+**Bugfixes**:
+
+- fixed race condition in push_to_docker workflow
+
+## Changes in 0.18
 
 **Upgrade notes**:
 
