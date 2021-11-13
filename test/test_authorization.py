@@ -180,6 +180,18 @@ class TestACMEHandler(unittest.TestCase):
         result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'TNAuthList', 'value': 'identifier_value'}}
         self.assertEqual(result, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
+    @patch('acme_srv.challenge.Challenge.new_set')
+    @patch('acme_srv.authorization.uts_now')
+    @patch('acme_srv.authorization.generate_random_string')
+    def test_016_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
+        """ test Authorization.auth_info() - dbstore.authorization lookup raises an exception """
+        mock_name.return_value = 'randowm_string'
+        mock_uts.return_value = 1543640400
+        mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
+        self.authorization.dbstore.authorization_update.return_value = 'foo'
+        self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'type', 'value' : '*.bar.local', 'status__name' : 'foo'}]
+        result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'type', 'value': '*.bar.local'}, 'wildcard': 'true'}
+        self.assertEqual(result, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
