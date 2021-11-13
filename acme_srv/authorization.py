@@ -72,6 +72,10 @@ class Authorization(object):
                     authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
                     if auth_info[0]['type'] == 'TNAuthList':
                         tnauth = True
+                    # add fildcard flag into authoritzation response
+                    if auth_info[0]['value'].startswith('*.'):
+                        self.logger.debug('Authorization._authz_info() - adding wildcard flag')
+                        authz_info_dic['wildcard'] =  'true'
             else:
                 authz_info_dic['status'] = 'pending'
 
