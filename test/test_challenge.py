@@ -633,7 +633,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge._validate')
     def test_071__existing_challenge_validate(self, mock_validate):
         """ validate challenge with challenge list """
-        challenge_list = ['foo']
+        challenge_list = [{'name': 'foo', 'type': 'http-01'}]
         self.challenge._existing_challenge_validate(challenge_list)
         self.assertTrue(mock_validate.called)
 
