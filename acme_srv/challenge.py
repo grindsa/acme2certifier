@@ -32,7 +32,7 @@ class Challenge(object):
         """ close the connection at the end of the context """
 
     def _challengelist_search(self, key, value, vlist=('name', 'type', 'status__name', 'token')):
-        """ get exsting challegnes for a given authorization """
+        """ get exsting challenges for a given authorization """
         self.logger.debug('Challenge._challengelist_search()')
 
         try:
@@ -101,8 +101,14 @@ class Challenge(object):
     def _existing_challenge_validate(self, challenge_list):
         """ validate an existing challenge set """
         self.logger.debug('Challenge._existing_challenge_validate()')
-        for challenge in challenge_list:
-            _challenge_check = self._validate(challenge, {})
+
+        # for challenge in challenge_list:
+        for challenge in sorted(challenge_list, key=lambda k : k['type']):
+            challenge_check = self._validate(challenge['name'], {})
+            if challenge_check:
+                # end loop if challenge check was successful
+                break
+        self.logger.debug('Challenge._existing_challenge_validate ended()')
 
     def _info(self, challenge_name):
         """ get challenge details """
@@ -412,11 +418,12 @@ class Challenge(object):
         if challenge_list:
             self.logger.debug('Challenges found.')
             # trigger challenge validation
+            if auth_status == 'pending':
+                self._existing_challenge_validate(challenge_list)
+
             challenge_name_list = []
             for challenge in challenge_list:
                 challenge_name_list.append(challenge.pop('name'))
-            if auth_status == 'pending':
-                self._existing_challenge_validate(challenge_name_list)
 
         else:
             # new challenges to be created
