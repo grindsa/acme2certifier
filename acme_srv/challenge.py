@@ -418,8 +418,8 @@ class Challenge(object):
         if challenge_list:
             self.logger.debug('Challenges found.')
             # trigger challenge validation
-            if auth_status == 'pending':
-                self._existing_challenge_validate(challenge_list)
+            #if auth_status == 'pending':
+            #    self._existing_challenge_validate(challenge_list)
 
             challenge_name_list = []
             for challenge in challenge_list:

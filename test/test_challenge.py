@@ -922,17 +922,17 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_set.called)
         self.assertFalse(mock_val.called)
 
-    @patch('acme_srv.challenge.Challenge.new_set')
-    @patch('acme_srv.challenge.Challenge._existing_challenge_validate')
-    @patch('acme_srv.challenge.Challenge._challengelist_search')
-    def test_097_challengeset_get(self, mock_chsearch, mock_val, mock_set):
-        """ test challengeset_get - challenge_list returned autzstatus pending """
-        mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
-        mock_val.return_value = True
-        mock_set.return_value = 'new_set'
-        self.assertEqual([{'foo': 'bar'}], self.challenge.challengeset_get('authz_name', 'pending', 'token', 'tnauth'))
-        self.assertFalse(mock_set.called)
-        self.assertTrue(mock_val.called)
+    #@patch('acme_srv.challenge.Challenge.new_set')
+    #@patch('acme_srv.challenge.Challenge._existing_challenge_validate')
+    #@patch('acme_srv.challenge.Challenge._challengelist_search')
+    #def test_097_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    #    """ test challengeset_get - challenge_list returned autzstatus pending """
+    #    mock_chsearch.return_value = [{'name': 'name1', 'foo': 'bar'}]
+    #    mock_val.return_value = True
+    #    mock_set.return_value = 'new_set'
+    #    self.assertEqual([{'foo': 'bar'}], self.challenge.challengeset_get('authz_name', 'pending', 'token', 'tnauth'))
+    #    self.assertFalse(mock_set.called)
+    #    self.assertTrue(mock_val.called)
 
 if __name__ == '__main__':
     unittest.main()
