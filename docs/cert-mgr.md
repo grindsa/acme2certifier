@@ -15,13 +15,12 @@ The below steps based on instructions taken from [cert-manager documention](http
 - Create an issuer configuration file as below
 
 ```bash
-grindsa@ub-20:~$ cat acme2certifier.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: cert-manager-acme
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: acme2certifier
@@ -29,32 +28,29 @@ metadata:
 spec:
   acme:
     email: foo@bar.local
-    server: http://acme-srv.bar.local
+    server: http://192.168.14.1/directory
     privateKeySecretRef:
       # Secret resource that will be used to store the account's private key.
-      name: acme-cert
+      name: issuer-account-key
     # Add a single challenge solver, HTTP01 using nginx
     solvers:
     - http01:
         ingress:
           class: nginx
 ---
-apiVersion: cert-manager.io/v1alpha2
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: acme-cert
   namespace: cert-manager-acme
 spec:
-  # The use of the common name field has been deprecated and should be avoided
-  # if configured, it must be listed in the dnsNames section
-  commonName: k8-acme-cn.bar.local.com
-  dnsNames:
-    - k8-acme-cn.bar.local.com
-    - k8-acme-san1.bar.local.com
-    - k8-acme-san2.bar.local.com
-  secretName: acme2certifier-secret
+  secretName: k8-acme-secret
   issuerRef:
     name: acme2certifier
+  dnsNames:
+    - k8-acme.bar.local
+  # optional but recommended to avoid reenrollment loops in case of short certificate lifetimes
+  renewBefore: 48h
 ```
 
 - apply the configuration. Certificate enrollment should start immediately
@@ -98,3 +94,13 @@ Events:
 - the certificate details can be checked by using the command `microk8s.kubectl get certificate acme-cert -o yaml -n cert-manager-acme`
 - You can check the private key with `microk8s.kubectl get secret acme-cert-key -o yaml -n cert-manager-acme`. You should see a base64 encoded key in the `tls.key` field.
 - certificate, issuer and namespace can be deleted with `microk8s.kubectl delete -f acme2certifier.yaml`
+
+# Troubleshooting
+
+There are [extensive troubleshooting guides at the cert-manager website](https://cert-manager.io/docs/faq/acme/).
+
+Below a list of commends I considered as most useful for me:
+
+- `kubectl get order -n <name-space>` - to get the list of orders
+- `kubectl describe order -n <name-space> <order>` - to display the details of an order
+- `kubectl describe challenge -n <name-space>` - show challenges and provisioning status
