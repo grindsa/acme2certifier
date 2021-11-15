@@ -183,20 +183,20 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
     @patch('acme_srv.authorization.generate_random_string')
-    def test_016_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_017_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() - dbstore.authorization lookup raises an exception """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
         self.authorization.dbstore.authorization_update.return_value = 'foo'
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'type', 'value' : '*.bar.local', 'status__name' : 'foo'}]
-        result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'type', 'value': '*.bar.local'}, 'wildcard': True}
+        result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'type', 'value': 'bar.local'}, 'wildcard': True}
         self.assertEqual(result, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
     @patch('acme_srv.authorization.generate_random_string')
-    def test_017_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_018_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() in case auth_lookup failed """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -210,7 +210,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
     @patch('acme_srv.authorization.generate_random_string')
-    def test_018_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_019_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() - dbstore.authorization lookup raises an exception """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -224,7 +224,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
     @patch('acme_srv.authorization.generate_random_string')
-    def test_019_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
+    def test_020_authorization__authz_info(self, mock_name, mock_uts, mock_challengeset):
         """ test Authorization.auth_info() - dbstore.authorization lookup raises an exception """
         mock_name.return_value = 'randowm_string'
         mock_uts.return_value = 1543640400
@@ -236,26 +236,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_lookup', lcm.output)
 
     @patch('acme_srv.authorization.Authorization._config_load')
-    def test_020__enter__(self, mock_cfg):
+    def test_021__enter__(self, mock_cfg):
         """ test enter """
         mock_cfg.return_value = True
         self.authorization.__enter__()
         self.assertTrue(mock_cfg.called)
 
     @patch('acme_srv.authorization.load_config')
-    def test_021_config_load(self, mock_load_cfg):
-        """ test _config_load """
-        parser = configparser.ConfigParser()
-        mock_load_cfg.return_value = parser
-        self.authorization._config_load()
-        self.assertFalse(self.authorization.expiry_check_disable)
-        self.assertEqual(86400, self.authorization.validity )
-
-    @patch('acme_srv.authorization.load_config')
     def test_022_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
-        parser['Authorization'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
         self.authorization._config_load()
         self.assertFalse(self.authorization.expiry_check_disable)
@@ -265,7 +255,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_023_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
-        parser['Authorization'] = {'expiry_check_disable': False}
+        parser['Authorization'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
         self.authorization._config_load()
         self.assertFalse(self.authorization.expiry_check_disable)
@@ -275,6 +265,16 @@ class TestACMEHandler(unittest.TestCase):
     def test_024_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
+        parser['Authorization'] = {'expiry_check_disable': False}
+        mock_load_cfg.return_value = parser
+        self.authorization._config_load()
+        self.assertFalse(self.authorization.expiry_check_disable)
+        self.assertEqual(86400, self.authorization.validity )
+
+    @patch('acme_srv.authorization.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
         parser['Authorization'] = {'expiry_check_disable': True}
         mock_load_cfg.return_value = parser
         self.authorization._config_load()
@@ -282,7 +282,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.authorization.validity )
 
     @patch('acme_srv.authorization.load_config')
-    def test_025_config_load(self, mock_load_cfg):
+    def test_026_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
         parser['Authorization'] = {'validity': 60}
@@ -292,7 +292,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.authorization.validity )
 
     @patch('acme_srv.authorization.load_config')
-    def test_026_config_load(self, mock_load_cfg):
+    def test_027_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
         parser['Authorization'] = {'validity': 'foo'}
@@ -304,7 +304,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('WARNING:test_a2c:Authorization._config_load(): failed to parse validity: foo', lcm.output)
 
     @patch('acme_srv.authorization.load_config')
-    def test_027_config_load(self, mock_load_cfg):
+    def test_028_config_load(self, mock_load_cfg):
         """ test _config_load """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'url_prefix': 'url_prefix'}
@@ -315,7 +315,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'authz_path': 'url_prefix/acme/authz/'}, self.authorization.path_dic)
 
     @patch('acme_srv.authorization.Authorization._authz_info')
-    def test_028_new_get(self, mock_info):
+    def test_029_new_get(self, mock_info):
         """ new get """
         mock_info.return_value = 'foo'
         result = {'code': 200, 'data': 'foo', 'header': {}}
