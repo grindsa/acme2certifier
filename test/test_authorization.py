@@ -190,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_challengeset.return_value = [{'key1' : 'value1', 'key2' : 'value2'}]
         self.authorization.dbstore.authorization_update.return_value = 'foo'
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'type', 'value' : '*.bar.local', 'status__name' : 'foo'}]
-        result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'type', 'value': '*.bar.local'}, 'wildcard': 'true'}
+        result = {'expires': '2018-12-02T05:00:00Z', 'status': 'foo', 'challenges': [{'key1': 'value1', 'key2': 'value2'}], 'identifier': {'type': 'type', 'value': '*.bar.local'}, 'wildcard': True}
         self.assertEqual(result, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
     @patch('acme_srv.challenge.Challenge.new_set')

@@ -75,7 +75,7 @@ class Authorization(object):
                     # add fildcard flag into authoritzation response
                     if auth_info[0]['value'].startswith('*.'):
                         self.logger.debug('Authorization._authz_info() - adding wildcard flag')
-                        authz_info_dic['wildcard'] =  'true'
+                        authz_info_dic['wildcard'] =  True
             else:
                 authz_info_dic['status'] = 'pending'
 
