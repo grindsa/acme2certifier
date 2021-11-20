@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token-secret
+  namespace: cert-manager-acme
+type: Opaque
+stringData:
+  api-token: CF_TOKEN
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: acme2certifier
+  namespace: cert-manager-acme
+spec:
+  acme:
+    email: foo@bar.local
+    server: http://ACME_SRV/directory
+    privateKeySecretRef:
+      name: issuer-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: MY_EMAIL
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: acme-cert
+  namespace: cert-manager-acme
+spec:
+  secretName: k8-acme-secret
+  issuerRef:
+    name: acme2certifier
+  commonName: k8.acme.dynamop.de
+  dnsNames:
+    - k8.acme.dynamop.de
+
+  renewBefore: 48h
