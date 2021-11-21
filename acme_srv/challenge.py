@@ -169,9 +169,9 @@ class Challenge(object):
             (challenge_name, _sinin) = challenge_name.split('/', 1)
         return challenge_name
 
-    def _new(self, authz_name, mtype, token):
+    def _new(self, authz_name, mtype, token, value=None):
         """ new challenge """
-        self.logger.debug('Challenge._new({0})'.format(mtype))
+        self.logger.debug('Challenge._new({0}:{2}:{1})'.format(authz_name, mtype, value))
 
         challenge_name = generate_random_string(self.logger, 12)
 
@@ -185,9 +185,9 @@ class Challenge(object):
         }
 
         try:
-            chid = self.dbstore.challenge_add(data_dic)
+            chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except BaseException as err_:
-            self.logger.critical('acme2certifier database error in Challenge._new(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._new(): {0}, {2}:{1}'.format(err_, mtype, value))
             chid = None
 
         challenge_dic = {}
@@ -409,9 +409,9 @@ class Challenge(object):
         self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
         return fqdn
 
-    def challengeset_get(self, authz_name, auth_status, token, tnauth):
+    def challengeset_get(self, authz_name, auth_status, token, tnauth, value=None):
         """ get the challengeset for an authorization """
-        self.logger.debug('Challenge.challengeset_get() for auth: {0}'.format(authz_name))
+        self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, value))
         # check database if there are exsting challenges for a particular authorization
         challenge_list = self._challengelist_search('authorization__name', authz_name)
 
@@ -428,7 +428,7 @@ class Challenge(object):
         else:
             # new challenges to be created
             self.logger.debug('Challenges not found. Create a new set.')
-            challenge_list = self.new_set(authz_name, token, tnauth)
+            challenge_list = self.new_set(authz_name, token, tnauth, value)
 
         return challenge_list
 
@@ -441,13 +441,13 @@ class Challenge(object):
         response_dic['data'] = self._info(challenge_name)
         return response_dic
 
-    def new_set(self, authz_name, token, tnauth=False):
+    def new_set(self, authz_name, token, tnauth=False, value=None):
         """ net challenge set """
-        self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, token))
+        self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, value))
         challenge_list = []
         if not tnauth:
             for challenge_type in ['http-01', 'dns-01', 'tls-alpn-01']:
-                challenge_json = self._new(authz_name, challenge_type, token)
+                challenge_json = self._new(authz_name, challenge_type, token, value)
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
