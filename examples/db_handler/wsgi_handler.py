@@ -765,9 +765,9 @@ class DBstore(object):
         self.logger.debug('DBStore._challenge_search() ended')
         return challenge_list
 
-    def challenge_add(self, data_dic):
+    def challenge_add(self, value, mtype, data_dic):
         """ add challenge to database """
-        self.logger.debug('DBStore.challenge_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.challenge_add({0}:{1})'.format(value, mtype))
         authorization = self.authorization_lookup('name', data_dic['authorization'], ['id'])
 
         if not "status" in data_dic:
