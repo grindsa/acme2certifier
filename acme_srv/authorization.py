@@ -43,7 +43,7 @@ class Authorization(object):
         try:
             authz = self.dbstore.authorization_lookup('name', authz_name)
         except BaseException as err_:
-            self.logger.critical('acme2certifier database error in Authorization._authz_info() lookup1: {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Authorization._authz_info({0}) lookup1: {1}'.format(authz_name, err_))
             authz = None
 
         if authz:
@@ -51,7 +51,7 @@ class Authorization(object):
             try:
                 self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
             except BaseException as err_:
-                self.logger.error('acme2certifier database error in Authorization._authz_info() update: {0}'.format(err_))
+                self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
             # get authorization information from db to be inserted in message
@@ -59,7 +59,7 @@ class Authorization(object):
             try:
                 auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
             except BaseException as err_:
-                self.logger.error('acme2certifier database error in Authorization._authz_info() lookup2: {0}'.format(err_))
+                self.logger.error('acme2certifier database error in Authorization._authz_info({0}) lookup2: {1}'.format(authz_name, err_))
                 auth_info = {}
 
             if auth_info:

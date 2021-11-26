@@ -15,6 +15,8 @@ def initialize():
     django.setup()
 initialize()
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status
+# from django.db import connection, DEFAULT_DB_ALIAS
+from django.db import transaction
 
 class DBstore(object):
     """ helper to do datebase operations """
@@ -129,14 +131,15 @@ class DBstore(object):
     def authorization_update(self, data_dic):
         """ update existing authorization """
         self.logger.debug('DBStore.authorization_update({0})'.format(data_dic))
-
         # get some instance for DB insert
         if 'status' in data_dic:
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
 
-        # add authorization
-        obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
-        obj.save()
+        with transaction.atomic(immediate=True):
+            self.logger.debug('DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions')
+            # add authorization
+            obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+            obj.save()
 
         self.logger.debug('auth_id({0})'.format(obj.id))
         return obj.id
@@ -164,10 +167,9 @@ class DBstore(object):
             result = None
         return result
 
-
-    def challenge_add(self, data_dic):
+    def challenge_add(self, value, mtype, data_dic):
         """ add challenge to database """
-        self.logger.debug('DBStore.challenge_add({0})'.format(data_dic))
+        self.logger.debug('DBStore.challenge_add({0}:{1})'.format(value, mtype))
 
         # get order instance for DB insert
         data_dic['authorization'] = self._authorization_getinstance(data_dic['authorization'])
@@ -175,10 +177,13 @@ class DBstore(object):
         # replace orderstatus with an instance
         data_dic['status'] = self._status_getinstance(data_dic['status'])
 
-        # add authorization
-        obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
-        obj.save()
+        with transaction.atomic(immediate=True):
+            self.logger.debug('DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions')
+            obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+            obj.save()
+
         self.logger.debug('cid({0})'.format(obj.id))
+        self.logger.debug('DBStore.challenge_add({0}:{1}:{2})'.format(value, mtype, obj.id))
         return obj.id
 
     def certificate_add(self, data_dic):
