@@ -152,7 +152,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.return_value = [{'name': 'foo'}]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.authorization._authz_info('http://tester.local/acme/authz/foo')
-        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_update', lcm.output)
+        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(foo) update: exc_authz_update', lcm.output)
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
@@ -205,7 +205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.side_effect = Exception('exc_acc_lookup')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual({}, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_acc_lookup', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(foo) lookup1: exc_acc_lookup', lcm.output)
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
@@ -219,7 +219,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.side_effect = Exception('exc_authz_update')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.authorization._authz_info('http://tester.local/acme/authz/foo')
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_update', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Authorization._authz_info(foo) lookup1: exc_authz_update', lcm.output)
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.side_effect = [[{'type' : 'identifier_type', 'value1' : 'identifier_value', 'status__name' : 'foo'}], Exception('exc_authz_lookup')]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.authorization._authz_info('http://tester.local/acme/authz/foo')
-        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(): exc_authz_lookup', lcm.output)
+        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(foo) lookup2: exc_authz_lookup', lcm.output)
 
     @patch('acme_srv.authorization.Authorization._config_load')
     def test_021__enter__(self, mock_cfg):
