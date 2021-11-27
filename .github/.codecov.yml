@@ -3,5 +3,6 @@ ignore:
   - "examples/ca_handler/certsrv.py"
   - "examples/eab_handler/skeleton_eab_handler.py"
   - "docs/__init__.py"  
+  - "acme_srv/monkey_patches.py"
   - "setup.py"
   - "test"       # wildcards accepted
