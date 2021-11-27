@@ -5,6 +5,17 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.19
+
+**Bugfixes**:
+
+- [Authorization polling does not trigger challenge validation anymore](https://github.com/grindsa/acme2certifier/issues/76)
+- Overcome database locking situations in django environments using sqlite3 backends
+
+**Features and Improvements**:
+
+- [RFC compliant Wildcard handling](https://github.com/grindsa/acme2certifier/issues/76)
+
 ## Changes in 0.18.2
 
 **Bugfixes**:
