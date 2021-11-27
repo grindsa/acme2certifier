@@ -44,7 +44,7 @@ acme_srv/cmp/WindowsCMPOpenSSL/openssl.exe cmp -cmd ir -server 192.168.14.137:80
 |-extracertsout | ca_certs.pem | file containing the ca certificates extracted from the CMMPv2 response |
 |-certout | test-cert.pem | file containing the certificate returned from ca server |
 
-The latest version of the documentation for the openssl cmp CLI can be found [here](https://github.com/mpeylo/cmpossl/blob/cmp/doc/man1/openssl-cmp.pod)
+The latest version of the documentation for the openssl cmp CLI can be found [here](https://github.com/mpeylo/cmpossl/tree/cmp/doc/man3)
 
 ## Installation and Configuration
 
