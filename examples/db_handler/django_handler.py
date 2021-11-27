@@ -14,12 +14,11 @@ def initialize():
     # pylint: disable=E1101
     django.setup()
 initialize()
+from django.conf import settings
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status
-
 from django.db import transaction
 # from acme_srv.monkey_patches import django_sqlite_atomic
-import acme_srv.monkey_patches 
-
+import acme_srv.monkey_patches
 
 class DBstore(object):
     """ helper to do datebase operations """
@@ -138,9 +137,14 @@ class DBstore(object):
         if 'status' in data_dic:
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
 
-        with transaction.atomic(immediate=True):
+        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions')
-            # add authorization
+            with transaction.atomic(immediate=True):
+                # update authorization
+                obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+                obj.save()
+        else:
+            # update authorization
             obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
             obj.save()
 
@@ -180,8 +184,12 @@ class DBstore(object):
         # replace orderstatus with an instance
         data_dic['status'] = self._status_getinstance(data_dic['status'])
 
-        with transaction.atomic(immediate=True):
+        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions')
+            with transaction.atomic(immediate=True):
+                obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+                obj.save()
+        else:
             obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
             obj.save()
 
