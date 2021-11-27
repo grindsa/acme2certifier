@@ -529,8 +529,8 @@ class TestACMEHandler(unittest.TestCase):
         """ test Challenge._new - dbstore.challenge_add() raises an exception  """
         self.challenge.dbstore.challenge_add.side_effect = Exception('exc_chall_add')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.challenge._new('authz_name', 'mtype', 'token')
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add', lcm.output)
+            self.challenge._new('authz_name', 'mtype', 'token', 'value')
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add, value:mtype', lcm.output)
 
     def test_061_challenge__update(self):
         """ test Challenge._update - dbstore.challenge_update() raises an exception  """
