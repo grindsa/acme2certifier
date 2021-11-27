@@ -15,8 +15,11 @@ def initialize():
     django.setup()
 initialize()
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status
-# from django.db import connection, DEFAULT_DB_ALIAS
+
 from django.db import transaction
+# from acme_srv.monkey_patches import django_sqlite_atomic
+import acme_srv.monkey_patches 
+
 
 class DBstore(object):
     """ helper to do datebase operations """
