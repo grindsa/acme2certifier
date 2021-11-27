@@ -439,7 +439,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.assertEqual(1, self.dbstore.challenge_add(data_dic))
+        self.assertEqual(1, self.dbstore.challenge_add('value', 'mtype', data_dic))
 
     def test_053_challenge_add(self):
         """ test DBstore.challenge_add() method  """
@@ -450,14 +450,14 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 'name1', 'expires' : 25, 'type' : 'type2'}
-        self.assertEqual(2, self.dbstore.challenge_add(data_dic))
+        self.assertEqual(2, self.dbstore.challenge_add('value', 'mtype', data_dic))
 
     def test_054_challenge_add(self):
         """ test DBstore.challenge_add() method - authorization lookup failed """
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.assertFalse(self.dbstore.challenge_add(data_dic))
+        self.assertFalse(self.dbstore.challenge_add('value', 'mtype', data_dic))
 
     def test_055_challenge_search(self):
         """ test DBstore.challenge_search() method  """
@@ -468,7 +468,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertIn(('type1'), self.dbstore._challenge_search('name', 'challenge1'))
 
     def test_056_challenge_search(self):
@@ -484,7 +484,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertEqual({'status': u'pending', 'token': u'token1', 'type': u'type1'}, self.dbstore.challenge_lookup('name', 'challenge1'))
 
     def test_058_challenge_lookup(self):
@@ -496,7 +496,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 'name1', 'expires' : 25, 'type' : 'type2'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertEqual({'status': u'pending', 'token': u'token2', 'type': u'type2'}, self.dbstore.challenge_lookup('name', 'challenge2'))
 
     def test_059_challenge_lookup(self):
@@ -516,7 +516,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertEqual({'authorization': u'name1', 'authorization__order__account__name': u'name1', 'name': u'challenge1', 'authorization__order__name': u'name'}, self.dbstore.challenge_lookup('name', 'challenge1', ('name', 'authorization__name', 'authorization__order__name', 'authorization__order__account__name')))
 
     def test_062_challenge_update(self):
@@ -528,7 +528,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         data_dic = {'name' : 'challenge1'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
@@ -541,7 +541,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         data_dic = {'name' : 'challenge1', 'status' : 'valid', 'keyauthorization' : 'auth'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
@@ -554,7 +554,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         data_dic = {'name' : 'challenge1', 'status' : 'valid'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
@@ -567,7 +567,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         data_dic = {'name' : 'challenge1', 'status' : 'valid', 'keyauthorization' : 'auth1'}
         self.assertFalse(self.dbstore.challenge_update(data_dic))
 
@@ -833,9 +833,9 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value1', 'mtype1', data_dic)
         data_dic = {'name' : 'challenge2', 'token' : 'token2', 'authorization': 'name1', 'expires' : 25, 'type' : 'type2'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value2', 'mtype2', data_dic)
         vlist = ['id', 'name', 'eab_kid', 'contact', 'created_at', 'jwk', 'alg', 'order__id', 'order__name', 'order__status__id', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__authorization__id', 'order__authorization__name', 'order__authorization__type', 'order__authorization__value', 'order__authorization__expires', 'order__authorization__token', 'order__authorization__created_at', 'order__authorization__status__id', 'order__authorization__status__name', 'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token', 'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization', 'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name']
         account_list = {'id': 1, 'name': 'name1', 'eab_kid': '', 'contact': 'contact1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'alg': 'alg1', 'order__id': 1, 'order__name': 'name', 'order__status__id': 1, 'order__status__name': 'invalid', 'order__notbefore': '', 'order__notafter': '', 'order__expires': 25, 'order__identifiers': 'identifiers', 'order__authorization__id': 1, 'order__authorization__name': 'name1', 'order__authorization__type': 'type1', 'order__authorization__value': 'value1', 'order__authorization__expires': None, 'order__authorization__token': None, 'order__authorization__status__id': 2, 'order__authorization__status__name': 'pending', 'order__authorization__challenge__id': 1, 'order__authorization__challenge__name': 'challenge1', 'order__authorization__challenge__token': 'token1', 'order__authorization__challenge__expires': 25, 'order__authorization__challenge__type': 'type1', 'order__authorization__challenge__keyauthorization': None, 'order__authorization__challenge__status__id': 2, 'order__authorization__challenge__status__name': 'pending'}
         (result_vlist, result_account_list) = self.dbstore.accountlist_get()
@@ -945,7 +945,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         result = [{'name': 'challenge1', 'status': 'pending', 'status__name': 'pending', 'token': 'token1', 'type': 'type1'}]
         self.assertEqual(result, self.dbstore.challenges_search('challenge.name', 'challenge1'))
         self.assertEqual(result, self.dbstore.challenges_search('challenge.token', 'token1'))
@@ -961,7 +961,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'type' : 'type1', 'value': 'value1', 'order' : 1}
         self.dbstore.authorization_add(data_dic)
         data_dic = {'name' : 'challenge1', 'token' : 'token1', 'authorization': 'name1', 'expires' : 25, 'type' : 'type1'}
-        self.dbstore.challenge_add(data_dic)
+        self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertFalse(self.dbstore.challenges_search('challenge.name', 'challenge'))
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
