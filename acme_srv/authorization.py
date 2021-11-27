@@ -76,13 +76,20 @@ class Authorization(object):
                     if auth_info[0]['value'].startswith('*.'):
                         self.logger.debug('Authorization._authz_info() - adding wildcard flag')
                         authz_info_dic['identifier']['value'] = auth_info[0]['value'][2:]
-                        authz_info_dic['wildcard'] =  True
+                        authz_info_dic['wildcard'] = True
             else:
                 authz_info_dic['status'] = 'pending'
 
             with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
                 # get challenge data (either existing or new ones)
-                authz_info_dic['challenges'] = challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, authz_info_dic['identifier']['value'])
+                if 'identifier' in authz_info_dic:
+                    if 'value' in authz_info_dic['identifier']:
+                        id_value = authz_info_dic['identifier']['value']
+                    else:
+                        id_value = None
+                else:
+                    id_value = None
+                authz_info_dic['challenges'] = challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_value)
 
         self.logger.debug('Authorization._authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic

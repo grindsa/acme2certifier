@@ -103,7 +103,7 @@ class Challenge(object):
         self.logger.debug('Challenge._existing_challenge_validate()')
 
         # for challenge in challenge_list:
-        for challenge in sorted(challenge_list, key=lambda k : k['type']):
+        for challenge in sorted(challenge_list, key=lambda k: k['type']):
             challenge_check = self._validate(challenge['name'], {})
             if challenge_check:
                 # end loop if challenge check was successful
@@ -409,7 +409,7 @@ class Challenge(object):
         self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
         return fqdn
 
-    def challengeset_get(self, authz_name, auth_status, token, tnauth, value=None):
+    def challengeset_get(self, authz_name, _auth_status, token, tnauth, value=None):
         """ get the challengeset for an authorization """
         self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, value))
         # check database if there are exsting challenges for a particular authorization
