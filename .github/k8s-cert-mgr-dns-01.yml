@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -19,12 +20,12 @@ spec:
     privateKeySecretRef:
       name: issuer-account-key
     solvers:
-    - dns01:
-        cloudflare:
-          email: MY_EMAIL
-          apiTokenSecretRef:
-            name: cloudflare-api-token-secret
-            key: api-token
+      - dns01:
+          cloudflare:
+            email: MY_EMAIL
+            apiTokenSecretRef:
+              name: cloudflare-api-token-secret
+              key: api-token
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
