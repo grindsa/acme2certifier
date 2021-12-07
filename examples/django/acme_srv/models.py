@@ -3,13 +3,16 @@
 from __future__ import unicode_literals
 from django.db import models
 
+
 # Create your models here.
 class Nonce(models.Model):
     """ nonce table """
     nonce = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __unicode__(self):
         return self.nonce
+
 
 class Account(models.Model):
     """ account table """
@@ -19,14 +22,18 @@ class Account(models.Model):
     contact = models.CharField(max_length=255)
     eab_kid = models.TextField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __unicode__(self):
         return self.contact
+
 
 class Status(models.Model):
     """ order status """
     name = models.CharField(max_length=15, unique=True)
+
     def __unicode__(self):
         return self.name
+
 
 class Order(models.Model):
     """ order table """
@@ -38,8 +45,10 @@ class Order(models.Model):
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __unicode__(self):
         return self.name
+
 
 class Authorization(models.Model):
     """ order table """
@@ -51,8 +60,10 @@ class Authorization(models.Model):
     expires = models.IntegerField(default=0)
     status = models.ForeignKey(Status, default=1, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
     def __unicode__(self):
         return self.name
+
 
 class Challenge(models.Model):
     """ order table """
@@ -65,8 +76,10 @@ class Challenge(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     keyauthorization = models.CharField(max_length=128, blank=True)
     validated = models.IntegerField(default=0)
+
     def __unicode__(self):
         return self.name
+
 
 class Certificate(models.Model):
     """ order table """
@@ -80,14 +93,17 @@ class Certificate(models.Model):
     expire_uts = models.IntegerField(default=0)
     issue_uts = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+
     def __unicode__(self):
         return self.name
+
 
 class Housekeeping(models.Model):
     """ housekeeping """
     name = models.CharField(max_length=15, unique=True)
     value = models.CharField(max_length=30, blank=True)
     modified_at = models.DateTimeField('value', auto_now_add=True, null=True)
+
 
 class Cahandler(models.Model):
     """ housekeeping """

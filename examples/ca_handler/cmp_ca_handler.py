@@ -8,6 +8,7 @@ import subprocess
 # pylint: disable=E0401
 from acme_srv.helper import load_config, csr_dn_get, csr_pubkey_get, csr_san_get
 
+
 class CAhandler(object):
     """ EST CA  handler """
 
@@ -97,7 +98,7 @@ class CAhandler(object):
                         if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
                             value = config_dic['CAhandler'][ele]
                         else:
-                            value = '/'+config_dic['CAhandler'][ele]
+                            value = '/' + config_dic['CAhandler'][ele]
                         value = value.replace(', ', '/')
                         value = value.replace(',', '/')
                         self.config_dic['recipient'] = value

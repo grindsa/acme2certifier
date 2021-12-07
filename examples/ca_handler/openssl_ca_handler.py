@@ -11,6 +11,7 @@ from OpenSSL import crypto
 # pylint: disable=E0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
+
 class CAhandler(object):
     """ CA  handler """
 
@@ -18,9 +19,9 @@ class CAhandler(object):
         self.debug = debug
         self.logger = logger
         self.issuer_dict = {
-            'issuing_ca_key' : None,
-            'issuing_ca_cert' : None,
-            'issuing_ca_crl'  : None,
+            'issuing_ca_key': None,
+            'issuing_ca_cert': None,
+            'issuing_ca_crl': None,
         }
         self.ca_cert_chain_list = []
         self.cert_validity_days = 365
@@ -75,7 +76,7 @@ class CAhandler(object):
             error = err_
 
         if not error:
-            #Create a certificate store and add ca cert(s)
+            # Create a certificate store and add ca cert(s)
             try:
                 store = crypto.X509Store()
                 store.add_cert(ca_cert)
@@ -374,7 +375,7 @@ class CAhandler(object):
             if list_:
                 for regex in list_:
                     if regex.startswith('*.'):
-                       regex = regex.replace('*.', '.')
+                        regex = regex.replace('*.', '.')
                     regex_compiled = re.compile(regex)
                     if bool(regex_compiled.search(entry)):
                         # parameter is in set flag accordingly and stop loop
@@ -585,7 +586,7 @@ class CAhandler(object):
                 code = 400
                 message = 'urn:ietf:params:acme:error:serverInternal'
                 detail = 'configuration error'
-            #else:
+            # else:
             #    code = 400
             #    message = 'urn:ietf:params:acme:error:serverInternal'
             #    detail = result

@@ -19,9 +19,9 @@ class CAhandler(object):
         self.logger = logger
         self.api_host = None
         self.ca_bundle = True
-        self.credential_dic = {'api_user' : None, 'api_password' : None}
-        self.tsg_info_dic = {'name' : None, 'id' : None}
-        self.template_info_dic = {'name' : None, 'id' : None}
+        self.credential_dic = {'api_user': None, 'api_password': None}
+        self.tsg_info_dic = {'name': None, 'id': None}
+        self.template_info_dic = {'name': None, 'id': None}
         self.headers = None
         self.ca_name = None
         self.error = None
@@ -129,9 +129,9 @@ class CAhandler(object):
         try:
             # get certificates
             if csr_cn:
-                cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
             else:
-                cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
         except BaseException as err_:
             self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
             cert_list = []
@@ -294,13 +294,13 @@ class CAhandler(object):
         if api_response.ok:
             # all fine try to login
             self.logger.debug('log in to {0} as user "{1}"'.format(self.api_host, self.credential_dic['api_user']))
-            data = {'username' : self.credential_dic['api_user'], 'password' : self.credential_dic['api_password']}
+            data = {'username': self.credential_dic['api_user'], 'password': self.credential_dic['api_password']}
             api_response = requests.post(url=self.api_host + '/token?grant_type=client_credentials', json=data, proxies=self.proxy)
             if api_response.ok:
                 json_dic = api_response.json()
                 if 'access_token' in json_dic:
                     # self.token = json_dic['access_token']
-                    self.headers = {"Authorization":"Bearer {0}".format(json_dic['access_token'])}
+                    self.headers = {"Authorization": "Bearer {0}".format(json_dic['access_token'])}
                     _username = json_dic.get('username', None)
                     _realms = json_dic.get('realms', None)
                     self.logger.debug('login response:\n user: {0}\n token: {1}\n realms: {2}\n'.format(_username, json_dic['access_token'], _realms))
@@ -316,7 +316,7 @@ class CAhandler(object):
     def _request_import(self, csr):
         """ import certificate request to NCLM """
         self.logger.debug('CAhandler._request_import()')
-        data_dic = {'pkcs10' : csr}
+        data_dic = {'pkcs10': csr}
         try:
             result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
         except BaseException as err_:
@@ -466,11 +466,11 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke()')
         # get serial from pem file and convert to formated hex
         serial = '0{:x}'.format(cert_serial_get(self.logger, cert))
-        hex_serial = ':'.join(serial[i:i+2] for i in range(0, len(serial), 2))
+        hex_serial = ':'.join(serial[i:i + 2] for i in range(0, len(serial), 2))
 
         # search for certificate
         try:
-            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId='+str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
         except BaseException as err_:
             self.logger.error('CAhandler.revoke(): request get aborted with err:'.format(err_))
             cert_list = []

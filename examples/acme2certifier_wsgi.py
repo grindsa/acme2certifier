@@ -27,6 +27,7 @@ try:
 except BaseException:
     DEBUG = False
 
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
@@ -35,6 +36,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
     LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     # LOGGER.error("Uncaught exception")
+
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
@@ -56,6 +58,7 @@ HTTP_CODE_DIC = {
     500: 'serverInternal '
 }
 
+
 def create_header(response_dic, add_json_header=True):
     """ create header """
     # generate header and nonce
@@ -69,6 +72,7 @@ def create_header(response_dic, add_json_header=True):
         headers.append((element, value))
     return headers
 
+
 def get_request_body(environ):
     """ get body from request data """
     try:
@@ -77,6 +81,7 @@ def get_request_body(environ):
         request_body_size = 0
     request_body = environ['wsgi.input'].read(request_body_size)
     return request_body
+
 
 def acct(environ, start_response):
     """ account handling """
@@ -88,6 +93,7 @@ def acct(environ, start_response):
         headers = create_header(response_dic)
         start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
         return [json.dumps(response_dic['data']).encode('utf-8')]
+
 
 def acmechallenge_serve(environ, start_response):
     """ directory listing """
@@ -102,6 +108,7 @@ def acmechallenge_serve(environ, start_response):
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], {})
         return [key_authorization.encode('utf-8')]
+
 
 def authz(environ, start_response):
     """ authorization handling """
@@ -130,7 +137,8 @@ def authz(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def newaccount(environ, start_response):
     """ create new account """
@@ -150,7 +158,8 @@ def newaccount(environ, start_response):
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def directory(environ, start_response):
     """ directory listing """
@@ -159,6 +168,7 @@ def directory(environ, start_response):
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
         return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
+
 
 def cert(environ, start_response):
     """ create new account """
@@ -189,7 +199,8 @@ def cert(environ, start_response):
 
         else:
             start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def chall(environ, start_response):
     """ create new account """
@@ -223,7 +234,8 @@ def chall(environ, start_response):
 
         else:
             start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-            return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def newnonce(environ, start_response):
     """ generate a new nonce """
@@ -235,7 +247,8 @@ def newnonce(environ, start_response):
         return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
+
 
 def neworders(environ, start_response):
     """ generate a new order """
@@ -254,7 +267,8 @@ def neworders(environ, start_response):
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def order(environ, start_response):
     """ order_handler """
@@ -273,7 +287,8 @@ def order(environ, start_response):
 
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def revokecert(environ, start_response):
     """ revocation_handler """
@@ -294,7 +309,8 @@ def revokecert(environ, start_response):
                 return []
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def trigger(environ, start_response):
     """ ca trigger handler """
@@ -318,12 +334,14 @@ def trigger(environ, start_response):
             # return [json.dumps({'status':200, 'message':HTTP_CODE_DIC[200], 'detail': 'OK'}).encode('utf-8')]
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
-        return [json.dumps({'status':405, 'message':HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
-    return [json.dumps({'status':404, 'message':HTTP_CODE_DIC[404], 'detail': 'Not Found'}).encode('utf-8')]
+    return [json.dumps({'status': 404, 'message': HTTP_CODE_DIC[404], 'detail': 'Not Found'}).encode('utf-8')]
+
 
 # map urls to functions
 URLS = [
@@ -339,8 +357,8 @@ URLS = [
     (r'^acme/order', order),
     (r'^acme/revokecert', revokecert),
     (r'^directory?$', directory),
-    (r'^trigger', trigger),
-]
+    (r'^trigger', trigger)]
+
 
 def application(environ, start_response):
     ''' The main WSGI application if nothing matches call the not_found function.'''
@@ -361,6 +379,7 @@ def application(environ, start_response):
             return callback(environ, start_response)
     return not_found(environ, start_response)
 
+
 def get_handler_cls():
     """ my handler to disable name resolution """
     cls = WSGIRequestHandler
@@ -373,7 +392,9 @@ def get_handler_cls():
 
     return Acme2certiferhandler
 
+
 if __name__ == '__main__':
+
     LOGGER.info('starting acme2certifier version {0}'.format(__version__))
     SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
     SRV.serve_forever()

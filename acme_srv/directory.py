@@ -6,6 +6,7 @@ import uuid
 from .version import __version__
 from .helper import load_config
 
+
 class Directory(object):
     """ class for directory handling """
 
@@ -38,7 +39,7 @@ class Directory(object):
         if 'EABhandler' in config_dic:
             if 'eab_handler_file' in config_dic['EABhandler']:
                 self.eab = True
-        if 'Directory' in config_dic:            
+        if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
                 self.url_prefix = config_dic['Directory']['url_prefix']
 
@@ -49,13 +50,13 @@ class Directory(object):
         self.logger.debug('Directory.directory_get()')
 
         d_dic = {
-            'newAuthz' : self.server_name + self.url_prefix + '/acme/new-authz',
+            'newAuthz': self.server_name + self.url_prefix + '/acme/new-authz',
             'newNonce': self.server_name + self.url_prefix + '/acme/newnonce',
             'newAccount': self.server_name + self.url_prefix + '/acme/newaccount',
             "newOrder": self.server_name + self.url_prefix + '/acme/neworders',
-            'revokeCert' : self.server_name + self.url_prefix + '/acme/revokecert',
-            'keyChange' : self.server_name + self.url_prefix + '/acme/key-change',
-            'meta' : {
+            'revokeCert': self.server_name + self.url_prefix + '/acme/revokecert',
+            'keyChange': self.server_name + self.url_prefix + '/acme/key-change',
+            'meta': {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',
                 'name': 'acme2certifier'
