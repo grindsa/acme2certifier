@@ -6,20 +6,22 @@ from __future__ import print_function
 import os
 import sys
 import json
-initialize()
-from django.conf import settings  # nopep8
-from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
-from django.db import transaction  # nopep8
-import acme_srv.monkey_patches  # nopep8
 
 
-def initialize():
+def initialize():  # nopep8
     """ initialize routine when calling dbstore functions from script """
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
     import django
     # pylint: disable=E1101
     django.setup()
+
+
+initialize()
+from django.conf import settings  # nopep8
+from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
+from django.db import transaction  # nopep8
+import acme_srv.monkey_patches  # nopep8
 
 
 class DBstore(object):

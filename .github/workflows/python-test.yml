@@ -72,6 +72,6 @@ jobs:
       - name: "Linting with pycodestyle"
         run: |
           pip install pycodestyle
-          cp .github/pycodestyle ~/.pycodestyle
+          cp .github/pycodestyle ~/.config/pycodestyle
           pycodestyle --show-source examples/.
           pycodestyle --show-source acme_srv/.
