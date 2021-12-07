@@ -8,6 +8,7 @@ from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode, load_config, ca_handler_get
 
+
 class Trigger(object):
     """ Challenge handler """
 
@@ -94,7 +95,7 @@ class Trigger(object):
 
                     if cert_name_list:
                         for cert in cert_name_list:
-                            data_dic = {'cert' : cert_bundle, 'name': cert['cert_name'], 'cert_raw' : cert_raw}
+                            data_dic = {'cert': cert_bundle, 'name': cert['cert_name'], 'cert_raw': cert_raw}
                             try:
                                 self.dbstore.certificate_add(data_dic)
                             except BaseException as err_:
@@ -146,8 +147,6 @@ class Trigger(object):
             message = 'malformed'
             detail = 'payload missing'
         response_dic = {}
-        # check message
-
 
         # prepare/enrich response
         response_dic['header'] = {}

@@ -33,9 +33,9 @@ else:
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', views.directory, name='index'),
-	url(r'^directory$', views.directory, name='directory'),
-	url(r'^{0}get_servername$'.format(prefix), views.servername_get, name='servername_get'),
-	url(r'^{0}trigger$'.format(prefix), views.trigger, name='trigger'),
+    url(r'^directory$', views.directory, name='directory'),
+    url(r'^{0}get_servername$'.format(prefix), views.servername_get, name='servername_get'),
+    url(r'^{0}trigger$'.format(prefix), views.trigger, name='trigger'),
     url(r'^{0}acme/'.format(prefix), include('acme_srv.urls'))
 ]
 

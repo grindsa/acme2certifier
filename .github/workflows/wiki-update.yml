@@ -4,7 +4,7 @@ name: wiki-update
 
 on:
   push:
-    branches: [ master ]  
+    branches: [ master ]
 
 jobs:
   wiki-update:
@@ -23,4 +23,4 @@ jobs:
         with:
           path: "examples/Docker"
         env:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}          
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}

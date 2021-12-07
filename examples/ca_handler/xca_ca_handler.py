@@ -15,6 +15,7 @@ def dict_from_row(row):
     """ small helper to convert the output of a "select" command into a dictionary """
     return dict(zip(row.keys(), row))
 
+
 class CAhandler(object):
     """ CA  handler """
 
@@ -231,7 +232,7 @@ class CAhandler(object):
         if cert_dic:
             if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
                 # pylint: disable=R0916
-                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int)  and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
+                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int) and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
                     self._db_open()
                     self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
                     row_id = self.cursor.lastrowid
@@ -657,7 +658,7 @@ class CAhandler(object):
                     # remove last element from list if amount of list entries is uneven
                     parameter_list.pop()
                 # convert list into a directory
-                template_dic = {item : parameter_list[index+1] for index, item in enumerate(parameter_list) if index % 2 == 0}
+                template_dic = {item: parameter_list[index + 1] for index, item in enumerate(parameter_list) if index % 2 == 0}
 
         self.logger.debug('CAhandler._utf_stream_parse() ended: {0}'.format(bool(template_dic)))
         return template_dic
@@ -719,7 +720,7 @@ class CAhandler(object):
                     cert = crypto.X509()
                     cert.set_pubkey(req.get_pubkey())
                     cert.set_version(2)
-                    cert.set_serial_number(uuid.uuid4().int & (1<<63)-1)
+                    cert.set_serial_number(uuid.uuid4().int & (1 << 63) - 1)
                     cert.set_issuer(ca_cert.get_subject())
 
                     # load template if configured

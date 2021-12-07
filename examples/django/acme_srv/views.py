@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """ acme app main view """
 from __future__ import unicode_literals, print_function
-
 from django.http import HttpResponse, HttpResponseNotFound
 from django.http import JsonResponse
 from acme_srv.authorization import Authorization
@@ -28,6 +27,7 @@ LOGGER.info('starting acme2certifier version {0}'.format(__version__))
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)
 
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
     print('My Error Information')
@@ -37,6 +37,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 # examption handling via logger
 # sys.excepthook = handle_exception
+
 
 def pretty_request(request):
     """ print request details for debugging """
@@ -60,10 +61,12 @@ def pretty_request(request):
         headers=headers,
         body=request.body, )
 
+
 def directory(request):
     """ get directory """
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
         return JsonResponse(cfg_dir.directory_get())
+
 
 def newaccount(request):
     """ new account """
@@ -82,7 +85,8 @@ def newaccount(request):
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def newnonce(request):
     """ new nonce """
@@ -96,16 +100,18 @@ def newnonce(request):
             response['Replay-Nonce'] = nonce.generate_and_add()
 
             # logging
-            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce' : response['Replay-Nonce']}})
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce': response['Replay-Nonce']}})
             # send response
             return response
     else:
-        return JsonResponse(status=400, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD or GET.'})
+        return JsonResponse(status=400, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected HEAD or GET.'})
+
 
 def servername_get(request):
     """ get server name """
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
-        return JsonResponse({'server_name' : cfg_dir.servername_get()})
+        return JsonResponse({'server_name': cfg_dir.servername_get()})
+
 
 def acct(request):
     """ xxxx command """
@@ -123,6 +129,7 @@ def acct(request):
         # send response
         return response
 
+
 def neworders(request):
     """ new account """
     if request.method == 'POST':
@@ -139,11 +146,12 @@ def neworders(request):
                 response['Replay-Nonce'] = ''
 
             # logging
-            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce' : response['Replay-Nonce']}})
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], {'header': {'Replay-Nonce': response['Replay-Nonce']}})
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def authz(request):
     """ new-authz command """
@@ -165,7 +173,8 @@ def authz(request):
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def chall(request):
     """ challenge command """
@@ -193,7 +202,8 @@ def chall(request):
             # send response
             return response
         else:
-            return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+            return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def order(request):
     """ order request """
@@ -211,7 +221,8 @@ def order(request):
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def cert(request):
     """ cert request """
@@ -237,7 +248,8 @@ def cert(request):
             return response
 
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def revokecert(request):
     """ cert revocation """
@@ -259,7 +271,8 @@ def revokecert(request):
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def trigger(request):
     """ ca trigger"""
@@ -281,7 +294,8 @@ def trigger(request):
             # send response
             return response
     else:
-        return JsonResponse(status=405, data={'status':405, 'message':'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
+
 
 def acmechallenge_serve(request):
     """ serving acme challenges """
@@ -291,9 +305,3 @@ def acmechallenge_serve(request):
             return HttpResponse(key_authorization)
         else:
             return HttpResponseNotFound('NOT FOUND')
-
-#def blubb(request):
-#    """ xxxx command """
-#    with acme_srv(request.META['HTTP_HOST']) as acm:
-#        return HttpResponse('ok')
-# return JsonResponse(status=403, data={'status':403, 'message':'not that far', 'detail': 'we are ot that far.'})
