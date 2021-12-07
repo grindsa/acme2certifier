@@ -3,6 +3,7 @@
 """ Error class """
 from __future__ import print_function
 
+
 class Error(object):
     """ error messages """
 
@@ -23,7 +24,7 @@ class Error(object):
             'urn:ietf:params:acme:error:unauthorized': None,
             'urn:ietf:params:acme:error:userActionRequired': None,
             'urn:ietf:params:acme:error:alreadyRevoked': None,
-            'notImplementedYet' : "we are not that far. Stay tuned",
+            'notImplementedYet': "we are not that far. Stay tuned",
         }
         if message and message in error_dic:
             result = error_dic[message]

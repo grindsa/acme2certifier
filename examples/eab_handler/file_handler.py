@@ -6,6 +6,7 @@ import csv
 # pylint: disable=E0401
 from acme_srv.helper import load_config
 
+
 class EABhandler(object):
     """ EAB file handler """
 

@@ -12,6 +12,7 @@ from examples.ca_handler.certsrv import Certsrv
 # pylint: disable=E0401
 from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, parse_url, proxy_check
 
+
 def _get_certificates(self):
     """
     https://github.com/pyca/pyopenssl/pull/367/files#r67300900
@@ -42,6 +43,7 @@ def _get_certificates(self):
     if not pycerts:
         return None
     return tuple(pycerts)
+
 
 class CAhandler(object):
     """ EST CA  handler """

@@ -28,6 +28,7 @@ acme_keyfile: /path/to/privkey.json
 
 """
 
+
 class CAhandler(object):
     """ EST CA  handler """
 
@@ -38,7 +39,7 @@ class CAhandler(object):
         self.key_size = 2048
         self.account = None
         self.email = None
-        self.path_dic = {'directory_path': '/directory', 'acct_path' : '/acme/acct/'}
+        self.path_dic = {'directory_path': '/directory', 'acct_path': '/acme/acct/'}
         self.dbstore = DBstore(None, self.logger)
         self.allowed_domainlist = []
         self.eab_kid = None
@@ -94,12 +95,11 @@ class CAhandler(object):
                 except BaseException as err:
                     self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
 
-            if 'eab_kid' in  config_dic['CAhandler']:
+            if 'eab_kid' in config_dic['CAhandler']:
                 self.eab_kid = config_dic['CAhandler']['eab_kid']
 
-            if 'eab_hmac_key' in  config_dic['CAhandler']:
+            if 'eab_hmac_key' in config_dic['CAhandler']:
                 self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
-
 
             self.logger.debug('CAhandler._config_load() ended')
         else:
@@ -319,7 +319,7 @@ class CAhandler(object):
         zero_eab_email = "http://api.zerossl.com/acme/eab-credentials-email"
         data = {'email': self.email}
 
-        response = requests.post(zero_eab_email, data = data)
+        response = requests.post(zero_eab_email, data=data)
         if 'success' in response.json() and response.json()['success'] and 'eab_kid' in response.json() and 'eab_hmac_key' in response.json():
             self.eab_kid = response.json()['eab_kid']
             self.eab_hmac_key = response.json()['eab_hmac_key']
