@@ -8,6 +8,7 @@ from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
+
 class Order(object):
     """ class for order handling """
 
@@ -20,7 +21,7 @@ class Order(object):
         self.validity = 86400
         self.authz_validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme/authz/', 'order_path' : '/acme/order/', 'cert_path' : '/acme/cert/'}
+        self.path_dic = {'authz_path': '/acme/authz/', 'order_path': '/acme/order/', 'cert_path': '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 
@@ -42,16 +43,16 @@ class Order(object):
 
         if 'identifiers' in payload:
 
-            data_dic = {'status' : 2,
-                        'expires' : expires,
-                        'account' : aname}
+            data_dic = {'status': 2,
+                        'expires': expires,
+                        'account': aname}
 
             data_dic['name'] = order_name
             data_dic['identifiers'] = json.dumps(payload['identifiers'])
 
-            #if 'notBefore' in payload:
+            # if 'notBefore' in payload:
             #    data_dic['notbefore'] = payload['notBefore']
-            #if 'notAfter' in payload:
+            # if 'notAfter' in payload:
             #    data_dic['notafter'] = payload['notAfter']
 
             # check identifiers
@@ -181,8 +182,8 @@ class Order(object):
                 order_dic = self._info(order_name)
                 if 'status' in order_dic and order_dic['status'] == 'ready':
                     # update order_status / set to processing
-                    self._update({'name' : order_name, 'status': 'processing'})
-                    if  'csr' in payload:
+                    self._update({'name': order_name, 'status': 'processing'})
+                    if 'csr' in payload:
                         self.logger.debug('CSR found()')
                         # this is a new request
                         (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'])
@@ -190,7 +191,7 @@ class Order(object):
                         if code == 200:
                             if not detail:
                                 # update order_status / set to valid
-                                self._update({'name' : order_name, 'status': 'valid'})
+                                self._update({'name': order_name, 'status': 'valid'})
                         else:
                             message = certificate_name
                             detail = 'enrollment failed'
@@ -311,7 +312,7 @@ class Order(object):
                 # update orders status from pending to ready
                 if validity_list and 'status' in order_dic:
                     if False not in validity_list and order_dic['status'] == 'pending':
-                        self._update({'name' : order_name, 'status': 'ready'})
+                        self._update({'name': order_name, 'status': 'ready'})
 
         self.logger.debug('Order._lookup() ended')
         return order_dic
@@ -372,7 +373,7 @@ class Order(object):
                 message = error
                 detail = 'could not process order'
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
@@ -425,7 +426,7 @@ class Order(object):
                     response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))

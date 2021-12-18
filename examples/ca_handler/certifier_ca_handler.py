@@ -12,6 +12,7 @@ from requests.auth import HTTPBasicAuth
 # pylint: disable=E0401
 from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check
 
+
 class CAhandler(object):
     """ CA  handler """
 
@@ -112,7 +113,7 @@ class CAhandler(object):
 
         if 'href' in ca_dic:
             # data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
-            data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
+            data = {'ca': ca_dic['href'], 'pkcs10': csr}
             cert_dic = self._api_post(self.api_host + '/v1/requests', data)
 
         if not cert_dic:
@@ -125,7 +126,7 @@ class CAhandler(object):
         """ get properties for a single cert """
         self.logger.debug('_cert_get_properties({0}: {1})'.format(serial, ca_link))
 
-        params = {'q' : 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
+        params = {'q': 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
         try:
             api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=self.ca_bundle, proxies=self.proxy).json()
         except BaseException as err_:
@@ -206,7 +207,7 @@ class CAhandler(object):
 
         if request_url:
             # calculate iterations based on timeout
-            poll_cnt = math.ceil(self.polling_timeout/5)
+            poll_cnt = math.ceil(self.polling_timeout / 5)
             cnt = 1
             while cnt <= poll_cnt:
                 cnt += 1
@@ -382,7 +383,7 @@ class CAhandler(object):
                 # get certificate information via rest by search for ca+ serial
                 cert_dic = self._cert_get_properties(serial, ca_dic['href'])
                 if 'certificates' in cert_dic:
-                    if len(cert_dic['certificates']) > 0 and  'href' in cert_dic['certificates'][0]:
+                    if len(cert_dic['certificates']) > 0 and 'href' in cert_dic['certificates'][0]:
                         # revoke the cert
                         data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
                         cert_dic = self._api_post(cert_dic['certificates'][0]['href'] + '/status', data)

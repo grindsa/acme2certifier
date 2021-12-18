@@ -6,19 +6,23 @@ from __future__ import print_function
 import os
 import sys
 import json
-def initialize():
+
+
+def initialize():  # nopep8
     """ initialize routine when calling dbstore functions from script """
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
     import django
     # pylint: disable=E1101
     django.setup()
+
+
 initialize()
-from django.conf import settings
-from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status
-from django.db import transaction
-# from acme_srv.monkey_patches import django_sqlite_atomic
-import acme_srv.monkey_patches
+from django.conf import settings  # nopep8
+from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
+from django.db import transaction  # nopep8
+import acme_srv.monkey_patches  # nopep8
+
 
 class DBstore(object):
     """ helper to do datebase operations """
@@ -94,8 +98,7 @@ class DBstore(object):
             'order__authorization__created_at', 'order__authorization__status_id', 'order__authorization__status__id', 'order__authorization__status__name',
             'order__authorization__challenge__id', 'order__authorization__challenge__name', 'order__authorization__challenge__token',
             'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization',
-            'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name'
-            ]
+            'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name']
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
         return(vlist, list(Account.objects.filter(name__isnull=False).values(*vlist)))
 
@@ -240,8 +243,7 @@ class DBstore(object):
         vlist = [
             'id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts',
             'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers',
-            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid'
-            ]
+            'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid']
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
         return(vlist, list(Certificate.objects.filter(cert_raw__isnull=False).exclude(cert_raw='').values(*vlist)))
 

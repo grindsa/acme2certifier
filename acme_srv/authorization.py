@@ -9,6 +9,7 @@ from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, lo
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
+
 class Authorization(object):
     """ class for order handling """
 
@@ -21,7 +22,7 @@ class Authorization(object):
         self.nonce = Nonce(debug, self.logger)
         self.validity = 86400
         self.expiry_check_disable = False
-        self.path_dic = {'authz_path' : '/acme/authz/'}
+        self.path_dic = {'authz_path': '/acme/authz/'}
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -49,7 +50,7 @@ class Authorization(object):
         if authz:
             # update authorization with expiry date and token (just to be sure)
             try:
-                self.dbstore.authorization_update({'name' : authz_name, 'token' : token, 'expires' : expires})
+                self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
             except BaseException as err_:
                 self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
             authz_info_dic['expires'] = uts_to_date_utc(expires)
@@ -68,8 +69,8 @@ class Authorization(object):
                 else:
                     authz_info_dic['status'] = 'pending'
 
-                if 'type' in auth_info[0]  and 'value' in auth_info[0]:
-                    authz_info_dic['identifier'] = {'type' : auth_info[0]['type'], 'value' : auth_info[0]['value']}
+                if 'type' in auth_info[0] and 'value' in auth_info[0]:
+                    authz_info_dic['identifier'] = {'type': auth_info[0]['type'], 'value': auth_info[0]['value']}
                     if auth_info[0]['type'] == 'TNAuthList':
                         tnauth = True
                     # add fildcard flag into authoritzation response and modify identifier
@@ -176,7 +177,7 @@ class Authorization(object):
                 detail = 'url is missing in protected'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))

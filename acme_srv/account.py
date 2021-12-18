@@ -9,6 +9,7 @@ from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.signature import Signature
 
+
 class Account(object):
     """ ACME server class """
 
@@ -17,7 +18,7 @@ class Account(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {'acct_path' : '/acme/acct/'}
+        self.path_dic = {'acct_path': '/acme/acct/'}
         self.ecc_only = False
         self.contact_check_disable = False
         self.tos_check_disable = False
@@ -116,7 +117,7 @@ class Account(object):
         self.logger.debug('Account.update()')
         (code, message, detail) = self._contact_check(payload)
         if code == 200:
-            data_dic = {'name' : aname, 'contact' : json.dumps(payload['contact'])}
+            data_dic = {'name': aname, 'contact': json.dumps(payload['contact'])}
             try:
                 result = self.dbstore.account_update(data_dic)
             except BaseException as err_:
@@ -255,7 +256,7 @@ class Account(object):
             response_dic['contact'] = json.loads(account_obj['contact'])
             response_dic['createdAt'] = date_to_datestr(account_obj['created_at'])
             if 'eab_kid' in account_obj and account_obj['eab_kid']:
-                response_dic['eab_kid'] =  account_obj['eab_kid']
+                response_dic['eab_kid'] = account_obj['eab_kid']
 
         self.logger.debug('Account._info() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
@@ -363,7 +364,7 @@ class Account(object):
                 if code == 200:
                     (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
                     if code == 200:
-                        data_dic = {'name' : aname, 'jwk' : json.dumps(inner_protected['jwk'])}
+                        data_dic = {'name': aname, 'jwk': json.dumps(inner_protected['jwk'])}
                         try:
                             result = self.dbstore.account_update(data_dic)
                         except BaseException as err_:
@@ -446,14 +447,12 @@ class Account(object):
             else:
                 self.logger.critical('Account._config_load(): EABHandler configuration incomplete')
 
-
         if 'Directory' in config_dic:
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
             if 'url_prefix' in config_dic['Directory']:
                 self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Account._config_load() ended')
-
 
     def _lookup(self, value, field='name'):
         """ lookup account """
@@ -589,7 +588,7 @@ class Account(object):
                 detail = 'Terms of service must be accepted'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
@@ -641,7 +640,7 @@ class Account(object):
                 message = 'urn:ietf:params:acme:error:malformed'
                 detail = 'dont know what to do with this request'
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
