@@ -7,6 +7,7 @@ from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
+
 class Challenge(object):
     """ Challenge handler """
 
@@ -16,7 +17,7 @@ class Challenge(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {'chall_path' : '/acme/chall/', 'authz_path' : '/acme/authz/'}
+        self.path_dic = {'chall_path': '/acme/chall/', 'authz_path': '/acme/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.tnauthlist_support = False
@@ -75,7 +76,7 @@ class Challenge(object):
                 self.logger.critical('acme2certifier database error in Challenge._check() jwk: {0}'.format(err_))
                 pub_key = None
 
-            if  pub_key:
+            if pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
                 if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
                     (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
@@ -176,11 +177,11 @@ class Challenge(object):
         challenge_name = generate_random_string(self.logger, 12)
 
         data_dic = {
-            'name' : challenge_name,
-            'expires' : self.expiry,
-            'type' : mtype,
-            'token' : token,
-            'authorization' : authz_name,
+            'name': challenge_name,
+            'expires': self.expiry,
+            'type': mtype,
+            'token': token,
+            'authorization': authz_name,
             'status': 2
         }
 
@@ -239,18 +240,18 @@ class Challenge(object):
             (challenge_check, invalid) = self._check(challenge_name, payload)
 
         if invalid:
-            self._update({'name' : challenge_name, 'status' : 'invalid'})
+            self._update({'name': challenge_name, 'status': 'invalid'})
             # authorization update to valid state
-            self._update_authz(challenge_name, {'status' : 'invalid'})
+            self._update_authz(challenge_name, {'status': 'invalid'})
         elif challenge_check:
-            self._update({'name' : challenge_name, 'status' : 'valid', 'validated': uts_now()})
+            self._update({'name': challenge_name, 'status': 'valid', 'validated': uts_now()})
             # authorization update to valid state
-            self._update_authz(challenge_name, {'status' : 'valid'})
+            self._update_authz(challenge_name, {'status': 'valid'})
 
         if payload:
             if 'keyAuthorization' in payload:
                 # update challenge to ready state
-                data_dic = {'name' : challenge_name, 'keyauthorization' : payload['keyAuthorization']}
+                data_dic = {'name': challenge_name, 'keyauthorization': payload['keyAuthorization']}
                 self._update(data_dic)
 
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
@@ -418,7 +419,7 @@ class Challenge(object):
         if challenge_list:
             self.logger.debug('Challenges found.')
             # trigger challenge validation
-            #if auth_status == 'pending':
+            # if auth_status == 'pending':
             #    self._existing_challenge_validate(challenge_list)
 
             challenge_name_list = []
@@ -510,7 +511,7 @@ class Challenge(object):
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
         self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
