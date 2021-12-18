@@ -6,11 +6,11 @@ I don not really have a full kubernets environment. Thus, I was using [https://m
 
 ## Prerequisites
 
-- cert-manager must be installed. See [instructions](https://cert-manager.io/docs/installation/kubernetes/) for further information. (I was installing with regular manifest)
+- cert-manager must be installed. See [instructions](https://cert-manager.io/docs/installation/kubernetes/) for further information. (I was installing with regular manifest but did change to helm to ensure that I always use the latest version)
 
 ## Issuer configuration
 
-The below steps based on instructions taken from [cert-manager documention](https://cert-manager.io/docs/configuration/acme/)
+The below steps based on instructions taken from [cert-manager documention](https://cert-manager.io/docs/configuration/acme/). Cert-manager can run as `Issuser` or `ClusterIssuer` ressource. The below configuration example uses `Issuer` ressource; an `ClusterIssuer` configuration is part of the [release regression](../.github/k8s-cert-mgr-http-01.yml) testing both `http-01` and `dns-01` challenge validation.
 
 - Create an issuer configuration file as below
 

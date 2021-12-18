@@ -7,6 +7,7 @@ from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
+
 class Certificate(object):
     """ CA  handler """
 
@@ -17,7 +18,7 @@ class Certificate(object):
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
-        self.path_dic = {'cert_path' : '/acme/cert/'}
+        self.path_dic = {'cert_path': '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
 
@@ -299,16 +300,16 @@ class Certificate(object):
 
         # taken from https://tools.ietf.org/html/rfc5280#section-5.3.1
         allowed_reasons = {
-            0 : 'unspecified',
-            1 : 'keyCompromise',
-            # 2 : 'cACompromise',
-            3 : 'affiliationChanged',
-            4 : 'superseded',
-            5 : 'cessationOfOperation',
-            6 : 'certificateHold',
-            # 8 : 'removeFromCRL',
-            # 9 : 'privilegeWithdrawn',
-            # 10 : 'aACompromise'
+            0: 'unspecified',
+            1: 'keyCompromise',
+            # 2: 'cACompromise',
+            3: 'affiliationChanged',
+            4: 'superseded',
+            5: 'cessationOfOperation',
+            6: 'certificateHold',
+            # 8: 'removeFromCRL',
+            # 9: 'privilegeWithdrawn',
+            # 10: 'aACompromise'
         }
 
         result = allowed_reasons.get(reason, None)
@@ -355,7 +356,7 @@ class Certificate(object):
     def _store_cert(self, certificate_name, certificate, raw, issue_uts=0, expire_uts=0):
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert({0})'.format(certificate_name))
-        data_dic = {'cert' : certificate, 'name': certificate_name, 'cert_raw' : raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts}
+        data_dic = {'cert': certificate, 'name': certificate_name, 'cert_raw': raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts}
         try:
             cert_id = self.dbstore.certificate_add(data_dic)
         except BaseException as err_:
@@ -367,7 +368,7 @@ class Certificate(object):
     def _store_cert_error(self, certificate_name, error, poll_identifier):
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert_error({0})'.format(certificate_name))
-        data_dic = {'error' : error, 'name': certificate_name, 'poll_identifier': poll_identifier}
+        data_dic = {'error': error, 'name': certificate_name, 'poll_identifier': poll_identifier}
         try:
             cert_id = self.dbstore.certificate_add(data_dic)
         except BaseException as err_:
@@ -524,7 +525,7 @@ class Certificate(object):
                     response_dic['data'] = 'urn:ietf:params:acme:error:serverInternal'
             elif certificate_dic['order__status_id'] == 4:
                 # order status is processing - ratelimiting
-                response_dic['header'] = {'Retry-After':  '{0}'.format(self.retry_after)}
+                response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after)}
                 response_dic['code'] = 403
                 response_dic['data'] = 'urn:ietf:params:acme:error:rateLimited'
             else:
@@ -558,7 +559,7 @@ class Certificate(object):
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         # depending on the response the content of responsedic['data'] can be either string or dict
@@ -603,7 +604,7 @@ class Certificate(object):
                 detail = 'certificate not found'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message' : message, 'detail' : detail}
+        status_dic = {'code': code, 'message': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))
@@ -641,7 +642,7 @@ class Certificate(object):
         """ store csr into database """
         self.logger.debug('Certificate.store_csr({0})'.format(order_name))
         certificate_name = generate_random_string(self.logger, 12)
-        data_dic = {'order' : order_name, 'csr' : csr, 'name': certificate_name}
+        data_dic = {'order': order_name, 'csr': csr, 'name': certificate_name}
         try:
             self.dbstore.certificate_add(data_dic)
         except BaseException as err_:

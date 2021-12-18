@@ -11,6 +11,7 @@ from acme_srv.order import Order
 from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
 from acme_srv.version import __version__
 
+
 class Housekeeping(object):
     """ Housekeeping class """
     def __init__(self, debug=None, logger=None):
@@ -85,7 +86,7 @@ class Housekeeping(object):
                 cert['certificate.issue_date'] = ''
                 cert['certificate.expire_date'] = ''
 
-           # add serial number
+            # add serial number
             if 'certificate.cert_raw' in cert:
                 try:
                     cert['certificate.serial'] = cert_serial_get(self.logger, cert['certificate.cert_raw'])

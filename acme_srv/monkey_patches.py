@@ -6,6 +6,7 @@
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction
 
+
 def django_sqlite_atomic():
     """ monkey patch for django deployments fixing database lock issues """
 
@@ -58,5 +59,6 @@ def django_sqlite_atomic():
     transaction.atomic = atomic
     transaction.Atomic.immediate = False
     transaction.Atomic.__enter__ = __enter__
+
 
 django_sqlite_atomic()

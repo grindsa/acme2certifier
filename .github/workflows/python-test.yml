@@ -68,3 +68,10 @@ jobs:
       - name: "Pylint folder: examples/ca_handler"
         run: |
           pylint --rcfile=".github/pylintrc" examples/ca_handler/ || pylint-exit $?
+
+      - name: "Linting with pycodestyle"
+        run: |
+          pip install pycodestyle
+          cp .github/pycodestyle ~/.config/pycodestyle
+          pycodestyle --show-source examples/.
+          pycodestyle --show-source acme_srv/.

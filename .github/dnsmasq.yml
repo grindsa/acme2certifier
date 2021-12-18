@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dnsmasq
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dnsmasq
+  namespace: dnsmasq
+  labels:
+    app: dns-masq
+spec:
+  hostname: dnsmasq
+  containers:
+    - name: dnsmasq
+      image: gigantuar/dnsmasq:latest-amd64
+      imagePullPolicy: Never
+      volumeMounts:
+        - mountPath: /etc/dnsmasq.conf
+          name: dnscfg
+          subPath: dnsmasq.conf
+  volumes:
+    - name: dnscfg
+      hostPath:
+        path: RUNNER_PATH/data
+        type: Directory
