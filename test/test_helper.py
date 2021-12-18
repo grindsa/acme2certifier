@@ -1257,7 +1257,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('acme_srv.helper.proxystring_convert')
     @patch('ssl.DER_cert_to_PEM_cert')
-    @patch('ssl.wrap_socket')
+    @patch('ssl.SSLContext.wrap_socket')
     @patch('socks.socksocket')
     def test_180_servercert_get(self, mock_sock, mock_context, mock_cert, mock_convert):
         """ test servercert get """
@@ -1269,7 +1269,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('acme_srv.helper.proxystring_convert')
     @patch('ssl.DER_cert_to_PEM_cert')
-    @patch('ssl.wrap_socket')
+    @patch('ssl.SSLContext.wrap_socket')
     @patch('socks.socksocket')
     def test_181_servercert_get(self, mock_sock, mock_context, mock_cert, mock_convert):
         """ test servercert get with proxy """
@@ -1281,7 +1281,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertTrue(mock_convert.called)
 
     @patch('ssl.DER_cert_to_PEM_cert')
-    @patch('ssl.wrap_socket')
+    @patch('ssl.SSLContext.wrap_socket')
     @patch('socks.socksocket')
     def test_182_servercert_get(self, mock_sock, mock_context, mock_cert):
         """ test servercert exception """

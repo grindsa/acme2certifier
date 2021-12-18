@@ -879,6 +879,9 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     pem_cert = None
     sock = socks.socksocket()
     context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
     if proxy_server:
         (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
         if proxy_proto and proxy_addr and proxy_port:
