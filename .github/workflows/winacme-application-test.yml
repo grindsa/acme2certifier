@@ -34,7 +34,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install django==2.2
+        pip install django==3.2
         pip install pyyaml
         cp examples/db_handler/django_handler.py acme_srv/db_handler.py
         cp examples/django/* .\ -Recurse -Force
