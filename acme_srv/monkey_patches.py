@@ -5,6 +5,7 @@
 # from django.db import connection, DEFAULT_DB_ALIAS
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction
+import django
 
 
 def django_sqlite_atomic():
@@ -14,10 +15,16 @@ def django_sqlite_atomic():
         # Bare decorator: @atomic -- although the first argument is called
         # `using`, it's actually the function being decorated.
         if callable(using):
-            atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint)(using)
+            if django.VERSION[0] < 3:
+                atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint)(using)
+            else:
+                atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint, True)(using)
         # Decorator: @atomic(...) or context manager: with atomic(...): ...
         else:
-            atomic_ = transaction.Atomic(using, savepoint)
+            if django.VERSION[0] < 3:
+                atomic_ = transaction.Atomic(using, savepoint)
+            else:
+                atomic_ = transaction.Atomic(using, savepoint, True)
 
         atomic_.immediate = immediate
         return atomic_

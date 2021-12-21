@@ -28,14 +28,14 @@ class Nonce(object):
         try:
             nonce_chk_result = self.dbstore.nonce_check(nonce)
         except BaseException as err_:
-            self.logger.critical('acme2certifier database error in Nonce._check_and_delete(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error during nonce_check() in Nonce._check_and_delete(): {0}'.format(err_))
             nonce_chk_result = False
 
         if nonce_chk_result:
             try:
                 self.dbstore.nonce_delete(nonce)
             except BaseException as err_:
-                self.logger.critical('acme2certifier database error in Nonce._check_and_delete(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error during nonce_delete() in Nonce._check_and_delete(): {0}'.format(err_))
             code = 200
             message = None
             detail = None

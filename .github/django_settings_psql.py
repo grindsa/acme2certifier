@@ -123,3 +123,5 @@ USE_TZ = True
 STATIC_URL = '/static/'
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'zv_u=c*o!=91amnit_mo6epg%#(p8s#3-02-wr@tm$dch51kw&'
+
+DEFAULT_AUTO_FIELD='django.db.models.AutoField'
