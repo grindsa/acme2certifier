@@ -5,12 +5,12 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
-import django
+import django  # nopep8
 django.setup()
-from django.conf import settings
-from acme_srv.models import Status, Housekeeping
-from django.core.management import call_command
-from acme_srv.version import __dbversion__
+from django.conf import settings  # nopep8
+from acme_srv.models import Status, Housekeeping  # nopep8
+from django.core.management import call_command  # nopep8
+from acme_srv.version import __dbversion__  # nopep8
 
 if __name__ == '__main__':
 
