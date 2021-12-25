@@ -107,7 +107,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
         with open(filename, 'w', newline='') as file_:
-            file_.write(jdump)
+            file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
     def _fieldlist_normalize(self, field_list, prefix):
         """ normalize field_list """

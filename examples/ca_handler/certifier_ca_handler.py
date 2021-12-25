@@ -297,7 +297,6 @@ class CAhandler(object):
         except BaseException as err:
             self.logger.error('CAhandler._request.poll() returned: {0}'.format(err))
             request_dic = {}
-            error = err
 
         # check response
         if 'status' in request_dic:

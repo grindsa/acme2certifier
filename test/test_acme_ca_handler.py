@@ -529,6 +529,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         self.cahandler.url = 'zerossl.com'
+        self.cahandler.url_dic = {'host': 'acme.zerossl.com'}
         self.assertEqual('zerossl.comuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
         self.assertEqual('uri', self.cahandler.account)
         self.assertTrue(mock_eab.called)
