@@ -436,6 +436,7 @@ class CAhandler(object):
 
     def enroll(self, csr):
         """ enroll certificate """
+        # pylint: disable=R0914, R0915
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None

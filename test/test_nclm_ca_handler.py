@@ -1372,7 +1372,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.side_effect = Exception('ex_req_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((404, 'urn:ietf:params:acme:error:serverInternal', 'Cert could not be found'), self.cahandler.revoke('cert', 'rev_reason', 'rev_date'))
-        self.assertIn('ERROR:test_a2c:CAhandler.revoke(): request get aborted with err:', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler.revoke(): request get aborted with err: ex_req_get', lcm.output)
 
     @patch('examples.ca_handler.nclm_ca_handler.cert_serial_get')
     @patch('requests.get')

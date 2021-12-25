@@ -7,10 +7,10 @@ import textwrap
 import json
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
-# pylint: disable=E0401
+# pylint: disable=E0401, E0611
 from examples.ca_handler.certsrv import Certsrv
 # pylint: disable=E0401
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, parse_url, proxy_check
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check
 
 
 def _get_certificates(self):

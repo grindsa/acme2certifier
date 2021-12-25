@@ -4,10 +4,9 @@
 from __future__ import print_function
 # import json
 import os
-import sys
 import time
-import requests
 import json
+import requests
 # pylint: disable=E0401
 from acme_srv.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check
 
@@ -472,7 +471,7 @@ class CAhandler(object):
         try:
             cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
         except BaseException as err_:
-            self.logger.error('CAhandler.revoke(): request get aborted with err:'.format(err_))
+            self.logger.error('CAhandler.revoke(): request get aborted with err: {0}'.format(err_))
             cert_list = []
 
         if 'certificates' in cert_list:
@@ -484,6 +483,7 @@ class CAhandler(object):
                     code = 200
                     message = None
                 except BaseException as err:
+                    self.logger.error('CAhandler.revoke(): _api_post got aborted with err: {0}'.format(err))
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
                     detail = 'Revocation operation failed'

@@ -568,7 +568,6 @@ def jwk_thumbprint_get(logger, pub_key):
             thumbprint = jwkey.thumbprint()
         except BaseException as err:
             logger.error('jwk_thumbprint_get(): error: {0}'.format(err))
-            jwkey = None
             thumbprint = None
     else:
         thumbprint = None

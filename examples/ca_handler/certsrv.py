@@ -3,6 +3,7 @@ A Python client for the Microsoft AD Certificate Services web page.
 
 https://github.com/magnuswatn/certsrv
 """
+# pylint: disable=C0415, R1720, R1705
 import os
 import re
 import base64

@@ -70,7 +70,7 @@ class Nonce(object):
         self.logger.debug('got nonce: {0}'.format(nonce))
         # self.logger.critical('foo')
         try:
-            _id = self.dbstore.nonce_add(nonce)
+            _id = self.dbstore.nonce_add(nonce)  # lgtm [py/unused-local-variable]
         except BaseException as err_:
             self.logger.critical('acme2certifier database error in Nonce.generate_and_add(): {0}'.format(err_))
         self.logger.debug('Nonce.generate_and_add() ended with:{0}'.format(nonce))
