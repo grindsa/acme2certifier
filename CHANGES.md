@@ -5,6 +5,14 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.19.2
+
+**Features and Improvements**:
+
+- support for django 3.x
+- workflow for application testing using win-acme
+- additional linting and pep8 conformance checks
+
 ## Changes in 0.19.1
 
 **Features and Improvements**:
