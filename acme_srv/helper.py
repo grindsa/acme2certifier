@@ -889,7 +889,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
         sock.connect((hostname, port))
-        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:  # lgtm [py/insecure-protocol]
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:

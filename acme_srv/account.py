@@ -3,7 +3,6 @@
 """ Account class """
 from __future__ import print_function
 import json
-import importlib
 from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -468,7 +467,7 @@ class Account(object):
     def _name_get(self, content):
         """ get id for account depricated"""
         self.logger.debug('Account._name_get()')
-        _deprecated = True
+        # _deprecated = True
         return self.message._name_get(content)
 
     def _onlyreturnexisting(self, protected, payload):

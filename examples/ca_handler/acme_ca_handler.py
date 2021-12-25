@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, csr_cn_get, csr_san_get
+from acme_srv.helper import load_config, b64_url_recode, csr_cn_get, csr_san_get, parse_url
 
 """
 Config file section:
@@ -35,6 +35,7 @@ class CAhandler(object):
     def __init__(self, _debug=None, logger=None):
         self.logger = logger
         self.url = None
+        self.url_dic = {}
         self.keyfile = None
         self.key_size = 2048
         self.account = None
@@ -66,16 +67,12 @@ class CAhandler(object):
 
             if 'acme_url' in config_dic['CAhandler']:
                 self.url = config_dic['CAhandler']['acme_url']
+                self.url_dic = parse_url(self.logger, self.url)
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
 
             if 'acme_account' in config_dic['CAhandler']:
                 self.account = config_dic['CAhandler']['acme_account']
-            # else:
-                # try to fetch acme-account id from housekeeping table
-                # self.account = self.dbstore.hkparameter_get('acme_account')
-                # if self.account:
-                #    self.logger.debug('CAhandler._config_load() found acme_account in housekeeping table: {0}'.format(self.account))
 
             if 'account_path' in config_dic['CAhandler']:
                 self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
@@ -287,7 +284,7 @@ class CAhandler(object):
         except BaseException:
             if self.email:
                 self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
-                if self.url and 'zerossl.com' in self.url:
+                if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):
                     # get zerossl eab credentials
                     self._zerossl_eab_get()
                 if self.eab_kid and self.eab_hmac_key:
@@ -308,8 +305,7 @@ class CAhandler(object):
                 self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
                 self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
-                # store account-id in housekeeping table to avoid unneccary rquests towards acme-server
-                # self.dbstore.hkparameter_add({'name': 'acme_account', 'value': self.account})
+
         return regr
 
     def _zerossl_eab_get(self):

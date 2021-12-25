@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """ Nonce class """
 from __future__ import print_function
-import uuid
 from acme_srv.db_handler import DBstore
 
 
