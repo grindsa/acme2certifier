@@ -4,8 +4,8 @@
 from __future__ import print_function
 import os
 import textwrap
-import requests
 import json
+import requests
 from requests.auth import HTTPBasicAuth
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
@@ -94,6 +94,7 @@ class CAhandler(object):
 
     def _config_load(self):
         """" load config from file """
+        # pylint: disable=R0912, R0915
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
 

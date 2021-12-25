@@ -98,7 +98,7 @@ def acct(environ, start_response):
 def acmechallenge_serve(environ, start_response):
     """ directory listing """
     with Acmechallenge(DEBUG, get_url(environ), LOGGER) as acmechallenge:
-        request_body = get_request_body(environ)
+        # request_body = get_request_body(environ)
         key_authorization = acmechallenge.lookup(environ['PATH_INFO'])
         if not key_authorization:
             key_authorization = 'NOT FOUND'
