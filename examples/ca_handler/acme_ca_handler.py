@@ -3,13 +3,13 @@
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
 # pylint: disable=E0401, W0105, R0914, W0212
-import requests
-import os.path
 import json
 import textwrap
 import base64
-import josepy
 import re
+import os.path
+import requests
+import josepy
 from OpenSSL import crypto
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -325,6 +325,7 @@ class CAhandler(object):
 
     def enroll(self, csr):
         """ enroll certificate  """
+        # pylint: disable=R0915
         self.logger.debug('CAhandler.enroll()')
 
         csr_pem = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, csr)), 64))

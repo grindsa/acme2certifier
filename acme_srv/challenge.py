@@ -481,12 +481,12 @@ class Challenge(object):
                             # start validation
                             if 'status' in challenge_dic:
                                 if challenge_dic['status'] != 'valid':
-                                    _validation = self._validate(challenge_name, payload)
+                                    _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
                                     # query challenge again (bcs. it could get updated by self._validate)
                                     challenge_dic = self._info(challenge_name)
                             else:
                                 # rather unlikely that we run in this situation but you never know
-                                _validation = self._validate(challenge_name, payload)
+                                _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
                                 # query challenge again (bcs. it could get updated by self._validate)
                                 challenge_dic = self._info(challenge_name)
 

@@ -137,6 +137,7 @@ class CAhandler(object):
 
     def _config_load(self):
         """" load config from file """
+        # pylint: disable=R0912, R0915
         self.logger.debug('_config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
@@ -255,7 +256,7 @@ class CAhandler(object):
                     pem_list.append(cert_dic['certificateBase64'])
                 else:
                     # stop if there is no pem content in the json response
-                    issuer_loop = False
+                    issuer_loop = False  # lgtm [py/unused-local-variable]
                     break
                 if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
                     if 'issuer' in cert_dic:
@@ -270,7 +271,7 @@ class CAhandler(object):
                         if 'active' in ca_cert_dic['certificates']:
                             cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy).json()
                 else:
-                    issuer_loop = False
+                    issuer_loop = False   # lgtm [py/unused-local-variable]
                     break
         if pem_list:
             pem_file = ''
