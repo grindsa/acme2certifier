@@ -3,11 +3,10 @@
 # pylint: disable=E0401, C0413
 import sys
 sys.path.insert(0, '..')
-from acme_srv.db_handler import initialize
+from acme_srv.db_handler import initialize  # nopep8
 initialize()
-
-from acme_srv.helper import logger_setup
-from acme_srv.certificate import Certificate
+from acme_srv.helper import logger_setup  # nopep8
+from acme_srv.certificate import Certificate  # nopep8
 
 if __name__ == '__main__':
 

@@ -75,3 +75,4 @@ jobs:
           cp .github/pycodestyle ~/.config/pycodestyle
           pycodestyle --show-source examples/.
           pycodestyle --show-source acme_srv/.
+          pycodestyle --show-source tools/.
