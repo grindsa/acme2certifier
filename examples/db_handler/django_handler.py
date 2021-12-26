@@ -21,7 +21,7 @@ initialize()
 from django.conf import settings  # nopep8
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
 from django.db import transaction  # nopep8
-import acme_srv.monkey_patches  # nopep8
+import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
 
 class DBstore(object):
