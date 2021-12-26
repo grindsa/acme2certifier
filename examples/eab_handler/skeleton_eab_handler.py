@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """ eab json handler """
 from __future__ import print_function
-import json
 # pylint: disable=E0401
 from acme_srv.helper import load_config
 
@@ -27,9 +26,10 @@ class EABhandler(object):
         """" load config from file """
         self.logger.debug('EABhandler._config_load()')
 
-        # config_dic = load_config(self.logger, 'EABhandler')
-        # if 'key' in config_dic['EABhandler']:
-        #    self.key_file = config_dic['EABhandler']['key']
+        config_dic = load_config(self.logger, 'EABhandler')
+        if 'EABhandler' in config_dic:
+            if 'key' in config_dic['EABhandler']:
+                self.key = config_dic['EABhandler']['key']
 
         self.logger.debug('EABhandler._config_load() ended')
 
