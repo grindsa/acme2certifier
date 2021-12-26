@@ -540,7 +540,7 @@ class CAhandler(object):
         row_id = self._item_insert(item_dic)
         # insert certificate to cert table
         cert_dic = {'item': row_id, 'serial': serial, 'issuer': ca_id, 'ca': 0, 'cert': cert, 'iss_hash': issuer_hash, 'hash': name_hash}
-        row_id = self._cert_insert(cert_dic)
+        _row_id = self._cert_insert(cert_dic)  # lgtm [py/unused-local-variable]
 
         self.logger.debug('CAhandler._store_cert() ended')
 
