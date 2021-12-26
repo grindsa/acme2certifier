@@ -284,7 +284,7 @@ class CAhandler(object):
         except BaseException:
             if self.email:
                 self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
-                if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):
+                if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
                     # get zerossl eab credentials
                     self._zerossl_eab_get()
                 if self.eab_kid and self.eab_hmac_key:
@@ -367,7 +367,7 @@ class CAhandler(object):
                         if challenge_name and challenge_content:
                             # store challenge in database to allow challenge validation
                             self._challenge_store(challenge_name, challenge_content)
-                            _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))
+                            _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
 
                     self.logger.debug('CAhandler.enroll() polling for certificate')
                     order = acmeclient.poll_and_finalize(order)
