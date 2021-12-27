@@ -72,7 +72,7 @@ class CAhandler(object):
                 (_type, value) = san.lower().split(':')
                 if value:
                     o_list.append(value)
-            except BaseException:
+            except Exception:
                 pass
 
         if o_list:
@@ -106,12 +106,12 @@ class CAhandler(object):
                     elif ele == 'cmp_ref_variable':
                         try:
                             self.ref = os.environ[config_dic['CAhandler']['cmp_ref_variable']]
-                        except BaseException as err:
+                        except Exception as err:
                             self.logger.error('CAhandler._config_load() could not load cmp_ref:{0}'.format(err))
                     elif ele == 'cmp_secret_variable':
                         try:
                             self.secret = os.environ[config_dic['CAhandler']['cmp_secret_variable']]
-                        except BaseException as err:
+                        except Exception as err:
                             self.logger.error('CAhandler._config_load() could not load cmp_secret_variable:{0}'.format(err))
                     elif ele in ('cmp_secret', 'cmp_ref'):
                         continue
@@ -212,19 +212,19 @@ class CAhandler(object):
                 subject = csr_dn_get(self.logger, csr)
                 if not subject:
                     subject = '/CN=acme2certifier'
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('CAhandler.enroll(): csr_dn_get() failed with error: {0}'.format(err_))
                 subject = None
             # get public key from csr
             try:
                 pubkey = csr_pubkey_get(self.logger, csr)
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('CAhandler.enroll(): csr_pubkey_get() failed with error: {0}'.format(err_))
                 pubkey = None
             # get subject alternate names
             try:
                 san_list = self._csr_san_get(csr)
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('CAhandler.enroll(): _csr_san_get() failed with error: {0}'.format(err_))
                 san_list = []
 
