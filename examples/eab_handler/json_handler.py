@@ -45,7 +45,7 @@ class EABhandler(object):
                     data_dic = json.load(json_file)
                     if kid in data_dic:
                         mac_key = data_dic[kid]
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('EABhandler.mac_key_get() error: {0}'.format(err))
 
         self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))

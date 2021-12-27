@@ -32,7 +32,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._certlist_get()')
         try:
             result = self.dbstore.accountlist_get()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Housekeeping._accountlist_get(): {0}'.format(err_))
             result = None
         return result
@@ -42,7 +42,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._certlist_get()')
         try:
             result = self.dbstore.certificatelist_get()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): {0}'.format(err_))
             result = None
         return result
@@ -90,7 +90,7 @@ class Housekeeping(object):
             if 'certificate.cert_raw' in cert:
                 try:
                     cert['certificate.serial'] = cert_serial_get(self.logger, cert['certificate.cert_raw'])
-                except BaseException:
+                except Exception:
                     cert['certificate.serial'] = ''
 
         return cert_list
@@ -237,7 +237,7 @@ class Housekeeping(object):
                         value = value.replace('\r', '')
                         value = value.replace('\n', '')
                         tmp_list.append(value)
-                    except BaseException:
+                    except Exception:
                         tmp_list.append(cert[field])
                 else:
                     tmp_list.append('')
@@ -374,7 +374,7 @@ class Housekeeping(object):
         if version:
             try:
                 (result, script_name) = self.dbstore.dbversion_get()
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): {0}'.format(err_))
                 result = None
                 script_name = 'handler specific migration'
