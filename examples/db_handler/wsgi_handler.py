@@ -51,7 +51,7 @@ class DBstore(object):
             pre_statement = 'SELECT * from account WHERE {0} LIKE ?'.format(column)
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('DBStore._account_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
         self.logger.debug('DBStore._account_search() ended with: {0}'.format(bool(result)))
@@ -79,7 +79,7 @@ class DBstore(object):
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchall()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('DBStore._authorization_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
         self.logger.debug('DBStore._authorization_search() ended')
@@ -93,7 +93,7 @@ class DBstore(object):
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('DBStore._cahandler_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
             result = None
         self._db_close()
@@ -149,7 +149,7 @@ class DBstore(object):
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('DBStore._challenge_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
         self.logger.debug('DBStore._challenge_search() ended')
@@ -252,7 +252,7 @@ class DBstore(object):
         try:
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('DBStore._order_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
         self._db_close()
         self.logger.debug('DBStore._order_search() ended')
@@ -313,7 +313,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
         try:
             result = dict_from_row(self._account_search(column, string))
-        except BaseException as _err:
+        except Exception as _err:
             result = {}
         if 'created_at' in result:
             result['created_at'] = datestr_to_date(result['created_at'], '%Y-%m-%d %H:%M:%S')
@@ -326,7 +326,7 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self._account_search('name', data_dic['name']))
-        except BaseException as _err:
+        except Exception as _err:
             lookup = None
 
         if lookup:
@@ -430,7 +430,7 @@ class DBstore(object):
 
         try:
             lookup = self._authorization_search(column, string)
-        except BaseException:
+        except Exception:
             lookup = []
 
         authz_list = []
@@ -561,7 +561,7 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self._cahandler_search(column, string))
-        except BaseException:
+        except Exception:
             lookup = None
 
         result = {}
@@ -600,7 +600,7 @@ class DBstore(object):
             # change order name to id but tackle cases where we cannot do this
             try:
                 data_dic['order'] = dict_from_row(self._order_search('name', data_dic['order']))['id']
-            except BaseException:
+            except Exception:
                 data_dic['order'] = 0
 
             self._db_open()
@@ -675,7 +675,7 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self._certificate_search(column, string))
-        except BaseException:
+        except Exception:
             lookup = None
 
         result = {}
@@ -791,7 +791,7 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self._challenge_search(column, string))
-        except BaseException:
+        except Exception:
             lookup = None
 
         result = {}
@@ -956,7 +956,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [parameter])
         try:
             query = list(self.cursor.fetchone())
-        except BaseException:
+        except Exception:
             query = None
 
         if query:
@@ -1038,7 +1038,7 @@ class DBstore(object):
 
         try:
             lookup = dict_from_row(self._order_search(column, string))
-        except BaseException:
+        except Exception:
             lookup = None
 
         result = {}

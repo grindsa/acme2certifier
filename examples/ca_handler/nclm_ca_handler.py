@@ -46,7 +46,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._api_post()')
         try:
             api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             api_response = str(err_)
 
@@ -131,7 +131,7 @@ class CAhandler(object):
                 cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
             else:
                 cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
             cert_list = []
 
@@ -197,7 +197,7 @@ class CAhandler(object):
             if 'api_user_variable' in config_dic['CAhandler']:
                 try:
                     self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
-                except BaseException as err:
+                except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
             if 'api_user' in config_dic['CAhandler']:
                 if self.credential_dic['api_user']:
@@ -206,7 +206,7 @@ class CAhandler(object):
             if 'api_password_variable' in config_dic['CAhandler']:
                 try:
                     self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
-                except BaseException as err:
+                except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
             if 'api_password' in config_dic['CAhandler']:
                 if self.credential_dic['api_password']:
@@ -223,7 +223,7 @@ class CAhandler(object):
             if 'ca_bundle' in config_dic['CAhandler']:
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-                except BaseException:
+                except Exception:
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
@@ -234,7 +234,7 @@ class CAhandler(object):
                     (fqdn, _port) = url_dic['host'].split(':')
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('CAhandler._config_load() ended')
@@ -271,7 +271,7 @@ class CAhandler(object):
                     # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
                     try:
                         req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-                    except BaseException as err_:
+                    except Exception as err_:
                         self.logger.error('CAhandler._csr_id_lookup() returned error: {0}'.format(str(err_)))
                         req_all = []
 
@@ -318,7 +318,7 @@ class CAhandler(object):
         data_dic = {'pkcs10': csr}
         try:
             result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._request_import() returned error: {0}'.format(str(err_)))
             result = None
         return result
@@ -328,7 +328,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.requests_get()')
         try:
             result = requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._unusedrequests_get() returned error: {0}'.format(str(err_)))
             result = None
         return result
@@ -361,7 +361,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
         try:
             template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._template_id_lookup() returned error: {0}'.format(err_))
             template_list = []
         if 'template' in template_list:
@@ -381,7 +381,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
         try:
             tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._tsg_id_lookup() returned error: {0}'.format(err_))
             tsg_list = []
         if 'targetSystemGroups' in tsg_list:
@@ -470,7 +470,7 @@ class CAhandler(object):
         # search for certificate
         try:
             cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler.revoke(): request get aborted with err: {0}'.format(err_))
             cert_list = []
 
@@ -482,12 +482,12 @@ class CAhandler(object):
                     detail = self._api_post(self.api_host + '/certificates/' + str(cert_id) + '/revocationrequest', data_dic)
                     code = 200
                     message = None
-                except BaseException as err:
+                except Exception as err:
                     self.logger.error('CAhandler.revoke(): _api_post got aborted with err: {0}'.format(err))
                     code = 500
                     message = 'urn:ietf:params:acme:error:serverInternal'
                     detail = 'Revocation operation failed'
-            except BaseException:
+            except Exception:
                 code = 404
                 message = 'urn:ietf:params:acme:error:serverInternal'
                 detail = 'CertificateID could not be found'

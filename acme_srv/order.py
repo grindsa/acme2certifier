@@ -65,7 +65,7 @@ class Order(object):
             try:
                 # add order to db
                 oid = self.dbstore.order_add(data_dic)
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('acme2certifier database error in Order._add() order: {0}'.format(err_))
                 oid = None
 
@@ -83,7 +83,7 @@ class Order(object):
                         auth['expires'] = uts_now() + self.authz_validity
                         try:
                             self.dbstore.authorization_add(auth)
-                        except BaseException as err_:
+                        except Exception as err_:
                             self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
                 else:
                     error = 'urn:ietf:params:acme:error:malformed'
@@ -103,18 +103,18 @@ class Order(object):
             if 'retry_after_timeout' in config_dic['Order']:
                 try:
                     self.retry_after = int(config_dic['Order']['retry_after_timeout'])
-                except BaseException:
+                except Exception:
                     self.logger.warning('Order._config_load(): failed to parse retry_after: {0}'.format(config_dic['Order']['retry_after_timeout']))
             if 'validity' in config_dic['Order']:
                 try:
                     self.validity = int(config_dic['Order']['validity'])
-                except BaseException:
+                except Exception:
                     self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
         if 'Authorization' in config_dic:
             if 'validity' in config_dic['Authorization']:
                 try:
                     self.authz_validity = int(config_dic['Authorization']['validity'])
-                except BaseException:
+                except Exception:
                     self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
 
         if 'Directory' in config_dic:
@@ -162,7 +162,7 @@ class Order(object):
         self.logger.debug('Order._info({0})'.format(order_name))
         try:
             result = self.dbstore.order_lookup('name', order_name)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Order._info(): {0}'.format(err_))
             result = None
         return result
@@ -209,7 +209,7 @@ class Order(object):
                 # this is a polling request; lookup certificate
                 try:
                     cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
-                except BaseException as err_:
+                except Exception as err_:
                     self.logger.critical('acme2certifier database error in Order._process(): {0}'.format(err_))
                     cert_dic = {}
                 if cert_dic:
@@ -266,7 +266,7 @@ class Order(object):
         self.logger.debug('Order._update({0})'.format(data_dic))
         try:
             self.dbstore.order_update(data_dic)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Order._update(): {0}'.format(err_))
 
     def _lookup(self, order_name):
@@ -289,11 +289,11 @@ class Order(object):
             if 'identifiers' in tmp_dic:
                 try:
                     order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
-                except BaseException:
+                except Exception:
                     self.logger.error('Order.lookup(): error while parsing the identifier {0}'.format(tmp_dic['identifiers']))
             try:
                 authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('acme2certifier database error in Order._lookup(): {0}'.format(err_))
                 authz_list = []
             if authz_list:
@@ -327,7 +327,7 @@ class Order(object):
         field_list = ['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact']
         try:
             order_list = self.dbstore.orders_invalid_search('expires', timestamp, vlist=field_list, operant='<=')
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Order._invalidate() search: {0}'.format(err_))
             order_list = []
         output_list = []
@@ -340,7 +340,7 @@ class Order(object):
                 data_dic = {'name': order['name'], 'status': 'invalid'}
                 try:
                     self.dbstore.order_update(data_dic)
-                except BaseException as err_:
+                except Exception as err_:
                     self.logger.critical('acme2certifier database error in Order._invalidate() upd: {0}'.format(err_))
 
         self.logger.debug('Order.invalidate() ended: {0} orders identified'.format(len(output_list)))
