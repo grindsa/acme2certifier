@@ -59,11 +59,11 @@ class Trigger(object):
         if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
             try:
                 ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
                 try:
                     ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-                except BaseException as err_:
+                except Exception as err_:
                     ca_handler_module = None
                     self.logger.critical('Certificate._config_load(): loading default CAhandler failed with err: {0}'.format(err_))
         else:
@@ -75,7 +75,10 @@ class Trigger(object):
 
         if ca_handler_module:
             # store handler in variable
-            self.cahandler = ca_handler_module.CAhandler
+            try:
+                self.cahandler = ca_handler_module.CAhandler
+            except Exception as err_:
+                self.logger.critical('Certificate._config_load(): loading CAhandler failed with err: {0}'.format(err_))
 
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
@@ -98,13 +101,13 @@ class Trigger(object):
                             data_dic = {'cert': cert_bundle, 'name': cert['cert_name'], 'cert_raw': cert_raw}
                             try:
                                 self.dbstore.certificate_add(data_dic)
-                            except BaseException as err_:
+                            except Exception as err_:
                                 self.logger.critical('acme2certifier database error in trigger._payload_process() add: {0}'.format(err_))
                             if 'order_name' in cert and cert['order_name']:
                                 try:
                                     # update order status to 5 (valid)
                                     self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
-                                except BaseException as err_:
+                                except Exception as err_:
                                     self.logger.critical('acme2certifier database error in trigger._payload_process() upd: {0}'.format(err_))
                         code = 200
                         message = 'OK'
@@ -132,7 +135,7 @@ class Trigger(object):
         # convert to json structure
         try:
             payload = json.loads(convert_byte_to_string(content))
-        except BaseException:
+        except Exception:
             payload = {}
 
         if 'payload' in payload:

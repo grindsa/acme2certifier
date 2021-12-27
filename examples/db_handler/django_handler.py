@@ -335,7 +335,7 @@ class DBstore(object):
         if account_dict:
             try:
                 jwk_dict = json.loads(account_dict[0]['jwk'].decode())
-            except BaseException:
+            except Exception:
                 jwk_dict = json.loads(account_dict[0]['jwk'])
             jwk_dict['alg'] = account_dict[0]['alg']
         return jwk_dict

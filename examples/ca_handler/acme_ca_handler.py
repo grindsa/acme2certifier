@@ -89,7 +89,7 @@ class CAhandler(object):
             if 'allowed_domainlist' in config_dic['CAhandler']:
                 try:
                     self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-                except BaseException as err:
+                except Exception as err:
                     self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
 
             if 'eab_kid' in config_dic['CAhandler']:
@@ -142,7 +142,7 @@ class CAhandler(object):
                         # SAN list must be modified/filtered)
                         (_san_type, san_value) = san.lower().split(':')
                         san_list.append(san_value)
-                    except BaseException:
+                    except Exception:
                         # force check to fail as something went wrong during parsing
                         check_list.append(False)
                         self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
@@ -213,7 +213,7 @@ class CAhandler(object):
             chall_content = challenge.chall.validation(user_key)
             try:
                 (chall_name, _token) = chall_content.split('.', 2)
-            except BaseException:
+            except Exception:
                 self.logger.error('CAhandler._http_challenge_info() challenge split failed: {0}'.format(chall_content))
         else:
             if authzr:
@@ -281,7 +281,7 @@ class CAhandler(object):
             regr = acmeclient._regr_from_response(response)
             regr = acmeclient.query_registration(regr)
             self.logger.debug('CAhandler.__account_register(): found existing account: {0}'.format(regr.uri))
-        except BaseException:
+        except Exception:
             if self.email:
                 self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
                 if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
@@ -385,7 +385,7 @@ class CAhandler(object):
                     error = 'Bad ACME account: {0}'.format(regr.body.error)
                     # raise Exception("Bad ACME account: " + str(regr.body.error))
 
-            except BaseException as err:
+            except Exception as err:
                 self.logger.error('CAhandler.enroll: error: {0}'.format(err))
                 error = str(err)
             finally:
@@ -457,7 +457,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler.revoke(): could not load user_key {0}'.format(self.keyfile))
                 detail = 'Internal Error'
 
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('CAhandler.enroll: error: {0}'.format(err))
             detail = str(err)
 

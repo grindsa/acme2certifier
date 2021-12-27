@@ -299,14 +299,13 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.trigger.load_config')
     def test_025_config_load(self, mock_load_cfg):
-        """ test _config_load missing ca_handler """
+        """ test _config_load bogus ca_handler """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'handler_file': 'foo'}
         mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.trigger._config_load()
         self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: No module named 'foo'", lcm.output)
-        # self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading default CAhandler failed with err: No module named 'acme_srv.ca_handler'", lcm.output)
 
     @patch('importlib.import_module')
     @patch('acme_srv.trigger.load_config')

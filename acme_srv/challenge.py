@@ -38,7 +38,7 @@ class Challenge(object):
 
         try:
             challenge_list = self.dbstore.challenges_search(key, value, vlist)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._challengelist_search(): {0}'.format(err_))
             challenge_list = []
 
@@ -65,14 +65,14 @@ class Challenge(object):
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._check() lookup: {0}'.format(err_))
             challenge_dic = {}
 
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
             try:
                 pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('acme2certifier database error in Challenge._check() jwk: {0}'.format(err_))
                 pub_key = None
 
@@ -116,7 +116,7 @@ class Challenge(object):
         self.logger.debug('Challenge._info({0})'.format(challenge_name))
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, vlist=('type', 'token', 'status__name', 'validated'))
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._info(): {0}'.format(err_))
             challenge_dic = {}
 
@@ -125,7 +125,7 @@ class Challenge(object):
                 # convert validated timestamp to RFC3339 format - if it fails remove key from dictionary
                 try:
                     challenge_dic['validated'] = uts_to_date_utc(challenge_dic['validated'])
-                except BaseException:
+                except Exception:
                     challenge_dic.pop('validated')
         else:
             if 'validated' in challenge_dic:
@@ -143,7 +143,7 @@ class Challenge(object):
             if 'dns_server_list' in config_dic['Challenge']:
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
-                except BaseException as err_:
+                except Exception as err_:
                     self.logger.warning('Challenge._config_load() dns_server_list failed with error: {0}'.format(err_))
 
         if 'Order' in config_dic:
@@ -156,7 +156,7 @@ class Challenge(object):
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
                 self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('Challenge._config_load() ended.')
@@ -187,7 +187,7 @@ class Challenge(object):
 
         try:
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._new(): {0}, {2}:{1}'.format(err_, mtype, value))
             chid = None
 
@@ -205,7 +205,7 @@ class Challenge(object):
         self.logger.debug('Challenge._update({0})'.format(data_dic))
         try:
             self.dbstore.challenge_update(data_dic)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._update(): {0}'.format(err_))
         self.logger.debug('Challenge._update() ended')
 
@@ -215,7 +215,7 @@ class Challenge(object):
         try:
             # lookup autorization based on challenge_name
             authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._update_authz() lookup: {0}'.format(err_))
             authz_name = None
 
@@ -224,7 +224,7 @@ class Challenge(object):
         try:
             # update authorization
             self.dbstore.authorization_update(data_dic)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Challenge._update_authz() upd: {0}'.format(err_))
 
         self.logger.debug('Challenge._update_authz() ended')
