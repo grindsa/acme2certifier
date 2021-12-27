@@ -59,7 +59,7 @@ class CAhandler(object):
         """
         try:
             api_response = requests.post(url=url, json=data, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             api_response = str(err_)
 
@@ -76,7 +76,7 @@ class CAhandler(object):
         if self.api_host:
             try:
                 api_response = requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, proxies=self.proxy, verify=self.ca_bundle).json()
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
                 api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
         else:
@@ -129,7 +129,7 @@ class CAhandler(object):
         params = {'q': 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
         try:
             api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.error('CAhandler._cert_get_properties() returned error: {0}'.format(str(err_)))
             api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
         self.logger.debug('CAhandler._cert_get_properties() ended')
@@ -150,7 +150,7 @@ class CAhandler(object):
                 if 'api_user_variable' in config_dic['CAhandler']:
                     try:
                         self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
-                    except BaseException as err:
+                    except Exception as err:
                         self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
                 if 'api_user' in config_dic['CAhandler']:
                     if self.api_user:
@@ -163,7 +163,7 @@ class CAhandler(object):
                 if 'api_password_variable' in config_dic['CAhandler']:
                     try:
                         self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
-                    except BaseException as err:
+                    except Exception as err:
                         self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
                 if 'api_password' in config_dic['CAhandler']:
                     if self.api_password:
@@ -182,7 +182,7 @@ class CAhandler(object):
             if 'ca_bundle' in config_dic['CAhandler']:
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-                except BaseException:
+                except Exception:
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
@@ -193,7 +193,7 @@ class CAhandler(object):
                     (fqdn, _port) = url_dic['host'].split(':')
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('CAhandler._config_load() ended')
@@ -295,7 +295,7 @@ class CAhandler(object):
 
         try:
             request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy).json()
-        except BaseException as err:
+        except Exception as err:
             self.logger.error('CAhandler._request.poll() returned: {0}'.format(err))
             request_dic = {}
 
@@ -432,7 +432,7 @@ class CAhandler(object):
             try:
                 # cert is a base64 encoded pem object
                 cert_raw = b64_encode(self.logger, cert_pem2der(cert))
-            except BaseException:
+            except Exception:
                 # cert is a binary der encoded object
                 cert_raw = b64_encode(self.logger, cert)
 

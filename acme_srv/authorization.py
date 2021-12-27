@@ -43,7 +43,7 @@ class Authorization(object):
         # lookup authorization based on name
         try:
             authz = self.dbstore.authorization_lookup('name', authz_name)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Authorization._authz_info({0}) lookup1: {1}'.format(authz_name, err_))
             authz = None
 
@@ -51,7 +51,7 @@ class Authorization(object):
             # update authorization with expiry date and token (just to be sure)
             try:
                 self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
@@ -59,7 +59,7 @@ class Authorization(object):
             tnauth = None
             try:
                 auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.error('acme2certifier database error in Authorization._authz_info({0}) lookup2: {1}'.format(authz_name, err_))
                 auth_info = {}
 
@@ -104,7 +104,7 @@ class Authorization(object):
             if 'validity' in config_dic['Authorization']:
                 try:
                     self.validity = int(config_dic['Authorization']['validity'])
-                except BaseException:
+                except Exception:
                     self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
         if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
@@ -121,7 +121,7 @@ class Authorization(object):
         field_list = ['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name']
         try:
             authz_list = self.dbstore.authorizations_expired_search('expires', timestamp, vlist=field_list, operant='<=')
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
             authz_list = []
 
@@ -136,7 +136,7 @@ class Authorization(object):
                     data_dic = {'name': authz['name'], 'status': 'expired'}
                     try:
                         self.dbstore.authorization_update(data_dic)
-                    except BaseException as err_:
+                    except Exception as err_:
                         self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
 
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
