@@ -24,7 +24,7 @@ from acme_srv.version import __dbversion__, __version__
 CONFIG = load_config()
 try:
     DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
-except BaseException:
+except Exception:
     DEBUG = False
 
 
