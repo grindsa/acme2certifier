@@ -697,7 +697,7 @@ class CAhandler(object):
             request_name = self._requestname_get(csr)
             if request_name:
                 # import CSR to database
-                _csr_info = self._csr_import(csr, request_name)
+                _csr_info = self._csr_import(csr, request_name)  # lgtm [py/unused-local-variable]
 
                 # prepare the CSR to be signed
                 csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
