@@ -294,6 +294,15 @@ class TestACMEHandler(unittest.TestCase):
         olist = []
         self.assertEqual('"bar1, bar2"', self.cahandler._csr_san_get('csr'))
 
+    @patch('examples.ca_handler.cmp_ca_handler.csr_san_get')
+    def test_032_csr_san_get(self, mock_san):
+        """ test _csr_san_get  - single damaged san """
+        mock_san.return_value = ['foo:bar1', 'bar2']
+        olist = []
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('"bar1"', self.cahandler._csr_san_get('csr'))
+        self.assertIn('ERROR:test_a2c:ERROR: CAhandler._csr_san_get(): SAN split failed: bar2', lcm.output)
+
     def test_032_poll(self):
         """ test trigger """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
