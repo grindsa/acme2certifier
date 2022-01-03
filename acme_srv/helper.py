@@ -425,7 +425,7 @@ def fqdn_in_san_check(logger, san_list, fqdn):
                     result = True
                     break
             except Exception:
-                pass
+                logger.error('ERROR: fqdn_in_san_check() SAN split failed: {0}'.format(san))    
 
     logger.debug('fqdn_in_san_check() ended with: {}'.format(result))
     return result

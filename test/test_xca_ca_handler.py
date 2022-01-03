@@ -462,7 +462,9 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._requestname_get empty cn empty san"""
         mock_cn.return_value = None
         mock_san.return_value = []
-        self.assertFalse(self.cahandler._requestname_get('csr'))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._requestname_get('csr'))
+        self.assertIn("ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: []", lcm.output)
 
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
@@ -483,10 +485,20 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
     @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
     def test_062_requestname_get(self, mock_cn, mock_san):
-        """ CAhandler._requestname_get empty cn empty dsmaged san"""
+        """ CAhandler._requestname_get empty cn empty damaged san"""
         mock_cn.return_value = None
         mock_san.return_value = ['dns:foo', 'bar']
         self.assertEqual('foo', self.cahandler._requestname_get('csr'))
+
+    @patch('examples.ca_handler.xca_ca_handler.csr_san_get')
+    @patch('examples.ca_handler.xca_ca_handler.csr_cn_get')
+    def test_063_requestname_get(self, mock_cn, mock_san):
+        """ CAhandler._requestname_get empty cn empty damaged san"""
+        mock_cn.return_value = None
+        mock_san.return_value = ['foo', 'bar']
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._requestname_get('csr'))
+        self.assertIn("ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: ['foo', 'bar']", lcm.output)
 
     def test_063_cert_insert(self):
         """ CAhandler._revocation_insert with empty rev_dic """
