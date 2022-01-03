@@ -486,7 +486,7 @@ class CAhandler(object):
             try:
                 (_identifiier, request_name,) = san_list[0].split(':')
             except Exception:
-                pass
+                self.logger.error('ERROR: CAhandler._request_name_get(): SAN split failed: {0}'.format(san_list))
 
         self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
         return request_name

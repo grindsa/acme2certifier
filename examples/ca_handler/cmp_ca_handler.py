@@ -73,7 +73,7 @@ class CAhandler(object):
                 if value:
                     o_list.append(value)
             except Exception:
-                pass
+                self.logger.error('ERROR: CAhandler._csr_san_get(): SAN split failed: {0}'.format(san))
 
         if o_list:
             sans = '"{0}"'.format(', '.join(o_list))

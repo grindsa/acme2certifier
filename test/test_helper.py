@@ -1050,6 +1050,14 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         san_list = ['foo1.bar.local', 'DNS:foo.bar.local']
         self.assertTrue(self.fqdn_in_san_check(self.logger, san_list, fqdn))
 
+    def test_150_fqdn_in_san_check(self):
+        """ successful check two entries one match """
+        fqdn = 'foo.bar.local'
+        san_list = ['foo1.bar.local']
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.fqdn_in_san_check(self.logger, san_list, fqdn))
+        self.assertIn('ERROR:test_a2c:ERROR: fqdn_in_san_check() SAN split failed: foo1.bar.local', lcm.output)
+
     def test_150_sha256_hash_hex(self):
         """ sha256 digest as hex file """
         self.assertEqual('2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae', self.sha256_hash_hex(self.logger, 'foo'))
