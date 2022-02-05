@@ -1,6 +1,6 @@
 setuptools
 jwcrypto
-pyOpenssl
+pyOpenssl == 21.0.0
 dnspython
 certsrv[ntlm]
 pytz
