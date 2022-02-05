@@ -880,6 +880,10 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
+    # reject insecure ssl version
+    context.options |= ssl.OP_NO_SSLv3
+    context.options |= ssl.OP_NO_TLSv1
+    context.options |= ssl.OP_NO_TLSv1_1
 
     if proxy_server:
         (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
@@ -888,7 +892,8 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
         sock.connect((hostname, port))
-        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:  # lgtm [py/insecure-protocol]
+        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
+            logger.debug('servercert_get() configure proxy: {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:
