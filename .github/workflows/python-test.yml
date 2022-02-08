@@ -61,13 +61,13 @@ jobs:
           pylint --rcfile=".github/pylintrc" acme_srv/ || pylint-exit $?
       - name: "Pylint folder: tools"
         run: |
-          pylint --rcfile=".github/pylintrc" tools/ || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" tools/*.py || pylint-exit $?
       - name: "Pylint folder: examples/db_handler"
         run: |
-          pylint --rcfile=".github/pylintrc" examples/db_handler/ || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" examples/db_handler/*.py || pylint-exit $?
       - name: "Pylint folder: examples/ca_handler"
         run: |
-          pylint --rcfile=".github/pylintrc" examples/ca_handler/ || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" examples/ca_handler/*.py || pylint-exit $?
 
       - name: "Linting with pycodestyle"
         run: |
