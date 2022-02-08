@@ -1,12 +1,13 @@
 setuptools
 jwcrypto
+cryptography
 pyOpenssl
 dnspython
 certsrv[ntlm]
 pytz
 configparser
 python-dateutil
-requests[use_chardet_on_py3]
+requests
 pysocks
 josepy
 acme

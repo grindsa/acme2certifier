@@ -5,6 +5,15 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.19.3
+
+**Features and Improvements**:
+
+- disable TLSv1.0 and TLSv1.1 fallback when conduction TLS-ALP=1 challenge validation
+- python3-cryptography will be installed via pip to fulfill dependencies from pyOpenssl
+- Changed encoding detection library from chardet to charset_normalizer
+- [lgtm](https://lgtm.com/projects/g/grindsa/acme2certifier/context:python) conformance
+
 ## Changes in 0.19.2
 
 **Features and Improvements**:
