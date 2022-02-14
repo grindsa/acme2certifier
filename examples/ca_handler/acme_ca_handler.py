@@ -10,6 +10,8 @@ import re
 import os.path
 import requests
 import josepy
+import hashlib
+import threading
 from OpenSSL import crypto
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -28,6 +30,7 @@ acme_keyfile: /path/to/privkey.json
 
 """
 
+_requests = {}
 
 class CAhandler(object):
     """ EST CA  handler """
@@ -323,89 +326,116 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._zerossl_eab_get() failed: {0}'.format(response.text))
 
-    def enroll(self, csr):
-        """ enroll certificate  """
-        # pylint: disable=R0915
-        self.logger.debug('CAhandler.enroll()')
-
+    def _do_enroll(self, pollid, csr):
         csr_pem = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, csr)), 64))
-
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        poll_indentifier = None
         user_key = None
 
-        # check CN and SAN against black/whitlist
-        result = self._csr_check(csr)
+        try:
+            user_key = self._user_key_load()
+            net = client.ClientNetwork(user_key)
 
-        if result:
-            try:
-                user_key = self._user_key_load()
-                net = client.ClientNetwork(user_key)
+            directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
+            acmeclient = client.ClientV2(directory, net=net)
+            reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
-                directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
-                acmeclient = client.ClientV2(directory, net=net)
-                reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
+            if self.account:
+                regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                self.logger.debug('CAhandler._do_enroll(): checking remote registration status')
+                regr = acmeclient.query_registration(regr)
+            else:
+                # new account or existing account with missing account id
+                regr = self._account_register(acmeclient, user_key, directory)
 
-                if self.account:
-                    regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
-                    self.logger.debug('CAhandler.enroll(): checking remote registration status')
-                    regr = acmeclient.query_registration(regr)
-                else:
-                    # new account or existing account with missing account id
-                    regr = self._account_register(acmeclient, user_key, directory)
+            if regr.body.status == "valid":
+                self.logger.debug('CAhandler._do_enroll() issuing signing order')
+                self.logger.debug('CAhandler._do_enroll() CSR: ' + str(csr_pem))
+                order = acmeclient.new_order(csr_pem)
 
-                if regr.body.status == "valid":
-                    self.logger.debug('CAhandler.enroll() issuing signing order')
-                    self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
-                    order = acmeclient.new_order(csr_pem)
-
-                    # query challenges
-                    for authzr in list(order.authorizations):
+                # query challenges
+                for authzr in list(order.authorizations):
+                    if authzr.body.status != messages.STATUS_VALID:
                         (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
                         if challenge_name and challenge_content:
                             # store challenge in database to allow challenge validation
                             self._challenge_store(challenge_name, challenge_content)
                             _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
 
-                    self.logger.debug('CAhandler.enroll() polling for certificate')
-                    order = acmeclient.poll_and_finalize(order)
+                self.logger.debug('CAhandler._do_enroll() polling for certificate')
+                order = acmeclient.poll_and_finalize(order)
 
-                    if order.fullchain_pem:
-                        self.logger.debug('CAhandler.enroll() successful')
-                        cert_bundle = str(order.fullchain_pem)
-                        cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
-                    else:
-                        # raise Exception("Error getting certificate: " + str(order.error))
-                        self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
-                        error = 'Error getting certificate: {0}'.format(order.error)
+                if order.fullchain_pem:
+                    self.logger.debug('CAhandler._do_enroll() successful')
+                    cert_bundle = str(order.fullchain_pem)
+                    _requests[pollid]['cert_bundle'] = cert_bundle
+                    _requests[pollid]['cert_raw'] = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
                 else:
-                    self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
-                    error = 'Bad ACME account: {0}'.format(regr.body.error)
-                    # raise Exception("Bad ACME account: " + str(regr.body.error))
+                    # raise Exception("Error getting certificate: " + str(order.error))
+                    self.logger.error('CAhandler._do_enroll: Error getting certificate: {0}'.format(order.error))
+                    _requests[pollid]['error'] = 'Error getting certificate: {0}'.format(order.error)
+            else:
+                self.logger.error('CAhandler._do_enroll: Bad ACME account: {0}'.format(regr.body.error))
+                _requests[pollid]['error'] = 'Bad ACME account: {0}'.format(regr.body.error)
+                # raise Exception("Bad ACME account: " + str(regr.body.error))
 
-            except Exception as err:
-                self.logger.error('CAhandler.enroll: error: {0}'.format(err))
-                error = str(err)
-            finally:
-                del user_key
+        except Exception as err:
+            self.logger.error('CAhandler._do_enroll: error: {0}'.format(err))
+            _requests[pollid]['error'] = str(err)
+        finally:
+            del user_key
 
+
+
+    def enroll(self, csr):
+        """ enroll certificate  """
+        # pylint: disable=R0915
+        self.logger.debug('CAhandler.enroll()')
+
+        poll_identifier = None
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+         # check CN and SAN against black/whitlist
+        result = self._csr_check(csr)
+
+        if result:
+            poll_identifier = hashlib.sha256(csr.encode('utf-8')).hexdigest()
+            if poll_identifier in _requests:
+                error = 'Internal error: requests already exists'
+            else :
+                _requests[poll_identifier] = {
+                    'thread': threading.Thread(target=self._do_enroll, args=(poll_identifier, csr)),
+                    'error': None,
+                    'cert_raw': None,
+                    'cert_bundle': None
+                }
+                _requests[poll_identifier]['thread'].start()
         else:
             error = 'CSR rejected. Either CN or SANs are not allowed by policy'
             self.logger.error('CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.')
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, poll_indentifier)
+        return(error, cert_bundle, cert_raw, poll_identifier)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
-        error = "Not implemented"
+        error = None
         cert_bundle = None
         cert_raw = None
         rejected = False
+        poll_identifier = hashlib.sha256(_csr.encode('utf-8')).hexdigest()
+
+        req = _requests[poll_identifier]
+        req['thread'].join(10.0)
+        if not req['thread'].is_alive():
+            error = req['error']
+            cert_bundle = req['cert_bundle']
+            cert_raw = req['cert_raw']
+            rejected = (error is not None)
+            del _requests[poll_identifier]
+            poll_identifier = None
 
         self.logger.debug('CAhandler.poll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier, rejected)
