@@ -220,14 +220,16 @@ class Order(object):
                         certificate_name = cert_dic['name']
 
                         pollid = hashlib.sha256(cert_dic['csr'].encode('utf-8')).hexdigest()
-                        with Certificate(self.debug, self.server_name, self.logger) as certificate:
-                            certificate.poll(certificate_name, pollid, cert_dic['csr'], order_name)
-                            order_dic = self._info(order_name)
-                            if order_dic['status'] == 'invalid':
-                                code = 500
-                                message = 'urn:ietf:params:acme:error:serverInternal'
-                                cert_err = self.dbstore.certificate_lookup('order__name', order_name, vlist=['error'])
-                                detail = cert_err['error']
+                        order_dic = self._info(order_name)
+                        if order_dic['status'] == 'processing':
+                            with Certificate(self.debug, self.server_name, self.logger) as certificate:
+                                certificate.poll(certificate_name, pollid, cert_dic['csr'], order_name)
+                                order_dic = self._info(order_name)
+                                if order_dic['status'] == 'invalid':
+                                    code = 500
+                                    message = 'urn:ietf:params:acme:error:serverInternal'
+                                    cert_err = self.dbstore.certificate_lookup('order__name', order_name, vlist=['error'])
+                                    detail = cert_err['error']
 
         else:
             code = 400
