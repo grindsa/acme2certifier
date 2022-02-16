@@ -410,6 +410,8 @@ class CAhandler(object):
                     'cert_bundle': None
                 }
                 _requests[poll_identifier]['thread'].start()
+                (error, cert_bundle, cert_raw, poll_identifier, rejected) = self.poll("", poll_identifier, csr)
+
         else:
             error = 'CSR rejected. Either CN or SANs are not allowed by policy'
             self.logger.error('CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.')
@@ -417,7 +419,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return(error, cert_bundle, cert_raw, poll_identifier)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -425,7 +427,7 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         rejected = False
-        poll_identifier = hashlib.sha256(_csr.encode('utf-8')).hexdigest()
+        poll_identifier = hashlib.sha256(csr.encode('utf-8')).hexdigest()
 
         req = _requests[poll_identifier]
         req['thread'].join(10.0)
