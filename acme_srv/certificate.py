@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca hanlder for Insta Certifier via REST-API class """
+""" certificate class """
 from __future__ import print_function
 import json
 from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-
+from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
 class Certificate(object):
     """ CA  handler """
@@ -460,41 +460,60 @@ class Certificate(object):
                                 self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
         # return None
 
+    def _enroll_and_store(self, certificate_name, csr):
+        """ enroll and store certificate """
+        self.logger.debug('Certificate._enroll_and_store({0},{1})'.format(certificate_name, csr))
+
+        detail = None
+        error = None
+
+        with self.cahandler(self.debug, self.logger) as ca_handler:
+            (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
+            if certificate:
+                (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+                try:
+                    result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts)
+                except Exception as err_:
+                    result = None
+                    self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
+            else:
+                result = None
+                self.logger.error('acme2certifier enrollment error: {0}'.format(error))
+                # store error message for later analysis
+                try:
+                    self._store_cert_error(certificate_name, error, poll_identifier)
+                except Exception as err_:
+                    result = None
+                    self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
+
+                # cover polling cases
+                if poll_identifier:
+                    detail = poll_identifier
+                else:
+                    error = 'urn:ietf:params:acme:error:serverInternal'
+
+        self.logger.debug('Certificate._enroll_and_store() ended with: {0}:{1}'.format(result, error))
+        return (result, error, detail)
+
     def enroll_and_store(self, certificate_name, csr):
-        """ cenroll and store certificater """
+        """ check csr and trigger enrollment """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, csr))
 
         # check csr against order
         csr_check_result = self._csr_check(certificate_name, csr)
-        error = None
-        detail = None
 
         # only continue if self.csr_check returned True
         if csr_check_result:
-            with self.cahandler(self.debug, self.logger) as ca_handler:
-                (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
-                if certificate:
-                    (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
-                    try:
-                        result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts)
-                    except Exception as err_:
-                        result = None
-                        self.logger.critical('acme2certifier database error in Certificate.enroll_and_store(): {0}'.format(err_))
-                else:
-                    result = None
-                    self.logger.error('acme2certifier enrollment error: {0}'.format(error))
-                    # store error message for later analysis
-                    try:
-                        self._store_cert_error(certificate_name, error, poll_identifier)
-                    except Exception as err_:
-                        result = None
-                        self.logger.critical('acme2certifier database error in Certificate.enroll_and_store(): {0}'.format(err_))
-
-                    # cover polling cases
-                    if poll_identifier:
-                        detail = poll_identifier
-                    else:
-                        error = 'urn:ietf:params:acme:error:serverInternal'
+            twrv = ThreadWithReturnValue(target=self._enroll_and_store, args=(certificate_name, csr))
+            twrv.start()
+            enroll_result = twrv.join(timeout=5)
+            if enroll_result:
+                (result, error, detail) = enroll_result
+            else:
+                result = None
+                error = 'timeout'
+                detail = 'timeout'
+            # (result, error, detail) = self._enroll_and_store(certificate_name, csr)
         else:
             result = None
             error = 'urn:ietf:params:acme:badCSR'
