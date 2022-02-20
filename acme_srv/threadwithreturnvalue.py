@@ -3,6 +3,7 @@
 """ ThreadWithReturnValue class """
 from threading import Thread
 
+
 class ThreadWithReturnValue(Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
         Thread.__init__(self, group, target, name, args, kwargs, daemon=daemon)
