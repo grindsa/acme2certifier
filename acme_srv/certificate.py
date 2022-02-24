@@ -181,16 +181,16 @@ class Certificate(object):
                 try:
                     result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts)
                     if result:
-                        data_dic = {'name': order_name, 'status': 'valid'}
-                        self._order_update(data_dic)
+                        self._order_update({'name': order_name, 'status': 'valid'})
                 except Exception as err_:
                     result = None
                     self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
             else:
                 result = None
                 self.logger.error('acme2certifier enrollment error: {0}'.format(error))
-                # store error message for later analysis
+                # update order and store error message for later analysis
                 try:
+                    self.dbstore.order_update({'name': order_name, 'status': 'invalid'})
                     self._store_cert_error(certificate_name, error, poll_identifier)
                 except Exception as err_:
                     result = None
