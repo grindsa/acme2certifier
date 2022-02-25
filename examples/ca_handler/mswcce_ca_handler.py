@@ -5,7 +5,6 @@ from __future__ import print_function
 import os
 import textwrap
 import json
-from OpenSSL.crypto import _lib, _ffi, X509
 
 # pylint: disable=E0401, E0611
 from examples.ca_handler.ms_wcce.target import Target
