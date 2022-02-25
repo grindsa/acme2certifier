@@ -104,7 +104,6 @@ class Target:
         domain: str = None,
         username: str = None,
         password: str = None,
-        hashes: str = None,
         target_ip: str = None,
         remote_name: str = None,
         no_pass: bool = False,
@@ -116,26 +115,17 @@ class Target:
         if domain is None:
             domain = ""
 
-        if password == "" and username != "" and hashes is None and no_pass is not True:
+        if password == "" and username != "" and no_pass is not True:
             from getpass import getpass
 
             password = getpass("Password:")
-        hashes = hashes
-        if hashes is not None:
-            hashes = hashes.split(":")
-            if len(hashes) == 1:
-                (nthash,) = hashes
-                lmhash = nthash = nthash
-            else:
-                lmhash, nthash = hashes
-        else:
-            lmhash = nthash = ""
+
+        lmhash = nthash = ""
 
         self.domain = domain
         self.username = username
         self.password = password
         self.remote_name = remote_name
-        self.hashes = hashes
         self.lmhash = lmhash
         self.nthash = nthash
         self.dc_ip = dc_ip
