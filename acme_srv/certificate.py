@@ -214,7 +214,7 @@ class Certificate(object):
                 certificate = None
                 certificate_raw = None
 
-            if not certificate and not certificate_raw:
+            if not certificate or not certificate_raw:
                 self.logger.debug('Certificate._enroll_and_store(): trigger enrollment')
                 (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
             else:

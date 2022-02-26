@@ -825,10 +825,14 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('urn:ietf:params:acme:error:serverInternal', 'unexpected enrollment result'), self.certificate.enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:acme2certifier database error in Certificate.enroll_and_store(): split of unexpected failed with err: too many values to unpack (expected 3)', lcm.output)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.Certificate._store_cert_error')
-    def test_103_certificate_enroll_and_store(self, mock_store):
+    def test_103_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_oupd, mock_chk):
         """ Certificate.enroll_and_store() enrollment failed without polling_identifier """
-        self.certificate.dbstore.order_update.return_value = 'foo'
+        # self.certificate.dbstore.order_update.return_value = 'foo'
+        mock_store_err.return_value = True
         mock_store.return_value = True
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.certificate.cahandler = ca_handler_module.CAhandler
@@ -838,12 +842,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, 'urn:ietf:params:acme:error:serverInternal', None), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:acme2certifier enrollment error: error', lcm.output)
-        self.assertTrue(self.certificate.dbstore.order_update.called)
+        self.assertFalse(mock_chk.called)
+        self.assertFalse(mock_oupd.called)
+        self.assertTrue(mock_store_err.called)
+        self.assertFalse(mock_store.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.Certificate._store_cert_error')
-    def test_104_certificate_enroll_and_store(self, mock_store):
-        """ Certificate.enroll_and_store() enrollment with polling_identifier"""
-        self.certificate.dbstore.order_update.return_value = 'foo'
+    def test_104_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store() enrollment failed with polling_identifier"""
+        mock_store_err.return_value = True
         mock_store.return_value = True
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.certificate.cahandler = ca_handler_module.CAhandler
@@ -853,15 +864,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, 'error', 'poll_identifier'), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:acme2certifier enrollment error: error', lcm.output)
-        self.assertTrue(self.certificate.dbstore.order_update.called)
+        self.assertFalse(mock_chk.called)
+        self.assertFalse(mock_oupd.called)
+        self.assertTrue(mock_store_err.called)
+        self.assertFalse(mock_store.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
-    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.Certificate._store_cert_error')
-    def test_105_certificate_enroll_and_store(self, mock_store, mock_dates):
-        """ Certificate.enroll_and_store() enrollment with polling_identifier"""
+    def test_105_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store() enrollment failed - exception in store_cert_error"""
         self.certificate.dbstore.order_update.return_value = 'foo'
-        mock_store.side_effect = Exception('ex_cert_error_store')
-        mock_dates.return_value = (1, 2)
+        mock_store_err.side_effect = Exception('ex_cert_error_store')
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         self.certificate.cahandler = ca_handler_module.CAhandler
         self.certificate.cahandler.enroll = Mock(return_value=('error', None, None, 'poll_identifier'))
@@ -871,14 +887,20 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, 'error', 'poll_identifier'), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._enroll_and_store() _store_cert_error: ex_cert_error_store', lcm.output)
         self.assertIn('ERROR:test_a2c:acme2certifier enrollment error: error', lcm.output)
-        self.assertFalse(mock_dates.called)
-        self.assertTrue(self.certificate.dbstore.order_update.called)
+        self.assertFalse(mock_chk.called)
+        self.assertFalse(mock_oupd.called)
+        self.assertTrue(mock_store_err.called)
+        self.assertFalse(mock_store.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
     @patch('acme_srv.certificate.Certificate._order_update')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate._store_cert')
-    def test_106_certificate_enroll_and_store(self, mock_store, mock_dates, mock_order):
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_106_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
         """ Certificate.enroll_and_store() enrollment succhessful with polling_identifier"""
+        mock_store_err.return_value = True
         mock_store.return_value = True
         mock_dates.return_value = (1, 2)
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -887,15 +909,21 @@ class TestACMEHandler(unittest.TestCase):
         certificate_name = 'cert_name'
         csr = 'csr'
         self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
         self.assertTrue(mock_store.called)
-        self.assertTrue(mock_order.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
     @patch('acme_srv.certificate.Certificate._order_update')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate._store_cert')
-    def test_107_certificate_enroll_and_store(self, mock_store, mock_dates, mock_order):
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_107_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
         """ Certificate.enroll_and_store() enrollment succhessful without polling_identifier"""
+        mock_store_err.return_value = True
         mock_store.return_value = True
         mock_dates.return_value = (1, 2)
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -904,14 +932,21 @@ class TestACMEHandler(unittest.TestCase):
         certificate_name = 'cert_name'
         csr = 'csr'
         self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
-        self.assertTrue(mock_order.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
     @patch('acme_srv.certificate.Certificate._order_update')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate._store_cert')
-    def test_108_certificate_enroll_and_store(self, mock_store, mock_dates, mock_order):
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_108_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
         """ Certificate.enroll_and_store() enrollment succhessful _store_cert returns None """
+        mock_store_err.return_value = True
         mock_store.return_value = None
         mock_dates.return_value = (1, 2)
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -920,13 +955,21 @@ class TestACMEHandler(unittest.TestCase):
         certificate_name = 'cert_name'
         csr = 'csr'
         self.assertEqual((None, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
-        self.assertFalse(mock_order.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertFalse(mock_oupd.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
 
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate._store_cert')
-    def test_109_certificate_enroll_and_store(self, mock_store, mock_dates):
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_109_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
         """ Certificate.enroll_and_store() enrollment Exception in store_cert """
+        mock_store_err.return_value = True
         mock_store.side_effect = Exception('ex_cert_store')
         mock_dates.return_value = (1, 2)
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -937,6 +980,112 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, None, None), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._enroll_and_store(): ex_cert_store', lcm.output)
+        self.assertFalse(mock_chk.called)
+        self.assertTrue(mock_dates.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertFalse(mock_oupd.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
+
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_110_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store()  _cert_reusage_check successful """
+        self.certificate.cert_reusage_timeframe = 86400
+        mock_chk.return_value = (None, 'certificate', 'certificate_raw', 'poll_identifier')
+        mock_store_err.return_value = True
+        mock_store.return_value = True
+        mock_dates.return_value = (1, 2)
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=(None, 'certificate', None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(self.certificate.cahandler.enroll.called)
+        self.assertTrue(mock_dates.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
+
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_111_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store()  _cert_reusage_check no cert """
+        self.certificate.cert_reusage_timeframe = 86400
+        mock_chk.return_value = (None, None, 'certificate_raw', 'poll_identifier')
+        mock_store_err.return_value = True
+        mock_store.return_value = True
+        mock_dates.return_value = (1, 2)
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=(None, 'certificate', None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertTrue(mock_chk.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
+        self.assertTrue(mock_dates.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
+
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_112_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store()  _cert_reusage_check no cert_raw """
+        self.certificate.cert_reusage_timeframe = 86400
+        mock_chk.return_value = (None, 'certificate', None, 'poll_identifier')
+        mock_store_err.return_value = True
+        mock_store.return_value = True
+        mock_dates.return_value = (1, 2)
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=(None, 'certificate', None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertTrue(mock_chk.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
+        self.assertTrue(mock_dates.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
+
+    @patch('acme_srv.certificate.Certificate._cert_reusage_check')
+    @patch('acme_srv.certificate.Certificate._order_update')
+    @patch('acme_srv.certificate.cert_dates_get')
+    @patch('acme_srv.certificate.Certificate._store_cert')
+    @patch('acme_srv.certificate.Certificate._store_cert_error')
+    def test_113_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk):
+        """ Certificate.enroll_and_store()  _cert_reusage_check no cert and no cert_raw """
+        self.certificate.cert_reusage_timeframe = 86400
+        mock_chk.return_value = (None, None, None, 'poll_identifier')
+        mock_store_err.return_value = True
+        mock_store.return_value = True
+        mock_dates.return_value = (1, 2)
+        ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
+        self.certificate.cahandler = ca_handler_module.CAhandler
+        self.certificate.cahandler.enroll = Mock(return_value=(None, 'certificate', None, 'poll_identifier'))
+        certificate_name = 'cert_name'
+        csr = 'csr'
+        self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
+        self.assertTrue(mock_chk.called)
+        self.assertTrue(self.certificate.cahandler.enroll.called)
+        self.assertTrue(mock_dates.called)
+        self.assertTrue(mock_store.called)
+        self.assertFalse(mock_store_err.called)
+        self.assertTrue(mock_oupd.called)
 
     def test_110_certificate__invalidation_check(self):
         """ test Certificate._invalidation_check() - empty dict """
