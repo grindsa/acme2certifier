@@ -91,6 +91,42 @@ class Certificate(object):
         self.logger.debug('Certificate._authorization_check() ended with {0}'.format(result))
         return result
 
+    def _cert_reusage_check(self, csr):
+        """ check if an existing certificate an be reused """
+        self.logger.debug('Certificate._cert_reusage_check({0})'.format(self.cert_reusage_timeframe))
+
+        try:
+            result_dic = self.dbstore.certificates_search('csr', csr, ('cert', 'cert_raw', 'expire_uts', 'issue_uts', 'created_at', 'id'))
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Certificate._cert_reusage_check(): {0}'.format(err_))
+            result_dic = None
+
+        cert = None
+        cert_raw = None
+        message = None
+
+        if result_dic:
+            uts = uts_now()
+            # sort certificates by creation date
+            for certificate in sorted(result_dic, key=lambda i: i['issue_uts'], reverse=True):
+                try:
+                    uts_create = date_to_uts_utc(certificate['created_at'])
+                except Exception as err_:
+                    self.logger.error('acme2certifier date_to_uts_utc() error in Certificate._cert_reusage_check(): id:{0}/created_at:{1}'.format(certificate['id'], certificate['created_at']))
+                    uts_create = 0
+
+                # check if there certificates within reusage timeframe
+                if certificate['cert_raw'] and certificate['cert'] and uts - self.cert_reusage_timeframe <= uts_create:
+                    # exclude expired certificates
+                    if uts <= certificate['expire_uts']:
+                        cert = certificate['cert']
+                        cert_raw = certificate['cert_raw']
+                        message = 'reused certificate from id: {0}'.format(certificate['id'])
+                        break
+
+        self.logger.debug('Certificate._cert_reusage_check() ended with {0}'.format(message))
+        return(None, cert, cert_raw, message)
+
     def _config_load(self):
         """" load config from file """
         self.logger.debug('Certificate._config_load()')
@@ -110,7 +146,7 @@ class Certificate(object):
         if 'Certificate' in config_dic:
             if 'cert_reusage_timeframe' in config_dic['Certificate']:
                 try:
-                    self.cert_reusage_timeframe =  int(config_dic['Certificate']['cert_reusage_timeframe'])
+                    self.cert_reusage_timeframe = int(config_dic['Certificate']['cert_reusage_timeframe'])
                 except Exception as err_:
                     self.logger.error('acme2certifier Certificate._config_load() cert_reusage_timout parsing error: {0}'.format(err_))
 
@@ -174,31 +210,6 @@ class Certificate(object):
 
         self.logger.debug('Certificate._csr_check() ended with {0}'.format(csr_check_result))
         return csr_check_result
-
-    def _cert_reusage_check(self, csr):
-        """ check if an existing certificate an be reused """
-        self.logger.debug('Certificate._cert_reusage_check({0})'.format(self.cert_reusage_timeframe))
-
-        try:
-            result_dic = self.dbstore.certificates_search('csr', csr, ('cert', 'cert_raw', 'expire_uts', 'issue_uts', 'created_at', 'id'))
-        except Exception as err_:
-            self.logger.critical('acme2certifier database error in Certificate.certificates_search(): {0}'.format(err_))
-            result_dic = None
-
-        cert = None
-        cert_raw = None
-        id = 0
-        if result_dic:
-            uts = uts_now()
-            # compare certificates against treshold and creation date
-            for certificate in sorted(result_dic, key=lambda i: i['issue_uts'], reverse=True):
-                uts_create = date_to_uts_utc(certificate['created_at'])
-                if certificate['cert_raw'] and certificate['cert'] and uts - self.cert_reusage_timeframe <= date_to_uts_utc(certificate['created_at']):
-                    cert = certificate['cert']
-                    cert_raw = certificate['cert_raw']
-                    id = certificate['id']
-                    break
-        return(None, cert, cert_raw, 'reused certificate from id: {0}'.format(id))
 
     def _enroll_and_store(self, certificate_name, csr, order_name=None):
         """ enroll and store certificate """
