@@ -1421,15 +1421,25 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.cleanup('timestamp')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() search: exc_cert_cleanup', lcm.output)
 
+    @patch('acme_srv.certificate.uts_now')
+    def test_152__cert_reusage_check(self, mock_uts):
+        """ test Certificate._cert_reusage_check() - one certificate returned """
+        self.certificate.cert_reusage_timeframe = 86400
+        mock_uts.return_value = 90000
+        self.certificate.dbstore.certificates_search.side_effect = Exception('ex_cert_reusage')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, None, None, None), self.certificate._cert_reusage_check('csr'))
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._cert_reusage_check(): ex_cert_reusage', lcm.output)
+
     @patch('acme_srv.certificate.load_config')
-    def test_152_config_load(self, mock_load_cfg):
+    def test_153_config_load(self, mock_load_cfg):
         """ test _config_load empty dictionary """
         mock_load_cfg.return_value = {}
         self.certificate._config_load()
         self.assertFalse(self.certificate.tnauthlist_support)
 
     @patch('acme_srv.certificate.load_config')
-    def test_153_config_load(self, mock_load_cfg):
+    def test_154_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1437,7 +1447,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('acme_srv.certificate.load_config')
-    def test_154_config_load(self, mock_load_cfg):
+    def test_155_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Order'] = {'tnauthlist_support': False}
@@ -1446,7 +1456,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.tnauthlist_support)
 
     @patch('acme_srv.certificate.load_config')
-    def test_155_config_load(self, mock_load_cfg):
+    def test_156_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Order'] = {'tnauthlist_support': True}
@@ -1456,7 +1466,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_156_config_load(self, mock_load_cfg, mock_handler):
+    def test_157_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'handler_file': 'foo'}
@@ -1468,7 +1478,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.load_config')
-    def test_157_config_load(self, mock_load_cfg, mock_imp):
+    def test_158_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'handler_file': 'foo'}
@@ -1478,7 +1488,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.certificate.cahandler)
 
     @patch('acme_srv.certificate.load_config')
-    def test_158_config_load(self, mock_load_cfg):
+    def test_159_config_load(self, mock_load_cfg):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
@@ -1489,7 +1499,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.load_config')
-    def test_159_config_load(self, mock_load_cfg, mock_imp):
+    def test_160_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load  ca_handler but no handler_file """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'foo': 'bar'}
@@ -1499,8 +1509,67 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_imp.called)
         self.assertTrue(self.certificate.cahandler)
 
+    @patch('acme_srv.certificate.load_config')
+    def test_161_config_load(self, mock_load_cfg):
+        """ test _config_load no cert_reusage_timeframe """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertFalse(self.certificate.cert_reusage_timeframe)
+        self.assertEqual(5, self.certificate.enrollment_timeout)
+
+    @patch('acme_srv.certificate.load_config')
+    def test_162_config_load(self, mock_load_cfg):
+        """ test _config_load cert_reusage_timeframe 120 """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'cert_reusage_timeframe': 1200}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertEqual(1200, self.certificate.cert_reusage_timeframe)
+
+    @patch('acme_srv.certificate.load_config')
+    def test_163_config_load(self, mock_load_cfg):
+        """ test _config_load cert_reusage_timeframe 0 """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'cert_reusage_timeframe': 0}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertFalse(self.certificate.cert_reusage_timeframe)
+
+    @patch('acme_srv.certificate.load_config')
+    def test_164_config_load(self, mock_load_cfg):
+        """ test _config_load cert_reusage_timeframe text """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'cert_reusage_timeframe': 'aaa'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._config_load()
+        self.assertFalse(self.certificate.cert_reusage_timeframe)
+        self.assertIn("ERROR:test_a2c:acme2certifier Certificate._config_load() cert_reusage_timout parsing error: invalid literal for int() with base 10: 'aaa'", lcm.output)
+
+    @patch('acme_srv.certificate.load_config')
+    def test_165_config_load(self, mock_load_cfg):
+        """ test _config_load enrollment_timeout 120 """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'enrollment_timeout': 120}
+        mock_load_cfg.return_value = parser
+        self.certificate._config_load()
+        self.assertEqual(120, self.certificate.enrollment_timeout)
+
+    @patch('acme_srv.certificate.load_config')
+    def test_166_config_load(self, mock_load_cfg):
+        """ test _config_load certificate text """
+        parser = configparser.ConfigParser()
+        parser['Certificate'] = {'enrollment_timeout': 'aaa'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.certificate._config_load()
+        self.assertEqual(5, self.certificate.enrollment_timeout)
+        self.assertIn("ERROR:test_a2c:acme2certifier Certificate._config_load() enrollment_timeout parsing error: invalid literal for int() with base 10: 'aaa'", lcm.output)
+
     @patch('acme_srv.certificate.cert_san_get')
-    def test_160_certificate__authorization_check(self, mock_san):
+    def test_167_certificate__authorization_check(self, mock_san):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1511,7 +1580,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.certificate.Certificate._identifer_status_list')
     @patch('acme_srv.certificate.cert_san_get')
-    def test_161_certificate__authorization_check(self, mock_san, mock_statlist):
+    def test_168_certificate__authorization_check(self, mock_san, mock_statlist):
         """ test Certificate.authorization_check - cert_san_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1523,7 +1592,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     @patch('acme_srv.certificate.cert_extensions_get')
-    def test_162_certificate__authorization_check(self, mock_certext, mock_tnin):
+    def test_169_certificate__authorization_check(self, mock_certext, mock_tnin):
         """ test Certificate.authorization_check cert_extensions_get raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1537,7 +1606,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._identifer_tnauth_list')
     @patch('acme_srv.certificate.Certificate._tnauth_identifier_check')
     @patch('acme_srv.certificate.cert_extensions_get')
-    def test_163_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
+    def test_170_certificate__authorization_check(self, mock_certext, mock_tnin, mock_tnlist):
         """ test Certificate.authorization_check _identifer_tnauth_list raises exception) """
         self.certificate.dbstore.order_lookup.side_effect = None
         self.certificate.dbstore.order_lookup.return_value = {'identifiers' : 'test'}
@@ -1550,13 +1619,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: tnauth_in_exc', lcm.output)
 
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_164_dates_update(self, mock_search):
+    def test_171_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'foo': 'bar'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()
 
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_165_dates_update(self, mock_search):
+    def test_172_dates_update(self, mock_search):
         """ dates update """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw'}, {'foo1': 'bar1'}]
         self.certificate.dates_update()
@@ -1564,7 +1633,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_166_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_173_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update with a none zero issue-uts """
         mock_search.return_value = [{'issue_uts': 2, 'expire_uts': 0, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (42, 42)
@@ -1575,7 +1644,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_167_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_174_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update with a none zero expire-uts """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 2, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (42, 42)
@@ -1586,7 +1655,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_168_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_175_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update call _cert_store """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (42, 42)
@@ -1597,7 +1666,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_169_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_176_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update call _cert_store """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (42, 0)
@@ -1608,7 +1677,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_170_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_177_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update call _cert_store """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (0, 42)
@@ -1619,7 +1688,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.cert_dates_get')
     @patch('acme_srv.certificate.Certificate.certlist_search')
-    def test_171_dates_update(self, mock_search, mock_dates_get, mock_store):
+    def test_178_dates_update(self, mock_search, mock_dates_get, mock_store):
         """ dates update do not call _cert_store bcs cert_dates_get return 0/0 """
         mock_search.return_value = [{'issue_uts': 0, 'expire_uts': 0, 'cert_raw': 'cert_raw', 'name': 'name', 'cert': 'cert'}, {'foo1': 'bar1'}]
         mock_dates_get.return_value = (0, 0)
@@ -1627,7 +1696,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_dates_get.called)
         self.assertFalse(mock_store.called)
 
-    def test_172_order_update(self):
+    def test_179_order_update(self):
         """ test Certificate._order_update - dbstore.order_update() raises an exception  """
         self.certificate.dbstore.order_update.side_effect = Exception('exc_order_upd')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1635,10 +1704,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._order_update(): exc_order_upd', lcm.output)
 
 
-
-
-
-    def test_173_certificate_certlist_search(self):
+    def test_180_certificate_certlist_search(self):
         """ test Certificate.certlist_search - dbstore.certificates_search() raises an exception  """
         self.certificate.dbstore.certificates_search.side_effect = Exception('exc_certlist_search')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
