@@ -23,6 +23,7 @@ class Certificate(object):
         self.retry_after = 600
         self.tnauthlist_support = False
         self.cert_reusage_timeframe = 0
+        self.enrollment_timeout = 5
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -149,6 +150,11 @@ class Certificate(object):
                     self.cert_reusage_timeframe = int(config_dic['Certificate']['cert_reusage_timeframe'])
                 except Exception as err_:
                     self.logger.error('acme2certifier Certificate._config_load() cert_reusage_timout parsing error: {0}'.format(err_))
+            if 'enrollment_timeout' in config_dic['Certificate']:
+                try:
+                    self.enrollment_timeout = int(config_dic['Certificate']['enrollment_timeout'])
+                except Exception as err_:
+                    self.logger.error('acme2certifier Certificate._config_load() enrollment_timeout parsing error: {0}'.format(err_))
 
         if 'Directory' in config_dic:
             if 'url_prefix' in config_dic['Directory']:
@@ -572,7 +578,7 @@ class Certificate(object):
         if csr_check_result:
             twrv = ThreadWithReturnValue(target=self._enroll_and_store, args=(certificate_name, csr, order_name))
             twrv.start()
-            enroll_result = twrv.join(timeout=5)
+            enroll_result = twrv.join(timeout=self.enrollment_timeout)
             if enroll_result:
                 try:
                     (result, error, detail) = enroll_result
