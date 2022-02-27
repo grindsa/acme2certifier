@@ -16,8 +16,8 @@
 | `CAhandler` | `handler_file` | path and name of ca_handler file to be loaded. If not specified `acme_srv/ca_handler.py` will be loaded | examples/ca_handler/openssl_hander.py | `acme_srv/ca_handler.py`|
 | `DBhandler` | `dbfile` | path and name of dabase file. If not specified `acme_srv/acme_srv.db` will be used. Parameter is only available for a wsgi handler and will be ignored if django handler is getting used | 'acme/databse.db' | `acme_srv/acme_srv.db`|
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
-| `Certificate` | `cert_reusage_timeframe ` | in case a csr will be resend within this timeframe (in seconds) the  certificate already stored in the database will be returned and no enrollment will be triggered| Integer |0|
-| `Certificate` | `enrollment_timeout ` | timeout in second for asynchronous ca_handler threat| Integer |5|
+| `Certificate` | `cert_reusage_timeframe` | in case a csr will be resend within this timeframe (in seconds) the  certificate already stored in the database will be returned and no enrollment will be triggered| Integer |0 (disabled)|
+| `Certificate` | `enrollment_timeout` | timeout in second for asynchronous ca_handler threat| Integer |5|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please enable for testing/debugging purposes only. | True/False | False|
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|
 | `Directory` | `supress_version` | Do not show version information when fetching the directory resource | True/False | False|
