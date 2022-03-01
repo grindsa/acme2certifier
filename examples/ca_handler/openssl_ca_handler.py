@@ -434,6 +434,28 @@ class CAhandler(object):
         self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
+    def _duplicates_clean(self, default_extension_list, csr_extension_list):
+        """ clean duplicate extensions """
+
+        extension_list = []
+        for csr_ext in csr_extension_list:
+            ext_in = False
+            csr_ext_name = csr_ext.get_short_name()
+
+            for def_ext in default_extension_list:
+                if csr_ext_name == def_ext.get_short_name():
+                    ext_in = True
+                    break
+
+            if not ext_in:
+                extension_list.append(csr_ext)
+
+
+        for def_ext in default_extension_list:
+            extension_list.append(def_ext)
+
+        return extension_list
+
     def enroll(self, csr):
         """ enroll certificate """
         # pylint: disable=R0914, R0915
@@ -478,7 +500,7 @@ class CAhandler(object):
                     cert.set_pubkey(req.get_pubkey())
                     cert.set_serial_number(uuid.uuid4().int)
                     cert.set_version(2)
-                    cert.add_extensions(req.get_extensions())
+                    # cert.add_extensions(req.get_extensions())
 
                     default_extension_list = [
                         crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
@@ -489,10 +511,14 @@ class CAhandler(object):
 
                     if cert_extension_dic:
                         try:
-                            cert.add_extensions(self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
+                            # remove duplicate extensions                            
+                            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
                         except Exception as err_:
                             self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
-                            cert.add_extensions(default_extension_list)
+                            # remove duplicate extensions
+                            extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+                        cert.add_extensions(extension_list)
+
                     else:
                         # add keyUsage if it does not exist in CSR
                         ku_is_in = False
@@ -502,8 +528,11 @@ class CAhandler(object):
                         if not ku_is_in:
                             default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
 
+                        # remove duplicate extensions
+                        extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+
                         # add default extensions
-                        cert.add_extensions(default_extension_list)
+                        cert.add_extensions(extension_list)
 
                     cert.sign(ca_key, 'sha256')
 
