@@ -52,6 +52,7 @@ class Challenge(object):
             challenge_dic[challenge['type']]['url'] = challenge['name']
             challenge_dic[challenge['type']]['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge['name'])
             challenge_dic[challenge['type']]['name'] = challenge['name']
+            challenge_dic[challenge['type']]['status'] = challenge['status__name']
 
         challenge_list = []
         for challenge in challenge_dic:
