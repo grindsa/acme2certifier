@@ -450,7 +450,6 @@ class CAhandler(object):
             if not ext_in:
                 extension_list.append(csr_ext)
 
-
         for def_ext in default_extension_list:
             extension_list.append(def_ext)
 
@@ -511,7 +510,7 @@ class CAhandler(object):
 
                     if cert_extension_dic:
                         try:
-                            # remove duplicate extensions                            
+                            # remove duplicate extensions
                             extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
                         except Exception as err_:
                             self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))

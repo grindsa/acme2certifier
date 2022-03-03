@@ -8,9 +8,18 @@ import unittest
 import configparser
 from unittest.mock import patch, mock_open, Mock
 from OpenSSL import crypto
+import hashlib
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
+
+def convert_string_to_byte(value):
+    """ convert a variable to byte if needed """
+    if hasattr(value, 'encode'):
+        result = value.encode()
+    else:
+        result = value
+    return result
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -768,7 +777,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_192__config_load(self, mock_load_cfg, mock_jl):
+    def test_093__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'blacklist': 'foo.json'}
@@ -781,7 +790,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_193__config_load(self, mock_load_cfg, mock_jl):
+    def test_094__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'whitelist': 'foo.json'}
@@ -794,7 +803,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_093__config_load(self, mock_load_cfg, mock_jl):
+    def test_095__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'allowed_domainlist': 'foo.json'}
@@ -805,7 +814,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('json.loads')
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_094__config_load(self, mock_load_cfg, mock_jl):
+    def test_096__config_load(self, mock_load_cfg, mock_jl):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'openssl_conf': 'openssl_conf'}
@@ -815,7 +824,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('openssl_conf', self.cahandler.openssl_conf)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_095__config_load(self, mock_load_cfg):
+    def test_097__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key': 'issuing_ca_key'}
@@ -824,7 +833,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('issuing_ca_key', self.cahandler.issuer_dict['issuing_ca_key'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_096__config_load(self, mock_load_cfg):
+    def test_098__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_cert': 'issuing_ca_cert'}
@@ -833,7 +842,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('issuing_ca_cert', self.cahandler.issuer_dict['issuing_ca_cert'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_097__config_load(self, mock_load_cfg):
+    def test_099__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase': 'issuing_ca_key_passphrase'}
@@ -842,7 +851,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(b'issuing_ca_key_passphrase', self.cahandler.issuer_dict['passphrase'])
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_098__config_load(self, mock_load_cfg):
+    def test_100__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cert_validity_days': 10}
@@ -851,7 +860,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.cert_validity_days )
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_099__config_load(self, mock_load_cfg):
+    def test_101__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cert_save_path': 'cert_save_path'}
@@ -860,7 +869,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('cert_save_path', self.cahandler.cert_save_path)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_100__config_load(self, mock_load_cfg):
+    def test_102__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'ca_cert_chain_list': '["root_ca"]'}
@@ -869,7 +878,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['root_ca'], self.cahandler.ca_cert_chain_list)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_101__config_load(self, mock_load_cfg):
+    def test_103__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'ca_cert_chain_list': '["root_ca", "sub_ca"]'}
@@ -878,7 +887,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['root_ca', 'sub_ca'], self.cahandler.ca_cert_chain_list)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_102__config_load(self, mock_load_cfg):
+    def test_104__config_load(self, mock_load_cfg):
         """ config load """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_crl': 'issuing_ca_crl'}
@@ -888,7 +897,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_103_config_load(self, mock_load_cfg):
+    def test_105_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'foo'}
@@ -898,7 +907,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_104_config_load(self, mock_load_cfg):
+    def test_106_config_load(self, mock_load_cfg):
         """ test _config_load - load template passpharese variable configured but does not exist """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'does_not_exist'}
@@ -909,7 +918,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_105_config_load(self, mock_load_cfg):
+    def test_107_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable  - overwritten bei cfg file"""
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'issuing_ca_key_passphrase_variable': 'foo', 'issuing_ca_key_passphrase': 'foo_file'}
@@ -920,7 +929,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable', lcm.output)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_106__config_load(self, mock_load_cfg):
+    def test_108__config_load(self, mock_load_cfg):
         """ config load no cn_enforce """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'foo': 'bar'}
@@ -929,7 +938,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cn_enforce)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_107__config_load(self, mock_load_cfg):
+    def test_109__config_load(self, mock_load_cfg):
         """ config load cn_enforce True """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cn_enforce': True}
@@ -938,7 +947,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler.cn_enforce)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_108__config_load(self, mock_load_cfg):
+    def test_110__config_load(self, mock_load_cfg):
         """ config load cn_enforce True """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cn_enforce': False}
@@ -947,7 +956,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cn_enforce)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_109__config_load(self, mock_load_cfg):
+    def test_111__config_load(self, mock_load_cfg):
         """ config load cn_enforce True """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'cn_enforce': 'bar'}
@@ -958,7 +967,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() variable cn_enforce cannot be parsed', lcm.output)
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_110___certificate_extensions_add(self, mock_ext):
+    def test_112___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo1': {'critical': False, 'value': 'bar'}}
         mock_ext.side_effect = ['foo1']
@@ -966,7 +975,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_add(cert_extension_dic, 'cert', 'ca_cert'))
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_111___certificate_extensions_add(self, mock_ext):
+    def test_113___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'subjectKeyIdentifier': {'critical': False, 'value': 'bar'}}
         mock_ext.side_effect = ['foo1']
@@ -976,7 +985,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): subjectKeyIdentifier', lcm.output)
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_112___certificate_extensions_add(self, mock_ext):
+    def test_114___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo': {'critical': False, 'value': 'bar', 'subject': True}}
         mock_ext.side_effect = ['foo1']
@@ -986,7 +995,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): subject', lcm.output)
 
     @patch('OpenSSL.crypto.X509Extension')
-    def test_113___certificate_extensions_add(self, mock_ext):
+    def test_115___certificate_extensions_add(self, mock_ext):
         """ extension list add """
         cert_extension_dic = {'foo': {'critical': False, 'value': 'bar', 'issuer': True}}
         mock_ext.side_effect = ['foo1']
@@ -996,7 +1005,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:_certificate_extensions_add(): issuer', lcm.output)
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_114___certificate_extensions_load(self, mock_load_cfg):
+    def test_116___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar'}}
@@ -1004,7 +1013,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_115___certificate_extensions_load(self, mock_load_cfg):
+    def test_117___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar, foobar'}}
@@ -1012,7 +1021,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_116___certificate_extensions_load(self, mock_load_cfg):
+    def test_118___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': 'bar', 'foo1': 'bar1'}}
@@ -1020,14 +1029,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_117___certificate_extensions_load(self, mock_load_cfg):
+    def test_119___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         mock_load_cfg.return_value = {'extensions': {'foo': 'critical, bar'}}
         result = {'foo': {'critical': True, 'value': 'bar'}}
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_118___certificate_extensions_load(self, mock_load_cfg):
+    def test_120___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, foobar'}}
@@ -1035,7 +1044,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_119___certificate_extensions_load(self, mock_load_cfg):
+    def test_121___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, issuer:'}}
@@ -1043,7 +1052,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
-    def test_120___certificate_extensions_load(self, mock_load_cfg):
+    def test_122___certificate_extensions_load(self, mock_load_cfg):
         """ extension list load - empty list """
         # mock_load_cfg.return_value = {'extensions': {'foo': 'critical, serverAuth'}}
         mock_load_cfg.return_value = {'extensions': {'foo': ' bar, subject:'}}
@@ -1051,14 +1060,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._certificate_extensions_load())
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_121_enroll(self, mock_chk):
+    def test_123_enroll(self, mock_chk):
         """ enroll test error returned from config_check"""
         mock_chk.return_value = 'error'
         self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_122_enroll(self, mock_cfgchk, mock_csrchk):
+    def test_124_enroll(self, mock_cfgchk, mock_csrchk):
         """ enroll test error returned from config_check"""
         mock_cfgchk.return_value = None
         mock_csrchk.return_value = (False, None)
@@ -1066,7 +1075,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_123_enroll(self, mock_cfgchk, mock_csrchk):
+    def test_125_enroll(self, mock_cfgchk, mock_csrchk):
         """ enroll test error returned from config_check"""
         mock_cfgchk.return_value = None
         mock_csrchk.side_effect = Exception('exc_csr_check')
@@ -1085,7 +1094,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_124_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_b2s, mock_pem, mock_b64e):
+    def test_126_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_b2s, mock_pem, mock_b64e):
         """ enroll test error cert_save_path is missing """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
@@ -1121,7 +1130,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_125_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_127_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
@@ -1157,7 +1166,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_126_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_ext_load,  mock_b2s, mock_pem, mock_b64e):
+    def test_128_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_ext_load,  mock_b2s, mock_pem, mock_b64e):
         """ enroll  with extensions from openssl.cnf """
         mock_ext_load.return_value = {'foo': 'bar'}
         mock_ext = Mock()
@@ -1194,7 +1203,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_127_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_129_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll enrollment without extenstions """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
@@ -1229,7 +1238,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_128_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_130_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll with enforce cn """
         self.cahandler.cn_enforce = True
         mock_ext = Mock()
@@ -1267,7 +1276,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
-    def test_129_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
+    def test_131_enroll(self, mock_cfgchk, mock_csrchk, mock_caload, mock_csrload, mock_x509, mock_ext, mock_dmp, mock_store, mock_b2s, mock_pem, mock_b64e):
         """ enroll enrollment without extenstions """
         mock_ext = Mock()
         mock_cfgchk.return_value = None
@@ -1291,6 +1300,96 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, 'pem', 'keyUsage', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_caload.called)
         self.assertTrue(mock_csrload.called)
+
+    def test_132_duplicates_clean(self):
+        """ duplicates_clean no extensions in csr """
+
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+        csr_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectAltName'), False, convert_string_to_byte('DNS:localhost'))
+        ]
+        self.assertEqual(b'subjectAltName', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].get_short_name())
+        self.assertEqual('DNS:localhost', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].__str__())
+        self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].get_short_name())
+        self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].__str__())
+        self.assertEqual(b'extendedKeyUsage', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
+        self.assertEqual('TLS Web Client Authentication, TLS Web Server Authentication', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
+
+    def test_133_duplicates_clean(self):
+        """ duplicates_clean no extensions in defaultextensions """
+
+        csr_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectAltName'), False, convert_string_to_byte('DNS:localhost')),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+        default_extension_list = []
+        self.assertEqual(b'subjectAltName', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].get_short_name())
+        self.assertEqual('DNS:localhost', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].__str__())
+        self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].get_short_name())
+        self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].__str__())
+        self.assertEqual(b'extendedKeyUsage', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
+        self.assertEqual('TLS Web Client Authentication, TLS Web Server Authentication', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
+
+    def test_134_duplicates_clean(self):
+        """ duplicates_clean no extensions default extension overrides cert extension """
+
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+        csr_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectAltName'), False, convert_string_to_byte('DNS:localhost')),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:TRUE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+        ]
+        self.assertEqual(b'subjectAltName', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].get_short_name())
+        self.assertEqual('DNS:localhost', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].__str__())
+        self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].get_short_name())
+        self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].__str__())
+        self.assertEqual(b'extendedKeyUsage', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
+        self.assertEqual('TLS Web Client Authentication, TLS Web Server Authentication', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
+
+    def test_135_duplicates_clean(self):
+        """ duplicates_clean no extensions default extension overrides cert extension """
+
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+        ]
+        csr_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectAltName'), False, convert_string_to_byte('DNS:localhost')),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:TRUE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+        self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].get_short_name())
+        self.assertEqual(b'subjectAltName', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].get_short_name())
+        self.assertEqual('DNS:localhost', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].__str__())
+        self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].__str__())
+        self.assertEqual(b'extendedKeyUsage', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
+        self.assertEqual('TLS Web Server Authentication', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
+
+    def test_136_duplicates_clean(self):
+        """ duplicates_clean no extensions default copy csr-extension to default_extensoion """
+
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+        ]
+        csr_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectAltName'), False, convert_string_to_byte('DNS:localhost')),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:TRUE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+        self.assertEqual(b'subjectAltName', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].get_short_name())
+        self.assertEqual('DNS:localhost', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[0].__str__())
+        self.assertEqual(b'extendedKeyUsage', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].get_short_name())
+        self.assertEqual('TLS Web Client Authentication, TLS Web Server Authentication', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[1].__str__())
+        self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
+        self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
+
 
 if __name__ == '__main__':
 
