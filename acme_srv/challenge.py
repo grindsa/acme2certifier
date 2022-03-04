@@ -52,6 +52,8 @@ class Challenge(object):
             challenge_dic[challenge['type']]['url'] = challenge['name']
             challenge_dic[challenge['type']]['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge['name'])
             challenge_dic[challenge['type']]['name'] = challenge['name']
+            if 'status__name' in challenge:
+                challenge_dic[challenge['type']]['status'] = challenge['status__name']
 
         challenge_list = []
         for challenge in challenge_dic:
@@ -196,6 +198,7 @@ class Challenge(object):
             challenge_dic['type'] = mtype
             challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge_name)
             challenge_dic['token'] = token
+            challenge_dic['status'] = 'pending'
             if mtype == 'tkauth-01':
                 challenge_dic['tkauth-type'] = 'atc'
         return challenge_dic
@@ -455,6 +458,7 @@ class Challenge(object):
                     self.logger.error('ERROR: Empty challenge returned for {0}'.format(challenge_type))
         else:
             challenge_list.append(self._new(authz_name, 'tkauth-01', token))
+
         self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
         return challenge_list
 

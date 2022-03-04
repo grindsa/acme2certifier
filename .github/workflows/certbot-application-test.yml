@@ -29,6 +29,11 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
@@ -114,6 +119,11 @@ jobs:
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -202,6 +212,11 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
@@ -288,6 +303,11 @@ jobs:
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
