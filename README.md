@@ -46,6 +46,7 @@ Following acme-clients are used for regular testing of server functionality
 - [acmeshell](https://github.com/cpu/acmeshell/)
 - [cert-manager](docs/cert-mgr.md)
 - [win-acme](https://www.win-acme.com/)
+- [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
 
 Other clients are on my list for later testing. In case you are bored, feel
 free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new)

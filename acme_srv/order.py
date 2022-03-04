@@ -192,6 +192,9 @@ class Order(object):
                             if not detail:
                                 # update order_status / set to valid
                                 self._update({'name': order_name, 'status': 'valid'})
+                        elif certificate_name == 'timeout':
+                            code = 200
+                            message = certificate_name
                         else:
                             message = certificate_name
                             detail = 'enrollment failed'
@@ -239,7 +242,7 @@ class Order(object):
                 # certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
-                    (error, detail) = certificate.enroll_and_store(certificate_name, csr)
+                    (error, detail) = certificate.enroll_and_store(certificate_name, csr, order_name)
                     if not error:
                         code = 200
                         message = certificate_name
