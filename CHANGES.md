@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.20
+
+**Features and Improvements**:
+
+- workflow using [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
+- asynchronous enrollment workflow using threading module
+- option to re-use certificates enrolled within a certain time window
+
+**Bugfixes**:
+
+- return challenge status when creating/polling Authorization resources
+- remove duplicated certificate extension in openssl_ca_handler.py
+- change challenge status to 'invalid' in case enrollment fails
+
 ## Changes in 0.19.3
 
 **Features and Improvements**:
