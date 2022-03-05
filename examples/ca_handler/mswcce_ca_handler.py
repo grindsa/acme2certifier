@@ -17,6 +17,7 @@ from acme_srv.helper import (
     convert_byte_to_string,
     convert_string_to_byte,
     proxy_check,
+    build_pem_file
 )
 
 
@@ -68,7 +69,7 @@ class CAhandler(object):
         )
 
         # recode csr
-        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + "\n"
+        csr = build_pem_file(self.logger, None, csr, 64, True)
 
         # TODO: currently getting certificate chain is not supported
         ca_pem = ""
@@ -102,51 +103,50 @@ class CAhandler(object):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
         config_dic = load_config(self.logger, "CAhandler")
-        if config_ca_handler := config_dic.get("CAhandler"):
 
-            def _get_config_from_env_or_config_file(name, optional=False):
-                result = None
-                if variable := config_ca_handler.get(f"{name}_variable"):
-                    try:
-                        result = os.environ[variable]
-                    except Exception as err:
-                        self.logger.error(
-                            "CAhandler._config_load() could not load host_variable:{0}".format(
-                                err
-                            )
-                        )
-                if config_host := config_ca_handler.get(name):
-                    if result:
-                        self.logger.info(f"CAhandler._config_load() overwrite {name}")
-                    result = config_host
-                if not optional and not result:
-                    self.logger.error(
-                        f'CAhandler._config_load() configuration incomplete: "{name}" parameter is missing in config file'
-                    )
-                return result
-
-            self.host = _get_config_from_env_or_config_file("host")
-            self.user = _get_config_from_env_or_config_file("user")
-            self.password = _get_config_from_env_or_config_file("password")
-            self.target_domain = _get_config_from_env_or_config_file("target_domain")
-            self.domain_controller = _get_config_from_env_or_config_file(
-                "domain_controller"
-            )
-            self.ca_name = _get_config_from_env_or_config_file("ca_name")
-            self.template = config_ca_handler.get("template", self.template)
-
-        if config_default := config_dic.get("DEFAULT"):
-            if config_proxy_server_list := config_default("proxy_server_list"):
+        if 'CAhandler' in config_dic:
+            if 'host_variable' in config_dic['CAhandler']:
                 try:
-                    proxy_list = json.loads(config_proxy_server_list)
-                    proxy_server = proxy_check(self.logger, self.host, proxy_list)
-                    self.proxy = {"http": proxy_server, "https": proxy_server}
-                except Exception as err_:
-                    self.logger.warning(
-                        "Challenge._config_load() proxy_server_list failed with error: {0}".format(
-                            err_
-                        )
-                    )
+                    self.host = os.environ[config_dic['CAhandler']['host_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
+            if 'host' in config_dic['CAhandler']:
+                if self.host:
+                    self.logger.info('CAhandler._config_load() overwrite host')
+                self.host = config_dic['CAhandler']['host']
+            if 'user_variable' in config_dic['CAhandler']:
+                try:
+                    self.user = os.environ[config_dic['CAhandler']['user_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+            if 'user' in config_dic['CAhandler']:
+                if self.user:
+                    self.logger.info('CAhandler._config_load() overwrite user')
+                self.user = config_dic['CAhandler']['user']
+            if 'password_variable' in config_dic['CAhandler']:
+                try:
+                    self.password = os.environ[config_dic['CAhandler']['password_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+            if 'password' in config_dic['CAhandler']:
+                if self.password:
+                    self.logger.info('CAhandler._config_load() overwrite password')
+                self.password = config_dic['CAhandler']['password']
+            if 'target_domain' in config_dic['CAhandler']:
+                self.target_domain = config_dic['CAhandler']['target_domain']
+            if 'domain_controller' in config_dic['CAhandler']:
+                self.domain_controller = config_dic['CAhandler']['domain_controller']
+            if 'ca_name' in config_dic['CAhandler']:
+                self.ca_name = config_dic['CAhandler']['ca_name']
+            if 'template' in config_dic['CAhandler']:
+                self.template = config_dic['CAhandler']['template']
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
+            try:
+                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_server = proxy_check(self.logger, self.host, proxy_list)
+                self.proxy = {'http': proxy_server, 'https': proxy_server}
+            except Exception as err_:
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug("CAhandler._config_load() ended")
 
