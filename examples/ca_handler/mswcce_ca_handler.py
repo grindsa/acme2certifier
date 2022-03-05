@@ -34,6 +34,7 @@ class CAhandler(object):
         self.target_domain = None
         self.domain_controller = None
         self.ca_name = None
+        self.ca_bundle = False
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -43,61 +44,6 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """close the connection at the end of the context"""
-
-    def enroll(self, csr):
-        """enroll certificate via MS-WCCE"""
-        self.logger.debug("CAhandler.enroll({0})".format(self.template))
-        cert_bundle = None
-        error = None
-        cert_raw = None
-
-        if not (self.host and self.user and self.password and self.template):
-            self.logger.error("Config incomplete")
-            return ("Config incomplete", None, None, None)
-
-        target = Target(
-            domain=self.target_domain,
-            username=self.user,
-            password=self.password,
-            remote_name=self.host,
-            dc_ip=self.domain_controller,
-        )
-        request = Request(
-            target=target,
-            ca=self.ca_name,
-            template=self.template,
-        )
-
-        # recode csr
-        csr = build_pem_file(self.logger, None, csr, 64, True)
-
-        # TODO: currently getting certificate chain is not supported
-        ca_pem = ""
-
-        try:
-            # request certificate
-            cert_raw = convert_byte_to_string(
-                request.get_cert(convert_string_to_byte(csr))
-            )
-            # replace crlf with lf
-            cert_raw = cert_raw.replace("\r\n", "\n")
-        except Exception as err_:
-            cert_raw = None
-            self.logger.error(
-                "ca_server.get_cert() failed with error: {0}".format(err_)
-            )
-
-        if cert_raw:
-            cert_bundle = cert_raw + ca_pem
-            cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("\n", "")
-        else:
-            self.logger.error("cert bundling failed")
-            error = "cert bundling failed"
-
-        self.logger.debug("Certificate.enroll() ended")
-        return (error, cert_bundle, cert_raw, None)
 
     def _config_load(self):
         """ " load config from file"""
@@ -138,6 +84,8 @@ class CAhandler(object):
                 self.domain_controller = config_dic['CAhandler']['domain_controller']
             if 'ca_name' in config_dic['CAhandler']:
                 self.ca_name = config_dic['CAhandler']['ca_name']
+            if 'ca_bundle' in config_dic['CAhandler']:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
             if 'template' in config_dic['CAhandler']:
                 self.template = config_dic['CAhandler']['template']
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
@@ -146,9 +94,78 @@ class CAhandler(object):
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug("CAhandler._config_load() ended")
+
+    def _file_load(self, bundle):
+        """ load file """
+        file_ = None
+        try:
+            with open(bundle, 'r') as fso:
+                file_ = fso.read()
+        except IOError:
+            self.logger.error('CAhandler._file_load(): could not load {0}'.format(bundle))
+        return file_
+
+    def enroll(self, csr):
+        """enroll certificate via MS-WCCE"""
+        self.logger.debug("CAhandler.enroll({0})".format(self.template))
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        if not (self.host and self.user and self.password and self.template):
+            self.logger.error("Config incomplete")
+            return ("Config incomplete", None, None, None)
+
+        target = Target(
+            domain=self.target_domain,
+            username=self.user,
+            password=self.password,
+            remote_name=self.host,
+            dc_ip=self.domain_controller,
+        )
+        request = Request(
+            target=target,
+            ca=self.ca_name,
+            template=self.template,
+        )
+
+        # recode csr
+        csr = build_pem_file(self.logger, None, csr, 64, True)
+
+        # TODO: currently getting certificate chain is not supported
+        ca_pem = self._file_load(self.ca_bundle)
+
+        try:
+            # request certificate
+            cert_raw = convert_byte_to_string(
+                request.get_cert(convert_string_to_byte(csr))
+            )
+            # replace crlf with lf
+            cert_raw = cert_raw.replace("\r\n", "\n")
+        except Exception as err_:
+            cert_raw = None
+            self.logger.error(
+                "ca_server.get_cert() failed with error: {0}".format(err_)
+            )
+
+        if cert_raw:
+            if ca_pem:
+                cert_bundle = cert_raw + ca_pem
+            else:
+                cert_bundle = cert_raw
+                
+            cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+            cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+            cert_raw = cert_raw.replace("\n", "")
+        else:
+            self.logger.error("cert bundling failed")
+            error = "cert bundling failed"
+
+        self.logger.debug("Certificate.enroll() ended")
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """poll status of pending CSR and download certificates"""
