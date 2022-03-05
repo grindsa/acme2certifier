@@ -3,17 +3,16 @@
 """ CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) """
 from __future__ import print_function
 import os
-import textwrap
 import json
 
-# pylint: disable=E0401, E0611
+# pylint: disable=E0401, E0611, C0209
 from examples.ca_handler.ms_wcce.target import Target
 from examples.ca_handler.ms_wcce.request import Request
 
 # pylint: disable=E0401
 from acme_srv.helper import (
     load_config,
-    b64_url_recode,
+    # b64_url_recode,
     convert_byte_to_string,
     convert_string_to_byte,
     proxy_check,
@@ -56,10 +55,12 @@ class CAhandler(object):
                     self.host = os.environ[config_dic['CAhandler']['host_variable']]
                 except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
+
             if 'host' in config_dic['CAhandler']:
                 if self.host:
                     self.logger.info('CAhandler._config_load() overwrite host')
                 self.host = config_dic['CAhandler']['host']
+
             if 'user_variable' in config_dic['CAhandler']:
                 try:
                     self.user = os.environ[config_dic['CAhandler']['user_variable']]
@@ -102,7 +103,7 @@ class CAhandler(object):
         """ load file """
         file_ = None
         try:
-            with open(bundle, 'r') as fso:
+            with open(bundle, 'r', encoding='utf-8') as fso:
                 file_ = fso.read()
         except IOError:
             self.logger.error('CAhandler._file_load(): could not load {0}'.format(bundle))
@@ -156,7 +157,7 @@ class CAhandler(object):
                 cert_bundle = cert_raw + ca_pem
             else:
                 cert_bundle = cert_raw
-                
+
             cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")
