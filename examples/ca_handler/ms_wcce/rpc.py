@@ -19,6 +19,8 @@ def get_dce_rpc_from_string_binding(
     if remote_name is None:
         remote_name = target.remote_name
 
+    target.do_kerberos = False
+
     rpctransport = transport.DCERPCTransportFactory(string_binding)
 
     rpctransport.setRemoteHost(target_ip)
