@@ -12,7 +12,6 @@ from examples.ca_handler.ms_wcce.request import Request
 # pylint: disable=E0401
 from acme_srv.helper import (
     load_config,
-    # b64_url_recode,
     convert_byte_to_string,
     convert_string_to_byte,
     proxy_check,
@@ -55,7 +54,6 @@ class CAhandler(object):
                     self.host = os.environ[config_dic['CAhandler']['host_variable']]
                 except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
-
             if 'host' in config_dic['CAhandler']:
                 if self.host:
                     self.logger.info('CAhandler._config_load() overwrite host')
@@ -70,6 +68,7 @@ class CAhandler(object):
                 if self.user:
                     self.logger.info('CAhandler._config_load() overwrite user')
                 self.user = config_dic['CAhandler']['user']
+
             if 'password_variable' in config_dic['CAhandler']:
                 try:
                     self.password = os.environ[config_dic['CAhandler']['password_variable']]
@@ -79,6 +78,7 @@ class CAhandler(object):
                 if self.password:
                     self.logger.info('CAhandler._config_load() overwrite password')
                 self.password = config_dic['CAhandler']['password']
+
             if 'target_domain' in config_dic['CAhandler']:
                 self.target_domain = config_dic['CAhandler']['target_domain']
             if 'domain_controller' in config_dic['CAhandler']:
@@ -89,6 +89,7 @@ class CAhandler(object):
                 self.ca_bundle = config_dic['CAhandler']['ca_bundle']
             if 'template' in config_dic['CAhandler']:
                 self.template = config_dic['CAhandler']['template']
+
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
                 proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
@@ -105,8 +106,8 @@ class CAhandler(object):
         try:
             with open(bundle, 'r', encoding='utf-8') as fso:
                 file_ = fso.read()
-        except IOError:
-            self.logger.error('CAhandler._file_load(): could not load {0}'.format(bundle))
+        except Exception as err_:
+            self.logger.error('CAhandler._file_load(): could not load {0}. Error: {1}'.format(bundle, err_))
         return file_
 
     def enroll(self, csr):
@@ -148,9 +149,7 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("\r\n", "\n")
         except Exception as err_:
             cert_raw = None
-            self.logger.error(
-                "ca_server.get_cert() failed with error: {0}".format(err_)
-            )
+            self.logger.error("ca_server.get_cert() failed with error: {0}".format(err_))
 
         if cert_raw:
             if ca_pem:

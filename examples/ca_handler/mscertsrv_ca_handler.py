@@ -203,7 +203,7 @@ class CAhandler(object):
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('CAhandler._config_load() ended')
 
