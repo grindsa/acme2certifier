@@ -403,56 +403,64 @@ class TestACMEHandler(unittest.TestCase):
         """ test trigger """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    def test_028_enroll(self):
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    def test_028_enroll(self, mock_rcr):
         """ test enrollment - unconfigured """
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
 
-    def test_029_enroll(self):
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    def test_029_enroll(self, mock_rcr):
         """ test enrollment - host unconfigured """
         self.cahandler.host = None
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
 
-    def test_30_enroll(self):
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    def test_30_enroll(self, mock_rcr):
         """ test enrollment - user unconfigured """
         self.cahandler.host = 'host'
         self.cahandler.user = None
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
 
-    def test_031_enroll(self):
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    def test_031_enroll(self, mock_rcr):
         """ test enrollment - password unconfigured """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = None
         self.cahandler.template = 'template'
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
 
-    def test_032_enroll(self):
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    def test_032_enroll(self, mock_rcr):
         """ test enrollment - template unconfigured """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = None
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.Request')
-    @patch('examples.ca_handler.mswcce_ca_handler.Target')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_033_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_target, mock_request):
+    def test_033_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """ test enrollment - ca_server.get_cert() triggers exception """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
-        mock_target.return_value = True
-        mock_request = Mock(return_value='raw_data')
+        mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.side_effect = Exception('ex_b2s')
@@ -460,66 +468,71 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('cert bundling failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:ca_server.get_cert() failed with error: ex_b2s', lcm.output)
         self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
+        self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.Request')
-    @patch('examples.ca_handler.mswcce_ca_handler.Target')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_034_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_target, mock_request):
+    def test_034_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """ test enrollment - no certificate returned by ca_server.get_cert() """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
-        mock_target.return_value = True
-        mock_request = Mock(return_value='raw_data')
+        mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('cert bundling failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
+        self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.Request')
-    @patch('examples.ca_handler.mswcce_ca_handler.Target')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_035_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_target, mock_request):
+    def test_035_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """ test enrollment - certificate and bundling successful """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
-        mock_target.return_value = True
-        mock_request = Mock(return_value='raw_data')
+        mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = 'b2s'
         self.assertEqual((None, 'b2sfile_load', 'b2s', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.Request')
-    @patch('examples.ca_handler.mswcce_ca_handler.Target')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_036_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_target, mock_request):
+    def test_036_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
-        mock_target.return_value = True
-        mock_request = Mock(return_value='raw_data')
+        mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n'
         self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\nfile_load', 'b2s_replacement', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_rcr.called)
 
+    @patch('examples.ca_handler.mswcce_ca_handler.Request')
+    @patch('examples.ca_handler.mswcce_ca_handler.Target')
+    def test_037_request_create(self, mock_target, mock_request):
+        """ test request create """
+        mock_target.return_value = True
+        mock_request.return_value ='foo'
+        self.assertEqual('foo', self.cahandler.request_create())
 
 if __name__ == '__main__':
 
