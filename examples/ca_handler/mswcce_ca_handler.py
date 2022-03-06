@@ -110,16 +110,9 @@ class CAhandler(object):
             self.logger.error('CAhandler._file_load(): could not load {0}. Error: {1}'.format(bundle, err_))
         return file_
 
-    def enroll(self, csr):
-        """enroll certificate via MS-WCCE"""
-        self.logger.debug("CAhandler.enroll({0})".format(self.template))
-        cert_bundle = None
-        error = None
-        cert_raw = None
-
-        if not (self.host and self.user and self.password and self.template):
-            self.logger.error("Config incomplete")
-            return ("Config incomplete", None, None, None)
+    def request_create(self):
+        """create request object """
+        self.logger.debug('CAhandler.request_create()')
 
         target = Target(
             domain=self.target_domain,
@@ -133,6 +126,23 @@ class CAhandler(object):
             ca=self.ca_name,
             template=self.template,
         )
+
+        self.logger.debug('CAhandler.request_create() ended')
+        return request
+
+    def enroll(self, csr):
+        """enroll certificate via MS-WCCE"""
+        self.logger.debug("CAhandler.enroll({0})".format(self.template))
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        if not (self.host and self.user and self.password and self.template):
+            self.logger.error("Config incomplete")
+            return ("Config incomplete", None, None, None)
+
+        # create request
+        request = self.request_create()
 
         # recode csr
         csr = build_pem_file(self.logger, None, csr, 64, True)
