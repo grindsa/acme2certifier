@@ -12,10 +12,6 @@ jobs:
   eab_apache2_wsgi:
     name: "eab_apache2_wsgi"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        keylength: [2048]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v2
@@ -53,6 +49,18 @@ jobs:
       run: |
         mkdir certbot
 
+    - name: "[ FAIL ] certbot without eab-credentials"
+      id: certbotfail
+      continue-on-error: true
+      run: |
+         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ CHECK ] certbot result "
+      if: steps.certbotfail.outcome != 'failure'
+      run: |
+        echo "certbot outcome is ${{steps.certbotfail.outcome }}"
+        exit 1
+
     - name: "[ REGISTER] certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
@@ -66,6 +74,18 @@ jobs:
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
+    - name: "[ FAIL] acme.sh"
+      id: acmeshfail
+      continue-on-error: true
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ CHECK ] acme.sh result "
+      if: steps.acmeshfail.outcome != 'failure'
+      run: |
+        echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
+        exit 1
+
     - name: "[ REGISTER] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
@@ -75,9 +95,21 @@ jobs:
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ ENROLL ] lego"
+    - name: "[ FAIL ] lego"
+      id: legofail
+      continue-on-error: true      
       run: |
         mkdir lego
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+
+    - name: "[ CHECK ] lego result "
+      if: steps.legofail.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail.outcome }}"
+        exit 1
+
+    - name: "[ ENROLL ] lego"
+      run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
