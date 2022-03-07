@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209
 """ certificate class """
 from __future__ import print_function
 import json
@@ -112,7 +113,7 @@ class Certificate(object):
             for certificate in sorted(result_dic, key=lambda i: i['issue_uts'], reverse=True):
                 try:
                     uts_create = date_to_uts_utc(certificate['created_at'])
-                except Exception as err_:
+                except Exception as _err:
                     self.logger.error('acme2certifier date_to_uts_utc() error in Certificate._cert_reusage_check(): id:{0}/created_at:{1}'.format(certificate['id'], certificate['created_at']))
                     uts_create = 0
 
@@ -242,8 +243,7 @@ class Certificate(object):
                 try:
                     result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts, poll_identifier)
                     if result:
-                        data_dic = {'name': order_name, 'status': 'valid'}
-                        self._order_update(data_dic)
+                        self._order_update({'name': order_name, 'status': 'valid'})
                 except Exception as err_:
                     result = None
                     self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
@@ -252,6 +252,9 @@ class Certificate(object):
                 self.logger.error('acme2certifier enrollment error: {0}'.format(error))
                 # store error message for later analysis
                 try:
+                    if not poll_identifier:
+                        self.logger.debug('Certificate._enroll_and_store(): invalidating order as there is no certificate and no poll_identifier: {0}/{1}'.format(error, order_name))
+                        self._order_update({'name': order_name, 'status': 'invalid'})
                     self._store_cert_error(certificate_name, error, poll_identifier)
                 except Exception as err_:
                     result = None
