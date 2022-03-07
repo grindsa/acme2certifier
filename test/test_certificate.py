@@ -844,7 +844,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, 'urn:ietf:params:acme:error:serverInternal', None), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:acme2certifier enrollment error: error', lcm.output)
         self.assertFalse(mock_chk.called)
-        self.assertFalse(mock_oupd.called)
+        self.assertTrue(mock_oupd.called)
         self.assertTrue(mock_store_err.called)
         self.assertFalse(mock_store.called)
         self.assertTrue(self.certificate.cahandler.enroll.called)
@@ -854,7 +854,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.certificate.Certificate._store_cert')
     @patch('acme_srv.certificate.Certificate._store_cert_error')
     def test_104_certificate_enroll_and_store(self, mock_store_err, mock_store, mock_oupd, mock_chk):
-        """ Certificate.enroll_and_store() enrollment failed with polling_identifier"""
+        """ Certificate.enroll_and_store() enrollment failed with polling_identifier - no order update """
         mock_store_err.return_value = True
         mock_store.return_value = True
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -1702,7 +1702,6 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._order_update({'url': 'url'})
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._order_update(): exc_order_upd', lcm.output)
-
 
     def test_180_certificate_certlist_search(self):
         """ test Certificate.certlist_search - dbstore.certificates_search() raises an exception  """
