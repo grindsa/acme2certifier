@@ -319,7 +319,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('json.loads')
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_030_config_load(self, mock_load_cfg, mock_json, mock_chk):
-        """ test _config_load ca_handler configured load proxies """
+        """ test _config_load ca_handler configured load proxies failed with exception in json.load """
         mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
         mock_json.side_effect = Exception('exc_load_config')
         mock_chk.side = 'proxy.bar.local'
@@ -328,7 +328,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_json.called)
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy )
-        self.assertIn('WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: exc_load_config', lcm.output)
+        self.assertIn('WARNING:test_a2c:CAhandler._config_load() proxy_server_list failed with error: exc_load_config', lcm.output)
 
     def test_031_revoke(self):
         """ test revocation """
