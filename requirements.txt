@@ -11,3 +11,4 @@ requests
 pysocks
 josepy
 acme
+impacket
