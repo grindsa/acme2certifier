@@ -1,4 +1,4 @@
-name: ACME CAhandler Tests
+name: CA handler tests - ACME
 
 on:
   push:
