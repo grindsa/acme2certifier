@@ -1,4 +1,4 @@
-name: CA Handler tests - MSWCCE 
+name: CA handler tests - MSWCCE 
 
 on:
   push:
