@@ -9,7 +9,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
-- [CA handler](doc/mswcce.md) using Microsoft Windows Client Certificate Enrollment Protocol
+- [CA handler](docs/mswcce.md) using Microsoft Windows Client Certificate Enrollment Protocol
 - asynchronous enrollment workflow using threading module
 - option to re-use certificates enrolled within a certain time window
 - workflow using [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
