@@ -1,4 +1,4 @@
-name: CA handler tests - MSWCCE 
+name: CA handler tests - Microsoft CA
 
 on:
   push:
@@ -30,6 +30,11 @@ jobs:
         docker network create acme
         docker-compose up -d
         docker-compose logs
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir certbot
+        mkdir lego
 
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -67,6 +72,7 @@ jobs:
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
+        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ PREPARE ] ssh environment on ramdisk "
@@ -98,10 +104,97 @@ jobs:
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem certbot/live/certbot/cert.pem
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: wcce.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  wes_handler_tests:
+    name: "wes_handler_tests"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
     - name: "[ PREPARE ] create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup a2c with mscertsrv_ca_handler"
+      run: |
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $WES_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: $WES_AUTHMETHOD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+
+    - name: "Test http://acme-srv/directory is accessable again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        sudo mkdir acme-sh
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ REGISTER] certbot"
       run: |
@@ -114,7 +207,7 @@ jobs:
 
     - name: "[ ENROLL ] lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -123,13 +216,15 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: wcce.tar.gz
+        name: wse.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
