@@ -70,20 +70,39 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
         # openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    #- name: "[ REGISTER] certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    #- name: "[ ENROLL ] HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-    #    sudo openssl verify -CAfile-CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-    #    sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+    - name: "[ PREPARE ] reconfigure nclm handler"
+      run: |
+        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo rm -rf lego/*
+      env:
+        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
+        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
+        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
+
+    - name: "[ PREPARE ] restart a2c"
+      working-directory: examples/Docker/
+      run: |
+        docker-compose restart
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile lego/certificates/lego.acme.issuer.crt lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

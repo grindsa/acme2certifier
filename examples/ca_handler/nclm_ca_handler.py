@@ -21,6 +21,7 @@ class CAhandler(object):
         self.credential_dic = {'api_user': None, 'api_password': None}
         self.tsg_info_dic = {'name': None, 'id': None}
         self.template_info_dic = {'name': None, 'id': None}
+        self.request_delta_treshold = 300
         self.headers = None
         self.ca_name = None
         self.error = None
@@ -121,30 +122,47 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_bundle_build() ended')
         return(error, cert_bundle, cert_raw)
 
+    def _cert_list_fetch(self, url):
+        """ fetch certificate list and consider pagination """
+        self.logger.debug('CAhandler._cert_list_fetch({0})'.format(url))
+
+        cert_list = []
+        while(url):
+            _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            if 'certificates' in _tmp_cert_list:
+                cert_list.extend(_tmp_cert_list['certificates'])
+                if 'next' in _tmp_cert_list and _tmp_cert_list['next']:
+                    url = self.api_host + _tmp_cert_list['next']
+                else:
+                    url = None
+
+        self.logger.debug('CAhandler._cert_list_fetch() ended with {0} entries'.format(len(cert_list)))
+        return cert_list
+
     def _cert_id_lookup(self, csr_cn, san_list=None):
         """ lookup cert id based on CN """
         self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
 
+        # get certificates
         try:
-            # get certificates
             if csr_cn:
-                cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                url = self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
             else:
-                cert_list = requests.get(self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                url = self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
+            cert_list = self._cert_list_fetch(url)
         except Exception as err_:
             self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
             cert_list = []
 
         cert_id = None
-        if 'certificates' in cert_list:
-            for cert in cert_list['certificates']:
+        if cert_list:
+            for cert in sorted(cert_list, key=lambda i: i['certificateId'], reverse=True):
                 # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
                 if san_list and 'subjectAltName' in cert:
                     result = self._san_compare(san_list, cert['subjectAltName'])
                     if result and 'certificateId' in cert:
                         cert_id = cert['certificateId']
                         break
-                # print(cert['certificateId'], cert['sortedSubjectName'], cert['subjectAltName'], cert['sortedIssuerSubjectName'])
         else:
             self.logger.error('_cert_id_lookup(): no certificates found for {0}'.format(csr_cn))
 
@@ -218,6 +236,11 @@ class CAhandler(object):
                 self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
             if 'template_name' in config_dic['CAhandler']:
                 self.template_info_dic['name'] = config_dic['CAhandler']['template_name']
+            if 'request_delta_treshold' in config_dic['CAhandler']:
+                try:
+                    self.request_delta_treshold = int(config_dic['CAhandler']['request_delta_treshold'])
+                except Exception:
+                    self.logger.error('CAhandler._config_load() could not load request_delta_treshold:{0}'.format(config_dic['CAhandler']['request_delta_treshold']))
 
             # check if we get a ca bundle for verification
             if 'ca_bundle' in config_dic['CAhandler']:
@@ -239,21 +262,42 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _csr_id_lookup(self, csr_cn, csr_san_list):
+    def _lastrequests_get(self, csr_cn):
+        """ last requests get """
+        self.logger.debug('CAhandler._lastrequests_get()')
+
+        req_all = []
+        if not csr_cn:
+            # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
+            try:
+                result = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                if 'requests' in result:
+                    req_all = result['requests']
+            except Exception as err_:
+                self.logger.error('CAhandler._lastrequests_get() returned error: {0}'.format(str(err_)))
+
+        self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
+        return req_all
+
+    def _csr_id_lookup(self, csr_cn, csr_san_list, csr=None):
         """ lookup CSR based on CN """
         self.logger.debug('CAhandler._csr_id_lookup()')
 
         uts_n = uts_now()
 
         # get unused requests from NCLM
-        request_list = self._unusedrequests_get()
+        unused_request_list = self._unusedrequests_get()
+
+        # get last 50 requests
+        last_request_list = self._lastrequests_get(csr_cn)
+
         req_id = None
         # check every CSR
-        for req in request_list:
+        for req in sorted(unused_request_list, key=lambda i: i['requestID'], reverse=True):
             req_cn = None
             # check the import date and consider only csr which are less then 5min old
             csr_uts = date_to_uts_utc(req['addedAt'][:25], '%Y-%m-%dT%H:%M:%S.%f')
-            if uts_n - csr_uts < 300:
+            if uts_n - csr_uts < self.request_delta_treshold:
                 if 'subjectName' in req:
                     # split the subject and filter CN
                     subject_list = req['subjectName'].split(',')
@@ -262,24 +306,16 @@ class CAhandler(object):
                         if field.startswith('CN='):
                             req_cn = field.lower().replace('cn=', '')
                             break
-                # compare csr cn with request cn
+
                 if csr_cn:
                     if req_cn == csr_cn.lower() and 'requestID' in req:
                         req_id = req['requestID']
                         break
-                elif not req_cn:
-                    # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
-                    try:
-                        req_all = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-                    except Exception as err_:
-                        self.logger.error('CAhandler._csr_id_lookup() returned error: {0}'.format(str(err_)))
-                        req_all = []
-
-                    for _req in reversed(req_all):
+                else:
+                    for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
                         if 'pkcs10' in _req:
-                            req_san_list = csr_san_get(self.logger, _req['pkcs10'])
-                            if sorted(csr_san_list) == sorted(req_san_list) and 'requestID' in _req:
-                                req_id = _req['requestID']
+                            if _req['pkcs10'] == csr:
+                                req_id = _req['requestId']
                                 break
         self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
@@ -421,7 +457,7 @@ class CAhandler(object):
                 # import csr to NCLM
                 self._request_import(csr)
                 # lookup csr id
-                csr_id = self._csr_id_lookup(csr_cn, csr_san_list)
+                csr_id = self._csr_id_lookup(csr_cn, csr_san_list, csr)
 
                 if ca_id and csr_id and self.tsg_info_dic['id']:
                     data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
