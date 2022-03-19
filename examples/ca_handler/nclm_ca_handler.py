@@ -128,13 +128,20 @@ class CAhandler(object):
 
         cert_list = []
         while(url):
-            _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            try:
+                _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            except Exception as err_:
+                self.logger.error('CAhandler._cert_list_fetch() returned error: {0}'.format(str(err_)))
+                _tmp_cert_list = []
+
             if 'certificates' in _tmp_cert_list:
                 cert_list.extend(_tmp_cert_list['certificates'])
                 if 'next' in _tmp_cert_list and _tmp_cert_list['next']:
                     url = self.api_host + _tmp_cert_list['next']
                 else:
                     url = None
+            else:
+                url = None
 
         self.logger.debug('CAhandler._cert_list_fetch() ended with {0} entries'.format(len(cert_list)))
         return cert_list
@@ -156,13 +163,16 @@ class CAhandler(object):
 
         cert_id = None
         if cert_list:
-            for cert in sorted(cert_list, key=lambda i: i['certificateId'], reverse=True):
-                # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
-                if san_list and 'subjectAltName' in cert:
-                    result = self._san_compare(san_list, cert['subjectAltName'])
-                    if result and 'certificateId' in cert:
-                        cert_id = cert['certificateId']
-                        break
+            try:
+                for cert in sorted(cert_list, key=lambda i: i['certificateId'], reverse=True):
+                    # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
+                    if san_list and 'subjectAltName' in cert:
+                        result = self._san_compare(san_list, cert['subjectAltName'])
+                        if result and 'certificateId' in cert:
+                            cert_id = cert['certificateId']
+                            break
+            except Exception as err_:
+                self.logger.error('_cert_id_lookup(): response incomplete: {0}'.format(err_))
         else:
             self.logger.error('_cert_id_lookup(): no certificates found for {0}'.format(csr_cn))
 
@@ -262,19 +272,20 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _lastrequests_get(self, csr_cn):
+    def _lastrequests_get(self):
         """ last requests get """
         self.logger.debug('CAhandler._lastrequests_get()')
 
         req_all = []
-        if not csr_cn:
-            # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
-            try:
-                result = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
-                if 'requests' in result:
-                    req_all = result['requests']
-            except Exception as err_:
-                self.logger.error('CAhandler._lastrequests_get() returned error: {0}'.format(str(err_)))
+        # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
+        try:
+            result = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            if 'requests' in result:
+                req_all = result['requests']
+            else:
+                self.logger.error('_lastrequests_get(): response incomplete:')
+        except Exception as err_:
+            self.logger.error('CAhandler._lastrequests_get() returned error: {0}'.format(str(err_)))
 
         self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
         return req_all
@@ -289,34 +300,41 @@ class CAhandler(object):
         unused_request_list = self._unusedrequests_get()
 
         # get last 50 requests
-        last_request_list = self._lastrequests_get(csr_cn)
+        if not csr_cn:
+            last_request_list = self._lastrequests_get()
+        else:
+            last_request_list = []
 
         req_id = None
-        # check every CSR
-        for req in sorted(unused_request_list, key=lambda i: i['requestID'], reverse=True):
-            req_cn = None
-            # check the import date and consider only csr which are less then 5min old
-            csr_uts = date_to_uts_utc(req['addedAt'][:25], '%Y-%m-%dT%H:%M:%S.%f')
-            if uts_n - csr_uts < self.request_delta_treshold:
-                if 'subjectName' in req:
-                    # split the subject and filter CN
-                    subject_list = req['subjectName'].split(',')
-                    for field in subject_list:
-                        field = field.strip()
-                        if field.startswith('CN='):
-                            req_cn = field.lower().replace('cn=', '')
-                            break
-
-                if csr_cn:
-                    if req_cn == csr_cn.lower() and 'requestID' in req:
-                        req_id = req['requestID']
-                        break
-                else:
-                    for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
-                        if 'pkcs10' in _req:
-                            if _req['pkcs10'] == csr:
-                                req_id = _req['requestId']
+        try:
+            # check every CSR
+            for req in sorted(unused_request_list, key=lambda i: i['requestID'], reverse=True):
+                req_cn = None
+                # check the import date and consider only csr which are less then 5min old
+                csr_uts = date_to_uts_utc(req['addedAt'][:25], '%Y-%m-%dT%H:%M:%S.%f')
+                if uts_n - csr_uts < self.request_delta_treshold:
+                    if 'subjectName' in req:
+                        # split the subject and filter CN
+                        subject_list = req['subjectName'].split(',')
+                        for field in subject_list:
+                            field = field.strip()
+                            if field.startswith('CN='):
+                                req_cn = field.lower().replace('cn=', '')
                                 break
+
+                    if csr_cn:
+                        if req_cn == csr_cn.lower() and 'requestID' in req:
+                            req_id = req['requestID']
+                            break
+                    else:
+                        for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
+                            if 'pkcs10' in _req:
+                                if _req['pkcs10'] == csr:
+                                    req_id = _req['requestId']
+                                    break
+        except Exception as err_:
+            self.logger.error('_csr_id_lookup(): response incomplete: {0}'.format(err_))
+
         self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
         return req_id
 
