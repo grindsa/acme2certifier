@@ -4,7 +4,9 @@
 
 This should be the fastest and most convenient way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 20.04 container using either apache2 or nginx as webserver.
 
-Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. In this docker-compose those files are attached to data/ folder.
+Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. By default those files are attached to data/ folder and will get mounted inside the container to `/var/www/acme2certifier/volume`. The data folder path can be adjusted in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to fit your setup.
+
+By default acme2certifier will run on ports 22280 (http) and 22443 (https optional). These two ports must be exported as ports 80 and 443 to make the a2c-services accessible from outside.
 
 `.env` contains options to switch between master or devel branch, choose between wsgi or django and to select the webserver (apache2 or nginx)
 
@@ -118,3 +120,13 @@ ca certificate(s) data
 ## TLS support when using nginx
 
 To enable TLS-support in nginx please place two files `acme2certifier_cert.pem` and `acme2certifier_key.pem` on the volume. `acme2certifier_cert.pem` must contain the certificate to be used while `acme2certifier_key.pem` must contain the corresponding private key. Certificate and key must be stored in pem format.
+
+## Run acme2certifier without using docker-compose
+
+The below command will run an a2c container and
+
+- map internal port 22280 to outside port 80
+- map internal port 22443 to outside port 443
+- mount the directory `/home/grindsa/docker/a2c/data` into the container to store database and configuration files
+
+`user@docker-host:~/acme2certifier/examples/Docker$ docker run -d -p 80:22280 -p 443:22443 --rm --name=a2c-srv -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi`
