@@ -2,7 +2,7 @@
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
-from django.http import JsonResponse
+from acme_srv.a2c_response import JsonResponse
 from acme_srv.authorization import Authorization
 from acme_srv.account import Account
 from acme_srv.certificate import Certificate
