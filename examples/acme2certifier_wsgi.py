@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=E0401, R1705
+# pylint: disable=E0401, R1705, C0209
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -63,13 +63,21 @@ def create_header(response_dic, add_json_header=True):
     """ create header """
     # generate header and nonce
     if add_json_header:
-        headers = [('Content-Type', 'application/json')]
+        if 'code' in response_dic:
+            if response_dic['code'] in (200, 201):
+                headers = [('Content-Type', 'application/json')]
+            else:
+                headers = [('Content-Type', 'application/problem+json')]
+        else:
+            headers = [('Content-Type', 'application/json')]
     else:
         headers = []
 
     # enrich header
-    for element, value in response_dic['header'].items():
-        headers.append((element, value))
+    if 'header' in response_dic:
+        for element, value in response_dic['header'].items():
+            headers.append((element, value))
+
     return headers
 
 
@@ -79,7 +87,10 @@ def get_request_body(environ):
         request_body_size = int(environ.get('CONTENT_LENGTH', 0))
     except ValueError:
         request_body_size = 0
-    request_body = environ['wsgi.input'].read(request_body_size)
+    if 'wsgi.input' in environ:
+        request_body = environ['wsgi.input'].read(request_body_size)
+    else:
+        request_body = None
     return request_body
 
 
@@ -164,7 +175,8 @@ def newaccount(environ, start_response):
 def directory(environ, start_response):
     """ directory listing """
     with Directory(DEBUG, get_url(environ), LOGGER) as direct_tory:
-        start_response('200 OK', [('Content-Type', 'application/json')])
+        headers = create_header({'code': 200})
+        start_response('200 OK', headers)
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
         return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
