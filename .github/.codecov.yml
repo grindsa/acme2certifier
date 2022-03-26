@@ -5,6 +5,7 @@ ignore:
   - "examples/eab_handler/skeleton_eab_handler.py"
   - "docs/__init__.py"
   - "acme_srv/monkey_patches.py"
-  - "acme_srv/threadwithreturnvalue.py"  
+  - "acme_srv/threadwithreturnvalue.py"
+  - 'tools/mswcce_connection_test.py'
   - "setup.py"
   - "test"
