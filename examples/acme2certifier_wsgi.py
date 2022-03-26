@@ -34,8 +34,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-    # LOGGER.error("Uncaught exception")
+    # LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    LOGGER.error("Uncaught exception")
 
 
 # initialize logger
@@ -123,7 +123,7 @@ def acmechallenge_serve(environ, start_response):
 
 def authz(environ, start_response):
     """ authorization handling """
-    if environ['REQUEST_METHOD'] == 'POST' or environ['REQUEST_METHOD'] == 'GET':
+    if 'REQUEST_METHOD' in environ and environ['REQUEST_METHOD'] in ('POST', 'GET'):
         with Authorization(DEBUG, get_url(environ), LOGGER) as authorization:
             if environ['REQUEST_METHOD'] == 'POST':
                 try:
@@ -135,12 +135,8 @@ def authz(environ, start_response):
             else:
                 response_dic = authorization.new_get(get_url(environ, True))
 
-            # generate header and nonce
-            headers = [('Content-Type', 'application/json')]
-            # enrich header
-            if 'header' in response_dic:
-                for element, value in response_dic['header'].items():
-                    headers.append((element, value))
+            # create header
+            headers = create_header(response_dic)
             start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
             # logging
@@ -264,6 +260,7 @@ def newnonce(environ, start_response):
 
 def neworders(environ, start_response):
     """ generate a new order """
+    print(environ)
     if environ['REQUEST_METHOD'] == 'POST':
         with Order(DEBUG, get_url(environ), LOGGER) as norder:
             request_body = get_request_body(environ)
