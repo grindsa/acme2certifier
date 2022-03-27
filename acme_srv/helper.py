@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ helper functions for acme2certifier """
+# pylint: disable=C0209
 from __future__ import print_function
 import re
 import base64
@@ -71,12 +72,7 @@ def b64_url_recode(logger, string):
     padding_factor = (4 - len(string) % 4) % 4
     string = convert_byte_to_string(string)
     string += "=" * padding_factor
-    # differ between py2 and py3
-    # pylint: disable=E0602
-    if sys.version_info[0] >= 3:
-        result = str(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
-    else:
-        result = unicode(string).translate(dict(zip(map(ord, u'-_'), u'+/')))
+    result = str(string).translate(dict(zip(map(ord, '-_'), '+/')))
     return result
 
 
@@ -739,9 +735,9 @@ def allowed_gai_family():
     return family
 
 
-def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
+def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, timeout=20):
     """ http get """
-    logger.debug('url_get({0})'.format(url))
+    logger.debug('url_get({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
 
     # configure proxy servers if specified
     if proxy_server:
@@ -752,7 +748,7 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
         result = url_get_with_own_dns(logger, url, verify)
     else:
         try:
-            req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
+            req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
             result = req.text
         except Exception as err_:
             logger.debug('url_get({0}): error'.format(err_))
@@ -761,7 +757,7 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True):
             old_gai_family = urllib3_cn.allowed_gai_family
             try:
                 urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
+                req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
                 result = req.text
             except Exception as err_:
                 result = None

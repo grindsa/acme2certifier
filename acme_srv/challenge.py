@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Challenge class """
+# pylint: disable=C0209
 from __future__ import print_function
 import json
 from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check
@@ -20,6 +21,7 @@ class Challenge(object):
         self.path_dic = {'chall_path': '/acme/chall/', 'authz_path': '/acme/authz/'}
         self.expiry = expiry
         self.challenge_validation_disable = False
+        self.challenge_validation_timeout = 10
         self.tnauthlist_support = False
         self.dns_server_list = None
         self.proxy_server_list = {}
@@ -56,8 +58,8 @@ class Challenge(object):
                 challenge_dic[challenge['type']]['status'] = challenge['status__name']
 
         challenge_list = []
-        for challenge in challenge_dic:
-            challenge_list.append(challenge_dic[challenge])
+        for challenge, challenge_items in challenge_dic.items():
+            challenge_list.append(challenge_items)
 
         self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
         return challenge_list
@@ -147,6 +149,11 @@ class Challenge(object):
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
                 except Exception as err_:
                     self.logger.warning('Challenge._config_load() dns_server_list failed with error: {0}'.format(err_))
+            if 'challenge_validation_timeout' in config_dic['Challenge']:
+                try:
+                    self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
+                except Exception as err_:
+                    self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: {0}'.format(err_))
 
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
@@ -343,7 +350,7 @@ class Challenge(object):
                 proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
             else:
                 proxy_server = None
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False)
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False, timeout=self.challenge_validation_timeout)
             if req:
                 response_got = req.splitlines()[0]
                 response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
