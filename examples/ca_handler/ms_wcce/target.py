@@ -81,8 +81,8 @@ class DnsResolver:
                 raise Exception()
 
             ip_addr = answers[0].to_text()
-        except Exception:
-            pass
+        except Exception as err_:
+            logging.debug('Error resolving s% : %s' % (repr(hostname), err_))
 
         if ip_addr is None:
             try:
