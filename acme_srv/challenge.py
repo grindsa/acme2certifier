@@ -7,7 +7,7 @@ import json
 from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-
+from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
 class Challenge(object):
     """ Challenge handler """
@@ -242,6 +242,8 @@ class Challenge(object):
     def _validate(self, challenge_name, payload):
         """ validate challenge"""
         self.logger.debug('Challenge._validate({0}: {1})'.format(challenge_name, payload))
+        # change state to processing
+        self._update({'name': challenge_name, 'status': 'processing'})
         if self.challenge_validation_disable:
             self.logger.debug('CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid')
             challenge_check = True
@@ -491,13 +493,19 @@ class Challenge(object):
                         if code == 200:
                             # start validation
                             if 'status' in challenge_dic:
-                                if challenge_dic['status'] != 'valid':
-                                    _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
+                                if challenge_dic['status'] not in ('valid', 'processing'):
+                                    twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
+                                    twrv.start()
+                                    _validation = twrv.join(timeout=1)
+                                    # _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
                                     # query challenge again (bcs. it could get updated by self._validate)
                                     challenge_dic = self._info(challenge_name)
                             else:
                                 # rather unlikely that we run in this situation but you never know
-                                _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
+                                twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
+                                twrv.start()
+                                _validation = twrv.join(timeout=1)
+                                # _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
                                 # query challenge again (bcs. it could get updated by self._validate)
                                 challenge_dic = self._info(challenge_name)
 
