@@ -116,7 +116,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        name: acme_sh_apache2_wsgi-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   acme_sh_apache2_django:
@@ -233,7 +233,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        name: acme_sh_apache2_django-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   acme_sh_nginx_wsgi:
@@ -349,7 +349,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        name: acme_sh_nginx_wsgi-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   acme_sh_nginx_django:
@@ -467,5 +467,5 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: acme.sh_acc-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
+        name: acme_sh_nginx_django-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
