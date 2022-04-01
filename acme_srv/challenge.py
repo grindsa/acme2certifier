@@ -82,18 +82,22 @@ class Challenge(object):
 
             if pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-                if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                    (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                    (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
-                    (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                    (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
-                else:
-                    self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
-                    result = False
-                    invalid = True
+                for ele in range(0, 5):
+                    if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
+                        (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+                        (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
+                        (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                    elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
+                        (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+                    else:
+                        self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
+                        result = False
+                        invalid = True
+                    if result or invalid:
+                        # break loop if we got any good or bad response
+                        break
             else:
                 result = False
                 invalid = False
