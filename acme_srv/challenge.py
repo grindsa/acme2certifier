@@ -9,6 +9,7 @@ from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
+
 class Challenge(object):
     """ Challenge handler """
 
@@ -92,7 +93,7 @@ class Challenge(object):
                     elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
                         (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
                     else:
-                        self.logger.debug('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
+                        self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                         result = False
                         invalid = True
                     if result or invalid:
