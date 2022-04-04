@@ -120,6 +120,9 @@ class CAhandler(object):
             self.logger.warning('CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)')
             self.openssl_bin = '/usr/bin/openssl'
 
+        if not self.recipient:
+            self.logger.error('CAhandler config error: "cmp_recipient" is missing in config_file.')
+
         self.logger.debug('CAhandler._config_load() ended')
 
     def _opensslcmd_build(self):
@@ -166,7 +169,7 @@ class CAhandler(object):
         error = None
         cert_raw = None
 
-        if self.openssl_bin and csr:
+        if self.openssl_bin:
 
             # prepare the CSR to be signed
             csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
@@ -188,6 +191,9 @@ class CAhandler(object):
 
             # delete temporary files
             self._tmp_dir_delete()
+
+        else:
+            error = 'Config incomplete'
 
         self.logger.debug('Certificate.enroll() ended with error: {0}'.format(error))
         return(error, cert_bundle, cert_raw, None)
