@@ -3,10 +3,9 @@
 """ Challenge class """
 from __future__ import print_function
 import json
-import importlib
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode, load_config, ca_handler_get
+from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode, load_config, ca_handler_load
 
 
 class Trigger(object):
@@ -56,23 +55,8 @@ class Trigger(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
-        if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
-            try:
-                ca_handler_module = importlib.import_module(ca_handler_get(self.logger, config_dic['CAhandler']['handler_file']))
-            except Exception as err_:
-                self.logger.critical('Certificate._config_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
-                try:
-                    ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-                except Exception as err_:
-                    ca_handler_module = None
-                    self.logger.critical('Certificate._config_load(): loading default CAhandler failed with err: {0}'.format(err_))
-        else:
-            if 'CAhandler' in config_dic:
-                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-            else:
-                self.logger.error('Trigger._config_load(): CAhandler configuration missing in config file')
-                ca_handler_module = None
 
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
         if ca_handler_module:
             # store handler in variable
             try:

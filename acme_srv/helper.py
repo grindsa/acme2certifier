@@ -101,16 +101,6 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
     return pem_file
 
 
-def ca_handler_get(logger, ca_handler_name):
-    """ turn handler-filename into a python path """
-    logger.debug('Certificate._ca_handler_get({0})'.format(ca_handler_name))
-    ca_handler_name = ca_handler_name.rstrip('.py')
-    ca_handler_name = ca_handler_name.replace('/', '.')
-    ca_handler_name = ca_handler_name.replace('\\', '.')
-    logger.debug('Certificate._ca_handler_get() ended with: {0}'.format(ca_handler_name))
-    return ca_handler_name
-
-
 def ca_handler_load(logger, config_dic):
     """ load and return ca_handler """
     logger.debug('Helper.ca_handler_load()')
