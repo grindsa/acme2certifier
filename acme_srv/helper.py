@@ -163,6 +163,29 @@ def eab_handler_load(logger, config_dic):
     return eab_handler_module
 
 
+def hooks_load(logger, config_dic):
+    """ load and return hooks """
+    logger.debug('Helper.hooks_load()')
+
+    hooks_module = None
+    if 'Hooks' in config_dic and 'hooks_file' in config_dic['Hooks']:
+        # try to load hooks from file
+        try:
+            spec = importlib.util.spec_from_file_location('Hooks', config_dic['Hooks']['hooks_file'])
+            hooks_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(hooks_module)
+        except Exception as err_:
+            logger.critical('Helper.hooks_load(): loading Hooks configured in cfg failed with err: {0}'.format(err_))
+
+    if hooks_module is None:
+        try:
+            hooks_module = importlib.import_module('acme_srv.hooks')
+        except Exception as err_:
+            logger.critical('Helper.hooks_load(): loading default Hooks failed with err: {0}'.format(err_))
+
+    return hooks_module
+
+
 def cert_dates_get(logger, certificate):
     """ get serial number form certificate """
     logger.debug('cert_dates_get()')
