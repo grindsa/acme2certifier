@@ -68,14 +68,14 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    #- name: "[ REGISTER] certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    - name: "[ REGISTER ] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    #- name: "[ ENROLL ] HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-    #    sudo openssl verify -CAfile-CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
     - name: "[ ENROLL ] lego"
       run: |
