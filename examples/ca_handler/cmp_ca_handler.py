@@ -143,6 +143,11 @@ class CAhandler(object):
         if '-total_timeout' not in cmd_list:
             cmd_list.extend(['-total_timeout', '10'])
 
+        if self.secret and self.ref:
+            cmd_list.extend(['-ref', self.ref])
+        if self.secret and self.ref:
+            cmd_list.extend(['-secret', self.secret])
+
         self.logger.debug('CAhandler._opensslcmd_build() ended with: {0}'.format(' '.join(cmd_list)))
         return cmd_list
 
