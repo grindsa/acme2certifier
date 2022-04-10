@@ -115,6 +115,7 @@ commands.txt
 *.db
 acme_srv/*.pem
 acme_srv/cmp/*.pem
+acme_srv/cmp2/*.pem
 acme_srv/cmp/tmp/*.pem
 acme_srv/est-myca/*.pem
 acme_srv/est/*.pem
