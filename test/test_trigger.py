@@ -277,7 +277,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.trigger._config_load()
-        self.assertIn('ERROR:test_a2c:Trigger._config_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('acme_srv.trigger.Trigger._config_load')
     def test_023__enter__(self, mock_cfg):
@@ -295,7 +295,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.trigger._config_load()
         self.assertFalse(self.trigger.tnauthlist_support)
-        self.assertIn('ERROR:test_a2c:Trigger._config_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('acme_srv.trigger.load_config')
     def test_025_config_load(self, mock_load_cfg):
@@ -305,7 +305,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.trigger._config_load()
-        self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler configured in cfg failed with err: No module named 'foo'", lcm.output)
+        self.assertIn("CRITICAL:test_a2c:Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: 'NoneType' object has no attribute 'loader'", lcm.output)
 
     @patch('importlib.import_module')
     @patch('acme_srv.trigger.load_config')
