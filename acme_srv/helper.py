@@ -105,29 +105,26 @@ def ca_handler_load(logger, config_dic):
     """ load and return ca_handler """
     logger.debug('Helper.ca_handler_load()')
 
-    if 'CAhandler' in config_dic and 'handler_file' in config_dic['CAhandler']:
+    if 'CAhandler' not in config_dic:
+        logger.error('Helper.ca_handler_load(): CAhandler configuration missing in config file')
+        return None
+
+    if 'handler_file' in config_dic['CAhandler']:
         # try to load handler from file
         try:
             spec = importlib.util.spec_from_file_location('CAhandler', config_dic['CAhandler']['handler_file'])
             ca_handler_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(ca_handler_module)
+            return ca_handler_module
         except Exception as err_:
             logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
-            try:
-                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-            except Exception as err_:
-                ca_handler_module = None
-                logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
-    else:
-        if 'CAhandler' in config_dic:
-            try:
-                ca_handler_module = importlib.import_module('acme_srv.ca_handler')
-            except Exception as err_:
-                logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
-                ca_handler_module = None
-        else:
-            logger.error('Helper.ca_handler_load(): CAhandler configuration missing in config file')
-            ca_handler_module = None
+
+    # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
+    try:
+        ca_handler_module = importlib.import_module('acme_srv.ca_handler')
+    except Exception as err_:
+        logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
+        ca_handler_module = None
 
     return ca_handler_module
 
