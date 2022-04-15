@@ -4,7 +4,7 @@
 """ certificate class """
 from __future__ import print_function
 import json
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -19,6 +19,7 @@ class Certificate(object):
         self.logger = logger
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
+        self.hooks = None
         self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path': '/acme/cert/'}
         self.retry_after = 600
@@ -145,6 +146,14 @@ class Certificate(object):
         else:
             self.logger.critical('Certificate._config_load(): No ca_handler loaded')
 
+        # load hooks according to configuration
+        hooks_module = hooks_load(self.logger, config_dic)
+        if hooks_module:
+            # store handler in variable
+            self.hooks = hooks_module.Hooks(self.logger)
+        else:
+            self.logger.critical('Certificate._config_load(): Hooks could not be loaded')
+
         if 'Certificate' in config_dic:
             if 'cert_reusage_timeframe' in config_dic['Certificate']:
                 try:
@@ -225,6 +234,14 @@ class Certificate(object):
         detail = None
         error = None
 
+        try:
+            self.hooks.pre_hook(certificate_name, order_name, csr)
+            self.logger.debug('Certificate._enroll_and_store: pre_hook successful')
+        except Exception as e:
+            error = 'exception in pre_hook: {}'.format(e)
+            self.logger.error('Certificate._enroll_and_store: {}'.format(error))
+            return (None, 'pre_hook_error', error)
+
         with self.cahandler(self.debug, self.logger) as ca_handler:
             if self.cert_reusage_timeframe:
                 (error, certificate, certificate_raw, poll_identifier) = self._cert_reusage_check(csr)
@@ -244,6 +261,14 @@ class Certificate(object):
                     result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts, poll_identifier)
                     if result:
                         self._order_update({'name': order_name, 'status': 'valid'})
+                    try:
+                        self.hooks.success_hook(certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier)
+                        self.logger.debug('Certificate._enroll_and_store: success_hook successful')
+                    except Exception as e:
+                        error = 'exception in success_hook: {}'.format(e)
+                        self.logger.error('Certificate._enroll_and_store: {}'.format(error))
+                        return (None, 'success_hook_error', error)
+
                 except Exception as err_:
                     result = None
                     self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
@@ -265,6 +290,12 @@ class Certificate(object):
                     detail = poll_identifier
                 else:
                     error = 'urn:ietf:params:acme:error:serverInternal'
+
+        try:
+            self.hooks.post_hook(certificate_name, order_name, csr, error)
+            self.logger.debug('Certificate._enroll_and_store: post_hook successful')
+        except Exception as e:
+            self.logger.error('Certificate._enroll_and_store: exception in post_hook: {}'.format(e))
 
         self.logger.debug('Certificate._enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error, detail)

@@ -34,6 +34,8 @@ class TestACMEHandler(unittest.TestCase):
         from acme_srv.certificate import Certificate
         self.account = Account(False, 'http://tester.local', self.logger)
         self.certificate = Certificate(False, 'http://tester.local', self.logger)
+        hooks_module = importlib.import_module('acme_srv.hooks')
+        self.certificate.hooks = hooks_module.Hooks(self.logger)
 
     @patch('acme_srv.certificate.generate_random_string')
     def test_001_certificate_store_csr(self, mock_name):
