@@ -2,7 +2,9 @@
 # pylint: disable=c0209, e5110, w0613
 """ hook class for testing """
 import json
-from acme_srv.helper import b64_url_recode, load_config, uts_now, uts_to_date_utc, cert_serial_get, cert_san_get, csr_san_get, build_pem_file
+# pylint: disable=E0401
+from acme_srv.helper import load_config, cert_san_get, csr_san_get
+
 
 class Hooks:
     """ this handler dumps csr/cn common-names into text files """
@@ -39,16 +41,16 @@ class Hooks:
         """ run before obtaining any certificates """
         self.logger.debug('Hook.pre_hook()')
         san_list = csr_san_get(self.logger, csr)
-        self._file_append('{0}/pre_hook.txt'.format(self.save_path), json.dumps(san_list)+'\n')
+        self._file_append('{0}/pre_hook.txt'.format(self.save_path), json.dumps(san_list) + '\n')
 
     def post_hook(self, certificate_name, order_name, csr, error):
         """ run after *attempting* to obtain/renew certificates """
         self.logger.debug('Hook.post_hook()')
         san_list = csr_san_get(self.logger, csr)
-        self._file_append('{0}/post_hook.txt'.format(self.save_path), json.dumps(san_list)+'\n')
+        self._file_append('{0}/post_hook.txt'.format(self.save_path), json.dumps(san_list) + '\n')
 
     def success_hook(self, certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier):
         """ run after each successfully certificate enrollment/renewal """
         self.logger.debug('Hook.success_hook()')
         san_list = cert_san_get(self.logger, certificate_raw)
-        self._file_append('{0}/success_hook.txt'.format(self.save_path), json.dumps(san_list)+'\n')
+        self._file_append('{0}/success_hook.txt'.format(self.save_path), json.dumps(san_list) + '\n')
