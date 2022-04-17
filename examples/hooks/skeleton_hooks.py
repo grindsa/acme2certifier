@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=c0209, e5110, w0613
+""" example hook class """
+
+
 class Hooks:
     """
     This class provides three different methods:
@@ -15,30 +20,14 @@ class Hooks:
     def __init__(self, logger) -> None:
         self.logger = logger
 
-    def pre_hook(
-        self,
-        certificate_name,
-        order_name,
-        csr,
-    ):
-        pass
+    def pre_hook(self, certificate_name, order_name, csr):
+        """ run before obtaining any certificates """
+        self.logger.debug('Hook.pre_hook()')
 
-    def post_hook(
-        self,
-        certificate_name,
-        order_name,
-        csr,
-        error,
-    ):
-        pass
+    def post_hook(self, certificate_name, order_name, csr, error):
+        """ run after *attempting* to obtain/renew certificates """
+        self.logger.debug('Hook.post_hook()')
 
-    def success_hook(
-        self,
-        certificate_name,
-        order_name,
-        csr,
-        certificate,
-        certificate_raw,
-        poll_identifier,
-    ):
-        pass
+    def success_hook(self, certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier):
+        """ run after each successfully certificate enrollment/renewal """
+        self.logger.debug('Hook.success_hook()')
