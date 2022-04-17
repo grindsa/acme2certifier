@@ -33,6 +33,7 @@ COPY examples/django/ /var/www/acme2certifier/
 COPY examples/django/ /var/www/acme2certifier/examples/django
 COPY examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 COPY examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
+COPY examples/hooks/ /var/www/acme2certifier/examples/hooks
 COPY examples/acme_srv.cfg /var/www/acme2certifier/examples/
 COPY examples/nginx/ /var/www/acme2certifier/examples/nginx
 COPY acme_srv/ /var/www/acme2certifier/acme_srv
