@@ -149,10 +149,11 @@ class Certificate(object):
         # load hooks according to configuration
         hooks_module = hooks_load(self.logger, config_dic)
         if hooks_module:
-            # store handler in variable
-            self.hooks = hooks_module.Hooks(self.logger)
-        else:
-            self.logger.critical('Certificate._config_load(): Hooks could not be loaded')
+            try:
+                # store handler in variable
+                self.hooks = hooks_module.Hooks(self.logger)
+            except Exception as err:
+                self.logger.critical('Certificate._config_load(): Hooks could not be loaded: {0}'.format(err))
 
         if 'Certificate' in config_dic:
             if 'cert_reusage_timeframe' in config_dic['Certificate']:
