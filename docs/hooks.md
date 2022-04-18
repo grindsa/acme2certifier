@@ -43,6 +43,7 @@ class Hooks(object):
         """ run after each successfully certificate enrollment/renewal """
         self.logger.debug('Hook.success_hook()')
 ```
+
 - self.logger - reference to a logging object
 - certificate - certificate in `application/pem-certificate-chain` format
 - certificate_name - name of the certificate ressource in acme2certifier
