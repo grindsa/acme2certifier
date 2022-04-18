@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.21
+
+**Features and Improvements**:
+
+- support of enrollment [hooks](docs/hooks.md)
+- `challenge_validation_timeout` parameter in [acme_srv.cfg](docs/acme_srv.md)
+- cmpv2_ca_handler using the inbuilt cmp feature from openssl 3.0
+- Github action to test certificate enrollment using CMPv2 protocol
+- Github action to test certificate enrollment from [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
+
+**Bugfixes**:
+
+- RFC compliant content-type in error responses
+
 ## Changes in 0.20
 
 **Features and Improvements**:

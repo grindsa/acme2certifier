@@ -18,13 +18,14 @@
 | `Certificate` | `cert_reusage_timeframe` | in case a csr will be resend within this timeframe (in seconds) the  certificate already stored in the database will be returned and no enrollment will be triggered| Integer |0 (disabled)|
 | `Certificate` | `enrollment_timeout` | timeout in second for asynchronous ca_handler threat| Integer |5|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please enable for testing/debugging purposes only. | True/False | False|
+| `Challenge` | `challenge_validation_timeout` | Timeout in seconds for challenge validation | Integer | 10 |
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|
 | `DBhandler` | `dbfile` | path and name of database file. If not specified `acme_srv/acme_srv.db` will be used. Parameter is only available for a wsgi handler and will be ignored if django handler is getting used | 'acme/database.db' | `acme_srv/acme_srv.db`|
 | `Directory` | `supress_version` | Do not show version information when fetching the directory resource | True/False | False|
 | `Directory` | `tos_url` | Terms of Service URL | URL | None|
 | `Directory` | `url_prefix` | url prefix for acme2certifier resources | '/foo' | None|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
-| `Hooks` | `hooks_file` | path and name of hooks (for pre- and post-enrollment hooks) file to be loaded; if not specified, `acme_srv/hooks.py` will be loaded |  | `acme_srv/hooks.py`|
+| `Hooks` | `hooks_file` | path and name of hooks (for pre- and post-enrollment hooks) file to be loaded |  None |
 | `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURITY ISSUE bypassing security checks and allowing message manipulations during transit. Please enable for testing/debugging purposes only. | True/False | False|
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURITY ISSUE as it exposes the API for replay attacks! Should be enabled for testing/debugging purposes only. | True/False | False|
 | `Order` | `expiry_check_disable` | Disable order expiration  | True/False | False|
