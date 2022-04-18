@@ -16,9 +16,9 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v2
 
-    - name: "[ PREPARE ] patch docker file to ubuntu 22.04"
-      run: |
-        sudo sed -i "s/FROM ubuntu:20.04/FROM ubuntu:22.04/g" examples/Docker/apache2/wsgi/Dockerfile
+    #- name: "[ PREPARE ] patch docker file to ubuntu 22.04"
+    #  run: |
+    #    sudo sed -i "s/FROM ubuntu:20.04/FROM ubuntu:22.04/g" examples/Docker/apache2/wsgi/Dockerfile
 
     - name: "[ PREPARE ] get runner ip"
       run: |
