@@ -26,6 +26,9 @@
 | `Directory` | `url_prefix` | url prefix for acme2certifier resources | '/foo' | None|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
 | `Hooks` | `hooks_file` | path and name of hooks (for pre- and post-enrollment hooks) file to be loaded |  None |
+| `Hooks` | `ignore_pre_hook_failure` | True/False | False |
+| `Hooks` | `ignore_post_hook_failure` | True/False | True |
+| `Hooks` | `ignore_success_hook_failure` | True/False | False |
 | `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURITY ISSUE bypassing security checks and allowing message manipulations during transit. Please enable for testing/debugging purposes only. | True/False | False|
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURITY ISSUE as it exposes the API for replay attacks! Should be enabled for testing/debugging purposes only. | True/False | False|
 | `Order` | `expiry_check_disable` | Disable order expiration  | True/False | False|
