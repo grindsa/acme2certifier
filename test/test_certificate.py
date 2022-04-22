@@ -1142,7 +1142,7 @@ class TestACMEHandler(unittest.TestCase):
         certificate_name = 'cert_name'
         csr = 'csr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual((None, 'pre_hook_error', None), self.certificate._enroll_and_store(certificate_name, csr))
+            self.assertEqual((None, 'pre_hook_error', 'ex_pre_hook'), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:Certificate._enroll_and_store(): pre_hook exception: ex_pre_hook', lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertFalse(mock_dates.called)
@@ -1175,7 +1175,7 @@ class TestACMEHandler(unittest.TestCase):
         certificate_name = 'cert_name'
         csr = 'csr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual((None, 'success_hook_error', None), self.certificate._enroll_and_store(certificate_name, csr))
+            self.assertEqual((None, 'success_hook_error', 'ex_success_hook'), self.certificate._enroll_and_store(certificate_name, csr))
         self.assertIn('ERROR:test_a2c:Certificate._enroll_and_store: success_hook exception: ex_success_hook', lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
@@ -1209,7 +1209,7 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((True, None, None), self.certificate._enroll_and_store(certificate_name, csr))
-        self.assertIn('ERROR:test_a2c:Certificate._enroll_and_store(): post_hook exception: ex_post_hook', lcm.output)            
+        self.assertIn('ERROR:test_a2c:Certificate._enroll_and_store(): post_hook exception: ex_post_hook', lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
         self.assertTrue(mock_store.called)
