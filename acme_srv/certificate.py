@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, r0915
+# pylint: disable=c0209, e5110, r0902, r0912, r0915
 """ certificate class """
 from __future__ import print_function
 import json
@@ -161,7 +161,6 @@ class Certificate(object):
             self.ignore_pre_hook_failure = config_dic.getboolean('Hooks', 'ignore_pre_hook_failure', fallback=False)
             self.ignore_post_hook_failure = config_dic.getboolean('Hooks', 'ignore_post_hook_failure', fallback=True)
             self.ignore_success_hook_failure = config_dic.getboolean('Hooks', 'ignore_success_hook_failure', fallback=False)
-
 
         if 'Certificate' in config_dic:
             if 'cert_reusage_timeframe' in config_dic['Certificate']:
