@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, r0915
+# pylint: disable=c0209, e5110, r0902, r0912, r0915
 """ certificate class """
 from __future__ import print_function
 import json
@@ -20,6 +20,9 @@ class Certificate(object):
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
         self.hooks = None
+        self.ignore_pre_hook_failure = False
+        self.ignore_post_hook_failure = True
+        self.ignore_success_hook_failure = False
         self.message = Message(self.debug, self.server_name, self.logger)
         self.path_dic = {'cert_path': '/acme/cert/'}
         self.retry_after = 600
@@ -155,6 +158,10 @@ class Certificate(object):
             except Exception as err:
                 self.logger.critical('Certificate._config_load(): Hooks could not be loaded: {0}'.format(err))
 
+            self.ignore_pre_hook_failure = config_dic.getboolean('Hooks', 'ignore_pre_hook_failure', fallback=False)
+            self.ignore_post_hook_failure = config_dic.getboolean('Hooks', 'ignore_post_hook_failure', fallback=True)
+            self.ignore_success_hook_failure = config_dic.getboolean('Hooks', 'ignore_success_hook_failure', fallback=False)
+
         if 'Certificate' in config_dic:
             if 'cert_reusage_timeframe' in config_dic['Certificate']:
                 try:
@@ -241,7 +248,8 @@ class Certificate(object):
                 self.logger.debug('Certificate._enroll_and_store(): pre_hook successful')
             except Exception as err:
                 self.logger.error('Certificate._enroll_and_store(): pre_hook exception: {0}'.format(err))
-                return (None, 'pre_hook_error', error)
+                if not self.ignore_pre_hook_failure:
+                    return (None, 'pre_hook_error', str(err))
 
         with self.cahandler(self.debug, self.logger) as ca_handler:
             if self.cert_reusage_timeframe:
@@ -268,7 +276,8 @@ class Certificate(object):
                             self.logger.debug('Certificate._enroll_and_store: success_hook successful')
                         except Exception as err:
                             self.logger.error('Certificate._enroll_and_store: success_hook exception: {0}'.format(err))
-                            return (None, 'success_hook_error', error)
+                            if not self.ignore_success_hook_failure:
+                                return (None, 'success_hook_error', str(err))
 
                 except Exception as err_:
                     result = None
@@ -298,6 +307,8 @@ class Certificate(object):
                 self.logger.debug('Certificate._enroll_and_store(): post_hook successful')
             except Exception as err:
                 self.logger.error('Certificate._enroll_and_store(): post_hook exception: {0}'.format(err))
+                if not self.ignore_post_hook_failure:
+                    return (None, 'post_hook_error', str(err))
 
         self.logger.debug('Certificate._enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error, detail)
