@@ -153,5 +153,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cli_print.called)
         self.assertTrue(mock_help_print.called)
 
+    @patch('tools.a2c_cli.is_url')
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    def test_013_server_set(self, mock_cli_print, mock_is_url):
+        """ test _server_set all good """
+        command = 'server foo'
+        mock_is_url.return_value = True
+        self.a2ccli._server_set(command)
+        self.assertEqual(self.a2ccli.server, 'foo')
+        self.assertEqual(self.a2ccli.status, 'configured')
+        self.assertFalse(mock_cli_print.called)
+
+    @patch('tools.a2c_cli.is_url')
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    def test_014_server_set(self, mock_cli_print, mock_is_url):
+        """ test _server_set all wrong url specified """
+        command = 'server foo'
+        mock_is_url.return_value = False
+        self.a2ccli._server_set(command)
+        self.assertFalse(self.a2ccli.server)
+        self.assertEqual(self.a2ccli.status, 'server missing')
+        self.assertTrue(mock_cli_print.called)
+
 if __name__ == '__main__':
     unittest.main()
