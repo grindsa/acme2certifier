@@ -9,7 +9,7 @@ VERSION = "0.0.1"
 
 CLI_INTRO = """acme2certifier command-line interfac
 
-Copyright (c) 2022 Grindelsack
+Copyright (c) 2022 GrindSa
 
 This software is provided free of charge. Copying and redistribution is
 encouraged.
@@ -50,30 +50,25 @@ class CommandLineInterface(object):
     def __init__(self, logger=None):
         # CLIParser(self)
         self.logger = logger
-        self.status = 'offline'
+        self.status = 'server missing'
+        self.server = None
 
     def _command_check(self, command):
         """ check command """
         self.logger.debug('CommandLineInterface._commend_check(): {0}'.format(command))
         if command in ('help', 'H'):
             self.help_print()
-        # elif(command == 'connect' or command == 'L'):
-        #    self.connect_server()
-        # elif(command == 'disconnect'):
-        #    self.disconnect_server()
-
         elif command.startswith('server'):
-            self.logger('server command')
-        elif self.status == 'online':
-            if command.startswith('certificates search'):
-                self._conten_print('jupp, jupp')
-
+            self._server_set(command)
+        elif self.status == 'configured':
+            if command.startswith('certificate search'):
+                self._cli_print('jupp, jupp')
             else:
                 if command:
-                    self.logger('unknown command: "/{0}"'.format(command))
+                    self._cli_print('unknown command: "/{0}"'.format(command))
                     self.help_print()
         else:
-            self._cli_print('No active connection. Please connect first!')
+            self._cli_print('Please set a2c server first')
 
     def _exec_cmd(self, cmdinput):
         """ execute command """
@@ -101,7 +96,7 @@ class CommandLineInterface(object):
 /certificate search <parameter> <string> - search certificate for a certain parameter
 /certificate revoke <identifier>- revoce certificate on given uuid
 """
-        self._cli_print(helper)
+        self._cli_print(helper, date_print=False)
 
     def _prompt_get(self):
         """ get prompt """
@@ -111,14 +106,21 @@ class CommandLineInterface(object):
     def _intro_print(self):
         """ print cli intro """
         self.logger.debug('CommandLineInterface._intro_print()')
-        print(CLI_INTRO.format(cliversion=VERSION))
+        self._cli_print(CLI_INTRO.format(cliversion=VERSION))
 
-    def _cli_print(self, text):
+    def _cli_print(self, text, date_print=True):
         """ print text """
         self.logger.debug('CommandLineInterface._cli_print()')
         if text:
-            now = datetime.datetime.now().strftime('%H:%M:%S')
-            print('{0} {1}\n'.format(now, text))
+            if date_print:
+                now = datetime.datetime.now().strftime('%H:%M:%S')
+                print('{0} {1}\n'.format(now, text))
+            else:
+                print(text)
+
+    def _server_set(self):
+        """ print text """
+        self.logger.debug('CommandLineInterface._server_set()')
 
     def start(self):
         """ start """
@@ -126,14 +128,13 @@ class CommandLineInterface(object):
         self._intro_print()
 
         while True:
-
             cmd = input(self._prompt_get()).strip()
             self._exec_cmd(cmd)
 
 
 if __name__ == "__main__":
 
-    DEBUG = True
+    DEBUG = False
 
     LOGGER = logger_setup(DEBUG)
 
