@@ -4,6 +4,7 @@
 """ acme2certifier cli client """
 import logging
 import datetime
+import re
 
 VERSION = "0.0.1"
 
@@ -20,6 +21,17 @@ development please consider donating to me.
 Type /help for available commands
 """
 
+def is_url(string):
+    """ check if sting is a valid url """
+    regex = re.compile(
+        r'^(?:http|ftp)s?://' # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+        r'localhost|' #localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+        r'(?::\d+)?' # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+
+    return re.match(regex, string)
 
 def logger_setup(debug):
     """ setup logger """
@@ -118,9 +130,16 @@ class CommandLineInterface(object):
             else:
                 print(text)
 
-    def _server_set(self):
+    def _server_set(self, server):
         """ print text """
-        self.logger.debug('CommandLineInterface._server_set()')
+        self.logger.debug('CommandLineInterface._server_set({0})'.format(server))
+
+        (command, url) = server.split(' ')
+        if is_url(url):
+            self.server = url
+            self.status = 'configured'
+        else:
+            self._cli_print('{0} is not a valid url'.format(url))
 
     def start(self):
         """ start """
@@ -134,7 +153,7 @@ class CommandLineInterface(object):
 
 if __name__ == "__main__":
 
-    DEBUG = False
+    DEBUG = True
 
     LOGGER = logger_setup(DEBUG)
 
