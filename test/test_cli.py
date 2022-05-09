@@ -25,8 +25,10 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from tools.a2c_cli import CommandLineInterface
+        from tools.a2c_cli import CommandLineInterface, KeyOperations, is_url
         self.a2ccli = CommandLineInterface(logger=self.logger)
+        self.keyops = KeyOperations(logger=self.logger)
+        self.is_url = is_url
 
     def test_001_always_pass(self):
         """ test successful tos check """
@@ -153,20 +155,41 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cli_print.called)
         self.assertTrue(mock_help_print.called)
 
+    @patch('tools.a2c_cli.CommandLineInterface._key_operations')
+    def test_013_command_check(self, mock_keyops):
+        """ test _command check with key generator """
+        command = 'key foo'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_keyops.called)
+
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_013_server_set(self, mock_cli_print, mock_is_url):
+    def test_014_server_set(self, mock_cli_print, mock_is_url):
         """ test _server_set all good """
         command = 'server foo'
         mock_is_url.return_value = True
         self.a2ccli._server_set(command)
         self.assertEqual(self.a2ccli.server, 'foo')
-        self.assertEqual(self.a2ccli.status, 'configured')
+        self.assertEqual(self.a2ccli.status, 'key missing')
         self.assertFalse(mock_cli_print.called)
+
 
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_014_server_set(self, mock_cli_print, mock_is_url):
+    def test_015_server_set(self, mock_cli_print, mock_is_url):
+        """ test _server_set all good """
+        command = 'server foo'
+        mock_is_url.return_value = True
+        self.a2cclie.key = 'key'
+        self.a2ccli._server_set(command)
+        self.assertEqual(self.a2ccli.server, 'foo')
+        self.assertEqual(self.a2ccli.status, 'configured')
+        self.assertFalse(mock_cli_print.called)
+
+
+    @patch('tools.a2c_cli.is_url')
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    def test_015_server_set(self, mock_cli_print, mock_is_url):
         """ test _server_set all wrong url specified """
         command = 'server foo'
         mock_is_url.return_value = False
@@ -174,6 +197,96 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.a2ccli.server)
         self.assertEqual(self.a2ccli.status, 'server missing')
         self.assertTrue(mock_cli_print.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_016_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations generate command """
+        command = 'key generate foo'
+        self.a2ccli._key_operations(command)
+        self.assertTrue(mock_gen.called)
+        self.assertFalse(mock_load.called)
+        self.assertFalse(mock_print.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_017_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations load command """
+        command = 'key load foo'
+        self.a2ccli._key_operations(command)
+        self.assertFalse(mock_gen.called)
+        self.assertTrue(mock_load.called)
+        self.assertFalse(mock_print.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_016_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations unknown command """
+        command = 'key bar foo'
+        self.a2ccli._key_operations(command)
+        self.assertFalse(mock_gen.called)
+        self.assertFalse(mock_load.called)
+        self.assertTrue(mock_print.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_017_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations incomplete command """
+        command = 'key foo'
+        self.a2ccli._key_operations(command)
+        self.assertFalse(mock_gen.called)
+        self.assertFalse(mock_load.called)
+        self.assertTrue(mock_print.called)
+
+    @patch('jwcrypto.jwk.JWK.generate')
+    @patch('tools.a2c_cli.file_dump')
+    def test_018_key_generate(self, mock_fd, mock_jwk):
+        """ test key generation  all ok """
+        self.keyops.print = Mock()
+        self.keyops.generate('file_name')
+        self.assertTrue(mock_jwk.called)
+        self.assertTrue(mock_fd.called)
+
+    @patch('jwcrypto.jwk.JWK.generate')
+    @patch('tools.a2c_cli.file_dump')
+    def test_019_key_generate(self, mock_fd, mock_jwk):
+        """ test key generation  exception during filedump """
+        mock_fd.side_effect = Exception('exc_fd')
+        self.keyops.print = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.keyops.generate('file_name')
+        self.assertIn('ERROR:test_a2c:KeyOperations.generate() failed with err: exc_fd', lcm.output)
+        self.assertTrue(mock_jwk.called)
+        self.assertTrue(mock_fd.called)
+
+    def test_020_isurl(self):
+        """ test is_url """
+        url = 'http://foo.bar'
+        self.assertTrue(self.is_url(url))
+
+    def test_021_isurl(self):
+        """ test is_url """
+        url = 'https://foo.bar'
+        self.assertTrue(self.is_url(url))
+
+    def test_022_isurl(self):
+        """ test is_url """
+        url = 'https://foo.bar/foo'
+        self.assertTrue(self.is_url(url))
+
+    def test_023_isurl(self):
+        """ test is_url """
+        url = 'https://foo.bar:80/foo'
+        self.assertTrue(self.is_url(url))
+
+    def test_024_isurl(self):
+        """ test is_url """
+        url = 'foo.bar'
+        self.assertFalse(self.is_url(url))
 
 if __name__ == '__main__':
     unittest.main()
