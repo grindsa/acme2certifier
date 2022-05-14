@@ -7,6 +7,7 @@ import json
 from acme_srv.db_handler import DBstore
 from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
+from acme_srv.message import Message
 from acme_srv.order import Order
 from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
 from acme_srv.version import __version__
@@ -17,6 +18,7 @@ class Housekeeping(object):
     def __init__(self, debug=None, logger=None):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, None, self.logger)
         self.debug = debug
 
     def __enter__(self):
@@ -413,3 +415,42 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.orders_invalidate(): No orders to dump')
 
         return order_list
+
+
+    def parse(self, content):
+        """ new oder request """
+        self.logger.debug('Housekeeping.parse()')
+
+
+        # def certreport_get(self, report_format='csv', report_name=None):
+        # check message
+        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+
+        response_dic = {}
+
+        if 'type' in payload and 'data' in payload:
+            if payload['type'] == 'report':
+                if payload['data']['name'] == 'certificates':
+                    if payload['data']['format'] in ('csv', 'json'):
+                        response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                        code = 200
+                    else:
+                        code = 400
+                        message = 'urn:ietf:params:acme:error:malformed'
+                        detail = 'unknown report format'
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'unknown report type'
+
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = 'type field is missing in payload'
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'message': message, 'detail': detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+        self.logger.debug('Housekeeping.parse() returned something.')
+
+        return response_dic
