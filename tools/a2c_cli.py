@@ -6,7 +6,12 @@ import logging
 import datetime
 import re
 import os.path
-from jwcrypto import jwk
+import time
+import random
+from string import digits, ascii_letters
+from jwcrypto import jwk, jws
+from jwcrypto.common import json_encode
+
 
 VERSION = "0.0.1"
 
@@ -23,6 +28,11 @@ development please consider donating to me.
 Type /help for available commands
 """
 
+def generate_random_string(logger, length):
+    """ generate random string to be used as name """
+    logger.debug('generate_random_string()')
+    char_set = digits + ascii_letters
+    return ''.join(random.choice(char_set) for _ in range(length))
 
 def file_dump(logger, filename, data_):
     """ dump content json file """
@@ -34,8 +44,8 @@ def file_dump(logger, filename, data_):
 def file_load(logger, filename):
     """ load file at once """
     logger.debug('file_open({0})'.format(filename))
-    with open(filename) as f:
-        lines = f.read()
+    with open(filename, encoding='utf8') as _file:
+        lines = _file.read()
     return lines
 
 
@@ -86,7 +96,7 @@ class KeyOperations(object):
     def generate(self, filename):
         """ generate and store key """
         self.logger.debug('KeyOperations.generate({0})'.format(filename))
-        key = jwk.JWK.generate(kty='RSA', size=2048, alg='RSA-OAEP-256', use='enc', kid='12345')
+        key = jwk.JWK.generate(kty='RSA', size=2048, alg='RSA-OAEP-256', use='sig', kid=generate_random_string(self.logger, 12))
         public_key = key.export_public()
         private_key = key.export_private()
         self.print('generating keys...', printreturn=False)
@@ -113,6 +123,31 @@ class KeyOperations(object):
             self.print('Could not find {0}'.format(filename))
             key = None
         return key
+
+
+class MessageOperations(object):
+    """ message operations class """
+    def __init__(self, logger=None, printcommand=None):
+        # CLIParser(self)
+        self.logger = logger
+        self.print = printcommand
+
+    def sign(self, key, message):
+        """ sign message """
+        self.logger.debug('MessageOperations.sign()')
+        protected = {"typ": "JOSE+JSON",
+                     "kid": key['kid'],
+                     "alg": "RS256"}
+        plaintext = {"sub": message,
+                     "exp": int(time.time()) + (5 * 60)}
+        mjws = jws.JWS(payload=json_encode(plaintext))
+        mjws.add_signature(key, None, json_encode(protected))
+        return mjws.serialize()
+
+    def send(self, message):
+        """ send message """
+        self.logger.debug('MessageOperations.send()')
+        self.print(message)
 
 class CommandLineInterface(object):
     """ cli class """
@@ -145,8 +180,11 @@ class CommandLineInterface(object):
             self._server_set(command)
         elif command.startswith('key'):
             self._key_operations(command)
+
         elif self.status == 'configured':
-            if command.startswith('certificate search'):
+            if command.startswith('message'):
+                self._message_operations(command)
+            elif command.startswith('certificate search'):
                 self._cli_print('jupp, jupp')
             else:
                 if command:
@@ -201,6 +239,24 @@ class CommandLineInterface(object):
 
             if self.server:
                 self.status = 'Configured'
+
+    def _message_operations(self, command):
+        """ message operations"""
+
+        try:
+            (_key, command, argument) = command.split(' ', 2)
+        except Exception:
+            self._cli_print('incomplete command: "{0}"'.format(command))
+            _key = None
+            command = None
+            argument = None
+
+        if command and argument:
+            message = MessageOperations(self.logger, self._cli_print)
+
+        if command == 'sign':
+            signed_message = message.sign(key=self.key, message=argument)
+            print(signed_message)
 
     def _prompt_get(self):
         """ get prompt """
