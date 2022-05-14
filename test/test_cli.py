@@ -25,9 +25,10 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from tools.a2c_cli import CommandLineInterface, KeyOperations, is_url
-        self.a2ccli = CommandLineInterface(logger=self.logger)
+        from tools.a2c_cli import CommandLineInterface, KeyOperations, MessageOperations, is_url
+        self.a2ccli = CommandLineInterface()
         self.keyops = KeyOperations(logger=self.logger)
+        self.msgops = MessageOperations(logger=self.logger)
         self.is_url = is_url
 
     def test_001_always_pass(self):
@@ -138,25 +139,25 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_011_command_check(self, mock_help_print, mock_cli_print):
+    def test_013_command_check(self, mock_help_print, mock_cli_print):
         """ test _command check with unconfigured environement """
         command = '/foo'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_cli_print.called)
-        self.assertFalse(mock_help_print.called)
+        self.assertTrue(mock_help_print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_012_command_check(self, mock_help_print, mock_cli_print):
-        """ test _command check with unconfigured environement """
-        self.a2ccli.status = 'configured'
+    def test_014_command_check(self, mock_help_print, mock_cli_print):
+        """ test _command check with unknown command """
+        self.a2ccli.status = 'Configured'
         command = '/foo'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_cli_print.called)
         self.assertTrue(mock_help_print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._key_operations')
-    def test_013_command_check(self, mock_keyops):
+    def test_015_command_check(self, mock_keyops):
         """ test _command check with key generator """
         command = 'key foo'
         self.a2ccli._command_check(command)
@@ -170,7 +171,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_is_url.return_value = True
         self.a2ccli._server_set(command)
         self.assertEqual(self.a2ccli.server, 'foo')
-        self.assertEqual(self.a2ccli.status, 'key missing')
+        self.assertEqual(self.a2ccli.status, 'Key missing')
         self.assertFalse(mock_cli_print.called)
 
 
@@ -287,6 +288,24 @@ class TestACMEHandler(unittest.TestCase):
         """ test is_url """
         url = 'foo.bar'
         self.assertFalse(self.is_url(url))
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.MessageOperations.sign')
+    def test_025_message_operations(self, mock_sign, mock_print):
+        """ test message operations all ok """
+        command = 'message sign "test"'
+        self.a2ccli._message_operations(command)
+        self.assertTrue(mock_sign.called)
+        self.assertTrue(mock_print.called)
+
+    @patch('jwcrypto.jws.JWS.serialize')
+    @patch('jwcrypto.jws.JWS.add_signature')
+    def test_026_sign(self, mock_add_sig, mock_serialize):
+        """ test add signature """
+        key = {'kid': 'kid'}
+        message = 'message'
+        mock_serialize.return_value = 'foo'
+        self.assertEqual('foo', self.msgops.sign(key, message))
 
 if __name__ == '__main__':
     unittest.main()
