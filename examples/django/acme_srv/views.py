@@ -297,6 +297,29 @@ def trigger(request):
         return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'})
 
 
+def housekeeping(request):
+    """ ca trigger"""
+    if request.method == 'POST':
+        with Housekeeping(DEBUG, LOGGER) as housekeeping:
+            response_dic = housekeeping.parse(request.body)
+            # create the response
+            if 'data' in response_dic:
+                response = JsonResponse(status=response_dic['code'], data=response_dic['data'],safe=False)
+            else:
+                response = HttpResponse(status=response_dic['code'])
+
+            # generate additional header elements
+            for element in response_dic['header']:
+                response[element] = response_dic['header'][element]
+
+            # logging
+            logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], '****')
+            # send response
+            return response
+    else:
+        return JsonResponse(status=405, data={'status': 405, 'message': 'Method Not Allowed', 'detail': 'Wrong request type. Expected POST.'}, safe=False)
+
+
 def acmechallenge_serve(request):
     """ serving acme challenges """
     with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
