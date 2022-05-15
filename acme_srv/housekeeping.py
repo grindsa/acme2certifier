@@ -260,16 +260,18 @@ class Housekeeping(object):
         # convert dates into human readable format
         account_list = self._convert_data(account_list)
 
-        if report_name:
-            if account_list:
-                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
-                if report_format == 'csv':
-                    self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
-                    csv_list = self._to_list(field_list, account_list)
+        if account_list:
+            self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
+            if report_format == 'csv':
+                self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
+                csv_list = self._to_list(field_list, account_list)
+                account_list = csv_list
+                if report_name:
                     self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
-                elif report_format == 'json':
-                    if nested:
-                        account_list = self._to_acc_json(account_list)
+            elif report_format == 'json':
+                if nested:
+                    account_list = self._to_acc_json(account_list)
+                if report_name:
                     self._json_dump('{0}.{1}'.format(report_name, report_format), account_list)
 
         return account_list
@@ -291,18 +293,20 @@ class Housekeeping(object):
         field_list.insert(7, 'certificate.issue_date')
         field_list.insert(8, 'certificate.expire_date')
 
-        if report_name:
-            if cert_list:
-                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
-                if report_format == 'csv':
-                    self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
-                    csv_list = self._to_list(field_list, cert_list)
+        if cert_list:
+            self.logger.debug('Prepare output in: {0} format'.format(report_format))
+            if report_format == 'csv':
+                self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
+                csv_list = self._to_list(field_list, cert_list)
+                cert_list = csv_list
+                if report_name:
                     self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
-                elif report_format == 'json':
-                    self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+            elif report_format == 'json':
+                self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+                if report_name:
                     self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
-                else:
-                    self.logger.info('Housekeeping.certreport_get(): No dump just return report')
+            else:
+                self.logger.info('Housekeeping.certreport_get(): No dump just return report')
 
         return cert_list
 
@@ -430,9 +434,12 @@ class Housekeeping(object):
 
         if 'type' in payload and 'data' in payload:
             if payload['type'] == 'report':
-                if payload['data']['name'] == 'certificates':
+                if payload['data']['name'] in ('certificates', 'accounts'):
                     if payload['data']['format'] in ('csv', 'json'):
-                        response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                        if payload['data']['name'] == 'certificates':
+                            response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                        elif payload['data']['name'] == 'accounts':
+                            response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
                         code = 200
                     else:
                         code = 400

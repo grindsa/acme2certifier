@@ -5,17 +5,20 @@
 import logging
 import datetime
 import re
+import argparse
 import os.path
 import time
 import random
 from string import digits, ascii_letters
 from jwcrypto import jwk, jws
 from jwcrypto.common import json_encode
-
+import requests
+import json
+import csv
 
 VERSION = "0.0.1"
 
-CLI_INTRO = """acme2certifier command-line interfac
+CLI_INTRO = """acme2certifier command-line interface
 
 Copyright (c) 2022 GrindSa
 
@@ -27,6 +30,13 @@ development please consider donating to me.
 
 Type /help for available commands
 """
+
+def csv_dump(logger, filename, content):
+    """ dump content csv file """
+    logger.debug('csv_dump({0})'.format(filename))
+    with open(filename, 'w', newline='') as file_:
+        writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        writer.writerows(content)
 
 def generate_random_string(logger, length):
     """ generate random string to be used as name """
@@ -132,31 +142,67 @@ class MessageOperations(object):
         self.logger = logger
         self.print = printcommand
 
-    def sign(self, key, message):
+    def sign(self, key, data, type='Unknown'):
         """ sign message """
         self.logger.debug('MessageOperations.sign()')
         protected = {"typ": "JOSE+JSON",
                      "kid": key['kid'],
                      "alg": "RS256"}
-        plaintext = {"sub": message,
+        plaintext = {"data": data, 'type': type,
                      "exp": int(time.time()) + (5 * 60)}
         mjws = jws.JWS(payload=json_encode(plaintext))
         mjws.add_signature(key, None, json_encode(protected))
         return mjws.serialize()
 
-    def send(self, message):
+    def send(self, server=None, message=None):
         """ send message """
-        self.logger.debug('MessageOperations.send()')
-        self.print(message)
+        self.logger.debug('MessageOperations.send({0})'.format(server))
+        req = requests.post('{0}/housekeeping'.format(server), data=message)
+        return req
 
 class CommandLineInterface(object):
     """ cli class """
-    def __init__(self, logger=None):
+    def __init__(self):
         # CLIParser(self)
-        self.logger = logger
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument("-d", "--debug",
+                            action="store_true",
+                            help="Show debug messages",
+                            dest='debug',)
+
+        parser.add_argument("-b", "--batchfile",
+                            action='store',
+                            help='batch file to execute',
+                            dest='batchfile',)
+        results = parser.parse_args()
+
+        self.logger = logger_setup(results.debug)
         self.status = 'server missing'
         self.server = None
         self.key = None
+
+        if results.batchfile:
+            self._load_cfg(results.batchfile)
+
+
+    def _load_cfg(self, ifile):
+        """ load config """
+        self.logger.debug('CommandLineInterface._load_cfg()')
+
+        with open(ifile, 'r', encoding='utf8') as fha:
+            for lin in fha:
+                line = lin.rstrip()
+                if line.startswith('sleep'):
+                    try:
+                        (_sleep, tme) = line.split(' ', 1)
+                        time.sleep(int(tme))
+                    except BaseException:
+                        time.sleep(1)
+                else:
+                    if line.startswith('#') is False:
+                        self._command_check(line)
+
 
     def _cli_print(self, text, date_print=True, printreturn=True):
         """ print text """
@@ -180,10 +226,13 @@ class CommandLineInterface(object):
             self._server_set(command)
         elif command.startswith('key'):
             self._key_operations(command)
-
-        elif self.status == 'configured':
+        elif command.startswith('config'):
+            self._config_operations(command)
+        elif self.status == 'Configured':
             if command.startswith('message'):
                 self._message_operations(command)
+            elif command.startswith('report'):
+                self._report_operations(command)
             elif command.startswith('certificate search'):
                 self._cli_print('jupp, jupp')
             else:
@@ -191,13 +240,19 @@ class CommandLineInterface(object):
                     self._cli_print('unknown command: "/{0}"'.format(command))
                     self.help_print()
         else:
-            self._cli_print('Please set a2c server first')
+            self._cli_print('Unknown command: "{0}'.format(command))
+            self.help_print()
+
+    def _config_operations(self, command):
+        self.logger.debug('CommandLineInterface._config_operations(): {0}'.format(command))
+        self._cli_print('server: {0}'.format(self.server), printreturn=False)
+        self._cli_print('key: {0}'.format(self.key), printreturn=False)
+        self._cli_print('status: {0}'.format(self.status), printreturn=False)
 
     def _exec_cmd(self, cmdinput):
         """ execute command """
         self.logger.debug('CommandLineInterface._exec_cmd(): {0}'.format(cmdinput))
         cmdinput = cmdinput.rstrip()
-
         # skip empty commands
         if not len(cmdinput) > 1:
             return
@@ -242,6 +297,7 @@ class CommandLineInterface(object):
 
     def _message_operations(self, command):
         """ message operations"""
+        self.logger.debug('CommandLineInterface._message_operations()')
 
         try:
             (_key, command, argument) = command.split(' ', 2)
@@ -254,9 +310,29 @@ class CommandLineInterface(object):
         if command and argument:
             message = MessageOperations(self.logger, self._cli_print)
 
-        if command == 'sign':
-            signed_message = message.sign(key=self.key, message=argument)
-            print(signed_message)
+            if command == 'sign':
+                signed_message = message.sign(key=self.key, data=argument)
+                self._cli_print(signed_message)
+            elif command.startswith('send'):
+                signed_message = message.sign(key=self.key, data=argument)
+                message.send(server=self.server, message=signed_message)
+
+    def _report_operations(self, command):
+        """ report operations """
+        self.logger.debug('CommandLineInterface._message_operations()')
+        try:
+            (_key, command, format, filename) = command.split(' ', 3)
+        except Exception:
+            self._cli_print('incomplete command: "{0}"'.format(command))
+
+        if command and format and filename:
+            message = MessageOperations(self.logger, self._cli_print)
+            signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
+            response = message.send(server=self.server, message=signed_message)
+            if format == 'csv':
+                csv_dump(self.logger, filename, response.json())
+            else:
+                file_dump(self.logger, filename, response.text)
 
     def _prompt_get(self):
         """ get prompt """
@@ -271,9 +347,9 @@ class CommandLineInterface(object):
         if is_url(url):
             self.server = url
             if self.key:
-                self.status = 'configured'
+                self.status = 'Configured'
             else:
-                self.status = 'key missing'
+                self.status = 'Key missing'
         else:
             self._cli_print('{0} is not a valid url'.format(url))
 
@@ -281,9 +357,11 @@ class CommandLineInterface(object):
         """ print help """
         self.logger.debug('CommandLineInterface.help_print()')
         helper = """-------------------------------------------------------------------------------
-/connect   /L       - connect to acme2certifier
 /certificate search <parameter> <string> - search certificate for a certain parameter
-/certificate revoke <identifier>- revoce certificate on given uuid
+/certificate revoke <identifier> - revoke certificate on given uuid
+/report certificates <format> <filename> - download certificate report in either csf or json format
+/report accounts <format> <filename> - download certificate report in either csf or json format
+/config show - show configuration
 /key generate
 /key load
 """
@@ -301,9 +379,9 @@ class CommandLineInterface(object):
 
 if __name__ == "__main__":
 
-    DEBUG = True
+    #DEBUG = True
 
-    LOGGER = logger_setup(DEBUG)
+    #LOGGER = logger_setup(DEBUG)
 
-    CLI = CommandLineInterface(logger=LOGGER)
+    CLI = CommandLineInterface()
     CLI.start()
