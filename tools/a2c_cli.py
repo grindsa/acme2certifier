@@ -79,14 +79,7 @@ def logger_setup(debug):
     else:
         log_mode = logging.INFO
 
-    # config_dic = load_config()
-
-    # define standard log format
-    # log_format = '%(message)s'
     log_format = '%(asctime)s - a2c_cli - %(levelname)s - %(message)s'
-    # if 'Helper' in config_dic:
-    #    if 'log_format' in config_dic['Helper']:
-    #        log_format = config_dic['Helper']['log_format']
 
     logging.basicConfig(
         format=log_format,
@@ -321,18 +314,23 @@ class CommandLineInterface(object):
         """ report operations """
         self.logger.debug('CommandLineInterface._message_operations()')
         try:
-            (_key, command, format, filename) = command.split(' ', 3)
+            (_key, command, filename) = command.split(' ', 2)
         except Exception:
             self._cli_print('incomplete command: "{0}"'.format(command))
 
-        if command and format and filename:
-            message = MessageOperations(self.logger, self._cli_print)
-            signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
-            response = message.send(server=self.server, message=signed_message)
-            if format == 'csv':
-                csv_dump(self.logger, filename, response.json())
+        if command and filename:
+            (_filename, format) = filename.lower().split('.', 2)
+            if format in ('csv', 'json'):
+                # process report request
+                message = MessageOperations(self.logger, self._cli_print)
+                signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
+                response = message.send(server=self.server, message=signed_message)
+                if format == 'csv':
+                    csv_dump(self.logger, filename, response.json())
+                else:
+                    file_dump(self.logger, filename, response.text)
             else:
-                file_dump(self.logger, filename, response.text)
+                self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"')
 
     def _prompt_get(self):
         """ get prompt """
@@ -359,8 +357,8 @@ class CommandLineInterface(object):
         helper = """-------------------------------------------------------------------------------
 /certificate search <parameter> <string> - search certificate for a certain parameter
 /certificate revoke <identifier> - revoke certificate on given uuid
-/report certificates <format> <filename> - download certificate report in either csf or json format
-/report accounts <format> <filename> - download certificate report in either csf or json format
+/report certificates <filename> - download certificate report in either csf or json format
+/report accounts <filename> - download certificate report in either csf or json format
 /config show - show configuration
 /key generate
 /key load
