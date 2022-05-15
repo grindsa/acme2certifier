@@ -45,7 +45,7 @@ def generate_random_string(logger, length):
     return ''.join(random.choice(char_set) for _ in range(length))
 
 def file_dump(logger, filename, data_):
-    """ dump content json file """
+    """ dump content to  file """
     logger.debug('file_dump({0})'.format(filename))
     with open(filename, 'w', encoding='utf8') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
@@ -100,12 +100,13 @@ class KeyOperations(object):
         """ generate and store key """
         self.logger.debug('KeyOperations.generate({0})'.format(filename))
         key = jwk.JWK.generate(kty='RSA', size=2048, alg='RSA-OAEP-256', use='sig', kid=generate_random_string(self.logger, 12))
-        public_key = key.export_public()
-        private_key = key.export_private()
+        public_key = key.export_public(as_dict=True)
+        private_key = key.export_private(as_dict=True)
         self.print('generating keys...', printreturn=False)
+
         try:
-            file_dump(self.logger, '{0}.pub'.format(filename), public_key)
-            file_dump(self.logger, '{0}.private'.format(filename), private_key)
+            file_dump(self.logger, '{0}.pub'.format(filename), json.dumps(public_key, indent=4, sort_keys=True))
+            file_dump(self.logger, '{0}.private'.format(filename), json.dumps(private_key, indent=4, sort_keys=True))
             self.print('done...', printreturn=False)
             self.print('Keep the private key {0}.pub for yourself'.format(filename), printreturn=False)
             self.print('Give the public key {0}.pub to your acme2certifier administrator'.format(filename))
@@ -328,7 +329,7 @@ class CommandLineInterface(object):
                 if format == 'csv':
                     csv_dump(self.logger, filename, response.json())
                 else:
-                    file_dump(self.logger, filename, response.text)
+                    file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
             else:
                 self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"')
 
