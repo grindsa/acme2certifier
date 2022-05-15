@@ -243,21 +243,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_load.called)
         self.assertTrue(mock_print.called)
 
+    @patch('json.dumps')
+    @patch('jwcrypto.jwk.JWK.generate.export_public')
+    @patch('jwcrypto.jwk.JWK.generate.export_private')
     @patch('jwcrypto.jwk.JWK.generate')
     @patch('tools.a2c_cli.file_dump')
-    def test_018_key_generate(self, mock_fd, mock_jwk):
+    def test_018_key_generate(self, mock_fd, mock_jwk, mock_exp_priv, mock_export_public, mock_json_dump):
         """ test key generation  all ok """
         self.keyops.print = Mock()
+        mock_exp_priv.return_value = {'foo': 'bar'}
+        mock_export_public.return_value = {'foo': 'bar'}
+        mock_json_dump.return_value = 'json_dump'
         self.keyops.generate('file_name')
         self.assertTrue(mock_jwk.called)
         self.assertTrue(mock_fd.called)
 
+    @patch('json.dumps')
     @patch('jwcrypto.jwk.JWK.generate')
     @patch('tools.a2c_cli.file_dump')
-    def test_019_key_generate(self, mock_fd, mock_jwk):
+    def test_019_key_generate(self, mock_fd, mock_jwk, mock_json_dump):
         """ test key generation  exception during filedump """
         mock_fd.side_effect = Exception('exc_fd')
         self.keyops.print = Mock()
+        mock_json_dump.return_value = 'json_dump'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.keyops.generate('file_name')
         self.assertIn('ERROR:test_a2c:KeyOperations.generate() failed with err: exc_fd', lcm.output)
