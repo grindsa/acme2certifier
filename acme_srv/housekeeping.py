@@ -428,32 +428,32 @@ class Housekeeping(object):
 
         # def certreport_get(self, report_format='csv', report_name=None):
         # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+        (code, message, detail, protected, payload, _account_name) = self.message.cli_check(content)
 
         response_dic = {}
-
-        if 'type' in payload and 'data' in payload:
-            if payload['type'] == 'report':
-                if payload['data']['name'] in ('certificates', 'accounts'):
-                    if payload['data']['format'] in ('csv', 'json'):
-                        if payload['data']['name'] == 'certificates':
-                            response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
-                        elif payload['data']['name'] == 'accounts':
-                            response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
-                        code = 200
+        if code == 200:
+            if 'type' in payload and 'data' in payload:
+                if payload['type'] == 'report':
+                    if payload['data']['name'] in ('certificates', 'accounts'):
+                        if payload['data']['format'] in ('csv', 'json'):
+                            if payload['data']['name'] == 'certificates':
+                                response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                            elif payload['data']['name'] == 'accounts':
+                                response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
+                            code = 200
+                        else:
+                            code = 400
+                            message = 'urn:ietf:params:acme:error:malformed'
+                            detail = 'unknown report format'
                     else:
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
-                        detail = 'unknown report format'
-                else:
-                    code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'unknown report type'
+                        detail = 'unknown report type'
 
-        else:
-            code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
-            detail = 'type field is missing in payload'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'type field is missing in payload'
 
         # prepare/enrich response
         status_dic = {'code': code, 'message': message, 'detail': detail}
