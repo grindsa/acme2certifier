@@ -99,10 +99,10 @@ class KeyOperations(object):
     def generate(self, filename):
         """ generate and store key """
         self.logger.debug('KeyOperations.generate({0})'.format(filename))
+        self.print('generating keys...', printreturn=False)
         key = jwk.JWK.generate(kty='RSA', size=2048, alg='RSA-OAEP-256', use='sig', kid=generate_random_string(self.logger, 12))
         public_key = key.export_public(as_dict=True)
         private_key = key.export_private(as_dict=True)
-        self.print('generating keys...', printreturn=False)
 
         try:
             file_dump(self.logger, '{0}.pub'.format(filename), json.dumps(public_key, indent=4, sort_keys=True))
