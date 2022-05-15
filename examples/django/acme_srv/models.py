@@ -26,6 +26,11 @@ class Account(models.Model):
     def __unicode__(self):
         return self.contact
 
+class Cliaccount(models.Model):
+    """ account table """
+    name = models.CharField(max_length=15, unique=True)
+    jwk = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Status(models.Model):
     """ order status """

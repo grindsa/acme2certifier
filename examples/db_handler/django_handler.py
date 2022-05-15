@@ -19,7 +19,7 @@ def initialize():  # nopep8
 
 initialize()
 from django.conf import settings  # nopep8
-from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
+from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Cliaccount, Housekeeping, Nonce, Order, Status  # nopep8
 from django.db import transaction  # nopep8
 import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
@@ -298,6 +298,18 @@ class DBstore(object):
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
+
+    def cli_jwk_load(self, aname):
+        """ looad account informatino and build jwk key dictionary from cliaccounts teable """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_dict = Cliaccount.objects.filter(name=aname).values('jwk')[:1]
+        jwk_dict = {}
+        if account_dict:
+            try:
+                jwk_dict = json.loads(account_dict[0]['jwk'].decode())
+            except BaseException:
+                jwk_dict = json.loads(account_dict[0]['jwk'])
+        return jwk_dict
 
     def dbversion_get(self):
         """ get db version from housekeeping table """
