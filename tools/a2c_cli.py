@@ -326,10 +326,18 @@ class CommandLineInterface(object):
                 message = MessageOperations(self.logger, self._cli_print)
                 signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
                 response = message.send(server=self.server, message=signed_message)
-                if format == 'csv':
-                    csv_dump(self.logger, filename, response.json())
+                if response.status_code == 200:
+                    if format == 'csv':
+                        csv_dump(self.logger, filename, response.json())
+                    else:
+                        file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
+                    self._cli_print('saving report to {0}'.format(filename))
                 else:
-                    file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
+                    if 'message' in response.json():
+                        message = response.json()['message']
+                    else:
+                        message = None
+                    self._cli_print('ERROR: {0} - {1}'.format(response.status_code, message))
             else:
                 self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"')
 

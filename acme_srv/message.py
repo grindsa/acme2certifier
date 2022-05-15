@@ -123,6 +123,36 @@ class Message(object):
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return(code, message, detail, protected, payload, account_name)
 
+    def cli_check (self, content, use_emb_key=False, skip_nonce_check=False):
+        """ validate message coming from CLI client """
+        self.logger.debug('Message.cli_check()')
+
+        # decode message
+        (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
+        account_name = None
+        if result:
+            # check signature
+            account_name = self._name_get(protected)
+            signature = Signature(self.debug, self.server_name, self.logger)
+            # we need the decoded protected header to grab a key to verify signature
+            (sig_check, error, error_detail) = signature.cli_check(account_name, content)
+            if sig_check:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = error
+                detail = error_detail
+        else:
+            # message could not get decoded
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = error_detail
+
+        self.logger.debug('Message.check() ended with:{0}'.format(code))
+        return(code, message, detail, protected, payload, account_name)
+
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """
         self.logger.debug('Message.prepare_response()')
