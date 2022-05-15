@@ -420,15 +420,21 @@ class TestACMEHandler(unittest.TestCase):
         self.housekeeping._json_dump('filename', 'data')
         self.assertTrue(mock_json.called)
 
+    @patch('acme_srv.housekeeping.Housekeeping._to_list')
     @patch('acme_srv.housekeeping.Housekeeping._convert_data')
     @patch('acme_srv.housekeeping.Housekeeping._lists_normalize')
     @patch('acme_srv.housekeeping.Housekeeping._accountlist_get')
-    def test_061_accountreport_get(self, mock_get, mock_norm, mock_convert):
+    def test_061_accountreport_get(self, mock_get, mock_norm, mock_convert, mock_tolist):
         """ test accountreport_get() no report name"""
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = ('foo', 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', None, False))
+        mock_tolist.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.accountreport_get('csv', None, False))
+        self.assertTrue(mock_get.called)
+        self.assertTrue(mock_norm.called)
+        self.assertTrue(mock_convert.called)
+        self.assertTrue(mock_tolist.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._csv_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_list')
@@ -440,9 +446,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = ('foo', 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', 'report_name', False))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.accountreport_get('csv', 'report_name', False))
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
+        self.assertTrue(mock_convert.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._json_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_acc_json')
@@ -473,15 +481,19 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
 
+    @patch('acme_srv.housekeeping.Housekeeping._to_list')
     @patch('acme_srv.housekeeping.Housekeeping._convert_data')
     @patch('acme_srv.housekeeping.Housekeeping._lists_normalize')
     @patch('acme_srv.housekeeping.Housekeeping._certificatelist_get')
-    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert):
+    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list):
         """ test accountreport_get() no report name"""
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = (['foo'], 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', None))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.certreport_get('csv', None))
+        self.assertTrue(mock_convert.called)
+        self.assertTrue(mock_list.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._csv_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_list')
@@ -493,9 +505,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = (['foo'], 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', 'report_name'))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.certreport_get('csv', 'report_name'))
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
+        self.assertTrue(mock_convert.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._json_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_acc_json')
