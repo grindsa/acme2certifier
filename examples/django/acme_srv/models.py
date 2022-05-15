@@ -30,6 +30,7 @@ class Cliaccount(models.Model):
     """ account table """
     name = models.CharField(max_length=15, unique=True)
     jwk = models.TextField(blank=True)
+    contact = models.CharField(max_length=255)    
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Status(models.Model):

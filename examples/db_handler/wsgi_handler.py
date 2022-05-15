@@ -155,6 +155,20 @@ class DBstore(object):
         self.logger.debug('DBStore._challenge_search() ended')
         return result
 
+    def _cliaccount_search(self, column, string):
+        """ search account table for a certain key/value pair """
+        self.logger.debug('DBStore._cliaccount_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        try:
+            pre_statement = 'SELECT * from cliaccount WHERE {0} LIKE ?'.format(column)
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except Exception as err:
+            self.logger.error('DBStore._account_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+        self._db_close()
+        self.logger.debug('DBStore._account_search() ended with: {0}'.format(bool(result)))
+        return result
+
     def _db_close(self):
         """ commit and close """
         # self.logger.debug('DBStore._db_close()')
@@ -174,6 +188,10 @@ class DBstore(object):
         self.logger.debug('create account')
         self.cursor.execute('''
             CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create cliaccount')
+        self.cursor.execute('''
+            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
@@ -830,6 +848,16 @@ class DBstore(object):
         self._db_close()
         self.logger.debug('DBStore.challenge_update() ended')
 
+    def cli_jwk_load(self, aname):
+        """ looad cliaccount information and build jwk key dictionary """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_list = self._cliaccount_search('name', aname)
+        jwk_dict = {}
+        if account_list:
+            jwk_dict = json.loads(account_list[2])
+        self.logger.debug('DBStore.jwk_load() ended with: {0}'.format(jwk_dict))
+        return jwk_dict
+
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
@@ -904,6 +932,13 @@ class DBstore(object):
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
 
+        # cliaccount table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cliaccount'")
+        if not self.cursor.fetchone()[0] == 1:
+            self.logger.info('create cliaccount table')
+            self.cursor.execute('''
+                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
         # version update
         self.logger.info('update dbversion to {0}'.format(__dbversion__))
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
