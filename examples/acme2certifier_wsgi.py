@@ -16,6 +16,7 @@ from acme_srv.directory import Directory
 from acme_srv.housekeeping import Housekeeping
 from acme_srv.nonce import Nonce
 from acme_srv.order import Order
+from acme_srv.housekeeping import Housekeeping
 from acme_srv.trigger import Trigger
 from acme_srv.helper import get_url, load_config, logger_setup, logger_info
 from acme_srv.version import __dbversion__, __version__
@@ -260,7 +261,6 @@ def newnonce(environ, start_response):
 
 def neworders(environ, start_response):
     """ generate a new order """
-    print(environ)
     if environ['REQUEST_METHOD'] == 'POST':
         with Order(DEBUG, get_url(environ), LOGGER) as norder:
             request_body = get_request_body(environ)
@@ -345,6 +345,30 @@ def trigger(environ, start_response):
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
+def housekeeping (environ, start_response):
+    """ cli housekeeping handler """
+    if environ['REQUEST_METHOD'] == 'POST':
+        with Housekeeping(DEBUG, LOGGER) as housekeeping:
+            request_body = get_request_body(environ)
+            response_dic = housekeeping.parse(request_body)
+
+            # create header
+            headers = create_header(response_dic)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '****')
+
+            if 'data' in response_dic:
+                return [json.dumps(response_dic['data']).encode('utf-8')]
+            else:
+                return []
+            # start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/json')])
+            # return [json.dumps({'status':200, 'message':HTTP_CODE_DIC[200], 'detail': 'OK'}).encode('utf-8')]
+    else:
+        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
 
 def not_found(_environ, start_response):
     ''' called if no URL matches '''
@@ -366,6 +390,7 @@ URLS = [
     (r'^acme/order', order),
     (r'^acme/revokecert', revokecert),
     (r'^directory?$', directory),
+    (r'^housekeeping', housekeeping),
     (r'^trigger', trigger)]
 
 
