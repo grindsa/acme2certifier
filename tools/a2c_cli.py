@@ -7,6 +7,7 @@ import datetime
 import re
 import argparse
 import os.path
+import sys
 import time
 import random
 from string import digits, ascii_letters
@@ -222,6 +223,8 @@ class CommandLineInterface(object):
             self._key_operations(command)
         elif command.startswith('config'):
             self._config_operations(command)
+        elif(command == 'quit' or command == 'Q'):
+            self._quit()
         elif self.status == 'Configured':
             if command.startswith('message'):
                 self._message_operations(command)
@@ -346,6 +349,11 @@ class CommandLineInterface(object):
         self.logger.debug('CommandLineInterface._prompt_get()')
         return '[{0}]:'.format(self.status)
 
+    def _quit(self):
+        """ quit (whatever) """
+        self.logger.debug('CommandLineInterface.quit()')
+        sys.exit(0)
+
     def _server_set(self, server):
         """ print text """
         self.logger.debug('CommandLineInterface._server_set({0})'.format(server))
@@ -369,8 +377,10 @@ class CommandLineInterface(object):
 /report certificates <filename> - download certificate report in either csf or json format
 /report accounts <filename> - download certificate report in either csf or json format
 /config show - show configuration
-/key generate
-/key load
+/key generate <filename> - generate a new JWK pair
+/key load <filename> - load exisitng private JWK from file
+/quit /Q - quit
+
 """
         self._cli_print(helper, date_print=False)
 
