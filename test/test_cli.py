@@ -7,7 +7,7 @@ import importlib
 import configparser
 import sys
 import datetime
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, Mock, mock_open
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -25,11 +25,15 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from tools.a2c_cli import CommandLineInterface, KeyOperations, MessageOperations, is_url
+        from tools.a2c_cli import CommandLineInterface, KeyOperations, MessageOperations, is_url, csv_dump, generate_random_string, file_dump, file_load
         self.a2ccli = CommandLineInterface()
         self.keyops = KeyOperations(logger=self.logger)
         self.msgops = MessageOperations(logger=self.logger)
         self.is_url = is_url
+        self.csv_dump = csv_dump
+        self.file_dump = file_dump
+        self.generate_random_string = generate_random_string
+        self.file_load = file_load
 
     def test_001_always_pass(self):
         """ test successful tos check """
@@ -163,6 +167,44 @@ class TestACMEHandler(unittest.TestCase):
         self.a2ccli._command_check(command)
         self.assertTrue(mock_keyops.called)
 
+    @patch('tools.a2c_cli.CommandLineInterface._quit')
+    def test_016_command_check(self, mock_quit):
+        """ test _command check with quit """
+        command = 'quit'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_quit.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._quit')
+    def test_017_command_check(self, mock_quit):
+        """ test _command check with key quit """
+        command = 'Q'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_quit.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._config_operations')
+    def test_018_command_check(self, mock_cfg):
+        """ test _command check with config """
+        command = 'config foo'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_cfg.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._report_operations')
+    def test_019_command_check(self, mock_report):
+        """ test _command check with _report_operations """
+        self.a2ccli.status = 'Configured'
+        command = 'report foo'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_report.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.CommandLineInterface._report_operations')
+    def test_020_command_check(self, mock_report, mock_cli):
+        """ test _command check with report operations but incomplete config """
+        command = 'report foo'
+        self.a2ccli._command_check(command)
+        self.assertFalse(mock_report.called)
+        self.assertTrue(mock_cli.called)
+
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     def test_014_server_set(self, mock_cli_print, mock_is_url):
@@ -173,7 +215,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(self.a2ccli.server, 'foo')
         self.assertEqual(self.a2ccli.status, 'Key missing')
         self.assertFalse(mock_cli_print.called)
-
 
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
@@ -314,6 +355,77 @@ class TestACMEHandler(unittest.TestCase):
         message = 'message'
         mock_serialize.return_value = 'foo'
         self.assertEqual('foo', self.msgops.sign(key, message))
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('csv.writer')
+    def test_27__csv_dump(self, mock_csv):
+        """ test csv dump """
+        self.csv_dump(self.logger, 'filename', 'content')
+        self.assertTrue(mock_csv.called)
+
+    def test_028_helper_generate_random_string(self):
+        """ test date_to_uts_utc without format """
+        self.assertEqual(5, len(self.generate_random_string(self.logger, 5)))
+
+    def test_029_helper_generate_random_string(self):
+        """ test date_to_uts_utc without format """
+        self.assertEqual(15, len(self.generate_random_string(self.logger, 15)))
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    def test_30__file_dump(self):
+        """ test csv dump """
+        self.file_dump(self.logger, 'filename', 'content')
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    def test_31__file_load(self):
+        """ test csv dump """
+        self.assertEqual('foo', self.file_load(self.logger, 'filename'))
+
+    @patch('time.sleep')
+    @patch('tools.a2c_cli.CommandLineInterface._command_check')
+    @patch("builtins.open", mock_open(read_data='foo\nbar'), create=True)
+    def test_31__load_cfg(self, mock_check, mock_sleep):
+        """ test _load_cfg"""
+        self.a2ccli._load_cfg('filename')
+        self.assertTrue(mock_check.called)
+        self.assertFalse(mock_sleep.called)
+
+    @patch('time.sleep')
+    @patch('tools.a2c_cli.CommandLineInterface._command_check')
+    @patch("builtins.open", mock_open(read_data='sleep 10\nbar'), create=True)
+    def test_32__load_cfg(self, mock_check, mock_sleep):
+        """ test _load_cfg with sleep command """
+        self.a2ccli._load_cfg('filename')
+        self.assertTrue(mock_check.called)
+        self.assertTrue(mock_sleep.called)
+
+    @patch('time.sleep')
+    @patch('tools.a2c_cli.CommandLineInterface._command_check')
+    @patch("builtins.open", mock_open(read_data='sleep\nbar'), create=True)
+    def test_33__load_cfg(self, mock_check, mock_sleep):
+        """ test _load_cfg with sleep command - slit failes """
+        self.a2ccli._load_cfg('filename')
+        self.assertTrue(mock_check.called)
+        self.assertTrue(mock_sleep.called)
+
+
+    @patch('time.sleep')
+    @patch('tools.a2c_cli.CommandLineInterface._command_check')
+    @patch("builtins.open", mock_open(read_data='#foo\n#bar'), create=True)
+    def test_34__load_cfg(self, mock_check, mock_sleep):
+        """ test _load_cfg"""
+        self.a2ccli._load_cfg('filename')
+        self.assertFalse(mock_check.called)
+        self.assertFalse(mock_sleep.called)
+
+    @patch('sys.exit')
+    def test_35__quit(self, mock_exit):
+        """ test _quit() """
+        self.a2ccli._quit()
+        self.assertTrue(mock_exit.called)
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
