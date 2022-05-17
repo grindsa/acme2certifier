@@ -32,6 +32,7 @@ development please consider donating to me.
 Type /help for available commands
 """
 
+
 def csv_dump(logger, filename, content):
     """ dump content csv file """
     logger.debug('csv_dump({0})'.format(filename))
@@ -39,11 +40,13 @@ def csv_dump(logger, filename, content):
         writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writerows(content)
 
+
 def generate_random_string(logger, length):
     """ generate random string to be used as name """
     logger.debug('generate_random_string()')
     char_set = digits + ascii_letters
     return ''.join(random.choice(char_set) for _ in range(length))
+
 
 def file_dump(logger, filename, data_):
     """ dump content to  file """
@@ -155,6 +158,7 @@ class MessageOperations(object):
         req = requests.post('{0}/housekeeping'.format(server), data=message)
         return req
 
+
 class CommandLineInterface(object):
     """ cli class """
     def __init__(self):
@@ -180,7 +184,6 @@ class CommandLineInterface(object):
         if results.batchfile:
             self._load_cfg(results.batchfile)
 
-
     def _load_cfg(self, ifile):
         """ load config """
         self.logger.debug('CommandLineInterface._load_cfg()')
@@ -197,7 +200,6 @@ class CommandLineInterface(object):
                 else:
                     if line.startswith('#') is False:
                         self._command_check(line)
-
 
     def _cli_print(self, text, date_print=True, printreturn=True):
         """ print text """
@@ -396,9 +398,6 @@ class CommandLineInterface(object):
 
 if __name__ == "__main__":
 
-    #DEBUG = True
-
-    #LOGGER = logger_setup(DEBUG)
-
+    # start cli
     CLI = CommandLineInterface()
     CLI.start()
