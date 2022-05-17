@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=E0401, R1705, C0209
+# pylint: disable=E0401, R1705, C0209, E5110
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -16,7 +16,6 @@ from acme_srv.directory import Directory
 from acme_srv.housekeeping import Housekeeping
 from acme_srv.nonce import Nonce
 from acme_srv.order import Order
-from acme_srv.housekeeping import Housekeeping
 from acme_srv.trigger import Trigger
 from acme_srv.helper import get_url, load_config, logger_setup, logger_info
 from acme_srv.version import __dbversion__, __version__
@@ -42,8 +41,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 
-with Housekeeping(DEBUG, LOGGER) as housekeeping:
-    housekeeping.dbversion_check(__dbversion__)
+with Housekeeping(DEBUG, LOGGER) as db_check:
+    db_check.dbversion_check(__dbversion__)
 
 # examption handling via logger
 sys.excepthook = handle_exception
@@ -345,12 +344,13 @@ def trigger(environ, start_response):
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
-def housekeeping (environ, start_response):
+
+def housekeeping(environ, start_response):
     """ cli housekeeping handler """
     if environ['REQUEST_METHOD'] == 'POST':
-        with Housekeeping(DEBUG, LOGGER) as housekeeping:
+        with Housekeeping(DEBUG, LOGGER) as housekeeping_:
             request_body = get_request_body(environ)
-            response_dic = housekeeping.parse(request_body)
+            response_dic = housekeeping_.parse(request_body)
 
             # create header
             headers = create_header(response_dic)
@@ -429,7 +429,7 @@ def get_handler_cls():
 
 if __name__ == '__main__':
 
-    LOGGER.info('starting acme2certifier version {0}'.format(__version__))
+    LOGGER.info('starting acme2certifier version %s', __version__)
     SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
     SRV.serve_forever()
 
