@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209, e5110
 """ Housekeeping class """
 from __future__ import print_function
 import csv
@@ -100,7 +101,7 @@ class Housekeeping(object):
     def _csv_dump(self, filename, content):
         """ dump content csv file """
         self.logger.debug('Housekeeping._csv_dump()')
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', encoding='utf8', newline='') as file_:
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
 
@@ -108,7 +109,7 @@ class Housekeeping(object):
         """ dump content json file """
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', encoding='utf8', newline='') as file_:
             file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
     def _fieldlist_normalize(self, field_list, prefix):
@@ -420,15 +421,13 @@ class Housekeeping(object):
 
         return order_list
 
-
     def parse(self, content):
         """ new oder request """
         self.logger.debug('Housekeeping.parse()')
 
-
         # def certreport_get(self, report_format='csv', report_name=None):
         # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.cli_check(content)
+        (code, message, detail, _protected, payload, _account_name) = self.message.cli_check(content)
 
         response_dic = {}
         if code == 200:

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209, e5110
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
@@ -73,6 +74,7 @@ class Message(object):
         self.logger.debug('Message._name_get() returns: {0}'.format(kid))
         return kid
 
+    # pylint: disable=R0914
     def check(self, content, use_emb_key=False, skip_nonce_check=False):
         """ validate message """
         self.logger.debug('Message.check()')
@@ -123,7 +125,7 @@ class Message(object):
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return(code, message, detail, protected, payload, account_name)
 
-    def cli_check (self, content, use_emb_key=False, skip_nonce_check=False):
+    def cli_check(self, content):
         """ validate message coming from CLI client """
         self.logger.debug('Message.cli_check()')
 

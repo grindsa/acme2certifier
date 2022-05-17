@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=C0209, E5110, E0611, E0401
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
@@ -22,10 +23,10 @@ DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
-LOGGER.info('starting acme2certifier version {0}'.format(__version__))
+LOGGER.info('starting acme2certifier version %s', __version__)
 
-with Housekeeping(DEBUG, LOGGER) as housekeeping:
-    housekeeping.dbversion_check(__dbversion__)
+with Housekeeping(DEBUG, LOGGER) as version_check:
+    version_check.dbversion_check(__dbversion__)
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -155,7 +156,7 @@ def neworders(request):
 
 def authz(request):
     """ new-authz command """
-    if request.method == 'POST' or request.method == 'GET':
+    if request.method in ('POST', 'GET'):
         with Authorization(DEBUG, get_url(request.META), LOGGER) as authorization:
             if request.method == 'POST':
                 response_dic = authorization.new_post(request.body)
@@ -226,7 +227,7 @@ def order(request):
 
 def cert(request):
     """ cert request """
-    if request.method == 'POST' or request.method == 'GET':
+    if request.method in ('POST', 'GET'):
         with Certificate(DEBUG, get_url(request.META), LOGGER) as certificate:
             if request.method == 'POST':
                 response_dic = certificate.new_post(request.body)
@@ -300,11 +301,11 @@ def trigger(request):
 def housekeeping(request):
     """ ca trigger"""
     if request.method == 'POST':
-        with Housekeeping(DEBUG, LOGGER) as housekeeping:
-            response_dic = housekeeping.parse(request.body)
+        with Housekeeping(DEBUG, LOGGER) as housekeeping_:
+            response_dic = housekeeping_.parse(request.body)
             # create the response
             if 'data' in response_dic:
-                response = JsonResponse(status=response_dic['code'], data=response_dic['data'],safe=False)
+                response = JsonResponse(status=response_dic['code'], data=response_dic['data'], safe=False)
             else:
                 response = HttpResponse(status=response_dic['code'])
 
@@ -324,6 +325,7 @@ def acmechallenge_serve(request):
     """ serving acme challenges """
     with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
         key_authorization = acmechallenge.lookup(request.META['PATH_INFO'])
+        # pylint:  disable=R1705
         if key_authorization:
             return HttpResponse(key_authorization)
         else:

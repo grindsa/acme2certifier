@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110,
+# pylint: disable=c0209, e5110
 """ acme2certifier cli client """
 import logging
 import datetime
