@@ -128,11 +128,11 @@ class Message(object):
         self.logger.debug('Message.prepare_response()')
         if 'code' not in status_dic:
             status_dic['code'] = 400
-            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+            status_dic['type'] = 'urn:ietf:params:acme:error:serverInternal'
             status_dic['detail'] = 'http status code missing'
 
-        if 'message' not in status_dic:
-            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+        if 'type' not in status_dic:
+            status_dic['type'] = 'urn:ietf:params:acme:error:serverInternal'
 
         if 'detail' not in status_dic:
             status_dic['detail'] = None
