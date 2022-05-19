@@ -177,7 +177,7 @@ class Authorization(object):
                 detail = 'url is missing in protected'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
