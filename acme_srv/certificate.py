@@ -698,11 +698,11 @@ class Certificate(object):
                     detail = None
             else:
                 response_dic['code'] = code = 400
-                response_dic['data'] = message = 'urn:ietf:params:acme:error:malformed'
+                response_dic['data'] = type = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'status': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         # depending on the response the content of responsedic['data'] can be either string or dict
@@ -747,7 +747,7 @@ class Certificate(object):
                 detail = 'certificate not found'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'status': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))
