@@ -90,19 +90,19 @@ class TestACMEHandler(unittest.TestCase):
     def test_006_trigger_parse(self):
         """ Trigger.parse() with empty payload """
         payload = ""
-        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload missing', 'message': 'malformed', 'status': 400}}
+        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload missing', 'type': 'malformed', 'status': 400}}
         self.assertEqual(result, self.trigger.parse(payload))
 
     def test_007_trigger_parse(self):
         """ Trigger.parse() with wrong payload """
         payload = '{"foo": "bar"}'
-        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload missing', 'message': 'malformed', 'status': 400}}
+        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload missing', 'type': 'malformed', 'status': 400}}
         self.assertEqual(result, self.trigger.parse(payload))
 
     def test_008_trigger_parse(self):
         """ Trigger.parse() with empty payload key"""
         payload = '{"payload": ""}'
-        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload empty', 'message': 'malformed', 'status': 400}}
+        result = {'header': {}, 'code': 400, 'data': {'detail': 'payload empty', 'type': 'malformed', 'status': 400}}
         self.assertEqual(result, self.trigger.parse(payload))
 
     @patch('acme_srv.trigger.Trigger._payload_process')
@@ -110,7 +110,7 @@ class TestACMEHandler(unittest.TestCase):
         """ Trigger.parse() with payload mock result 400"""
         payload = '{"payload": "foo"}'
         mock_process.return_value = (400, 'message', 'detail')
-        result = {'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}
+        result = {'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}
         self.assertEqual(result, self.trigger.parse(payload))
 
     @patch('acme_srv.trigger.Trigger._payload_process')
@@ -118,7 +118,7 @@ class TestACMEHandler(unittest.TestCase):
         """ Trigger.parse() with payload mock result 200"""
         payload = '{"payload": "foo"}'
         mock_process.return_value = (200, 'message', 'detail')
-        result = {'header': {}, 'code': 200, 'data': {'detail': 'detail', 'message': 'message', 'status': 200}}
+        result = {'header': {}, 'code': 200, 'data': {'detail': 'detail', 'type': 'message', 'status': 200}}
         self.assertEqual(result, self.trigger.parse(payload))
 
     def test_011_trigger__payload_process(self):
