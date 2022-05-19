@@ -702,7 +702,7 @@ class Certificate(object):
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'status': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         # depending on the response the content of responsedic['data'] can be either string or dict
@@ -747,7 +747,7 @@ class Certificate(object):
                 detail = 'certificate not found'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'status': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))

@@ -148,11 +148,10 @@ class Message(object):
             if status_dic['detail']:
                 # some error occured get details
                 error_message = Error(self.debug, self.logger)
-                status_dic['detail'] = error_message.enrich_error(status_dic['message'], status_dic['detail'])
-                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': status_dic['detail']}
+                status_dic['detail'] = error_message.enrich_error(status_dic['type'], status_dic['detail'])
+                response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type'], 'detail': status_dic['detail']}
             else:
-                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message']}
-                # response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': None}
+                response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type']}
         else:
             # add nonce to header
             response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
