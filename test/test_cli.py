@@ -20,7 +20,10 @@ class FakeDBStore(object):
 class TestACMEHandler(unittest.TestCase):
     """ test class for ACMEHandler """
     acme = None
-    def setUp(self):
+
+    @patch('tools.a2c_cli.CommandLineInterface._load_cfg')
+    @patch('argparse.ArgumentParser')
+    def setUp(self, mock_arg, mock_lcfg):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
