@@ -96,13 +96,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_012_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed bcs. message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme_srv.message.Message.check')
     def test_013_challenge_parse(self, mock_mcheck):
         """ Challenge.parse() failed message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
 
     @patch('acme_srv.challenge.Challenge._name_get')
     @patch('acme_srv.message.Message.check')
@@ -111,7 +111,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.tnauthlist_support = True
         mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
         mock_cname.return_value = None
-        self.assertEqual({'code': 400, 'data' : {'detail': 'could not get challenge', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'could not get challenge', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
     @patch('acme_srv.challenge.Challenge._info')
     @patch('acme_srv.challenge.Challenge._name_get')
@@ -122,7 +122,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
         mock_cname.return_value = 'foo'
         mock_info.return_value = {}
-        self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
     @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
     @patch('acme_srv.challenge.Challenge._info')
@@ -135,7 +135,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_cname.return_value = 'foo'
         mock_info.return_value = {'foo': 'bar'}
         mock_tnauth.return_value = (400, 'foo', 'bar')
-        self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'message': 'foo', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'type': 'foo', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')

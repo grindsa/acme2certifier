@@ -138,7 +138,7 @@ class Trigger(object):
         # prepare/enrich response
         response_dic['header'] = {}
         response_dic['code'] = code
-        response_dic['data'] = {'status': code, 'message': message}
+        response_dic['data'] = {'status': code, 'type': message}
         if detail:
             response_dic['data']['detail'] = detail
 

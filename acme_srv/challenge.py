@@ -535,7 +535,7 @@ class Challenge(object):
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
         self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic

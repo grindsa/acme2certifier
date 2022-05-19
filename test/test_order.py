@@ -87,7 +87,7 @@ class TestACMEHandler(unittest.TestCase):
         """ Order.new() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.new(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.new(message))
 
     @patch('acme_srv.order.Order._add')
     @patch('acme_srv.message.Message.check')
@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"}, 'account_name')
         mock_orderadd.return_value = ('urn:ietf:params:acme:error:malformed', None, None, None)
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'message': 'urn:ietf:params:acme:error:malformed', 'detail': 'could not process order'}}, self.order.new(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'could not process order'}}, self.order.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
@@ -330,14 +330,14 @@ class TestACMEHandler(unittest.TestCase):
         """ Order.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
 
     @patch('acme_srv.message.Message.check')
     def test_036_order_parse(self, mock_mcheck):
         """ Order.parse() failed bcs. no url key in protected """
         mock_mcheck.return_value = (200, None, None, {'foo_protected' : 'bar_protected'}, {"foo_payload" : "bar_payload"}, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
 
     @patch('acme_srv.order.Order._name_get')
     @patch('acme_srv.message.Message.check')
@@ -346,7 +346,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = None
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'order name is missing', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'order name is missing', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
 
     @patch('acme_srv.order.Order._lookup')
     @patch('acme_srv.order.Order._name_get')
@@ -357,7 +357,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_oname.return_value = 'foo'
         mock_lookup.return_value = None
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'order not found', 'message': 'urn:ietf:params:acme:error:orderNotReady', 'status': 403}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'order not found', 'type': 'urn:ietf:params:acme:error:orderNotReady', 'status': 403}}, self.order.parse(message))
 
     @patch('acme_srv.order.Order._process')
     @patch('acme_srv.order.Order._lookup')
@@ -370,7 +370,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_lookup.return_value = 'foo'
         mock_process.return_value = (400, 'message', 'detail', None)
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
