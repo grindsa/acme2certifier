@@ -103,7 +103,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime.datetime')
-    def test_009_cli_print(self, mock_datetime, mock_print):
+    def test_010_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print without text """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print(None)
@@ -112,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime')
-    def test_010_cli_print(self, mock_datetime, mock_print):
+    def test_011_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print('foo', date_print=False)
@@ -123,7 +123,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime')
-    def test_011_cli_print(self, mock_datetime, mock_print):
+    def test_012_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print('foo', date_print=True)
@@ -133,7 +133,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime')
-    def test_011_cli_print(self, mock_datetime, mock_print):
+    def test_013_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print('foo')
@@ -143,7 +143,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime')
-    def test_012_cli_print(self, mock_datetime, mock_print):
+    def test_014_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print('foo', printreturn=True)
@@ -153,7 +153,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('builtins.print')
     @patch('tools.a2c_cli.datetime')
-    def test_013_cli_print(self, mock_datetime, mock_print):
+    def test_015_cli_print(self, mock_datetime, mock_print):
         """ test _cli_print """
         mock_datetime.datetime.now.return_value.strftime.return_value = 'datetime'
         self.a2ccli._cli_print('foo', printreturn=False)
@@ -162,21 +162,21 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_datetime.called)
 
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_011_command_check(self, mock_help_print):
+    def test_016_command_check(self, mock_help_print):
         """ test _command check with help paramter """
         command = 'help'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_help_print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_011_command_check(self, mock_help_print):
+    def test_017_command_check(self, mock_help_print):
         """ test _command check with help paramter """
         command = 'H'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_help_print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._server_set')
-    def test_012_command_check(self, mock_server_set):
+    def test_018_command_check(self, mock_server_set):
         """ test __servr_set() """
         command = 'server foo'
         self.a2ccli._command_check(command)
@@ -184,7 +184,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_013_command_check(self, mock_help_print, mock_cli_print):
+    def test_019_command_check(self, mock_help_print, mock_cli_print):
         """ test _command check with unconfigured environement """
         command = '/foo'
         self.a2ccli._command_check(command)
@@ -193,7 +193,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.CommandLineInterface.help_print')
-    def test_014_command_check(self, mock_help_print, mock_cli_print):
+    def test_020_command_check(self, mock_help_print, mock_cli_print):
         """ test _command check with unknown command """
         self.a2ccli.status = 'Configured'
         command = '/foo'
@@ -202,35 +202,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_help_print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._key_operations')
-    def test_015_command_check(self, mock_keyops):
+    def test_021_command_check(self, mock_keyops):
         """ test _command check with key generator """
         command = 'key foo'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_keyops.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._quit')
-    def test_016_command_check(self, mock_quit):
+    def test_022_command_check(self, mock_quit):
         """ test _command check with quit """
         command = 'quit'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_quit.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._quit')
-    def test_017_command_check(self, mock_quit):
+    def test_023_command_check(self, mock_quit):
         """ test _command check with key quit """
         command = 'Q'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_quit.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._config_operations')
-    def test_018_command_check(self, mock_cfg):
+    def test_024_command_check(self, mock_cfg):
         """ test _command check with config """
         command = 'config foo'
         self.a2ccli._command_check(command)
         self.assertTrue(mock_cfg.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._report_operations')
-    def test_019_command_check(self, mock_report):
+    def test_025_command_check(self, mock_report):
         """ test _command check with _report_operations """
         self.a2ccli.status = 'Configured'
         command = 'report foo'
@@ -239,16 +239,41 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.CommandLineInterface._report_operations')
-    def test_020_command_check(self, mock_report, mock_cli):
+    def test_026_command_check(self, mock_report, mock_cli):
         """ test _command check with report operations but incomplete config """
         command = 'report foo'
         self.a2ccli._command_check(command)
         self.assertFalse(mock_report.called)
         self.assertTrue(mock_cli.called)
 
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.CommandLineInterface._message_operations')
+    @patch('tools.a2c_cli.CommandLineInterface._report_operations')
+    def test_027_command_check(self, mock_report, mock_message, mock_cli):
+        """ test _command check with report command """
+        command = 'report foo'
+        self.a2ccli.status = 'Configured'
+        self.a2ccli._command_check(command)
+        self.assertTrue(mock_report.called)
+        self.assertFalse(mock_message.called)
+        self.assertFalse(mock_cli.called)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.CommandLineInterface._message_operations')
+    @patch('tools.a2c_cli.CommandLineInterface._report_operations')
+    def test_028_command_check(self, mock_report, mock_message, mock_cli):
+        """ test _command check with report command """
+        command = 'message foo'
+        self.a2ccli.status = 'Configured'
+        self.a2ccli._command_check(command)
+        self.assertFalse(mock_report.called)
+        self.assertTrue(mock_message.called)
+        self.assertFalse(mock_cli.called)
+
+
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_014_server_set(self, mock_cli_print, mock_is_url):
+    def test_029_server_set(self, mock_cli_print, mock_is_url):
         """ test _server_set all good """
         command = 'server foo'
         mock_is_url.return_value = True
@@ -259,20 +284,20 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_015_server_set(self, mock_cli_print, mock_is_url):
+    def test_030_server_set(self, mock_cli_print, mock_is_url):
         """ test _server_set all good """
         command = 'server foo'
         mock_is_url.return_value = True
-        self.a2cclie.key = 'key'
+        self.a2ccli.key = 'key'
         self.a2ccli._server_set(command)
         self.assertEqual(self.a2ccli.server, 'foo')
-        self.assertEqual(self.a2ccli.status, 'configured')
+        self.assertEqual(self.a2ccli.status, 'Configured')
         self.assertFalse(mock_cli_print.called)
 
 
     @patch('tools.a2c_cli.is_url')
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_015_server_set(self, mock_cli_print, mock_is_url):
+    def test_031_server_set(self, mock_cli_print, mock_is_url):
         """ test _server_set all wrong url specified """
         command = 'server foo'
         mock_is_url.return_value = False
@@ -284,7 +309,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.KeyOperations.generate')
     @patch('tools.a2c_cli.KeyOperations.load')
-    def test_016_key_operations(self, mock_load, mock_gen, mock_print):
+    def test_032_key_operations(self, mock_load, mock_gen, mock_print):
         """ test key operations generate command """
         command = 'key generate foo'
         self.a2ccli._key_operations(command)
@@ -295,7 +320,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.KeyOperations.generate')
     @patch('tools.a2c_cli.KeyOperations.load')
-    def test_017_key_operations(self, mock_load, mock_gen, mock_print):
+    def test_033_key_operations(self, mock_load, mock_gen, mock_print):
         """ test key operations load command """
         command = 'key load foo'
         self.a2ccli._key_operations(command)
@@ -306,7 +331,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.KeyOperations.generate')
     @patch('tools.a2c_cli.KeyOperations.load')
-    def test_016_key_operations(self, mock_load, mock_gen, mock_print):
+    def test_034_key_operations(self, mock_load, mock_gen, mock_print):
         """ test key operations unknown command """
         command = 'key bar foo'
         self.a2ccli._key_operations(command)
@@ -317,7 +342,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.KeyOperations.generate')
     @patch('tools.a2c_cli.KeyOperations.load')
-    def test_017_key_operations(self, mock_load, mock_gen, mock_print):
+    def test_035_key_operations(self, mock_load, mock_gen, mock_print):
         """ test key operations incomplete command """
         command = 'key foo'
         self.a2ccli._key_operations(command)
@@ -330,7 +355,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('jwcrypto.jwk.JWK.generate.export_private')
     @patch('jwcrypto.jwk.JWK.generate')
     @patch('tools.a2c_cli.file_dump')
-    def test_018_key_generate(self, mock_fd, mock_jwk, mock_exp_priv, mock_export_public, mock_json_dump):
+    def test_036_key_generate(self, mock_fd, mock_jwk, mock_exp_priv, mock_export_public, mock_json_dump):
         """ test key generation  all ok """
         self.keyops.print = Mock()
         mock_exp_priv.return_value = {'foo': 'bar'}
@@ -343,7 +368,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('json.dumps')
     @patch('jwcrypto.jwk.JWK.generate')
     @patch('tools.a2c_cli.file_dump')
-    def test_019_key_generate(self, mock_fd, mock_jwk, mock_json_dump):
+    def test_037_key_generate(self, mock_fd, mock_jwk, mock_json_dump):
         """ test key generation  exception during filedump """
         mock_fd.side_effect = Exception('exc_fd')
         self.keyops.print = Mock()
@@ -354,34 +379,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_jwk.called)
         self.assertTrue(mock_fd.called)
 
-    def test_020_isurl(self):
+    def test_038_isurl(self):
         """ test is_url """
         url = 'http://foo.bar'
         self.assertTrue(self.is_url(url))
 
-    def test_021_isurl(self):
+    def test_039_isurl(self):
         """ test is_url """
         url = 'https://foo.bar'
         self.assertTrue(self.is_url(url))
 
-    def test_022_isurl(self):
+    def test_040_isurl(self):
         """ test is_url """
         url = 'https://foo.bar/foo'
         self.assertTrue(self.is_url(url))
 
-    def test_023_isurl(self):
+    def test_041_isurl(self):
         """ test is_url """
         url = 'https://foo.bar:80/foo'
         self.assertTrue(self.is_url(url))
 
-    def test_024_isurl(self):
+    def test_042_isurl(self):
         """ test is_url """
         url = 'foo.bar'
         self.assertFalse(self.is_url(url))
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
     @patch('tools.a2c_cli.MessageOperations.sign')
-    def test_025_message_operations(self, mock_sign, mock_print):
+    def test_043_message_operations(self, mock_sign, mock_print):
         """ test message operations all ok """
         command = 'message sign "test"'
         self.a2ccli._message_operations(command)
@@ -390,7 +415,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('jwcrypto.jws.JWS.serialize')
     @patch('jwcrypto.jws.JWS.add_signature')
-    def test_026_msgops_sign(self, mock_add_sig, mock_serialize):
+    def test_044_msgops_sign(self, mock_add_sig, mock_serialize):
         """ test add signature """
         key = {'kid': 'kid'}
         message = 'message'
@@ -399,40 +424,40 @@ class TestACMEHandler(unittest.TestCase):
 
 
     @patch('requests.post')
-    def test_026_msgops_send(self, mock_post):
+    def test_045_msgops_send(self, mock_post):
         """ test add signature """
         mock_post.return_value = 'foo'
         self.assertEqual('foo', self.msgops.send('server', 'message'))
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     @patch('csv.writer')
-    def test_027__csv_dump(self, mock_csv):
+    def test_046__csv_dump(self, mock_csv):
         """ test csv dump """
         self.csv_dump(self.logger, 'filename', 'content')
         self.assertTrue(mock_csv.called)
 
-    def test_028_helper_generate_random_string(self):
+    def test_047_helper_generate_random_string(self):
         """ test date_to_uts_utc without format """
         self.assertEqual(5, len(self.generate_random_string(self.logger, 5)))
 
-    def test_029_helper_generate_random_string(self):
+    def test_048_helper_generate_random_string(self):
         """ test date_to_uts_utc without format """
         self.assertEqual(15, len(self.generate_random_string(self.logger, 15)))
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    def test_030__file_dump(self):
+    def test_049__file_dump(self):
         """ test csv dump """
         self.file_dump(self.logger, 'filename', 'content')
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    def test_031__file_load(self):
+    def test_050__file_load(self):
         """ test csv dump """
         self.assertEqual('foo', self.file_load(self.logger, 'filename'))
 
     @patch('time.sleep')
     @patch('tools.a2c_cli.CommandLineInterface._command_check')
     @patch("builtins.open", mock_open(read_data='foo\nbar'), create=True)
-    def test_032__load_cfg(self, mock_check, mock_sleep):
+    def test_051__load_cfg(self, mock_check, mock_sleep):
         """ test _load_cfg"""
         self.a2ccli._load_cfg('filename')
         self.assertTrue(mock_check.called)
@@ -441,7 +466,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('time.sleep')
     @patch('tools.a2c_cli.CommandLineInterface._command_check')
     @patch("builtins.open", mock_open(read_data='sleep 10\nbar'), create=True)
-    def test_033__load_cfg(self, mock_check, mock_sleep):
+    def test_052__load_cfg(self, mock_check, mock_sleep):
         """ test _load_cfg with sleep command """
         self.a2ccli._load_cfg('filename')
         self.assertTrue(mock_check.called)
@@ -450,7 +475,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('time.sleep')
     @patch('tools.a2c_cli.CommandLineInterface._command_check')
     @patch("builtins.open", mock_open(read_data='sleep\nbar'), create=True)
-    def test_034__load_cfg(self, mock_check, mock_sleep):
+    def test_053__load_cfg(self, mock_check, mock_sleep):
         """ test _load_cfg with sleep command - slit failes """
         self.a2ccli._load_cfg('filename')
         self.assertTrue(mock_check.called)
@@ -460,14 +485,14 @@ class TestACMEHandler(unittest.TestCase):
     @patch('time.sleep')
     @patch('tools.a2c_cli.CommandLineInterface._command_check')
     @patch("builtins.open", mock_open(read_data='#foo\n#bar'), create=True)
-    def test_035__load_cfg(self, mock_check, mock_sleep):
+    def test_054__load_cfg(self, mock_check, mock_sleep):
         """ test _load_cfg"""
         self.a2ccli._load_cfg('filename')
         self.assertFalse(mock_check.called)
         self.assertFalse(mock_sleep.called)
 
     @patch('sys.exit')
-    def test_036__quit(self, mock_exit):
+    def test_055__quit(self, mock_exit):
         """ test _quit() """
         self.a2ccli._quit()
         self.assertTrue(mock_exit.called)
@@ -476,7 +501,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('jwcrypto.jwk.JWK.from_json')
     @patch('tools.a2c_cli.file_load')
     @patch('os.path.exists')
-    def test_037_keyops_load(self, mock_exists, mock_fload, mock_json):
+    def test_056_keyops_load(self, mock_exists, mock_fload, mock_json):
         """ test keyoperations.load() """
         self.keyops.print = Mock()
         mock_exists.return_value = False
@@ -489,7 +514,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('jwcrypto.jwk.JWK.from_json')
     @patch('tools.a2c_cli.file_load')
     @patch('os.path.exists')
-    def test_038_keyops_load(self, mock_exists, mock_fload, mock_json):
+    def test_057_keyops_load(self, mock_exists, mock_fload, mock_json):
         """ test keyoperations.load() """
         self.keyops.print = Mock()
         mock_exists.return_value = True
@@ -500,7 +525,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.keyops.print.called)
 
     @patch('tools.a2c_cli.CommandLineInterface._cli_print')
-    def test_039_config_ops(self, mock_print):
+    def test_058_config_ops(self, mock_print):
         """ test config_operations """
         self.a2ccli._config_operations('foo')
         self.assertTrue(mock_print.called)
