@@ -433,8 +433,8 @@ class Housekeeping(object):
         if code == 200:
             if 'type' in payload and 'data' in payload:
                 if payload['type'] == 'report':
-                    if payload['data']['name'] in ('certificates', 'accounts'):
-                        if payload['data']['format'] in ('csv', 'json'):
+                    if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
+                        if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
                             if payload['data']['name'] == 'certificates':
                                 response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
                             elif payload['data']['name'] == 'accounts':
@@ -448,15 +448,18 @@ class Housekeeping(object):
                         code = 400
                         message = 'urn:ietf:params:acme:error:malformed'
                         detail = 'unknown report type'
-
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'unknown type value'
             else:
                 code = 400
                 message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'type field is missing in payload'
+                detail = 'either type field or data field is missing in payload'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
-        response_dic = self.message.prepare_response(response_dic, status_dic)
+        status_dic = {'code': code, 'type': message, 'detail': detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic, False)
         self.logger.debug('Housekeeping.parse() returned something.')
 
         return response_dic
