@@ -300,5 +300,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertEqual({'acct_path': 'url_prefix/acme/acct/', 'revocation_path': 'url_prefix/acme/revokecert'}, self.message.path_dic)
 
+    @patch('acme_srv.message.decode_message')
+    def test_032_message_check(self, mock_decode):
+        """ cli_check failed bcs of decoding error """
+        message = '{"foo" : "bar"}'
+        mock_decode.return_value = (False, 'detail', None, None, None)
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'detail', None, None, None), self.message.cli_check(message))
+
+    @patch('acme_srv.signature.Signature.cli_check')
+    @patch('acme_srv.message.Message._name_get')
+    @patch('acme_srv.message.decode_message')
+    def test_033_message_check(self, mock_decode, mock_name_get, mock_check):
+        """ message check failed bcs sig.cli_check() failed """
+        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_check.return_value = (False, 'error', 'detail')
+        mock_name_get.return_value = 'name'
+        message = '{"foo" : "bar"}'
+        self.assertEqual((403, 'error', 'detail', 'protected', 'payload', 'name'), self.message.cli_check(message))
+
+    @patch('acme_srv.signature.Signature.cli_check')
+    @patch('acme_srv.message.Message._name_get')
+    @patch('acme_srv.message.decode_message')
+    def test_034_message_check(self, mock_decode, mock_name_get, mock_check):
+        """ message check failed bcs sig.cli_check() successful """
+        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_check.return_value = ('True', 'error', 'detail')
+        mock_name_get.return_value = 'name'
+        message = '{"foo" : "bar"}'
+        self.assertEqual((200, None, None, 'protected', 'payload', 'name'), self.message.cli_check(message))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -27,7 +27,7 @@ class Signature(object):
         try:
             result = self.dbstore.cli_jwk_load(kid)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Signature._hwk_load(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Signature._cli_jwk_load(): {0}'.format(err_))
             result = None
         return result
 
@@ -37,8 +37,7 @@ class Signature(object):
         try:
             result = self.dbstore.jwk_load(kid)
         except Exception as err_:
-            print(err_)
-            self.logger.critical('acme2certifier database error in Signature._hwk_load(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Signature._jwk_load(): {0}'.format(err_))
             result = None
         return result
 
@@ -47,16 +46,19 @@ class Signature(object):
         self.logger.debug('Signature.cli_check({0})'.format(aname))
         result = False
         error = None
-
-        if aname:
-            self.logger.debug('check signature against account key')
-            pub_key = self._cli_jwk_load(aname)
-            if pub_key:
-                (result, error) = signature_check(self.logger, content, pub_key)
+        if content:
+            if aname:
+                self.logger.debug('check signature against account key')
+                pub_key = self._cli_jwk_load(aname)
+                if pub_key:
+                    (result, error) = signature_check(self.logger, content, pub_key)
+                else:
+                    error = 'urn:ietf:params:acme:error:accountDoesNotExist'
             else:
                 error = 'urn:ietf:params:acme:error:accountDoesNotExist'
         else:
-            error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+            error = 'urn:ietf:params:acme:error:malformed'
+
 
         self.logger.debug('Signature.cli_check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)

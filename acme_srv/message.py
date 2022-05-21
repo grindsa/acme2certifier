@@ -155,7 +155,7 @@ class Message(object):
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return(code, message, detail, protected, payload, account_name)
 
-    def prepare_response(self, response_dic, status_dic):
+    def prepare_response(self, response_dic, status_dic, add_nonce=True):
         """ prepare response_dic """
         self.logger.debug('Message.prepare_response()')
         if 'code' not in status_dic:
@@ -186,6 +186,7 @@ class Message(object):
                 response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type']}
         else:
             # add nonce to header
-            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+            if add_nonce:
+                response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         return response_dic
