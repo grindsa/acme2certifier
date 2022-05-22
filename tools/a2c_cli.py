@@ -232,8 +232,8 @@ class CommandLineInterface(object):
                 self._message_operations(command)
             elif command.startswith('report'):
                 self._report_operations(command)
-            elif command.startswith('certificate search'):
-                self._cli_print('jupp, jupp')
+            elif command.startswith('certificate'):
+                self._certificate_operations(command)
             else:
                 if command:
                     self._cli_print('unknown command: "/{0}"'.format(command))
@@ -241,6 +241,9 @@ class CommandLineInterface(object):
         else:
             self._cli_print('Unknown command: "{0}'.format(command))
             self.help_print()
+
+    def _certificate_operations(self, command):
+        self.logger.debug('CommandLineInterface._certificate_operations(): {0}'.format(command))
 
     def _config_operations(self, command):
         self.logger.debug('CommandLineInterface._config_operations(): {0}'.format(command))
@@ -323,9 +326,15 @@ class CommandLineInterface(object):
             (_key, command, filename) = command.split(' ', 2)
         except Exception:
             self._cli_print('incomplete command: "{0}"'.format(command))
+            command = None
+            filename = None
 
         if command and filename:
-            (_filename, format) = filename.lower().split('.', 2)
+            try:
+                (_filename, format) = filename.lower().split('.', 2)
+            except Exception:
+                self._cli_print('incomplete filename: "{0}"'.format(command))
+                format = None
             if format in ('csv', 'json'):
                 # process report request
                 message = MessageOperations(self.logger, self._cli_print)
