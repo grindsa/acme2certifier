@@ -311,6 +311,15 @@ class DBstore(object):
                 jwk_dict = json.loads(account_dict[0]['jwk'])
         return jwk_dict
 
+    def cli_permissions_get(self, aname):
+        """ looad account informatino and build jwk key dictionary from cliaccounts teable """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_dict = Cliaccount.objects.filter(name=aname).values('reportadmin', 'cliadmin', 'certificateadmin')[:1]
+        permissions_dict = {}
+        if account_dict:
+            permissions_dict = account_dict[0]
+        return permissions_dict
+
     def dbversion_get(self):
         """ get db version from housekeeping table """
         self.logger.debug('DBStore.dbversion_get()')
