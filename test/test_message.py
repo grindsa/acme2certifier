@@ -305,7 +305,7 @@ class TestACMEHandler(unittest.TestCase):
         """ cli_check failed bcs of decoding error """
         message = '{"foo" : "bar"}'
         mock_decode.return_value = (False, 'detail', None, None, None)
-        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'detail', None, None, None), self.message.cli_check(message))
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'detail', None, None, None, {}), self.message.cli_check(message))
 
     @patch('acme_srv.signature.Signature.cli_check')
     @patch('acme_srv.message.Message._name_get')
@@ -316,7 +316,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_check.return_value = (False, 'error', 'detail')
         mock_name_get.return_value = 'name'
         message = '{"foo" : "bar"}'
-        self.assertEqual((403, 'error', 'detail', 'protected', 'payload', 'name'), self.message.cli_check(message))
+        self.assertEqual((403, 'error', 'detail', 'protected', 'payload', 'name', {}), self.message.cli_check(message))
+        self.assertFalse(self.message.dbstore.cli_permissions_get.called)
 
     @patch('acme_srv.signature.Signature.cli_check')
     @patch('acme_srv.message.Message._name_get')
@@ -325,9 +326,10 @@ class TestACMEHandler(unittest.TestCase):
         """ message check failed bcs sig.cli_check() successful """
         mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
         mock_check.return_value = ('True', 'error', 'detail')
+        self.message.dbstore.cli_permissions_get.return_value = {'foo' : 'bar'}
         mock_name_get.return_value = 'name'
         message = '{"foo" : "bar"}'
-        self.assertEqual((200, None, None, 'protected', 'payload', 'name'), self.message.cli_check(message))
+        self.assertEqual((200, None, None, 'protected', 'payload', 'name', {'foo': 'bar'}), self.message.cli_check(message))
 
 
 if __name__ == '__main__':

@@ -660,6 +660,25 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.MessageOperations.send')
     @patch('tools.a2c_cli.MessageOperations.sign')
     def test_068_report_operations(self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print):
+        """ test report operations request error - detail tag in json response """
+        mockresponse = Mock()
+        mock_send.return_value = mockresponse
+        mockresponse.status_code = 400
+        mockresponse.json = lambda: {'detail': 'detail'}
+        self.a2ccli._report_operations('report text foo.csv')
+        self.assertTrue(mock_print.called)
+        self.assertFalse(mock_fdump.called)
+        self.assertFalse(mock_cdump.called)
+        self.assertTrue(mock_send.called)
+        self.assertTrue(mock_sign.called)
+
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.file_dump')
+    @patch('tools.a2c_cli.csv_dump')
+    @patch('tools.a2c_cli.MessageOperations.send')
+    @patch('tools.a2c_cli.MessageOperations.sign')
+    def test_069_report_operations(self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print):
         """ test report operations request success - csv dump """
         mockresponse = Mock()
         mock_send.return_value = mockresponse
@@ -677,7 +696,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('tools.a2c_cli.csv_dump')
     @patch('tools.a2c_cli.MessageOperations.send')
     @patch('tools.a2c_cli.MessageOperations.sign')
-    def test_069_report_operations(self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print):
+    def test_070_report_operations(self, mock_sign, mock_send, mock_cdump, mock_fdump, mock_print):
         """ test report operations request success - csv dump """
         mockresponse = Mock()
         mock_send.return_value = mockresponse
@@ -692,7 +711,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('tools.a2c_cli.CommandLineInterface._intro_print')
     @patch('builtins.input', side_effect=['5', '6', '/Q'])
-    def test_070_start(self, mock_input, mock_intro):
+    def test_071_start(self, mock_input, mock_intro):
         """ mock start """
         with self.assertRaises(SystemExit) as cm:
             self.a2ccli.start()
