@@ -855,7 +855,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_087_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed """
         payload = {}
-        mock_check.return_value = (400, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (400, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'detail', 'status': 400, 'type': 'message'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -867,7 +867,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_088_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed empty payload """
         payload = {}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -879,7 +879,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_089_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed data field missing """
         payload = {'type': 'type'}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -891,7 +891,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_090_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed type field missing """
         payload = {'data': 'data'}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -903,7 +903,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_091_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed unknown type """
         payload = {'type': 'type', 'data': 'data'}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown type value', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -915,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_092_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed unknown report format """
         payload = {'type': 'report', 'data': 'data'}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown report type', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
@@ -927,7 +927,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_093_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed unknown report type """
         payload = {'type': 'report', 'data': {'name': 'name'}}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         mock_cert.return_value = 'cert_value'
         mock_account.return_value = 'account_value'
         result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown report type', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
@@ -941,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_094_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() format field is missing """
         payload = {'type': 'report', 'data': {'name': 'certificates'}}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         mock_cert.return_value = 'cert_value'
         mock_account.return_value = 'account_value'
         result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown report format', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
@@ -955,7 +955,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_095_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() failed unknown report format """
         payload = {'type': 'report', 'data': {'name': 'certificates', 'format': 'txt'}}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         mock_cert.return_value = 'cert_value'
         mock_account.return_value = 'account_value'
         result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown report format', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
@@ -969,7 +969,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_096_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() fetch certificate report """
         payload = {'type': 'report', 'data': {'name': 'certificates', 'format': 'json'}}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         mock_cert.return_value = 'cert_value'
         mock_account.return_value = 'account_value'
         result = {'code': 200, 'header': {}, 'data': 'cert_value'}
@@ -983,13 +983,41 @@ class TestACMEHandler(unittest.TestCase):
     def test_097_parse(self, mock_check, mock_cert, mock_account):
         """ test parse cli_check() fetch certificate report """
         payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
-        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name')
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
         mock_cert.return_value = 'cert_value'
         mock_account.return_value = 'account_value'
         result = {'code': 200, 'header': {}, 'data': 'account_value'}
         self.assertEqual(result, self.housekeeping.parse('content'))
         self.assertFalse(mock_cert.called)
         self.assertTrue(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_098_parse(self, mock_check, mock_cert, mock_account):
+        """ test parse cli_check() fetch certificate report - reportadmin flag is false """
+        payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': False, 'foo': 'bar'})
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = {'code': 403, 'header': {}, 'data': {'detail': 'No permissions to download reports', 'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_099_parse(self, mock_check, mock_cert, mock_account):
+        """ test parse cli_check() fetch certificate report - reportadmin flag does not exist """
+        payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'foo': 'bar'})
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = {'code': 403, 'header': {}, 'data': {'detail': 'No permissions to download reports', 'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
 
 if __name__ == '__main__':
     unittest.main()

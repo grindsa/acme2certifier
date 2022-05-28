@@ -59,7 +59,6 @@ class Signature(object):
         else:
             error = 'urn:ietf:params:acme:error:malformed'
 
-
         self.logger.debug('Signature.cli_check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)
 

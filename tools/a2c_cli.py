@@ -349,11 +349,13 @@ class CommandLineInterface(object):
                 else:
                     if 'message' in response.json():
                         message = response.json()['message']
+                    elif 'detail' in response.json():
+                        message = response.json()['detail']
                     else:
                         message = None
                     self._cli_print('ERROR: {0} - {1}'.format(response.status_code, message))
             else:
-                self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"')
+                self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"'.format(format))
 
     def _prompt_get(self):
         """ get prompt """
