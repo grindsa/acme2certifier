@@ -132,6 +132,7 @@ class Message(object):
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
         account_name = None
+        permissions = {}
         if result:
             # check signature
             account_name = self._name_get(protected)
@@ -142,6 +143,7 @@ class Message(object):
                 code = 200
                 message = None
                 detail = None
+                permissions = self.dbstore.cli_permissions_get(account_name)
             else:
                 code = 403
                 message = error
@@ -153,7 +155,7 @@ class Message(object):
             detail = error_detail
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
-        return(code, message, detail, protected, payload, account_name)
+        return(code, message, detail, protected, payload, account_name, permissions)
 
     def prepare_response(self, response_dic, status_dic, add_nonce=True):
         """ prepare response_dic """
