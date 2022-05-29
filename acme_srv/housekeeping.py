@@ -82,7 +82,6 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._clireport_get() returned with: {0}/{1}'.format(code, detail))
         return (code, message, detail, response_dic)
 
-
     def _config_load(self):
         """ load config from file """
         self.logger.debug('Housekeeping._config_load()')
