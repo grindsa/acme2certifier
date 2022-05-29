@@ -191,7 +191,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create cliaccount')
         self.cursor.execute('''
-            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
@@ -858,6 +858,16 @@ class DBstore(object):
         self.logger.debug('DBStore.jwk_load() ended with: {0}'.format(jwk_dict))
         return jwk_dict
 
+    def cli_permissions_get(self, aname):
+        """ looad cliaccount information and build jwk key dictionary """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_list = self._cliaccount_search('name', aname)
+        account_dic = {}
+        if account_list:
+            account_dic = {'cliadmin': account_list['cliadmin'], 'reportadmin': account_list['reportadmin'], 'certificateadmin': account_list['certificateadmin']}
+
+        return account_dic
+
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
@@ -937,7 +947,7 @@ class DBstore(object):
         if not self.cursor.fetchone()[0] == 1:
             self.logger.info('create cliaccount table')
             self.cursor.execute('''
-                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
         # version update
         self.logger.info('update dbversion to {0}'.format(__dbversion__))
