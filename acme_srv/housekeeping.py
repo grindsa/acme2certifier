@@ -50,6 +50,39 @@ class Housekeeping(object):
             result = None
         return result
 
+    def _clireport_get(self, payload, permissions_dic):
+        """ get reports for CLI """
+        self.logger.debug('Housekeeping._clireport_get()')
+        response_dic = {}
+        message = None
+        detail = None
+
+        if 'reportadmin' in permissions_dic and permissions_dic['reportadmin']:
+
+            if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
+                if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
+                    if payload['data']['name'] == 'certificates':
+                        response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                    elif payload['data']['name'] == 'accounts':
+                        response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
+                    code = 200
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'unknown report format'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'unknown report type'
+        else:
+            code = 403
+            message = 'urn:ietf:params:acme:error:unauthorized'
+            detail = 'No permissions to download reports'
+
+        self.logger.debug('Housekeeping._clireport_get() returned with: {0}/{1}'.format(code, detail))
+        return (code, message, detail, response_dic)
+
+
     def _config_load(self):
         """ load config from file """
         self.logger.debug('Housekeeping._config_load()')
@@ -433,26 +466,7 @@ class Housekeeping(object):
         if code == 200:
             if 'type' in payload and 'data' in payload:
                 if payload['type'] == 'report':
-                    if 'reportadmin' in permissions_dic and permissions_dic['reportadmin']:
-                        if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
-                            if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
-                                if payload['data']['name'] == 'certificates':
-                                    response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
-                                elif payload['data']['name'] == 'accounts':
-                                    response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
-                                code = 200
-                            else:
-                                code = 400
-                                message = 'urn:ietf:params:acme:error:malformed'
-                                detail = 'unknown report format'
-                        else:
-                            code = 400
-                            message = 'urn:ietf:params:acme:error:malformed'
-                            detail = 'unknown report type'
-                    else:
-                        code = 403
-                        message = 'urn:ietf:params:acme:error:unauthorized'
-                        detail = 'No permissions to download reports'
+                    (code, message, detail, response_dic) = self._clireport_get(payload, permissions_dic)
                 else:
                     code = 400
                     message = 'urn:ietf:params:acme:error:malformed'
@@ -465,7 +479,6 @@ class Housekeeping(object):
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic, False)
-        print(response_dic)
         self.logger.debug('Housekeeping.parse() returned something.')
 
         return response_dic
