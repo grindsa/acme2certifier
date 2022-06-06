@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=C0209, C0302, E5110, R0904, R0915
 """ wsgi handler for acme2certifier """
 from __future__ import print_function
 import sqlite3
@@ -575,6 +576,7 @@ class DBstore(object):
         return rid
 
     def cahandler_lookup(self, column, string, vlist=('name', 'value1', 'value2', 'created_at')):
+        """ lookup ca handler """
         self.logger.debug('DBStore.cahandler_lookup(column:{0}, pattern:{1})'.format(column, string))
 
         try:
@@ -591,6 +593,65 @@ class DBstore(object):
 
         self.logger.debug('DBStore.cahandler_lookup() ended')
         return result
+
+    def cliaccount_add(self, data_dic):
+        """ add cli user """
+        self.logger.debug('DBStore.cliuser_add({0})'.format(data_dic['name']))
+        exists = self._cliaccount_search('name', data_dic['name'])
+
+        rid = None
+        self._db_open()
+        if bool(exists):
+            self.logger.debug('cliaccount existss: {0} id: {1}'.format('name', data_dic['name']))
+            if 'contact' not in data_dic:
+                data_dic['contact'] = exists['contact']
+            if 'jwk' not in data_dic:
+                data_dic['jwk'] = exists['jwk']
+            self.cursor.execute('''UPDATE cliaccount SET name = :name, jwk = :jwk, 'contact' = :contact, 'reportadmin' = :reportadmin,  'cliadmin' = :cliadmin, 'certificateadmin' = :certificateadmin WHERE name = :name''', data_dic)
+            rid = exists['id']
+        else:
+            self.cursor.execute('''INSERT INTO cliaccount(name, jwk, contact, reportadmin, cliadmin, certificateadmin) VALUES(:name, :jwk, :contact, :reportadmin, :cliadmin, :certificateadmin)''', data_dic)
+            rid = self.cursor.lastrowid
+        self._db_close()
+        self.logger.debug('DBStore.cliaccount_add() ended with: {0}'.format(rid))
+        return rid
+
+    def cliaccount_delete(self, data_dic):
+        """ add cli user """
+        self.logger.debug('DBStore.cliaccount_delete({0})'.format(data_dic['name']))
+        exists = self._cliaccount_search('name', data_dic['name'])
+        if exists:
+            self._db_open()
+            self.cursor.execute('''DELETE FROM cliaccount WHERE name=:name''', data_dic)
+            self._db_close()
+        else:
+            self.logger.error('DBStore.cliaccount_delete() failed for kid: {0}'.format(data_dic['name']))
+        self.logger.debug('DBStore.cliaccount_delete() ended')
+
+    def cliaccountlist_get(self):
+        """ get sli accout list """
+        self.logger.debug('DBStore.cliaccountlist_get()')
+        vlist = ['id', 'name', 'jwk', 'contact', 'created_at', 'cliadmin', 'reportadmin', 'certificateadmin']
+
+        self._db_open()
+        pre_statement = '''SELECT cliaccount.*
+                            from cliaccount
+                            WHERE cliaccount.name IS NOT NULL'''
+
+        self.cursor.execute(pre_statement)
+        rows = self.cursor.fetchall()
+        # process results
+        account_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+            account_list.append(result)
+
+        self._db_close()
+        return account_list
 
     def certificate_add(self, data_dic):
         """ add csr/certificate to database """

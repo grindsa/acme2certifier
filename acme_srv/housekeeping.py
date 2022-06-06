@@ -50,6 +50,18 @@ class Housekeeping(object):
             result = None
         return result
 
+    def _cliconfig_check(self, config_dic):
+        """ verify config """
+        self.logger.debug('config_check()')
+
+        print(config_dic)
+        check_result = True
+        if 'list' not in config_dic and 'jwkname' not in config_dic and 'jwk' not in config_dic:
+            self.logger.error('Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified')
+            check_result = False
+
+        return check_result
+
     def _clireport_get(self, payload, permissions_dic):
         """ get reports for CLI """
         self.logger.debug('Housekeeping._clireport_get()')
@@ -378,6 +390,62 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.certificates_cleanup(): No certificates to dump')
 
         return cert_list
+
+    def _cliaccounts_list(self, silent=True):
+        """ list cli accounts """
+        self.logger.debug('Housekeeping._cliaccounts_list()')
+        result = self.dbstore.cliaccountlist_get()
+        if result and not silent:
+            self._cliaccounts_format(result)
+        return result
+
+    def _cliaccounts_format(self, result_list):
+        """ format cliaccount report """
+        self.logger.debug('Housekeeping._cliaccounts_format()')
+        print('\n{0}|{1}|{2}|{3}|{4}|{5}'.format('Name'.ljust(15), 'Contact'.ljust(20), 'cliadm'.ljust(6), 'repadm'.ljust(6), 'certadm'.ljust(7), 'Created at'.ljust(20)))
+        print('-' * 78)
+        for account in sorted(result_list, key=lambda k: k['id']):
+            print('{0}|{1}|{2}|{3}|{4}|{5}'.format(account['name'][:15].ljust(15), account['contact'][:20].ljust(20), str(bool(account['cliadmin'])).ljust(6), str(bool(account['reportadmin'])).ljust(6), str(bool(account['certificateadmin'])).ljust(7), account['created_at'].ljust(20)))
+        print('\n')
+
+    def cli_usermgr(self, config_dic):
+        """ cli user manager """
+        self.logger.debug('Housekeeping.cli_usermgr()')
+        check_result = self._cliconfig_check(config_dic)
+
+        # default silence
+        if 'silent' not in config_dic:
+            config_dic['silent'] = True
+
+        result = None
+        if check_result:
+            data_dic = {}
+
+            if 'jwkname' in config_dic:
+                data_dic['name'] = config_dic['jwkname']
+            else:
+                if 'jwk' in config_dic and 'kid' in config_dic['jwk']:
+                    data_dic['name'] = config_dic['jwk']['kid']
+            if 'delete' not in config_dic:
+                if 'permissions' in config_dic:
+                    data_dic.update(config_dic['permissions'])
+                if 'jwk' in config_dic:
+                    data_dic['jwk'] = json.dumps(config_dic['jwk'])
+
+                if 'email' in config_dic:
+                    data_dic['contact'] = config_dic['email']
+
+            try:
+                if 'delete' in config_dic and config_dic['delete']:
+                    self.dbstore.cliaccount_delete(data_dic)
+                elif 'list' in config_dic and config_dic['list']:
+                    self._cliaccounts_list(silent=config_dic['silent'])
+                else:
+                    result = self.dbstore.cliaccount_add(data_dic)
+            except Exception as err_:
+                self.logger.critical('acme2certifier database error in Housekeeping.cli_usermgr(): {0}'.format(err_))
+
+        return result
 
     def authorizations_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
         """ authorizations cleanup based on expiry date"""
