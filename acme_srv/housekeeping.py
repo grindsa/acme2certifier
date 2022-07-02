@@ -54,7 +54,6 @@ class Housekeeping(object):
         """ verify config """
         self.logger.debug('config_check()')
 
-        print(config_dic)
         check_result = True
         if 'list' not in config_dic and 'jwkname' not in config_dic and 'jwk' not in config_dic:
             self.logger.error('Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified')
