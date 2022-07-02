@@ -1001,5 +1001,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_cert.called)
         self.assertFalse(mock_account.called)
 
+    def test_0100__cliconfig_check(self):
+        """ test _cliconfig_check - with empty input """
+        config_dic = {}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
+        self.assertIn('ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified', lcm.output)
+
+    def test_0101__cliconfig_check(self):
+        """ test _cliconfig_check - wrong input """
+        config_dic = {'foo': 'bar', 'bar': 'foo'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
+        self.assertIn('ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified', lcm.output)
+
+    def test_0102__cliconfig_check(self):
+        """ test _cliconfig_check - list parameter is in """
+        config_dic = {'foo': 'bar', 'list': 'list'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+    def test_0103__cliconfig_check(self):
+        """ test _cliconfig_check - jwkname parameter is in """
+        config_dic = {'foo': 'bar', 'jwkname': 'jwkname'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+    def test_0103__cliconfig_check(self):
+        """ test _cliconfig_check - jwk parameter is in """
+        config_dic = {'foo': 'bar', 'jwk': 'jwk'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+
 if __name__ == '__main__':
     unittest.main()
