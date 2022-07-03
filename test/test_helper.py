@@ -262,12 +262,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test base64url replace _ with / and pad"""
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, b'fafa_f'))
 
-    @patch('__main__.sys')
-    def test_037_helper_b64_url_recode(self, mock_sys):
-        """ test base64url replace _ with / and pad"""
-        mock_sys.version_info = (2,7,11)
-        self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, b'fafa_f'))
-
     def test_038_helper_decode_message(self):
         """ decode message with empty payload - certbot issue"""
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
