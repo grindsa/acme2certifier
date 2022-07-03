@@ -165,7 +165,8 @@ class DBstore(object):
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
         except Exception as err:
-            self.logger.error('DBStore._account_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+            self.logger.error('DBStore._cliaccount_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+            result = None
         self._db_close()
         self.logger.debug('DBStore._account_search() ended with: {0}'.format(bool(result)))
         return result
@@ -629,7 +630,7 @@ class DBstore(object):
         self.logger.debug('DBStore.cliaccount_delete() ended')
 
     def cliaccountlist_get(self):
-        """ get sli accout list """
+        """ get cli accout list """
         self.logger.debug('DBStore.cliaccountlist_get()')
         vlist = ['id', 'name', 'jwk', 'contact', 'created_at', 'cliadmin', 'reportadmin', 'certificateadmin']
 
