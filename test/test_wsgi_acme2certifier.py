@@ -25,7 +25,7 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         import logging
-        from examples.acme2certifier_wsgi import create_header, get_request_body, acct, acmechallenge_serve, authz, handle_exception, newaccount, directory, cert, chall, neworders, newnonce, order, revokecert, trigger, not_found, application, get_handler_cls
+        from examples.acme2certifier_wsgi import create_header, get_request_body, acct, acmechallenge_serve, authz, handle_exception, newaccount, directory, cert, chall, neworders, newnonce, order, revokecert, trigger, not_found, application, get_handler_cls, housekeeping
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
         self.acct = acct
@@ -33,6 +33,7 @@ class TestACMEHandler(unittest.TestCase):
         self.get_request_body = get_request_body
         self.acmechallenge_serve = acmechallenge_serve
         self.handle_exception = handle_exception
+        self.housekeeping = housekeeping
         self.authz = authz
         self.newaccount = newaccount
         self.neworders = neworders
@@ -590,6 +591,47 @@ class TestACMEHandler(unittest.TestCase):
     def test_051_get_handler_cls(self):
         """ test get_handler_cls() """
         self.assertTrue('foo', self.get_handler_cls())
+
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('acme_srv.housekeeping.Housekeeping.parse')
+    def test_051_housekeeping(self, mock_post, mock_header, mock_body):
+        """ housekeeping POST request """
+        environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_post.return_value = {'code': 200, 'data': 'data'}
+        self.assertEqual([b'"data"'], self.housekeeping(environ, Mock()))
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_header.called)
+        self.assertTrue(mock_body.called)
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('acme_srv.housekeeping.Housekeeping.parse')
+    def test_052_housekeeping(self, mock_post, mock_header, mock_body):
+        """ housekeeping POST request """
+        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_post.return_value = {'code': 200, 'data': 'data'}
+        self.assertEqual([b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'], self.housekeeping(environ, Mock()))
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('acme_srv.housekeeping.Housekeeping.parse')
+    def test_053_housekeeping(self, mock_post, mock_header, mock_body):
+        """ housekeeping POST request without data """
+        environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_post.return_value = {'code': 200, 'foo': 'bar'}
+        self.assertFalse(self.housekeeping(environ, Mock()))
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_header.called)
+        self.assertTrue(mock_body.called)
+
 
 if __name__ == '__main__':
 
