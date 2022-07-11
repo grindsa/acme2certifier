@@ -1146,7 +1146,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._template_id_lookup() - all ok """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
-        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10, 'linkType': 'TEMPLATE'}]}}
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'policyLinkId': 10, 'linkType': 'TEMPLATE'}]}}
         mock_get.return_value = mockresponse
         self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
         self.cahandler._template_id_lookup()
@@ -1201,7 +1201,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._template_id_lookup() - template in lower cases """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
-        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'linkId': 10, 'linkType': 'template'}]}}
+        mockresponse.json = lambda: {'template': {'items': [{'displayName': 'template_name', 'allowed': True, 'policyLinkId': 10, 'linkType': 'template'}]}}
         mock_get.return_value = mockresponse
         self.cahandler.template_info_dic = {'name': 'template_name', 'id': None}
         self.cahandler._template_id_lookup()
@@ -1453,7 +1453,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._request_import')
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
     def test_122_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup):
         """ enroll() without certid """
         self.cahandler.api_host = 'api_host'
@@ -1477,7 +1477,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._request_import')
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
     def test_123_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  with certid """
         self.cahandler.api_host = 'api_host'
@@ -1502,7 +1502,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._request_import')
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
     def test_124_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  no tmpload """
         self.cahandler.api_host = 'api_host'
@@ -1528,7 +1528,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._request_import')
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
     def test_125_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  tmpload """
         self.cahandler.api_host = 'api_host'
@@ -1554,7 +1554,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._request_import')
     @patch('examples.ca_handler.nclm_ca_handler.csr_san_get')
     @patch('examples.ca_handler.nclm_ca_handler.csr_cn_get')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
     def test_126_enroll(self, mock_lookup, mock_cn_get, mock_san_get, mock_reqimp, mock_csr_lookup, mock_post, mock_cert_lookup, mock_tmpl_lookup, mock_bundle):
         """ enroll()  tmpload """
         self.cahandler.api_host = 'api_host'
@@ -1569,7 +1569,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = True
         mock_cert_lookup.return_value = 10
         mock_bundle.return_value = ('error', 'cert_bundle', 'cert_raw')
-        self.assertEqual(('enrollment aborted. ca_id: 0, csr_id: 10, tsg_id: id', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('enrollment aborted. policylink_id: 0, tsg_id: id', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl_lookup.called)
 
     @patch('requests.get')
