@@ -47,7 +47,7 @@ class TestACMEHandler(unittest.TestCase):
         """ Authorization.new_post() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'message': 'message', 'status': 400}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.authorization.new_post(message))
 
     @patch('acme_srv.authorization.Authorization._authz_info')
     @patch('acme_srv.message.Message.check')
@@ -56,7 +56,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', 'account_name')
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'message': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.authorization.Authorization._authz_info')
@@ -90,7 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_authzinfo.return_value = {}
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'message': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'type': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
 
     def test_007_authorization_invalidate(self):
         """ test Authorization.invalidate() empty authz list """

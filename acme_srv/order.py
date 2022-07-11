@@ -376,7 +376,7 @@ class Order(object):
                 message = error
                 detail = 'could not process order'
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
@@ -429,7 +429,7 @@ class Order(object):
                     response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
