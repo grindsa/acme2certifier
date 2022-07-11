@@ -587,7 +587,7 @@ class Account(object):
                 detail = 'Terms of service must be accepted'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
@@ -639,7 +639,7 @@ class Account(object):
                 message = 'urn:ietf:params:acme:error:malformed'
                 detail = 'dont know what to do with this request'
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))

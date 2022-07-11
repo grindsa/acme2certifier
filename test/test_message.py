@@ -154,8 +154,8 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
-        config_dic = {'message' : 'message', 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'message' : 'type', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'type': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     def test_012_message_prepare_response(self, mock_nnonce):
@@ -164,15 +164,15 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
         config_dic = {'code' : 400, 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     def test_013_message_prepare_response(self, mock_nnonce):
         """ Message.repare_response for config_dic without detail key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
-        config_dic = {'code' : 400, 'message': 'message'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'code' : 400, 'type': 'message'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'type': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.error.Error.enrich_error')
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -181,8 +181,8 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         mock_error.return_value = 'mock_error'
-        config_dic = {'code' : 400, 'message': 'message', 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'code' : 400, 'type': 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'type': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     def test_015_message__name_get(self):
         """ test Message.name_get() with empty content"""
