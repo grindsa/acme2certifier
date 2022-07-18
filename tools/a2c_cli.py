@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110
+# pylint: disable=c0209
 """ acme2certifier cli client """
 import logging
 import datetime
@@ -10,12 +10,13 @@ import os.path
 import sys
 import time
 import random
+import json
+import csv
 from string import digits, ascii_letters
 from jwcrypto import jwk, jws
 from jwcrypto.common import json_encode
 import requests
-import json
-import csv
+
 
 VERSION = "0.0.1"
 
@@ -36,7 +37,7 @@ Type /help for available commands
 def csv_dump(logger, filename, content):
     """ dump content csv file """
     logger.debug('csv_dump({0})'.format(filename))
-    with open(filename, 'w', newline='') as file_:
+    with open(filename, 'w', newline='', encoding='utf-8') as file_:
         writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writerows(content)
 
@@ -140,13 +141,13 @@ class MessageOperations(object):
         self.logger = logger
         self.print = printcommand
 
-    def sign(self, key, data, type='Unknown'):
+    def sign(self, key, data, mtype='Unknown'):
         """ sign message """
         self.logger.debug('MessageOperations.sign()')
         protected = {"typ": "JOSE+JSON",
                      "kid": key['kid'],
                      "alg": "RS256"}
-        plaintext = {"data": data, 'type': type,
+        plaintext = {"data": data, 'type': mtype,
                      "exp": int(time.time()) + (5 * 60)}
         mjws = jws.JWS(payload=json_encode(plaintext))
         mjws.add_signature(key, None, json_encode(protected))
@@ -225,7 +226,7 @@ class CommandLineInterface(object):
             self._key_operations(command)
         elif command.startswith('config'):
             self._config_operations(command)
-        elif(command == 'quit' or command == 'Q'):
+        elif command in('quit', 'Q'):
             self._quit()
         elif self.status == 'Configured':
             if command.startswith('message'):
@@ -331,17 +332,17 @@ class CommandLineInterface(object):
 
         if command and filename:
             try:
-                (_filename, format) = filename.lower().split('.', 2)
+                (_filename, ext) = filename.lower().split('.', 2)
             except Exception:
                 self._cli_print('incomplete filename: "{0}"'.format(command))
-                format = None
-            if format in ('csv', 'json'):
+                ext = None
+            if ext in ('csv', 'json'):
                 # process report request
                 message = MessageOperations(self.logger, self._cli_print)
-                signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
+                signed_message = message.sign(key=self.key, mtype='report', data={'name': command, 'format': ext})
                 response = message.send(server=self.server, message=signed_message)
                 if response.status_code == 200:
-                    if format == 'csv':
+                    if ext == 'csv':
                         csv_dump(self.logger, filename, response.json())
                     else:
                         file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
