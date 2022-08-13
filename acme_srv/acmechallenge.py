@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" Nonce class """
+""" acmechallenge class """
+# pylint: disable=C0209
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
 

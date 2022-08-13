@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ django handler for acme2certifier """
-# pylint: disable=C0413, C0415, E0401
+# pylint: disable=C0209, C0413, C0415, E0401, R0904
 from __future__ import print_function
 import os
 import sys
@@ -19,8 +19,9 @@ def initialize():  # nopep8
 
 initialize()
 from django.conf import settings  # nopep8
-from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
 from django.db import transaction  # nopep8
+from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Housekeeping, Nonce, Order, Status  # nopep8
+# pylint: disable=W0611
 import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
 
@@ -100,7 +101,7 @@ class DBstore(object):
             'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization',
             'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name']
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
-        return(vlist, list(Account.objects.filter(name__isnull=False).values(*vlist)))
+        return (vlist, list(Account.objects.filter(name__isnull=False).values(*vlist)))
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
@@ -142,6 +143,7 @@ class DBstore(object):
 
         if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions')
+            # pylint: disable=E1123
             with transaction.atomic(immediate=True):
                 # update authorization
                 obj, _created = Authorization.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -189,6 +191,7 @@ class DBstore(object):
 
         if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions')
+            # pylint: disable=E1123
             with transaction.atomic(immediate=True):
                 obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
                 obj.save()
@@ -245,7 +248,7 @@ class DBstore(object):
             'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers',
             'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid']
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
-        return(vlist, list(Certificate.objects.filter(cert_raw__isnull=False).exclude(cert_raw='').values(*vlist)))
+        return (vlist, list(Certificate.objects.filter(cert_raw__isnull=False).exclude(cert_raw='').values(*vlist)))
 
     def certificate_lookup(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
@@ -313,7 +316,7 @@ class DBstore(object):
     def hkparameter_add(self, data_dic):
         """ add housekeeping paramter to database """
         self.logger.debug('DBStore.hkparameter_add({0})'.format(data_dic))
-        obj, created = Housekeeping.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+        obj, _created = Housekeeping.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
     def hkparameter_get(self, parameter):

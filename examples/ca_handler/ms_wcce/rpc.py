@@ -1,8 +1,8 @@
+""" rpc.py """
+# pylint: disable=C0209, C0415, E0401, R0913, W1201
 import logging
-
 from impacket import uuid
 from impacket.dcerpc.v5 import epm, rpcrt, transport
-
 from examples.ca_handler.ms_wcce.target import Target
 
 
@@ -14,6 +14,7 @@ def get_dce_rpc_from_string_binding(
     remote_name: str = None,
     auth_level: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
 ) -> rpcrt.DCERPC_v5:
+    """ get dce from rpc """
     if target_ip is None:
         target_ip = target.target_ip
     if remote_name is None:
@@ -48,6 +49,7 @@ def get_dce_rpc_from_string_binding(
 
 
 def get_dynamic_endpoint(interface: bytes, target: str, timeout: int = 5) -> str:
+    """ get endpoint """
     string_binding = r"ncacn_ip_tcp:%s[135]" % target
     rpctransport = transport.DCERPCTransportFactory(string_binding)
     rpctransport.set_connect_timeout(timeout)
@@ -57,8 +59,8 @@ def get_dynamic_endpoint(interface: bytes, target: str, timeout: int = 5) -> str
     )
     try:
         dce.connect()
-    except Exception as e:
-        logging.warning("Failed to connect to endpoint mapper: %s" % e)
+    except Exception as err_:
+        logging.warning("Failed to connect to endpoint mapper: %s" % err_)
         return None
     try:
         endpoint = epm.hept_map(target, interface, protocol="ncacn_ip_tcp", dce=dce)
@@ -84,18 +86,18 @@ def get_dce_rpc(
     auth_level_np: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
     auth_level_dyn: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
 ) -> rpcrt.DCERPC_v5:
+    """ get dce rpc """
     def _try_binding(string_binding: str, auth_level: int) -> rpcrt.DCERPC_v5:
         dce = get_dce_rpc_from_string_binding(
             string_binding, target, timeout, auth_level=auth_level
         )
-
         logging.debug("Trying to connect to endpoint: %s" % string_binding)
         try:
             dce.connect()
-        except Exception as e:
+        except Exception as err_:
             if verbose:
                 logging.warning(
-                    "Failed to connect to endpoint %s: %s" % (string_binding, e)
+                    "Failed to connect to endpoint %s: %s" % (string_binding, err_)
                 )
             return None
 

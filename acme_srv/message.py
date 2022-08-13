@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209
 """ ca hanlder for Insta Certifier via REST-API class """
 from __future__ import print_function
 import json
@@ -121,7 +122,7 @@ class Message(object):
             detail = error_detail
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
-        return(code, message, detail, protected, payload, account_name)
+        return (code, message, detail, protected, payload, account_name)
 
     def prepare_response(self, response_dic, status_dic):
         """ prepare response_dic """

@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 import json
 from OpenSSL import crypto
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
@@ -115,7 +115,7 @@ class CAhandler(object):
         self.cursor.execute(pre_statement, [self.issuing_ca_key])
         try:
             db_result = dict_from_row(self.cursor.fetchone())
-        except Exception as err_:
+        except Exception as _err:
             self.logger.error('key lookup failed: {0}'.format(self.cursor.fetchone()))
             db_result = {}
         self._db_close()
@@ -141,7 +141,7 @@ class CAhandler(object):
         (ca_cert, ca_id) = self._ca_cert_load()
 
         self.logger.debug('CAhandler._ca_load() ended')
-        return(ca_key, ca_cert, ca_id)
+        return (ca_key, ca_cert, ca_id)
 
     def _config_check(self):
         """ check config for consitency """
@@ -166,7 +166,7 @@ class CAhandler(object):
             self.logger.debug('use self.issuing_ca_name as self.issuing_ca_key: {0}'.format(self.issuing_ca_name))
             self.issuing_ca_key = self.issuing_ca_name
 
-        self.logger.debug('CAhandler._config_check() ended'.format())
+        self.logger.debug('CAhandler._config_check() ended')
         return error
 
     def _config_load(self):
@@ -351,6 +351,7 @@ class CAhandler(object):
                 ekuc = csr_extensions_dic['extendedKeyUsage'].get_critical()
             except Exception:
                 ekuc = False
+            # pylint: disable=C2801
             eku_string = csr_extensions_dic['extendedKeyUsage'].__str__()
 
         else:
@@ -358,7 +359,7 @@ class CAhandler(object):
             eku_string = None
             ekuc = False
 
-        return(ekuc, eku_string)
+        return (ekuc, eku_string)
 
     def _item_insert(self, item_dic):
         """ insert new entry to item_table """
@@ -404,6 +405,7 @@ class CAhandler(object):
 
         if 'keyUsage' in csr_extensions_dic:
             # get key usage field csr
+            # pylint: disable=C2801
             ku_csr = csr_extensions_dic['keyUsage'].__str__()
         else:
             ku_csr = None
@@ -411,7 +413,7 @@ class CAhandler(object):
         # generate key-usage extension
         ku_string = self._kue_generate(kup, ku_csr)
 
-        return(kuc, ku_string)
+        return (kuc, ku_string)
 
     def _kue_generate(self, kuval=0, ku_csr=None):
         """ set generate key usage extension """
@@ -562,7 +564,7 @@ class CAhandler(object):
                 utf_stream = byte_stream[pos:]
 
         self.logger.debug('CAhandler._stream_split() ended: {0}:{1}'.format(bool(asn1_stream), bool(utf_stream)))
-        return(asn1_stream, utf_stream)
+        return (asn1_stream, utf_stream)
 
     def _stub_func(self, parameter):
         """" load config from file """
@@ -610,7 +612,7 @@ class CAhandler(object):
         self._db_close()
         self.logger.debug('CAhandler._template_load() ended')
 
-        return(dn_dic, template_dic)
+        return (dn_dic, template_dic)
 
     def _template_parse(self, byte_string=None):
         """ process template """
@@ -771,7 +773,7 @@ class CAhandler(object):
             else:
                 error = 'request_name lookup failed'
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def _extension_list_generate(self, template_dic, cert, ca_cert, csr_extensions_list):
         """ set extension list """
@@ -827,6 +829,7 @@ class CAhandler(object):
 
         # add subjectAltName(s)
         if 'subjectAltName' in csr_extensions_dic:
+            # pylint: disable=C2801
             self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
             extension_list.append(csr_extensions_dic['subjectAltName'])
 
@@ -844,7 +847,7 @@ class CAhandler(object):
         self._stub_func(cert_name)
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
@@ -889,7 +892,7 @@ class CAhandler(object):
             detail = 'configuration error'
 
         self.logger.debug('Certificate.revoke() ended')
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, payload):
         """ process trigger message and return certificate """

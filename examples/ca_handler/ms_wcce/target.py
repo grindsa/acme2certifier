@@ -1,10 +1,12 @@
+""" target class """
+# pylint: disable=C0209, C0415, R0913, W1201
 import logging
 import socket
-
 from dns.resolver import Resolver
 
 
 def is_ip(hostname: str) -> bool:
+    """ check if sring is an ip """
     try:
         # Check if hostname is an IP
         socket.inet_aton(hostname)
@@ -15,6 +17,7 @@ def is_ip(hostname: str) -> bool:
 
 
 class DnsResolver:
+    """ DNS resolver class """
     def __init__(self):
         self.resolver = Resolver()
 
@@ -22,6 +25,7 @@ class DnsResolver:
 
     @staticmethod
     def from_options(options, target) -> "DnsResolver":
+        """ setup resolver object from given options """
         self = DnsResolver()
 
         # We can't put all possible nameservers in the list of nameservers, since
@@ -32,32 +36,34 @@ class DnsResolver:
 
         if nameserver is not None:
             self.resolver.nameservers = [nameserver]
-
+        # pylint: disable=W0201
         self.use_tcp = options.dns_tcp
 
         return self
 
     @staticmethod
     def create(
-        target: "Target" = None, ns: str = None, dns_tcp: bool = False
+        target: "Target" = None, ns_: str = None, dns_tcp: bool = False
     ) -> "DnsResolver":
+        """ setup resolver object without options """
         self = DnsResolver()
 
         # We can't put all possible nameservers in the list of nameservers, since
         # the resolver will fail if one of them fails
-        nameserver = ns
+        nameserver = ns_
         if nameserver is None:
             nameserver = target.dc_ip
 
         if nameserver is not None:
             self.resolver.nameservers = [nameserver]
 
+        # pylint: disable=W0201
         self.use_tcp = dns_tcp
 
         return self
 
     def resolve(self, hostname: str) -> str:
-        # Try to resolve the hostname with DNS first, then try a local resolve
+        """ Try to resolve the hostname with DNS first, then try a local resolve """
         if hostname in self.mappings:
             logging.debug(
                 "Resolved %s from cache: %s" % (repr(hostname), self.mappings[hostname])
@@ -82,7 +88,7 @@ class DnsResolver:
 
             ip_addr = answers[0].to_text()
         except Exception as err_:
-            logging.debug('Error resolving s% : %s' % (repr(hostname), err_))
+            logging.debug('Error resolving %s : %s' % (repr(hostname), err_))
 
         if ip_addr is None:
             try:
@@ -99,6 +105,7 @@ class DnsResolver:
 
 
 class Target:
+    """ target class """
     def __init__(
         self,
         domain: str = None,
@@ -108,7 +115,7 @@ class Target:
         remote_name: str = None,
         no_pass: bool = False,
         dc_ip: str = None,
-        ns: str = None,
+        ns_: str = None,
         dns_tcp: bool = False,
         timeout: int = 5,
     ):
@@ -131,13 +138,13 @@ class Target:
         self.dc_ip = dc_ip
         self.timeout = timeout
 
-        if ns is None:
-            ns = dc_ip
+        if ns_ is None:
+            ns_ = dc_ip
 
         if is_ip(remote_name):
             target_ip = remote_name
 
-        self.resolver = DnsResolver.create(self, ns=ns, dns_tcp=dns_tcp)
+        self.resolver = DnsResolver.create(self, ns_=ns_, dns_tcp=dns_tcp)
 
         self.target_ip = target_ip
         if self.target_ip is None and remote_name is not None:
