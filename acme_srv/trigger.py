@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" Challenge class """
+""" trigger class """
+# pylint: disable=c0209
 from __future__ import print_function
 import json
 from acme_srv.certificate import Certificate

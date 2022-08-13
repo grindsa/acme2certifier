@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Housekeeping class """
+# pylint: disable=c0209
 from __future__ import print_function
 import csv
 import json
@@ -98,7 +99,7 @@ class Housekeeping(object):
     def _csv_dump(self, filename, content):
         """ dump content csv file """
         self.logger.debug('Housekeeping._csv_dump()')
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', newline='', encoding='utf8') as file_:
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
 
@@ -106,7 +107,7 @@ class Housekeeping(object):
         """ dump content json file """
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', newline='', encoding='utf8') as file_:
             file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
     def _fieldlist_normalize(self, field_list, prefix):
@@ -146,7 +147,7 @@ class Housekeeping(object):
         # get field_list
         field_list = list(field_dic.values())
 
-        return(field_list, new_list)
+        return (field_list, new_list)
 
     def _to_acc_json(self, account_list):
         """ stack list to json """

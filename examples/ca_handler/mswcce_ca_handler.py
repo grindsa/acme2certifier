@@ -147,6 +147,7 @@ class CAhandler(object):
         # recode csr
         csr = build_pem_file(self.logger, None, csr, 64, True)
 
+        # pylint: disable=W0511
         # TODO: currently getting certificate chain is not supported
         ca_pem = self._file_load(self.ca_bundle)
 

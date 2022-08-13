@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=C0209
 """ Account class """
 from __future__ import print_function
 import json
@@ -88,7 +89,7 @@ class Account(object):
             detail = 'incomplete protected payload'
 
         self.logger.debug('Account.account._add() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _contact_check(self, content):
         """ check contact information from payload"""
@@ -109,7 +110,7 @@ class Account(object):
             detail = 'no contacts specified'
 
         self.logger.debug('Account._contact_check() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _contacts_update(self, aname, payload):
         """ update account """
@@ -130,7 +131,7 @@ class Account(object):
                 message = 'urn:ietf:params:acme:error:accountDoesNotExist'
                 detail = 'update failed'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _delete(self, aname):
         """ delete account """
@@ -151,7 +152,7 @@ class Account(object):
             detail = 'deletion failed'
 
         self.logger.debug('Account._delete() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _eab_jwk_compare(self, protected, payload):
         """ compare jwk from outer header with jwk in eab playload """
@@ -297,7 +298,7 @@ class Account(object):
             detail = 'inner jws is missing jwk'
 
         self.logger.debug('Account._inner_jws_check() ended with: {0}:{1}'.format(code, detail))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _inner_payload_check(self, aname, outer_protected, inner_payload):
         """ RFC8655 7.3.5 checs of inner payload """
@@ -327,7 +328,7 @@ class Account(object):
             detail = 'kid is missing in outer header'
 
         self.logger.debug('Account._inner_payload_check() ended with: {0}:{1}'.format(code, detail))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _key_change_validate(self, aname, outer_protected, inner_protected, inner_payload):
         """ validate key_change before exectution """
@@ -350,7 +351,7 @@ class Account(object):
             detail = 'inner jws is missing jwk'
 
         self.logger.debug('Account._key_change_validate() ended with: {0}:{1}'.format(code, detail))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _key_change(self, aname, payload, protected):
         """ key change for a given account """
@@ -386,7 +387,7 @@ class Account(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = 'malformed request'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _key_compare(self, aname, old_key):
         """ compare key with the one stored in database """
@@ -419,7 +420,7 @@ class Account(object):
             detail = 'wrong public key'
 
         self.logger.debug('Account._key_compare() ended with: {0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _config_load(self):
         """" load config from file """
@@ -509,7 +510,7 @@ class Account(object):
             detail = 'onlyReturnExisting without payload'
 
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _tos_check(self, content):
         """ check terms of service """
@@ -531,7 +532,7 @@ class Account(object):
             detail = 'tosfalse'
 
         self.logger.debug('Account._tos_check() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def new(self, content):
         """ generate a new account """

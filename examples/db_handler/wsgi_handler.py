@@ -5,7 +5,7 @@ from __future__ import print_function
 import sqlite3
 import json
 import os
-# pylint: disable=E0401
+# pylint: disable=C0209, C0302, E0401, R0904
 from acme_srv.helper import datestr_to_date, load_config
 from acme_srv.version import __dbversion__
 
@@ -295,7 +295,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(aname, created)
+        return (aname, created)
 
     def account_delete(self, aname):
         """ add account in database """
@@ -412,7 +412,7 @@ class DBstore(object):
             account_list.append(result)
 
         self._db_close()
-        return(vlist, account_list)
+        return (vlist, account_list)
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
@@ -557,6 +557,7 @@ class DBstore(object):
         return rid
 
     def cahandler_lookup(self, column, string, vlist=('name', 'value1', 'value2', 'created_at')):
+        """ lookup ca_handler """
         self.logger.debug('DBStore.cahandler_lookup(column:{0}, pattern:{1})'.format(column, string))
 
         try:
@@ -667,7 +668,7 @@ class DBstore(object):
             cert_list.append(result)
 
         self._db_close()
-        return(vlist, cert_list)
+        return (vlist, cert_list)
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
@@ -946,7 +947,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(data_dic['name'], created)
+        return (data_dic['name'], created)
 
     def hkparameter_get(self, parameter):
         """ get parameter from housekeeping table """

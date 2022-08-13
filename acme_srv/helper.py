@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ helper functions for acme2certifier """
-# pylint: disable=C0209
+# pylint: disable=c0209, e0401, r0913
 from __future__ import print_function
 import re
 import base64
@@ -128,7 +128,7 @@ def ca_handler_load(logger, config_dic):
 def eab_handler_load(logger, config_dic):
     """ load and return eab_handler """
     logger.debug('Helper.eab_handler_load()')
-
+    # pylint: disable=w0621
     if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
         # try to load handler from file
         try:
@@ -227,6 +227,7 @@ def cert_san_get(logger, certificate, recode=True):
     for i in range(0, ext_count):
         ext = cert.get_extension(i)
         if 'subjectAltName' in str(ext.get_short_name()):
+            # pylint: disable=c2801
             san_list = ext.__str__().split(',')
             for san_name in san_list:
                 san_name = san_name.rstrip()
@@ -332,6 +333,7 @@ def csr_san_get(logger, csr):
         req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
         for ext in req.get_extensions():
             if 'subjectAltName' in str(ext.get_short_name()):
+                # pylint: disable=c2801
                 san_list = ext.__str__().split(',')
                 for san_name in san_list:
                     san_name = san_name.rstrip()
@@ -398,7 +400,7 @@ def decode_message(logger, message):
 
     if payload:
         payload = dkeys_lower(payload)
-    return(result, error, protected, payload, signature)
+    return (result, error, protected, payload, signature)
 
 
 def dkeys_lower(tree):
@@ -626,7 +628,7 @@ def signature_check(logger, message, pub_key, json_=False):
         error = 'No key specified.'
 
     # return result
-    return(result, error)
+    return (result, error)
 
 
 def fqdn_resolve(host, dnssrv=None):
@@ -742,7 +744,7 @@ def allowed_gai_family():
 def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, timeout=20):
     """ http get """
     logger.debug('url_get({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
-
+    # pylint: disable=w0621
     # configure proxy servers if specified
     if proxy_server:
         proxy_list = {'http': proxy_server, 'https': proxy_server}
@@ -868,7 +870,7 @@ def proxystring_convert(logger, proxy_server):
         proxy_port = None
 
     logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
-    return(proto_string, proxy_addr, proxy_port)
+    return (proto_string, proxy_addr, proxy_port)
 
 
 def servercert_get(logger, hostname, port=443, proxy_server=None):

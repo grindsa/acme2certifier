@@ -83,7 +83,7 @@ class Challenge(object):
 
             if pub_key:
                 jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-                for ele in range(0, 5):
+                for _ele in range(0, 5):
                     if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
                         (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
                     elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
@@ -417,7 +417,7 @@ class Challenge(object):
             detail = 'invalid challenge: {0}'.format(challenge_dic)
 
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _wcd_manipulate(self, fqdn):
         """ wildcard domain handling """

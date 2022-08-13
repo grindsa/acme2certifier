@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Nonce class """
+# pylint: disable=c0209
 from __future__ import print_function
 import uuid
 from acme_srv.db_handler import DBstore
@@ -44,7 +45,7 @@ class Nonce(object):
             message = 'urn:ietf:params:acme:error:badNonce'
             detail = nonce
         self.logger.debug('Nonce._check_and_delete() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _new(self):
         """ generate a new nonce """
@@ -61,7 +62,7 @@ class Nonce(object):
             message = 'urn:ietf:params:acme:error:badNonce'
             detail = 'NONE'
         self.logger.debug('Nonce.check_nonce() ended with:{0}'.format(code))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def generate_and_add(self):
         """ generate new nonce and store it """

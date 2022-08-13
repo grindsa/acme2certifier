@@ -8,7 +8,7 @@ import base64
 import uuid
 import re
 from OpenSSL import crypto
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
@@ -50,17 +50,17 @@ class CAhandler(object):
         if 'issuing_ca_key' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['issuing_ca_key']):
                 if 'passphrase' in self.issuer_dict:
-                    with open(self.issuer_dict['issuing_ca_key'], 'r') as fso:
+                    with open(self.issuer_dict['issuing_ca_key'], 'r', encoding='utf8') as fso:
                         ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read(), convert_string_to_byte(self.issuer_dict['passphrase']))
                 else:
-                    with open(self.issuer_dict['issuing_ca_key'], 'r') as fso:
+                    with open(self.issuer_dict['issuing_ca_key'], 'r', encoding='utf8') as fso:
                         ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read())
         if 'issuing_ca_cert' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['issuing_ca_cert']):
-                with open(self.issuer_dict['issuing_ca_cert'], 'r') as fso:
+                with open(self.issuer_dict['issuing_ca_cert'], 'r', encoding='utf8') as fso:
                     ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
         self.logger.debug('CAhandler._ca_load() ended')
-        return(ca_key, ca_cert)
+        return (ca_key, ca_cert)
 
     def _certificate_chain_verify(self, cert, ca_cert):
         """ verify certificate chain """
@@ -87,7 +87,7 @@ class CAhandler(object):
                 # add ca chain to truststore
                 for cert_name in self.ca_cert_chain_list:
                     try:
-                        with open(cert_name, 'r') as fso:
+                        with open(cert_name, 'r', encoding='utf8') as fso:
                             cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
                         store.add_cert(cain_cert)
                     except Exception:
@@ -235,7 +235,7 @@ class CAhandler(object):
         if error:
             self.logger.error('CAhandler config error: {0}'.format(error))
 
-        self.logger.debug('CAhandler._config_check() ended'.format())
+        self.logger.debug('CAhandler._config_check() ended')
         return error
 
     def _config_load(self):
@@ -401,7 +401,7 @@ class CAhandler(object):
             pem_chain = ee_cert
         for cert in self.ca_cert_chain_list:
             if os.path.exists(cert):
-                with open(cert, 'r') as fso:
+                with open(cert, 'r', encoding='utf8') as fso:
                     cert_pem = fso.read()
                 pem_chain = '{0}{1}'.format(pem_chain, cert_pem)
 
@@ -538,7 +538,8 @@ class CAhandler(object):
                     # store certifiate
                     self._certificate_store(cert)
                     # create bundle and raw cert
-                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert']).read())
+                    # pylint: disable=R1732
+                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
                     cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
                 else:
                     error = 'urn:ietf:params:acme:badCSR'
@@ -548,7 +549,7 @@ class CAhandler(object):
                 error = 'Unknown exception'
 
         self.logger.debug('CAhandler.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -560,7 +561,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
@@ -586,7 +587,7 @@ class CAhandler(object):
                 serial = hex(serial).replace('0x', '')
                 if os.path.exists(self.issuer_dict['issuing_ca_crl']):
                     # existing CRL
-                    with open(self.issuer_dict['issuing_ca_crl'], 'r') as fso:
+                    with open(self.issuer_dict['issuing_ca_crl'], 'r', encoding='utf8') as fso:
                         crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
                     # check CRL already contains serial
                     sn_match = self._crl_check(crl, serial)
@@ -625,7 +626,7 @@ class CAhandler(object):
             detail = 'Unsupported operation'
 
         self.logger.debug('CAhandler.revoke() ended')
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """
