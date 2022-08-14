@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209, c0302, r0904, r0915
 """ wsgi handler for acme2certifier """
 from __future__ import print_function
 import sqlite3
@@ -155,6 +156,21 @@ class DBstore(object):
         self.logger.debug('DBStore._challenge_search() ended')
         return result
 
+    def _cliaccount_search(self, column, string):
+        """ search account table for a certain key/value pair """
+        self.logger.debug('DBStore._cliaccount_search(column:{0}, pattern:{1})'.format(column, string))
+        self._db_open()
+        try:
+            pre_statement = 'SELECT * from cliaccount WHERE {0} LIKE ?'.format(column)
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except Exception as err:
+            self.logger.error('DBStore._cliaccount_search(column:{0}, pattern:{1}) failed with err: {2}'.format(column, string, err))
+            result = None
+        self._db_close()
+        self.logger.debug('DBStore._account_search() ended with: {0}'.format(bool(result)))
+        return result
+
     def _db_close(self):
         """ commit and close """
         # self.logger.debug('DBStore._db_close()')
@@ -174,6 +190,10 @@ class DBstore(object):
         self.logger.debug('create account')
         self.cursor.execute('''
             CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create cliaccount')
+        self.cursor.execute('''
+            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create status')
         self.cursor.execute('''
@@ -295,7 +315,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(aname, created)
+        return (aname, created)
 
     def account_delete(self, aname):
         """ add account in database """
@@ -412,7 +432,7 @@ class DBstore(object):
             account_list.append(result)
 
         self._db_close()
-        return(vlist, account_list)
+        return (vlist, account_list)
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
@@ -557,6 +577,7 @@ class DBstore(object):
         return rid
 
     def cahandler_lookup(self, column, string, vlist=('name', 'value1', 'value2', 'created_at')):
+        """ lookup ca handler """
         self.logger.debug('DBStore.cahandler_lookup(column:{0}, pattern:{1})'.format(column, string))
 
         try:
@@ -573,6 +594,65 @@ class DBstore(object):
 
         self.logger.debug('DBStore.cahandler_lookup() ended')
         return result
+
+    def cliaccount_add(self, data_dic):
+        """ add cli user """
+        self.logger.debug('DBStore.cliuser_add({0})'.format(data_dic['name']))
+        exists = self._cliaccount_search('name', data_dic['name'])
+
+        rid = None
+        self._db_open()
+        if bool(exists):
+            self.logger.debug('cliaccount existss: {0} id: {1}'.format('name', data_dic['name']))
+            if 'contact' not in data_dic:
+                data_dic['contact'] = exists['contact']
+            if 'jwk' not in data_dic:
+                data_dic['jwk'] = exists['jwk']
+            self.cursor.execute('''UPDATE cliaccount SET name = :name, jwk = :jwk, 'contact' = :contact, 'reportadmin' = :reportadmin,  'cliadmin' = :cliadmin, 'certificateadmin' = :certificateadmin WHERE name = :name''', data_dic)
+            rid = exists['id']
+        else:
+            self.cursor.execute('''INSERT INTO cliaccount(name, jwk, contact, reportadmin, cliadmin, certificateadmin) VALUES(:name, :jwk, :contact, :reportadmin, :cliadmin, :certificateadmin)''', data_dic)
+            rid = self.cursor.lastrowid
+        self._db_close()
+        self.logger.debug('DBStore.cliaccount_add() ended with: {0}'.format(rid))
+        return rid
+
+    def cliaccount_delete(self, data_dic):
+        """ add cli user """
+        self.logger.debug('DBStore.cliaccount_delete({0})'.format(data_dic['name']))
+        exists = self._cliaccount_search('name', data_dic['name'])
+        if exists:
+            self._db_open()
+            self.cursor.execute('''DELETE FROM cliaccount WHERE name=:name''', data_dic)
+            self._db_close()
+        else:
+            self.logger.error('DBStore.cliaccount_delete() failed for kid: {0}'.format(data_dic['name']))
+        self.logger.debug('DBStore.cliaccount_delete() ended')
+
+    def cliaccountlist_get(self):
+        """ get cli accout list """
+        self.logger.debug('DBStore.cliaccountlist_get()')
+        vlist = ['id', 'name', 'jwk', 'contact', 'created_at', 'cliadmin', 'reportadmin', 'certificateadmin']
+
+        self._db_open()
+        pre_statement = '''SELECT cliaccount.*
+                            from cliaccount
+                            WHERE cliaccount.name IS NOT NULL'''
+
+        self.cursor.execute(pre_statement)
+        rows = self.cursor.fetchall()
+        # process results
+        account_list = []
+        for row in rows:
+            lookup = dict_from_row(row)
+            result = {}
+            if lookup:
+                for ele in vlist:
+                    result[ele] = lookup[ele]
+            account_list.append(result)
+
+        self._db_close()
+        return account_list
 
     def certificate_add(self, data_dic):
         """ add csr/certificate to database """
@@ -667,7 +747,7 @@ class DBstore(object):
             cert_list.append(result)
 
         self._db_close()
-        return(vlist, cert_list)
+        return (vlist, cert_list)
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
@@ -830,6 +910,26 @@ class DBstore(object):
         self._db_close()
         self.logger.debug('DBStore.challenge_update() ended')
 
+    def cli_jwk_load(self, aname):
+        """ looad cliaccount information and build jwk key dictionary """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_list = self._cliaccount_search('name', aname)
+        jwk_dict = {}
+        if account_list:
+            jwk_dict = json.loads(account_list[2])
+        self.logger.debug('DBStore.jwk_load() ended with: {0}'.format(jwk_dict))
+        return jwk_dict
+
+    def cli_permissions_get(self, aname):
+        """ looad cliaccount information and build jwk key dictionary """
+        self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
+        account_list = self._cliaccount_search('name', aname)
+        account_dic = {}
+        if account_list:
+            account_dic = {'cliadmin': account_list['cliadmin'], 'reportadmin': account_list['reportadmin'], 'certificateadmin': account_list['certificateadmin']}
+
+        return account_dic
+
     def db_update(self):
         """ update database """
         self.logger.debug('DBStore.db_update()')
@@ -904,6 +1004,13 @@ class DBstore(object):
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
 
+        # cliaccount table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cliaccount'")
+        if not self.cursor.fetchone()[0] == 1:
+            self.logger.info('create cliaccount table')
+            self.cursor.execute('''
+                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
         # version update
         self.logger.info('update dbversion to {0}'.format(__dbversion__))
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
@@ -946,7 +1053,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(data_dic['name'], created)
+        return (data_dic['name'], created)
 
     def hkparameter_get(self, parameter):
         """ get parameter from housekeeping table """

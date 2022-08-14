@@ -262,10 +262,8 @@ class TestACMEHandler(unittest.TestCase):
         """ test base64url replace _ with / and pad"""
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, b'fafa_f'))
 
-    @patch('__main__.sys')
-    def test_037_helper_b64_url_recode(self, mock_sys):
+    def test_037_helper_b64_url_recode(self):
         """ test base64url replace _ with / and pad"""
-        mock_sys.version_info = (2,7,11)
         self.assertEqual('fafa/f==', self.b64_url_recode(self.logger, b'fafa_f'))
 
     def test_038_helper_decode_message(self):

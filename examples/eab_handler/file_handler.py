@@ -3,7 +3,7 @@
 """ eab file handler """
 from __future__ import print_function
 import csv
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config
 
 
@@ -41,7 +41,7 @@ class EABhandler(object):
         mac_key = None
         if self.key_file and kid:
             try:
-                with open(self.key_file, mode='r') as csv_file:
+                with open(self.key_file, mode='r', encoding='utf8') as csv_file:
                     csv_reader = csv.DictReader(csv_file)
                     for row in csv_reader:
                         if 'eab_kid' in row and 'eab_mac' in row and row['eab_kid'] == kid:

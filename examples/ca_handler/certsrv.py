@@ -3,7 +3,7 @@ A Python client for the Microsoft AD Certificate Services web page.
 
 https://github.com/magnuswatn/certsrv
 """
-# pylint: disable=C0415, R1720, R1705
+# pylint: disable=C0209, C0415, R1720, R1705
 import os
 import re
 import base64
@@ -67,7 +67,7 @@ class Certsrv(object):
         the username parameter should be the path to a certificate, and
         the password parameter the path to a (unencrypted) private key.
     """
-
+    # pylint: disable=r0913
     def __init__(self, server, username, password, auth_method="basic",
                  cafile=None, timeout=TIMEOUT, proxies=None):
 
@@ -189,6 +189,7 @@ class Certsrv(object):
             # We didn't find any request ID in the response. It may need approval.
             if re.search(r"Certificate Pending", response.text):
                 req_id = re.search(r"Your Request Id is (\d+).", response.text).group(1)
+                # pylint: disable=w0707
                 raise CertificatePendingException(req_id)
             else:
                 # Must have failed. Lets find the error message
@@ -199,6 +200,7 @@ class Certsrv(object):
                     ).group(1)
                 except AttributeError:
                     error = "An unknown error occured"
+                # pylint: disable=w0707
                 raise RequestDeniedException(error, response.text)
 
         return self.get_existing_cert(req_id, encoding)
@@ -350,6 +352,7 @@ def _get_ca_bundle():
     return True
 
 
+# pylint: disable=r0913
 def get_cert(server, csr, template, username, password, encoding="b64", **kwargs):
     """
     Gets a certificate from a Microsoft AD Certificate Services web page.

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ skeleton for customized CA handler """
 from __future__ import print_function
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config
 
 
@@ -51,7 +51,7 @@ class CAhandler(object):
 
         self.logger.debug('Certificate.enroll() ended')
 
-        return(error, cert_bundle, cert_raw, poll_indentifier)
+        return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def poll(self, cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -64,7 +64,7 @@ class CAhandler(object):
         self._stub_func(cert_name)
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -75,7 +75,7 @@ class CAhandler(object):
         detail = 'Revocation is not supported.'
 
         self.logger.debug('Certificate.revoke() ended')
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, payload):
         """ process trigger message and return certificate """

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110, w0613
+# pylint: disable=c0209, e0401, r0913, w0613
 """ exception hook class for testing only """
-# pylint: disable=E0401
 from acme_srv.helper import load_config
 
 

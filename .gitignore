@@ -148,3 +148,8 @@ examples/Docker/data/*
 !examples/Docker/.env
 # acme/
 acme_srv/acme_srv.db.old.*
+*.cfg
+*.pub
+*.private
+settings.json
+coverage.lcov

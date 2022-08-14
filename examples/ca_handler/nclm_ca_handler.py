@@ -7,8 +7,8 @@ import os
 import time
 import json
 import requests
-# pylint: disable=E0401
-from acme_srv.helper import load_config, csr_cn_get, b64_url_recode, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check
+# pylint: disable=C0209, E0401
+from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check
 
 
 class CAhandler(object):
@@ -76,6 +76,34 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
+    def _ca_policylink_id_lookup(self):
+        """ lookup CA ID based on CA_name """
+        self.logger.debug('CAhandler._ca_policylink_id_lookup()')
+
+        # query CAs
+        ca_list = requests.get(self.api_host + '/policy/ca?entityRef=CONTAINER&entityId={0}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0'.format(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+        ca_id = None
+        if 'ca' in ca_list:
+            if 'items' in ca_list['ca']:
+                for ca_ in ca_list['ca']['items']:
+                    # compare name or description field against config value
+                    if ('displayName' in ca_ and ca_['displayName'] == self.ca_name):
+                        # pylint: disable=R1723
+                        if 'policyLinkId' in ca_:
+                            ca_id = ca_['policyLinkId']
+                            break
+                        else:
+                            self.logger.error('ca_id.lookup() policyLinkId field is missing  ...')
+        else:
+            # log error
+            self.logger.error('ca_id.lookup() no CAs found in response ...')
+
+        if not ca_id:
+            # log error
+            self.logger.error('CAhandler_ca_policylink_id_lookup(): no policylink id found for {0}'.format(self.ca_name))
+        self.logger.debug('CAhandler._ca_policylink_id_lookup() ended with: {0}'.format(ca_id))
+        return ca_id
+
     def _cert_bundle_build(self, cert_id):
         """ download cert and create bundle """
         self.logger.debug('CAhandler._cert_bundle_build({0})'.format(cert_id))
@@ -120,14 +148,14 @@ class CAhandler(object):
             cert_bundle = None
 
         self.logger.debug('CAhandler._cert_bundle_build() ended')
-        return(error, cert_bundle, cert_raw)
+        return (error, cert_bundle, cert_raw)
 
     def _cert_list_fetch(self, url):
         """ fetch certificate list and consider pagination """
         self.logger.debug('CAhandler._cert_list_fetch({0})'.format(url))
 
         cert_list = []
-        while(url):
+        while url:
             try:
                 _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
             except Exception as err_:
@@ -290,7 +318,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
         return req_all
 
-    def _csr_id_lookup(self, csr_cn, csr_san_list, csr=None):
+    def _csr_id_lookup(self, csr_cn, _csr_san_list, csr=None):
         """ lookup CSR based on CN """
         self.logger.debug('CAhandler._csr_id_lookup()')
 
@@ -403,6 +431,7 @@ class CAhandler(object):
                 cert_san_lower.append('{0}:{1}'.format(stype.lower(), san.lower()))
 
         result = False
+
         # compare lists
         if sorted(csr_san_lower) == sorted(cert_san_lower):
             result = True
@@ -423,8 +452,8 @@ class CAhandler(object):
                 for template in template_list['template']['items']:
                     if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
                         if 'displayName' in template and template['displayName'] == self.template_info_dic['name']:
-                            if 'linkId' in template:
-                                self.template_info_dic['id'] = template['linkId']
+                            if 'policyLinkId' in template:
+                                self.template_info_dic['id'] = template['policyLinkId']
                                 break
         else:
             self.logger.error('CAhandler._template_id_lookup() no templates found for filter: {0}...'.format(self.template_info_dic['name']))
@@ -463,26 +492,25 @@ class CAhandler(object):
         if not self.error:
             if self.tsg_info_dic['id']:
 
-                ca_id = self._ca_id_lookup()
+                policylink_id = self._ca_policylink_id_lookup()
 
-                if ca_id and self.template_info_dic['name'] and not self.template_info_dic['id']:
+                if policylink_id and self.template_info_dic['name'] and not self.template_info_dic['id']:
                     self._template_id_lookup()
 
                 # get common name of CSR
                 csr_cn = csr_cn_get(self.logger, csr)
                 csr_san_list = csr_san_get(self.logger, csr)
 
-                # import csr to NCLM
-                self._request_import(csr)
-                # lookup csr id
-                csr_id = self._csr_id_lookup(csr_cn, csr_san_list, csr)
-
-                if ca_id and csr_id and self.tsg_info_dic['id']:
-                    data_dic = {"targetSystemGroupID": self.tsg_info_dic['id'], "caID": ca_id, "requestID": csr_id}
+                if policylink_id and self.tsg_info_dic['id']:
+                    # build_pem_file
+                    csr = build_pem_file(self.logger, None, csr, 64, True)
+                    csr = b64_encode(self.logger, convert_string_to_byte(csr))
+                    data_dic = {'allowDuplicateCn': True, 'request': {'pkcs10': csr}, 'ca': {'selectedId': policylink_id}}
                     # add template if correctly configured
                     if 'id' in self.template_info_dic and self.template_info_dic['id']:
-                        data_dic['templateID'] = self.template_info_dic['id']
-                    self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll/ca/' + str(ca_id), data_dic)
+                        data_dic['template'] = {'selectedId': self.template_info_dic['id']}
+
+                    self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll', data_dic)
                     # wait for certificate enrollment to get finished
                     time.sleep(self.wait_interval)
                     cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
@@ -492,15 +520,15 @@ class CAhandler(object):
                         error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
                         self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
                 else:
-                    error = 'enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id'])
-                    self.logger.error('CAhandler.eroll(): enrollment aborted. ca_id: {0}, csr_id: {1}, tsg_id: {2}'.format(ca_id, csr_id, self.tsg_info_dic['id']))
+                    error = 'enrollment aborted. policylink_id: {0}, tsg_id: {1}'.format(policylink_id, self.tsg_info_dic['id'])
+                    self.logger.error('CAhandler.eroll(): enrollment aborted. policylink_id: {0}, tsg_id: {1}'.format(policylink_id, self.tsg_info_dic['id']))
             else:
                 error = 'CAhandler.eroll(): ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
         else:
             self.logger.error(self.error)
 
         self.logger.debug('CAhandler.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -512,7 +540,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason, rev_date):
         """ revoke certificate """
@@ -550,7 +578,7 @@ class CAhandler(object):
             message = 'urn:ietf:params:acme:error:serverInternal'
             detail = 'Cert could not be found'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """
