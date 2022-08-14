@@ -225,7 +225,7 @@ class CommandLineInterface(object):
             self._key_operations(command)
         elif command.startswith('config'):
             self._config_operations(command)
-        elif(command == 'quit' or command == 'Q'):
+        elif (command == 'quit' or command == 'Q'):
             self._quit()
         elif self.status == 'Configured':
             if command.startswith('message'):
