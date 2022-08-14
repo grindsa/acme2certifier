@@ -59,7 +59,7 @@ class CAhandler(object):
                 cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
                 cert_raw = cert_raw.replace('\n', '')
         self.logger.debug('CAhandler._certs_bundle() ended with {0}/{1}'.format(bool(cert_bundle), bool(cert_raw)))
-        return(cert_bundle, cert_raw)
+        return (cert_bundle, cert_raw)
 
     def _config_load(self):
         """" load config from file """
@@ -201,7 +201,7 @@ class CAhandler(object):
             error = 'Config incomplete'
 
         self.logger.debug('Certificate.enroll() ended with error: {0}'.format(error))
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -213,7 +213,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -225,7 +225,7 @@ class CAhandler(object):
         message = 'urn:ietf:params:acme:error:serverInternal'
         detail = 'Revocation is not supported.'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """

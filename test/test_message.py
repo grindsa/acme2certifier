@@ -154,8 +154,8 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
-        config_dic = {'message' : 'message', 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'message' : 'type', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'http status code missing', 'type': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     def test_012_message_prepare_response(self, mock_nnonce):
@@ -164,15 +164,15 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         # mock_error.return_value = 'mock_error'
         config_dic = {'code' : 400, 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'message': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'urn:ietf:params:acme:error:serverInternal', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     def test_013_message_prepare_response(self, mock_nnonce):
         """ Message.repare_response for config_dic without detail key """
         data_dic = {'data' : {'foo_data' : 'bar_bar'}, 'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
-        config_dic = {'code' : 400, 'message': 'message'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'code' : 400, 'type': 'message'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'type': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     @patch('acme_srv.error.Error.enrich_error')
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -181,8 +181,8 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'header': {'foo_header' : 'bar_header'}}
         mock_nnonce.return_value = 'new_nonce'
         mock_error.return_value = 'mock_error'
-        config_dic = {'code' : 400, 'message': 'message', 'detail' : 'detail'}
-        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'message': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
+        config_dic = {'code' : 400, 'type': 'message', 'detail' : 'detail'}
+        self.assertEqual({'header': {'foo_header': 'bar_header'}, 'code': 400, 'data': {'detail': 'mock_error', 'type': 'message', 'status': 400}}, self.message.prepare_response(data_dic, config_dic))
 
     def test_015_message__name_get(self):
         """ test Message.name_get() with empty content"""
@@ -299,6 +299,38 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertEqual({'acct_path': 'url_prefix/acme/acct/', 'revocation_path': 'url_prefix/acme/revokecert'}, self.message.path_dic)
+
+    @patch('acme_srv.message.decode_message')
+    def test_032_message_check(self, mock_decode):
+        """ cli_check failed bcs of decoding error """
+        message = '{"foo" : "bar"}'
+        mock_decode.return_value = (False, 'detail', None, None, None)
+        self.assertEqual((400, 'urn:ietf:params:acme:error:malformed', 'detail', None, None, None, {}), self.message.cli_check(message))
+
+    @patch('acme_srv.signature.Signature.cli_check')
+    @patch('acme_srv.message.Message._name_get')
+    @patch('acme_srv.message.decode_message')
+    def test_033_message_check(self, mock_decode, mock_name_get, mock_check):
+        """ message check failed bcs sig.cli_check() failed """
+        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_check.return_value = (False, 'error', 'detail')
+        mock_name_get.return_value = 'name'
+        message = '{"foo" : "bar"}'
+        self.assertEqual((403, 'error', 'detail', 'protected', 'payload', 'name', {}), self.message.cli_check(message))
+        self.assertFalse(self.message.dbstore.cli_permissions_get.called)
+
+    @patch('acme_srv.signature.Signature.cli_check')
+    @patch('acme_srv.message.Message._name_get')
+    @patch('acme_srv.message.decode_message')
+    def test_034_message_check(self, mock_decode, mock_name_get, mock_check):
+        """ message check failed bcs sig.cli_check() successful """
+        mock_decode.return_value = (True, None, 'protected', 'payload', 'signature')
+        mock_check.return_value = ('True', 'error', 'detail')
+        self.message.dbstore.cli_permissions_get.return_value = {'foo' : 'bar'}
+        mock_name_get.return_value = 'name'
+        message = '{"foo" : "bar"}'
+        self.assertEqual((200, None, None, 'protected', 'payload', 'name', {'foo': 'bar'}), self.message.cli_check(message))
+
 
 if __name__ == '__main__':
     unittest.main()

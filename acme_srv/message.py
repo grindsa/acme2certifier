@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca hanlder for Insta Certifier via REST-API class """
+# pylint: disable=c0209
+""" message class """
 from __future__ import print_function
 import json
 from acme_srv.helper import decode_message, load_config
@@ -73,6 +74,7 @@ class Message(object):
         self.logger.debug('Message._name_get() returns: {0}'.format(kid))
         return kid
 
+    # pylint: disable=R0914
     def check(self, content, use_emb_key=False, skip_nonce_check=False):
         """ validate message """
         self.logger.debug('Message.check()')
@@ -121,18 +123,50 @@ class Message(object):
             detail = error_detail
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
-        return(code, message, detail, protected, payload, account_name)
+        return (code, message, detail, protected, payload, account_name)
 
-    def prepare_response(self, response_dic, status_dic):
+    def cli_check(self, content):
+        """ validate message coming from CLI client """
+        self.logger.debug('Message.cli_check()')
+
+        # decode message
+        (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
+        account_name = None
+        permissions = {}
+        if result:
+            # check signature
+            account_name = self._name_get(protected)
+            signature = Signature(self.debug, self.server_name, self.logger)
+            # we need the decoded protected header to grab a key to verify signature
+            (sig_check, error, error_detail) = signature.cli_check(account_name, content)
+            if sig_check:
+                code = 200
+                message = None
+                detail = None
+                permissions = self.dbstore.cli_permissions_get(account_name)
+            else:
+                code = 403
+                message = error
+                detail = error_detail
+        else:
+            # message could not get decoded
+            code = 400
+            message = 'urn:ietf:params:acme:error:malformed'
+            detail = error_detail
+
+        self.logger.debug('Message.check() ended with:{0}'.format(code))
+        return (code, message, detail, protected, payload, account_name, permissions)
+
+    def prepare_response(self, response_dic, status_dic, add_nonce=True):
         """ prepare response_dic """
         self.logger.debug('Message.prepare_response()')
         if 'code' not in status_dic:
             status_dic['code'] = 400
-            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+            status_dic['type'] = 'urn:ietf:params:acme:error:serverInternal'
             status_dic['detail'] = 'http status code missing'
 
-        if 'message' not in status_dic:
-            status_dic['message'] = 'urn:ietf:params:acme:error:serverInternal'
+        if 'type' not in status_dic:
+            status_dic['type'] = 'urn:ietf:params:acme:error:serverInternal'
 
         if 'detail' not in status_dic:
             status_dic['detail'] = None
@@ -148,13 +182,13 @@ class Message(object):
             if status_dic['detail']:
                 # some error occured get details
                 error_message = Error(self.debug, self.logger)
-                status_dic['detail'] = error_message.enrich_error(status_dic['message'], status_dic['detail'])
-                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': status_dic['detail']}
+                status_dic['detail'] = error_message.enrich_error(status_dic['type'], status_dic['detail'])
+                response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type'], 'detail': status_dic['detail']}
             else:
-                response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message']}
-                # response_dic['data'] = {'status': status_dic['code'], 'message': status_dic['message'], 'detail': None}
+                response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type']}
         else:
             # add nonce to header
-            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+            if add_nonce:
+                response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         return response_dic

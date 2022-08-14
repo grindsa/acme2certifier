@@ -3,7 +3,7 @@
 """ eab json handler """
 from __future__ import print_function
 import json
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config
 
 

@@ -1017,17 +1017,18 @@ class TestACMEHandler(unittest.TestCase):
         """ test dbupdate - status update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
-        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [1, 2]])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [1, 2], [0,2]])
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertTrue = self.dbstore.db_update()
+            self.dbstore.db_update()
         self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
         self.assertIn('INFO:test_a2c:alter challenge table - add validated', lcm.output)
         self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
         self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
+        self.assertIn('INFO:test_a2c:create cliaccount table', lcm.output)
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
@@ -1035,11 +1036,11 @@ class TestACMEHandler(unittest.TestCase):
         """ test dbupdate - housekeeping update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
-        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [2, 2, 3, 4, 5], [1, 2]])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [2, 2, 3, 4, 5], [1, 2], [1,2]])
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertTrue = self.dbstore.db_update()
+            self.dbstore.db_update()
         self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
@@ -1049,17 +1050,18 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
         self.assertIn('INFO:test_a2c:create housekeeping table and trigger', lcm.output)
 
+
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
     def test_109_db_update(self, mock_open, mock_close):
         """ test dbupdate -  update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
-        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [2, 2]])
+        self.dbstore.cursor.fetchone = Mock(side_effect=[None, [1, 2, 3, 4, 5], [2, 2], [2, 2]])
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertTrue = self.dbstore.db_update()
+            self.dbstore.db_update()
         self.assertIn('INFO:test_a2c:alter certificate table - add poll_identifier', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add issue_uts', lcm.output)
         self.assertIn('INFO:test_a2c:alter certificate table - add expire_uts', lcm.output)
@@ -1068,6 +1070,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:adding additional status', lcm.output)
         self.assertIn('INFO:test_a2c:alter account table - add eab_kid', lcm.output)
         self.assertIn('INFO:test_a2c:create cahandler table', lcm.output)
+        self.assertIn('INFO:test_a2c:create cliaccount table', lcm.output)
 
     def test_110_order_update(self):
         """ test DBstore.order_add() method for a new entry """
@@ -1195,6 +1198,99 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'name' : 'name1', 'value' : 'value1'}
         self.assertEqual(('name1', True), self.dbstore.hkparameter_add(data_dic))
         self.assertEqual('value1', self.dbstore.hkparameter_get('name1'))
+
+    def test_124_cliaccount_add(self):
+        """ test DBstore.cliaccount_add() method for an new entry"""
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        data_dic = {'name' : 'name2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'cliadmin': False, 'certificateadmin': False, 'reportadmin': False}
+        self.assertEqual(2, self.dbstore.cliaccount_add(data_dic))
+        cli_account_list = self.dbstore.cliaccountlist_get()
+        result1 = {'id': 1, 'name': 'name1', 'jwk': 'jwk1', 'contact': 'contact1', 'cliadmin': 1, 'reportadmin': 1, 'certificateadmin': 1}
+        result2 = {'id': 2, 'name': 'name2', 'jwk': 'jwk2', 'contact': 'contact2', 'cliadmin': 0, 'reportadmin': 0, 'certificateadmin': 0}
+        self.assertTrue(set(result1.items()).issubset( set(cli_account_list[0].items())))
+        self.assertTrue(set(result2.items()).issubset( set(cli_account_list[1].items())))
+
+    def test_125_cliaccount_add(self):
+        """ test DBstore.cliaccount_add() update jwk """
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk2', 'cliadmin': False, 'certificateadmin': False, 'reportadmin': False}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        result = {'id': 1, 'name': 'name1', 'jwk': 'jwk2', 'contact': 'contact1', 'cliadmin': 0, 'reportadmin': 0, 'certificateadmin': 0}
+        cli_account_list = self.dbstore.cliaccountlist_get()
+        self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
+
+    def test_126_cliaccount_add(self):
+        """ test DBstore.cliaccount_add() update contact """
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        data_dic = {'name' : 'name1', 'contact' : 'contact2', 'cliadmin': False, 'certificateadmin': False, 'reportadmin': False}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        result = {'id': 1, 'name': 'name1', 'jwk': 'jwk1', 'contact': 'contact2', 'cliadmin': 0, 'reportadmin': 0, 'certificateadmin': 0}
+        cli_account_list = self.dbstore.cliaccountlist_get()
+        self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
+
+    def test_127_cliaccount_delete(self):
+        """ test DBstore.cliaccount_delete() sucessful """
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        self.dbstore.cliaccount_delete({'name': 'name1'})
+        self.assertFalse(self.dbstore.cliaccountlist_get())
+
+    def test_128_cliaccount_delete(self):
+        """ test DBstore.cliaccount_delete() sucessful """
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.dbstore.cliaccount_delete({'name': 'name2'})
+        self.assertIn('ERROR:test_a2c:DBStore.cliaccount_delete() failed for kid: name2', lcm.output)
+        cli_account_list = self.dbstore.cliaccountlist_get()
+        result = {'id': 1, 'name': 'name1', 'jwk': 'jwk1', 'contact': 'contact1', 'cliadmin': 1, 'reportadmin': 1, 'certificateadmin': 1}
+        self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
+
+    def test_129_cli_jwk_load(self):
+        """ test cli_jwk_load for an existing entry """
+        data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        self.assertEqual({"foo": "bar"}, self.dbstore.cli_jwk_load('name1'))
+
+    def test_130_cli_jwk_load(self):
+        """ test cli_jwk_load for a not existing entry """
+        data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        self.assertFalse(self.dbstore.cli_jwk_load('name2'))
+
+    def test_131_cli_permissions_get(self):
+        """ test cli_jwk_load for an existing entry """
+        data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        self.assertEqual({'cliadmin': 1, 'reportadmin': 1, 'certificateadmin': 1}, self.dbstore.cli_permissions_get('name1'))
+
+    def test_132_cli_permissions_get(self):
+        """ test cli_jwk_load for a not existing entry """
+        data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        self.assertFalse(self.dbstore.cli_permissions_get('name2'))
+
+    def test_133__cliaccount_search(self):
+        """ test cliaccount_search exception """
+        data_dic = {'name' : 'name1', 'jwk' : 'jwk', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
+        result = {'name' : 'name1', 'jwk' : 'jwk', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
+        cli_account_list = self.dbstore._cliaccount_search('name', 'name1')
+        self.assertTrue(set(result.items()).issubset( set(dict(cli_account_list).items())))
+
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
+    @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
+    def test_134__cliaccount_search(self, mock_open, mock_close):
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchone =Exception('foo')
+        mock_open.return_value = Mock()
+        mock_close.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.dbstore._cliaccount_search('name', 'name2'))
+        self.assertIn("ERROR:test_a2c:DBStore._cliaccount_search(column:name, pattern:name2) failed with err: 'Exception' object is not callable", lcm.output)
 
 if __name__ == '__main__':
 

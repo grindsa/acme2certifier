@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Error class """
+# pylint: disable=c0209
 from __future__ import print_function
 
 

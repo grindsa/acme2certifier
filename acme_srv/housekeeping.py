@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=c0209
 """ Housekeeping class """
 from __future__ import print_function
 import csv
@@ -7,6 +8,7 @@ import json
 from acme_srv.db_handler import DBstore
 from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
+from acme_srv.message import Message
 from acme_srv.order import Order
 from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
 from acme_srv.version import __version__
@@ -17,6 +19,7 @@ class Housekeeping(object):
     def __init__(self, debug=None, logger=None):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, None, self.logger)
         self.debug = debug
 
     def __enter__(self):
@@ -46,6 +49,73 @@ class Housekeeping(object):
             self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): {0}'.format(err_))
             result = None
         return result
+
+    def _cliconfig_check(self, config_dic):
+        """ verify config """
+        self.logger.debug('config_check()')
+
+        check_result = True
+        if 'list' not in config_dic and 'jwkname' not in config_dic and 'jwk' not in config_dic:
+            self.logger.error('Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified')
+            check_result = False
+
+        return check_result
+
+    def _cliaccounts_list(self, silent=True):
+        """ list cli accounts """
+        self.logger.debug('Housekeeping._cliaccounts_list()')
+        try:
+            result = self.dbstore.cliaccountlist_get()
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Housekeeping._cliaccounts_list(): {0}'.format(err_))
+            result = None
+        if result and not silent:
+            self._cliaccounts_format(result)
+        return result
+
+    def _cliaccounts_format(self, result_list):
+        """ format cliaccount report """
+        self.logger.debug('Housekeeping._cliaccounts_format()')
+        try:
+            print('\n{0}|{1}|{2}|{3}|{4}|{5}'.format('Name'.ljust(15), 'Contact'.ljust(20), 'cliadm'.ljust(6), 'repadm'.ljust(6), 'certadm'.ljust(7), 'Created at'.ljust(20)))
+            print('-' * 78)
+            for account in sorted(result_list, key=lambda k: k['id']):
+                print('{0}|{1}|{2}|{3}|{4}|{5}'.format(account['name'][:15].ljust(15), account['contact'][:20].ljust(20), str(bool(account['cliadmin'])).ljust(6), str(bool(account['reportadmin'])).ljust(6), str(bool(account['certificateadmin'])).ljust(7), account['created_at'].ljust(20)))
+            print('\n')
+        except Exception as err:
+            self.logger.error('acme2certifier  error in Housekeeping._cliaccounts_format(): {0}'.format(err))
+
+    def _clireport_get(self, payload, permissions_dic):
+        """ get reports for CLI """
+        self.logger.debug('Housekeeping._clireport_get()')
+        response_dic = {}
+        message = None
+        detail = None
+
+        if 'reportadmin' in permissions_dic and permissions_dic['reportadmin']:
+
+            if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
+                if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
+                    if payload['data']['name'] == 'certificates':
+                        response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                    elif payload['data']['name'] == 'accounts':
+                        response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
+                    code = 200
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'unknown report format'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'unknown report type'
+        else:
+            code = 403
+            message = 'urn:ietf:params:acme:error:unauthorized'
+            detail = 'No permissions to download reports'
+
+        self.logger.debug('Housekeeping._clireport_get() returned with: {0}/{1}'.format(code, detail))
+        return (code, message, detail, response_dic)
 
     def _config_load(self):
         """ load config from file """
@@ -98,15 +168,40 @@ class Housekeeping(object):
     def _csv_dump(self, filename, content):
         """ dump content csv file """
         self.logger.debug('Housekeeping._csv_dump()')
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', encoding='utf8', newline='') as file_:
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
+
+    def _data_dic_build(self, config_dic):
+        """ cli user manager """
+        self.logger.debug('Housekeeping._data_dic_build()')
+
+        data_dic = {}
+        if 'jwkname' in config_dic:
+            data_dic['name'] = config_dic['jwkname']
+        else:
+            if 'jwk' in config_dic and 'kid' in config_dic['jwk']:
+                data_dic['name'] = config_dic['jwk']['kid']
+        if 'delete' not in config_dic or not config_dic['delete']:
+            if 'permissions' in config_dic:
+                try:
+                    data_dic.update(config_dic['permissions'])
+                except Exception as err:
+                    self.logger.error('acme2certifier  error in Housekeeping._data_dic_build(): {0}'.format(err))
+
+            if 'jwk' in config_dic:
+                data_dic['jwk'] = json.dumps(config_dic['jwk'])
+
+            if 'email' in config_dic:
+                data_dic['contact'] = config_dic['email']
+
+        return data_dic
 
     def _json_dump(self, filename, data_):
         """ dump content json file """
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
-        with open(filename, 'w', newline='') as file_:
+        with open(filename, 'w', encoding='utf8', newline='') as file_:
             file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
     def _fieldlist_normalize(self, field_list, prefix):
@@ -146,7 +241,7 @@ class Housekeeping(object):
         # get field_list
         field_list = list(field_dic.values())
 
-        return(field_list, new_list)
+        return (field_list, new_list)
 
     def _to_acc_json(self, account_list):
         """ stack list to json """
@@ -258,16 +353,18 @@ class Housekeeping(object):
         # convert dates into human readable format
         account_list = self._convert_data(account_list)
 
-        if report_name:
-            if account_list:
-                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
-                if report_format == 'csv':
-                    self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
-                    csv_list = self._to_list(field_list, account_list)
+        if account_list:
+            self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
+            if report_format == 'csv':
+                self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
+                csv_list = self._to_list(field_list, account_list)
+                account_list = csv_list
+                if report_name:
                     self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
-                elif report_format == 'json':
-                    if nested:
-                        account_list = self._to_acc_json(account_list)
+            elif report_format == 'json':
+                if nested:
+                    account_list = self._to_acc_json(account_list)
+                if report_name:
                     self._json_dump('{0}.{1}'.format(report_name, report_format), account_list)
 
         return account_list
@@ -289,18 +386,20 @@ class Housekeeping(object):
         field_list.insert(7, 'certificate.issue_date')
         field_list.insert(8, 'certificate.expire_date')
 
-        if report_name:
-            if cert_list:
-                self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
-                if report_format == 'csv':
-                    self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
-                    csv_list = self._to_list(field_list, cert_list)
+        if cert_list:
+            self.logger.debug('Prepare output in: {0} format'.format(report_format))
+            if report_format == 'csv':
+                self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
+                csv_list = self._to_list(field_list, cert_list)
+                cert_list = csv_list
+                if report_name:
                     self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
-                elif report_format == 'json':
-                    self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+            elif report_format == 'json':
+                self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+                if report_name:
                     self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
-                else:
-                    self.logger.info('Housekeeping.certreport_get(): No dump just return report')
+            else:
+                self.logger.info('Housekeeping.certreport_get(): No dump just return report')
 
         return cert_list
 
@@ -340,8 +439,36 @@ class Housekeeping(object):
 
         return cert_list
 
+    def cli_usermgr(self, config_dic):
+        """ cli usermanager """
+        self.logger.debug('Housekeeping.cli_usermgr()')
+        check_result = self._cliconfig_check(config_dic)
+
+        # default silence
+        if 'silent' not in config_dic:
+            config_dic['silent'] = True
+
+        result = None
+        if check_result:
+            data_dic = self._data_dic_build(config_dic)
+            try:
+                if 'name' in data_dic:
+                    if 'delete' in config_dic and config_dic['delete']:
+                        self.dbstore.cliaccount_delete(data_dic)
+                    elif 'list' in config_dic and config_dic['list']:
+                        self._cliaccounts_list(silent=config_dic['silent'])
+                    else:
+                        result = self.dbstore.cliaccount_add(data_dic)
+                else:
+                    self.logger.error('acme2certifier error in Housekeeping.cli_usermgr(): data incomplete')
+
+            except Exception as err_:
+                self.logger.critical('acme2certifier database error in Housekeeping.cli_usermgr(): {0}'.format(err_))
+
+        return result
+
     def authorizations_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
-        """ authorizations cleanup based on expiry date"""
+        """ authorizations cleanup based on expiry date """
         self.logger.debug('Housekeeping.authorization_invalidate({0})'.format(uts))
 
         with Authorization(self.debug, None, self.logger) as authorization:
@@ -413,3 +540,32 @@ class Housekeeping(object):
                     self.logger.debug('Housekeeping.orders_invalidate(): No orders to dump')
 
         return order_list
+
+    def parse(self, content):
+        """ new oder request """
+        self.logger.debug('Housekeeping.parse()')
+
+        # def certreport_get(self, report_format='csv', report_name=None):
+        # check message
+        (code, message, detail, _protected, payload, _account_name, permissions_dic) = self.message.cli_check(content)
+
+        response_dic = {}
+        if code == 200:
+            if 'type' in payload and 'data' in payload:
+                if payload['type'] == 'report':
+                    (code, message, detail, response_dic) = self._clireport_get(payload, permissions_dic)
+                else:
+                    code = 400
+                    message = 'urn:ietf:params:acme:error:malformed'
+                    detail = 'unknown type value'
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:malformed'
+                detail = 'either type field or data field is missing in payload'
+
+        # prepare/enrich response
+        status_dic = {'code': code, 'type': message, 'detail': detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic, False)
+        self.logger.debug('Housekeeping.parse() returned something.')
+
+        return response_dic

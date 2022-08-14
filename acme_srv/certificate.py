@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110, r0902, r0912, r0915
+# pylint: disable=c0209, r0902, r0912, r0913, r0915
 """ certificate class """
 from __future__ import print_function
 import json
@@ -131,7 +131,7 @@ class Certificate(object):
                         break
 
         self.logger.debug('Certificate._cert_reusage_check() ended with {0}'.format(message))
-        return(None, cert, cert_raw, message)
+        return (None, cert, cert_raw, message)
 
     def _config_load(self):
         """" load config from file """
@@ -698,11 +698,12 @@ class Certificate(object):
                     detail = None
             else:
                 response_dic['code'] = code = 400
-                response_dic['data'] = message = 'urn:ietf:params:acme:error:malformed'
+                # pylint: disable=w0612, w0622
+                response_dic['data'] = type = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         # depending on the response the content of responsedic['data'] can be either string or dict
@@ -747,7 +748,7 @@ class Certificate(object):
                 detail = 'certificate not found'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Order class """
+# pylint: disable=c0209
 from __future__ import print_function
 import json
 from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
@@ -91,7 +92,7 @@ class Order(object):
             error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
 
         self.logger.debug('Order._add() ended')
-        return(error, order_name, auth_dic, uts_to_date_utc(expires))
+        return (error, order_name, auth_dic, uts_to_date_utc(expires))
 
     def _config_load(self):
         """" load config from file """
@@ -226,7 +227,7 @@ class Order(object):
             detail = 'url is missing in protected'
 
         self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
-        return(code, message, detail, certificate_name)
+        return (code, message, detail, certificate_name)
 
     def _csr_process(self, order_name, csr):
         """ process certificate signing request """
@@ -262,7 +263,7 @@ class Order(object):
             detail = 'order: {0} not found'.format(order_name)
 
         self.logger.debug('Order._csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
-        return(code, message, detail)
+        return (code, message, detail)
 
     def _update(self, data_dic):
         """ update order based on ordername """
@@ -376,7 +377,7 @@ class Order(object):
                 message = error
                 detail = 'could not process order'
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
@@ -429,7 +430,7 @@ class Order(object):
                     response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))

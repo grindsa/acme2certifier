@@ -27,6 +27,17 @@ class Account(models.Model):
         return self.contact
 
 
+class Cliaccount(models.Model):
+    """ account table """
+    name = models.CharField(max_length=15, unique=True)
+    jwk = models.TextField(blank=True)
+    contact = models.CharField(max_length=255)
+    reportadmin = models.BooleanField(default=False)
+    cliadmin = models.BooleanField(default=False)
+    certificateadmin = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Status(models.Model):
     """ order status """
     name = models.CharField(max_length=15, unique=True)

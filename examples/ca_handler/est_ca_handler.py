@@ -9,7 +9,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, parse_url, proxy_check
 
 
@@ -90,7 +90,7 @@ class CAhandler(object):
             pem = None
 
         self.logger.debug('CAhandler._cacerts_get() ended with err: {0}'.format(error))
-        return(error, pem)
+        return (error, pem)
 
     def _config_load(self):
         """" load config from file """
@@ -214,7 +214,7 @@ class CAhandler(object):
             pem = None
 
         self.logger.debug('CAhandler._simpleenroll() ended with err: {0}'.format(error))
-        return(error, pem)
+        return (error, pem)
 
     def enroll(self, csr):
         """ enroll certificate from NCLM """
@@ -249,7 +249,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler.enroll(): {0}'.format(error))
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -261,7 +261,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -272,7 +272,7 @@ class CAhandler(object):
         detail = 'Revocation is not supported.'
 
         self.logger.debug('CAhandler.revoke() ended')
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """

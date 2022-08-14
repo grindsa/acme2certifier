@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Order class """
+# pylint: disable=C0209
 from __future__ import print_function
 import json
 from acme_srv.db_handler import DBstore
@@ -177,7 +178,7 @@ class Authorization(object):
                 detail = 'url is missing in protected'
 
         # prepare/enrich response
-        status_dic = {'code': code, 'message': message, 'detail': detail}
+        status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
         self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))

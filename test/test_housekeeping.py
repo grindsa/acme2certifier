@@ -4,7 +4,7 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, call, MagicMock, mock_open
 import configparser
 
 sys.path.insert(0, '.')
@@ -420,15 +420,21 @@ class TestACMEHandler(unittest.TestCase):
         self.housekeeping._json_dump('filename', 'data')
         self.assertTrue(mock_json.called)
 
+    @patch('acme_srv.housekeeping.Housekeeping._to_list')
     @patch('acme_srv.housekeeping.Housekeeping._convert_data')
     @patch('acme_srv.housekeeping.Housekeeping._lists_normalize')
     @patch('acme_srv.housekeeping.Housekeeping._accountlist_get')
-    def test_061_accountreport_get(self, mock_get, mock_norm, mock_convert):
+    def test_061_accountreport_get(self, mock_get, mock_norm, mock_convert, mock_tolist):
         """ test accountreport_get() no report name"""
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = ('foo', 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', None, False))
+        mock_tolist.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.accountreport_get('csv', None, False))
+        self.assertTrue(mock_get.called)
+        self.assertTrue(mock_norm.called)
+        self.assertTrue(mock_convert.called)
+        self.assertTrue(mock_tolist.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._csv_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_list')
@@ -440,9 +446,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = ('foo', 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.accountreport_get('csv', 'report_name', False))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.accountreport_get('csv', 'report_name', False))
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
+        self.assertTrue(mock_convert.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._json_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_acc_json')
@@ -473,15 +481,19 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
 
+    @patch('acme_srv.housekeeping.Housekeeping._to_list')
     @patch('acme_srv.housekeeping.Housekeeping._convert_data')
     @patch('acme_srv.housekeeping.Housekeeping._lists_normalize')
     @patch('acme_srv.housekeeping.Housekeeping._certificatelist_get')
-    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert):
+    def test_065_certreport_get(self, mock_get, mock_norm, mock_convert, mock_list):
         """ test accountreport_get() no report name"""
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = (['foo'], 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', None))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.certreport_get('csv', None))
+        self.assertTrue(mock_convert.called)
+        self.assertTrue(mock_list.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._csv_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_list')
@@ -493,9 +505,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = ('foo', 'bar')
         mock_norm.return_value = (['foo'], 'bar')
         mock_convert.return_value = ['list']
-        self.assertEqual(['list'], self.housekeeping.certreport_get('csv', 'report_name'))
+        mock_list.return_value = ['to_list']
+        self.assertEqual(['to_list'], self.housekeeping.certreport_get('csv', 'report_name'))
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_dump.called)
+        self.assertTrue(mock_convert.called)
 
     @patch('acme_srv.housekeeping.Housekeeping._json_dump')
     @patch('acme_srv.housekeeping.Housekeeping._to_acc_json')
@@ -834,6 +848,440 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_list.called)
         self.assertFalse(mock_cdump.called)
         self.assertTrue(mock_jdump.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_087_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed """
+        payload = {}
+        mock_check.return_value = (400, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        result = {'code': 400, 'header': {}, 'data': {'detail': 'detail', 'status': 400, 'type': 'message'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_088_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed empty payload """
+        payload = {}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_089_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed data field missing """
+        payload = {'type': 'type'}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_090_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed type field missing """
+        payload = {'data': 'data'}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        result = {'code': 400, 'header': {}, 'data': {'detail': 'either type field or data field is missing in payload', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_091_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed unknown type """
+        payload = {'type': 'type', 'data': 'data'}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        result = {'code': 400, 'header': {}, 'data': {'detail': 'unknown type value', 'status': 400, 'type': 'urn:ietf:params:acme:error:malformed'}}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertFalse(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._clireport_get')
+    @patch('acme_srv.message.Message.cli_check')
+    def test_092_parse(self, mock_check, mock_report):
+        """ test parse cli_check() failed successfull report execution """
+        payload = {'type': 'report', 'data': 'data'}
+        mock_check.return_value = (200, 'message', 'detail', 'protected', payload, 'account_name', {'reportadmin': True, 'foo': 'bar'})
+        mock_report.return_value = (200, 'rep_message', 'rep_det', {'rep_foo': 'rep_bar'})
+        result = {'code': 200, 'header': {}, 'rep_foo': 'rep_bar'}
+        self.assertEqual(result, self.housekeeping.parse('content'))
+        self.assertTrue(mock_report.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_093_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() - reportadmin flag does not exist """
+        payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
+        permission_dic = {'foo': 'bar'}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (403, 'urn:ietf:params:acme:error:unauthorized', 'No permissions to download reports', {})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_094_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() - reportadmin flag does not exist """
+        payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
+        permission_dic = {'reportadmin': False}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (403, 'urn:ietf:params:acme:error:unauthorized', 'No permissions to download reports', {})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_095_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() -account report """
+        payload = {'type': 'report', 'data': {'name': 'accounts', 'format': 'json'}}
+        permission_dic = {'reportadmin': True}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (200, None, None, {'data': 'account_value'})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertTrue(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_096_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() -cert report """
+        payload = {'type': 'report', 'data': {'name': 'certificates', 'format': 'json'}}
+        permission_dic = {'reportadmin': True}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (200, None, None, {'data': 'cert_value'})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertTrue(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_097_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() - unknown report """
+        payload = {'type': 'report', 'data': {'name': 'unknown', 'format': 'json'}}
+        permission_dic = {'reportadmin': True}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (400, 'urn:ietf:params:acme:error:malformed', 'unknown report type', {})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_098_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() - name tag is missing """
+        payload = {'type': 'report', 'data': {'foo': 'unknown', 'format': 'json'}}
+        permission_dic = {'reportadmin': True}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (400, 'urn:ietf:params:acme:error:malformed', 'unknown report type', {})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping.accountreport_get')
+    @patch('acme_srv.housekeeping.Housekeeping.certreport_get')
+    def test_099_clireport_get(self, mock_cert, mock_account):
+        """ test parse _clireport_get() - unknown format """
+        payload = {'type': 'report', 'data': {'name': 'certificates', 'format': 'txt'}}
+        permission_dic = {'reportadmin': True}
+        mock_cert.return_value = 'cert_value'
+        mock_account.return_value = 'account_value'
+        result = (400, 'urn:ietf:params:acme:error:malformed', 'unknown report format', {})
+        self.assertEqual(result, self.housekeeping._clireport_get(payload, permission_dic))
+        self.assertFalse(mock_cert.called)
+        self.assertFalse(mock_account.called)
+
+    def test_100__cliconfig_check(self):
+        """ test _cliconfig_check - with empty input """
+        config_dic = {}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
+        self.assertIn('ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified', lcm.output)
+
+    def test_101__cliconfig_check(self):
+        """ test _cliconfig_check - wrong input """
+        config_dic = {'foo': 'bar', 'bar': 'foo'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
+        self.assertIn('ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified', lcm.output)
+
+    def test_102__cliconfig_check(self):
+        """ test _cliconfig_check - list parameter is in """
+        config_dic = {'foo': 'bar', 'list': 'list'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+    def test_103__cliconfig_check(self):
+        """ test _cliconfig_check - jwkname parameter is in """
+        config_dic = {'foo': 'bar', 'jwkname': 'jwkname'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+    def test_104__cliconfig_check(self):
+        """ test _cliconfig_check - jwk parameter is in """
+        config_dic = {'foo': 'bar', 'jwk': 'jwk'}
+        self.assertTrue(self.housekeeping._cliconfig_check(config_dic))
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_format')
+    def test_105__cliaccounts_list(self, mock_caf):
+        """ test _cliaccounts_list silent false """
+        self.housekeeping.dbstore.cliaccountlist_get.return_value = 'foo'
+        mock_caf.return_value = 'mock_caf'
+        self.assertEqual('foo', self.housekeeping._cliaccounts_list(False))
+        self.assertTrue(mock_caf.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_format')
+    def test_106__cliaccounts_list(self, mock_caf):
+        """ test _cliaccounts_list silent true """
+        self.housekeeping.dbstore.cliaccountlist_get.return_value = 'foo'
+        mock_caf.return_value = 'mock_caf'
+        self.assertEqual('foo', self.housekeeping._cliaccounts_list(True))
+        self.assertFalse(mock_caf.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_format')
+    def test_107__cliaccounts_list(self, mock_caf):
+        """ test _cliaccounts_list silent true """
+        self.housekeeping.dbstore.cliaccountlist_get.side_effect = Exception('exc_calg')
+        mock_caf.return_value = 'mock_caf'
+        with self.assertLogs('test_a2c', level='DEBUG') as lcm:
+            self.assertFalse(self.housekeeping._cliaccounts_list(False))
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping._cliaccounts_list(): exc_calg', lcm.output)
+        self.assertFalse(mock_caf.called)
+
+    @patch('builtins.print')
+    def test_108__cliaccounts_format(self, mock_print):
+    # def test_0107__cliaccounts_format(self):
+        """ test cliaccounts_format one entry """
+        result = [{'id': 1, 'name': 'name1', 'contact': 'contact1', 'cliadmin': True, 'reportadmin': True, 'certificateadmin': True, 'created_at': 'created_at1'}]
+        self.housekeeping._cliaccounts_format(result)
+        self.assertIn(call('\nName           |Contact             |cliadm|repadm|certadm|Created at          '), mock_print.mock_calls)
+        self.assertIn(call('------------------------------------------------------------------------------'), mock_print.mock_calls)
+        self.assertIn(call('name1          |contact1            |True  |True  |True   |created_at1         '), mock_print.mock_calls)
+        self.assertIn(call('\n'), mock_print.mock_calls)
+
+    @patch('builtins.print')
+    def test_109__cliaccounts_format(self, mock_print):
+    # def test_0107__cliaccounts_format(self):
+        """ test cliaccounts_format two entries """
+        result = [{'id': 1, 'name': 'name1', 'contact': 'contact1', 'cliadmin': True, 'reportadmin': True, 'certificateadmin': True, 'created_at': 'created_at1'},
+                {'id': 2, 'name': 'name2', 'contact': 'contact2', 'cliadmin': True, 'reportadmin': True, 'certificateadmin': True, 'created_at': 'created_at2'}
+        ]
+        self.housekeeping._cliaccounts_format(result)
+        self.assertIn(call('\nName           |Contact             |cliadm|repadm|certadm|Created at          '), mock_print.mock_calls)
+        self.assertIn(call('------------------------------------------------------------------------------'), mock_print.mock_calls)
+        self.assertIn(call('name1          |contact1            |True  |True  |True   |created_at1         '), mock_print.mock_calls)
+        self.assertIn(call('name2          |contact2            |True  |True  |True   |created_at2         '), mock_print.mock_calls)
+        self.assertIn(call('\n'), mock_print.mock_calls)
+
+    @patch('builtins.print')
+    def test_110__cliaccounts_format(self, mock_print):
+    # def test_0107__cliaccounts_format(self):
+        """ test cliaccounts_format two entries to be reordered """
+        result = [
+            {'id': 2, 'name': 'name2', 'contact': 'contact2', 'cliadmin': True, 'reportadmin': True, 'certificateadmin': True, 'created_at': 'created_at2'},
+            {'id': 1, 'name': 'name1', 'contact': 'contact1', 'cliadmin': True, 'reportadmin': True, 'certificateadmin': True, 'created_at': 'created_at1'}
+        ]
+        self.housekeeping._cliaccounts_format(result)
+        self.assertIn(call('\nName           |Contact             |cliadm|repadm|certadm|Created at          '), mock_print.mock_calls)
+        self.assertIn(call('------------------------------------------------------------------------------'), mock_print.mock_calls)
+        self.assertIn(call('name1          |contact1            |True  |True  |True   |created_at1         '), mock_print.mock_calls)
+        self.assertIn(call('name2          |contact2            |True  |True  |True   |created_at2         '), mock_print.mock_calls)
+        self.assertIn(call('\n'), mock_print.mock_calls)
+
+    @patch('builtins.print')
+    def test_111__cliaccounts_format(self, mock_print):
+        """ test cliaccounts_format two entries to be reordered """
+        result = 'string'
+
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.housekeeping._cliaccounts_format(result)
+        self.assertIn('ERROR:test_a2c:acme2certifier  error in Housekeeping._cliaccounts_format(): string indices must be integers', lcm.output)
+        self.assertIn(call('\nName           |Contact             |cliadm|repadm|certadm|Created at          '), mock_print.mock_calls)
+        self.assertIn(call('------------------------------------------------------------------------------'), mock_print.mock_calls)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_112_cli_usermgr(self, mock_chk):
+        """ test cli_usermgr with failed config check """
+        config_dic = {}
+        mock_chk.return_value = False
+        self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_113_cli_usermgr(self, mock_chk, mock_build):
+        """ test cli_usermgr incomplete config """
+        config_dic = {}
+        mock_build.return_value = {}
+        mock_chk.return_value = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertIn('ERROR:test_a2c:acme2certifier error in Housekeeping.cli_usermgr(): data incomplete', lcm.output)
+        self.assertFalse(self.housekeeping.dbstore.cliaccount_add.called)
+
+
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_114_cli_usermgr(self, mock_chk, mock_build):
+        """ test cli_usermgr add """
+        config_dic = {}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.return_value = 'add'
+        self.assertEqual('add', self.housekeeping.cli_usermgr(config_dic))
+        self.assertTrue(self.housekeeping.dbstore.cliaccount_add.called)
+        self.assertFalse(self.housekeeping.dbstore.cliaccount_delete.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_115_cli_usermgr(self, mock_chk, mock_build):
+        """ test cli_usermgr delete False """
+        config_dic = {'delete': False}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.return_value = 'add'
+        self.assertEqual('add', self.housekeeping.cli_usermgr(config_dic))
+        self.assertFalse(self.housekeeping.dbstore.cliaccount_delete.called)
+        self.assertTrue(self.housekeeping.dbstore.cliaccount_add.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_116_cli_usermgr(self, mock_chk, mock_build):
+        """ test cli_usermgr delete """
+        config_dic = {'delete': True}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.return_value = 'add'
+        self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertTrue(self.housekeeping.dbstore.cliaccount_delete.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_list')
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_117_cli_usermgr(self, mock_chk, mock_build, mock_list):
+        """ test cli_usermgr list true """
+        config_dic = {'list': True}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.return_value = 'add'
+        self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertTrue(mock_list.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_list')
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_118_cli_usermgr(self, mock_chk, mock_build, mock_list):
+        """ test cli_usermgr list false """
+        config_dic = {'list': False}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.return_value = 'add'
+        self.assertEqual('add', self.housekeeping.cli_usermgr(config_dic))
+        self.assertFalse(mock_list.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_list')
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_119_cli_usermgr(self, mock_chk, mock_build, mock_list):
+        """ test cli_usermgr exception in add """
+        config_dic = {'list': False}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_add.side_effect = Exception('exc_add')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_add', lcm.output)
+        self.assertFalse(mock_list.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_list')
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_120_cli_usermgr(self, mock_chk, mock_build, mock_list):
+        """ test cli_usermgr exception in delete """
+        config_dic = {'delete': True}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        self.housekeeping.dbstore.cliaccount_delete.side_effect = Exception('exc_delete')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_delete', lcm.output)
+        self.assertFalse(mock_list.called)
+
+    @patch('acme_srv.housekeeping.Housekeeping._cliaccounts_list')
+    @patch('acme_srv.housekeeping.Housekeeping._data_dic_build')
+    @patch('acme_srv.housekeeping.Housekeeping._cliconfig_check')
+    def test_121_cli_usermgr(self, mock_chk, mock_build, mock_list):
+        """ test cli_usermgr exception in list """
+        config_dic = {'list': True}
+        mock_build.return_value = {'name': 'name'}
+        mock_chk.return_value = True
+        mock_list.side_effect = Exception('exc_list')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_list', lcm.output)
+        self.assertTrue(mock_list.called)
+
+    def test_122_data_dic_build(self):
+        """ test _data_dic_build() - empty dic """
+        config_dic  = {}
+        self.assertFalse(self.housekeeping._data_dic_build(config_dic))
+
+    def test_123_data_dic_build(self):
+        """ test _data_dic_build() - jwkname set """
+        config_dic  = {'jwkname': 'jwkname'}
+        result_dic = {'name': 'jwkname'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_124_data_dic_build(self):
+        """ test _data_dic_build() - kid set """
+        config_dic  = {'jwk': {'kid': 'kid', 'foo': 'bar'}}
+        result_dic = {'jwk': '{"kid": "kid", "foo": "bar"}', 'name': 'kid'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_125_data_dic_build(self):
+        """ test _data_dic_build() - kid not set but other parameters """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname'}
+        result_dic = {'jwk': '{"foo": "bar"}', 'name': 'jwkname'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_126_data_dic_build(self):
+        """ test _data_dic_build() - add email """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname', 'email': 'email'}
+        result_dic = {'jwk': '{"foo": "bar"}', 'name': 'jwkname', 'contact': 'email'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_127_data_dic_build(self):
+        """ test _data_dic_build() - permissions set """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname', 'email': 'email', 'permissions': {'perm1': 'perm1'}}
+        result_dic = {'jwk': '{"foo": "bar"}', 'name': 'jwkname', 'contact': 'email', 'perm1': 'perm1'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_128_data_dic_build(self):
+        """ test _data_dic_build() - string """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname', 'email': 'email', 'permissions': 'permissions'}
+        result_dic = {'jwk': '{"foo": "bar"}', 'name': 'jwkname', 'contact': 'email'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+        self.assertIn('ERROR:test_a2c:acme2certifier  error in Housekeeping._data_dic_build(): dictionary update sequence element #0 has length 1; 2 is required', lcm.output)
+
+    def test_129_data_dic_build(self):
+        """ test _data_dic_build() - delete false """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname', 'email': 'email', 'permissions': {'perm1': 'perm1'}, 'delete': False}
+        result_dic = {'jwk': '{"foo": "bar"}', 'name': 'jwkname', 'contact': 'email', 'perm1': 'perm1'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
+
+    def test_130_data_dic_build(self):
+        """ test _data_dic_build() - delete true """
+        config_dic  = {'jwk': {'foo': 'bar'}, 'jwkname': 'jwkname', 'email': 'email', 'permissions': {'perm1': 'perm1'}, 'delete': True}
+        result_dic = {'name': 'jwkname'}
+        self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
 
 if __name__ == '__main__':
     unittest.main()

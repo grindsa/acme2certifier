@@ -9,7 +9,7 @@ import json
 import os
 import requests
 from requests.auth import HTTPBasicAuth
-# pylint: disable=E0401
+# pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check
 
 
@@ -243,7 +243,7 @@ class CAhandler(object):
             poll_identifier = request_url
 
         self.logger.debug('CAhandler._loop_poll() ended with error: {0}'.format(error))
-        return(error, cert_bundle, cert_raw, poll_identifier)
+        return (error, cert_bundle, cert_raw, poll_identifier)
 
     def _pem_cert_chain_generate(self, cert_dic):
         """ build certificate chain based """
@@ -323,7 +323,7 @@ class CAhandler(object):
             error = '"status" field not found in response.'
 
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def enroll(self, csr):
         """ enroll certificate """
@@ -353,7 +353,7 @@ class CAhandler(object):
         else:
             error = 'internal error'
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier)
+        return (error, cert_bundle, cert_raw, poll_identifier)
 
     def poll(self, cert_name, poll_identifier, _csr):
         """ poll pending status of pending CSR and download certificates """
@@ -369,7 +369,7 @@ class CAhandler(object):
         else:
             self.logger.debug('skipping cert: {0} as there is no poll_identifier'.format(cert_name))
 
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
@@ -416,7 +416,7 @@ class CAhandler(object):
             message = 'urn:ietf:params:acme:error:serverInternal'
             detail = 'CA could not be found'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, payload):
         """ process trigger message and return certificate """

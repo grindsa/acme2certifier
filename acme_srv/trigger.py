@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" Challenge class """
+""" trigger class """
+# pylint: disable=c0209
 from __future__ import print_function
 import json
 from acme_srv.certificate import Certificate
@@ -138,7 +139,7 @@ class Trigger(object):
         # prepare/enrich response
         response_dic['header'] = {}
         response_dic['code'] = code
-        response_dic['data'] = {'status': code, 'message': message}
+        response_dic['data'] = {'status': code, 'type': message}
         if detail:
             response_dic['data']['detail'] = detail
 
