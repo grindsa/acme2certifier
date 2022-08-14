@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110
-""" ca hanlder for Insta Certifier via REST-API class """
+# pylint: disable=c0209
+""" message class """
 from __future__ import print_function
 import json
 from acme_srv.helper import decode_message, load_config
@@ -123,7 +123,7 @@ class Message(object):
             detail = error_detail
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
-        return(code, message, detail, protected, payload, account_name)
+        return (code, message, detail, protected, payload, account_name)
 
     def cli_check(self, content):
         """ validate message coming from CLI client """
@@ -155,7 +155,7 @@ class Message(object):
             detail = error_detail
 
         self.logger.debug('Message.check() ended with:{0}'.format(code))
-        return(code, message, detail, protected, payload, account_name, permissions)
+        return (code, message, detail, protected, payload, account_name, permissions)
 
     def prepare_response(self, response_dic, status_dic, add_nonce=True):
         """ prepare response_dic """

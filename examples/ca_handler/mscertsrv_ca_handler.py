@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3E0401
 # -*- coding: utf-8 -*-
 """ ca handler for  Microsoft Webenrollment service (certsrv) """
 from __future__ import print_function
@@ -7,7 +7,7 @@ import textwrap
 import json
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
-# pylint: disable=E0401, E0611
+# pylint: disable=C0209, E0401, E0611
 from examples.ca_handler.certsrv import Certsrv
 # pylint: disable=E0401
 from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check
@@ -154,7 +154,7 @@ class CAhandler(object):
             error = 'Config incomplete'
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def _config_load(self):
         """" load config from file """
@@ -217,7 +217,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -228,7 +228,7 @@ class CAhandler(object):
         message = 'urn:ietf:params:acme:error:serverInternal'
         detail = 'Revocation is not supported.'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """

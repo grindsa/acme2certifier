@@ -148,7 +148,7 @@ class CAhandler(object):
             cert_bundle = None
 
         self.logger.debug('CAhandler._cert_bundle_build() ended')
-        return(error, cert_bundle, cert_raw)
+        return (error, cert_bundle, cert_raw)
 
     def _cert_list_fetch(self, url):
         """ fetch certificate list and consider pagination """
@@ -528,7 +528,7 @@ class CAhandler(object):
             self.logger.error(self.error)
 
         self.logger.debug('CAhandler.enroll() ended')
-        return(error, cert_bundle, cert_raw, None)
+        return (error, cert_bundle, cert_raw, None)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -540,7 +540,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason, rev_date):
         """ revoke certificate """
@@ -578,7 +578,7 @@ class CAhandler(object):
             message = 'urn:ietf:params:acme:error:serverInternal'
             detail = 'Cert could not be found'
 
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """

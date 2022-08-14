@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=C0209, C0302, E5110, R0904, R0915
+# pylint: disable=c0209, c0302, r0904, r0915
 """ wsgi handler for acme2certifier """
 from __future__ import print_function
 import sqlite3
@@ -315,7 +315,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(aname, created)
+        return (aname, created)
 
     def account_delete(self, aname):
         """ add account in database """
@@ -432,7 +432,7 @@ class DBstore(object):
             account_list.append(result)
 
         self._db_close()
-        return(vlist, account_list)
+        return (vlist, account_list)
 
     def authorization_add(self, data_dic):
         """ add authorization to database """
@@ -747,7 +747,7 @@ class DBstore(object):
             cert_list.append(result)
 
         self._db_close()
-        return(vlist, cert_list)
+        return (vlist, cert_list)
 
     def certificate_lookup(self, column, string, vlist=('name', 'csr', 'cert', 'order__name')):
         """ search certificate based on "something" """
@@ -1053,7 +1053,7 @@ class DBstore(object):
 
         self._db_close()
         self.logger.debug('DBStore.account_add() ended')
-        return(data_dic['name'], created)
+        return (data_dic['name'], created)
 
     def hkparameter_get(self, parameter):
         """ get parameter from housekeeping table """
