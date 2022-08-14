@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Signature class """
+# pylint: disable=c0209
 from __future__ import print_function
 from acme_srv.helper import signature_check, load_config
 from acme_srv.db_handler import DBstore
@@ -88,7 +89,7 @@ class Signature(object):
             error = 'urn:ietf:params:acme:error:malformed'
 
         self.logger.debug('Signature.check() ended with: {0}:{1}'.format(result, error))
-        return(result, error, None)
+        return (result, error, None)
 
     def eab_check(self, content, mac_key):
         """ signature check """
@@ -98,4 +99,4 @@ class Signature(object):
         if content and mac_key:
             (result, error) = signature_check(self.logger, content, mac_key, json_=True)
 
-        return(result, error)
+        return (result, error)

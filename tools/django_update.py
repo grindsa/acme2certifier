@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """ database updater """
-# pylint: disable=E0401, C0413
+# pylint: disable=C0209, E0401, C0413
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))

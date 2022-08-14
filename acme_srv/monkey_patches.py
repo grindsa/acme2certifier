@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Monkey patches class """
-# pylint: disable=C0413, C0415, E0401
+# pylint: disable=c0413, c0415, e0401, e1121
 # from django.db import connection, DEFAULT_DB_ALIAS
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction

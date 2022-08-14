@@ -241,7 +241,7 @@ class Housekeeping(object):
         # get field_list
         field_list = list(field_dic.values())
 
-        return(field_list, new_list)
+        return (field_list, new_list)
 
     def _to_acc_json(self, account_list):
         """ stack list to json """

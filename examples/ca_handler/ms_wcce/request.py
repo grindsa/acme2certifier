@@ -1,3 +1,5 @@
+""" request.py """
+# pylint: disable=C0209, C0415, E0401, R0913, W1201
 import logging
 
 from cryptography import x509
@@ -17,16 +19,19 @@ MSRPC_UUID_ICPR = uuidtup_to_bin(("91ae6020-9e3c-11cf-8d7c-00aa00c091be", "0.0")
 
 
 def csr_pem_to_der(csr: str) -> bytes:
+    """ convert pem to der """
     csr = x509.load_pem_x509_csr(csr)
     return csr.public_bytes(Encoding.DER)
 
 
 def der_to_pem(certificate: bytes) -> bytes:
+    """ convert der to pem """
     cert = x509.load_der_x509_certificate(certificate)
     return cert.public_bytes(Encoding.PEM)
 
 
 class DCERPCSessionError(rpcrt.DCERPCException):
+    """ error class """
     def __init__(self, error_string=None, error_code=None, packet=None):
         rpcrt.DCERPCException.__init__(self, error_string, error_code, packet)
 
@@ -38,6 +43,7 @@ class DCERPCSessionError(rpcrt.DCERPCException):
 
 # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/d6bee093-d862-4122-8f2b-7b49102097dc
 class CERTTRANSBLOB(NDRSTRUCT):
+    """ certtransblob """
     structure = (
         ("cb", ULONG),
         ("pb", PBYTE),
@@ -46,6 +52,7 @@ class CERTTRANSBLOB(NDRSTRUCT):
 
 # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-icpr/0c6f150e-3ead-4006-b37f-ebbf9e2cf2e7
 class CertServerRequest(NDRCALL):
+    """ certserver request """
     opnum = 0
     structure = (
         ("dwFlags", DWORD),
@@ -58,6 +65,7 @@ class CertServerRequest(NDRCALL):
 
 # https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-icpr/0c6f150e-3ead-4006-b37f-ebbf9e2cf2e7
 class CertServerRequestResponse(NDRCALL):
+    """ certserverresponse """
     structure = (
         ("pdwRequestId", DWORD),
         ("pdwDisposition", ULONG),
@@ -68,6 +76,8 @@ class CertServerRequestResponse(NDRCALL):
 
 
 class Request:
+    """ request """
+    # pylint: disable=c0103
     def __init__(
         self,
         target: Target = None,
@@ -94,6 +104,7 @@ class Request:
         )
 
     def get_cert(self, csr: bytes) -> bytes:
+        """ get cert """
         csr = csr_pem_to_der(csr)
 
         attributes = ["CertificateTemplate:%s" % self.template]

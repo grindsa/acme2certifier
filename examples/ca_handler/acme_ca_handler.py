@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
-# pylint: disable=E0401, W0105, R0914, W0212
+# pylint: disable=C0209, E0401, W0105, R0914, W0212
 import json
 import textwrap
 import base64
@@ -223,7 +223,7 @@ class CAhandler(object):
             challenge = None
 
         self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
-        return(chall_name, chall_content, challenge)
+        return (chall_name, chall_content, challenge)
 
     def _key_generate(self):
         """ generate key """
@@ -243,13 +243,13 @@ class CAhandler(object):
 
         if os.path.exists(self.keyfile):
             self.logger.debug('CAhandler.enroll() opening user_key')
-            with open(self.keyfile, "r") as keyf:
+            with open(self.keyfile, "r", encoding='utf8') as keyf:
                 user_key = josepy.JWKRSA.json_loads(keyf.read())
         else:
             self.logger.debug('CAhandler.enroll() generate and register key')
             user_key = self._key_generate()
             # dump keyfile to file
-            with open(self.keyfile, "w") as keyf:
+            with open(self.keyfile, "w", encoding='utf8') as keyf:
                 keyf.write(json.dumps(user_key.to_json()))
 
         self.logger.debug('CAhandler._user_key_load() ended')
@@ -396,7 +396,7 @@ class CAhandler(object):
             self.logger.error('CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.')
 
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, poll_indentifier)
+        return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
@@ -408,7 +408,7 @@ class CAhandler(object):
         rejected = False
 
         self.logger.debug('CAhandler.poll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, _cert, _rev_reason, _rev_date):
         """ revoke certificate """
@@ -465,7 +465,7 @@ class CAhandler(object):
             del user_key
 
         self.logger.debug('Certificate.revoke() ended')
-        return(code, message, detail)
+        return (code, message, detail)
 
     def trigger(self, _payload):
         """ process trigger message and return certificate """
