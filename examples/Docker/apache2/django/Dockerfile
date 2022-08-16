@@ -43,6 +43,9 @@ COPY examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_h
 RUN chown -R www-data:www-data /var/www/acme2certifier/
 RUN rm /var/www/acme2certifier/acme2certifier/settings.py
 
+# allow  md4 algorithm in openssl for msca handler
+RUN sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
+    sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
 
 # final apache2 changes
 RUN sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf && \
