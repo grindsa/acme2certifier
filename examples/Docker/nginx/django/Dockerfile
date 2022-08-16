@@ -51,6 +51,10 @@ RUN rm /var/www/acme2certifier/acme2certifier/settings.py && \
     sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini
 
+# allow  md4 algorithm in openssl for msca handler
+RUN sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
+    sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+
 COPY examples/Docker/nginx/django/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
 
