@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.22
+
+**Features and Improvements**:
+
+- containers got migrated to Ubuntu 22.04
+- nclm handler supporting NCLM 22 and above
+
+**Bugfixes**:
+
+- [pycodestyle 2.9.1](https://pycodestyle.pycqa.org/en/2.9.1/intro.html) linting
+- time adjustment in CMPv2 workflow to avoid race condition related timeouts
+- link updates in [README.md](README.md)
+- attribute type in error responses [#92](https://github.com/grindsa/acme2certifier/issues/92)
+
 ## Changes in 0.21
 
 **Features and Improvements**:
@@ -161,6 +175,7 @@ and pick the appropriate release branch.
 - [CodeCoverage measurement](https://app.codecov.io/gh/grindsa/acme2certifier/) via codecov.io
 - Switch to [acme.sh:latest](https://hub.docker.com/r/neilpang/acme.sh) in CI pipeline
 - Regression test-cases for django deployments using either mariadb or postgres backends
+- experimental CLI framework (not yet useable)
 
 ## Changes in 0.15.3
 
@@ -225,7 +240,7 @@ and pick the appropriate release branch.
 **Bugfixes**:
 
 - `helper.py`- fqdn_resolve() - resolve AAAA records
-- `helper.py`- url_gete() - ipv4 fallback during http challenge validation  
+- `helper.py`- url_gete() - ipv4 fallback during http challenge validation
 
 ## Changes in 0.13
 
