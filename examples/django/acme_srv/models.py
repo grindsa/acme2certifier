@@ -52,7 +52,7 @@ class Order(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     notbefore = models.IntegerField(default=0)
     notafter = models.IntegerField(default=0)
-    identifiers = models.CharField(max_length=1048)
+    identifiers = models.TextField(max_length=1048)
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

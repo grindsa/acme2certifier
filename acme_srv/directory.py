@@ -3,19 +3,21 @@
 """ Directory class """
 from __future__ import print_function
 import uuid
-from .version import __version__
+from .version import __version__, __dbversion__
 from .helper import load_config
-
+from .db_handler import DBstore
 
 class Directory(object):
     """ class for directory handling """
 
-    def __init__(self, _debug=None, srv_name=None, logger=None):
+    def __init__(self, debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
         self.logger = logger
+        self.dbstore = DBstore(debug, self.logger)
         self.supress_version = False
         self.tos_url = None
         self.version = __version__
+        self.db_check = False
         self.eab = False
         self.url_prefix = ""
 
@@ -36,6 +38,8 @@ class Directory(object):
                 self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
+            if 'db_check' in config_dic['Directory']:
+                self.db_check =  config_dic.getboolean('Directory', 'db_check', fallback=False)
         if 'EABhandler' in config_dic:
             if 'eab_handler_file' in config_dic['EABhandler']:
                 self.eab = True
@@ -74,6 +78,19 @@ class Directory(object):
         # indicate eab requirement
         if self.eab:
             d_dic['meta']['externalAccountRequired'] = True
+
+        if self.db_check:
+            try:
+                (version, script_name) = self.dbstore.dbversion_get()
+                if version == __dbversion__:
+                    d_dic['meta']['db_check'] = 'OK'
+                else:
+                    self.logger.error('acme2certifier database error: version mismatch: detected: {0}/ expected: {1}'.format(version, __dbversion__))
+                    d_dic['meta']['db_check'] = 'NOK'
+
+            except Exception as err_:
+                self.logger.critical('acme2certifier database error in Directory.dbversion_check(): {0}'.format(err_))
+                d_dic['meta']['db_check'] = 'NOK'
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
