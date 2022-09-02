@@ -27,6 +27,7 @@ class CAhandler(object):
         self.error = None
         self.wait_interval = 5
         self.proxy = None
+        self.request_timeout = 20
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -46,7 +47,7 @@ class CAhandler(object):
         """  generic wrapper for an API post call """
         self.logger.debug('CAhandler._api_post()')
         try:
-            api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             api_response = str(err_)
@@ -58,7 +59,7 @@ class CAhandler(object):
         """ lookup CA ID based on CA_name """
         self.logger.debug('CAhandler._ca_id_lookup()')
         # query CAs
-        ca_list = requests.get(self.api_host + '/ca?freeText=' + str(self.ca_name), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+        ca_list = requests.get(self.api_host + '/ca?freeText=' + str(self.ca_name), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         ca_id = None
         if 'CAs' in ca_list:
             for ca_cert in ca_list['CAs']:
@@ -81,7 +82,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_policylink_id_lookup()')
 
         # query CAs
-        ca_list = requests.get(self.api_host + '/policy/ca?entityRef=CONTAINER&entityId={0}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0'.format(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+        ca_list = requests.get(self.api_host + '/policy/ca?entityRef=CONTAINER&entityId={0}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0'.format(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         ca_id = None
         if 'ca' in ca_list:
             if 'items' in ca_list['ca']:
@@ -119,7 +120,7 @@ class CAhandler(object):
             count += 1
             self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_id))
 
-            cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             if 'certificate' in cert_dic:
                 if count == 1:
                     if 'der' in cert_dic['certificate']:
@@ -157,7 +158,7 @@ class CAhandler(object):
         cert_list = []
         while url:
             try:
-                _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+                _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             except Exception as err_:
                 self.logger.error('CAhandler._cert_list_fetch() returned error: {0}'.format(str(err_)))
                 _tmp_cert_list = []
@@ -245,6 +246,7 @@ class CAhandler(object):
 
     def _config_load(self):
         """" load config from file """
+        # pylint: disable=r0912
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
@@ -287,6 +289,12 @@ class CAhandler(object):
                 except Exception:
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
+            if 'request_timeout' in config_dic['CAhandler']:
+                try:
+                    self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
+                except Exception:
+                    self.request_timeout = 20
+
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
                 proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
@@ -307,7 +315,7 @@ class CAhandler(object):
         req_all = []
         # special certbot scenario (no CN in CSR). No better idea how to handle this, take first request
         try:
-            result = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            result = requests.get(self.api_host + '/requests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             if 'requests' in result:
                 req_all = result['requests']
             else:
@@ -370,13 +378,13 @@ class CAhandler(object):
         """ _login into NCLM API """
         self.logger.debug('CAhandler._login()')
         # check first if API is reachable
-        api_response = requests.get(self.api_host, proxies=self.proxy)
+        api_response = requests.get(self.api_host, proxies=self.proxy, timeout=self.request_timeout)
         self.logger.debug('api response code:{0}'.format(api_response.status_code))
         if api_response.ok:
             # all fine try to login
             self.logger.debug('log in to {0} as user "{1}"'.format(self.api_host, self.credential_dic['api_user']))
             data = {'username': self.credential_dic['api_user'], 'password': self.credential_dic['api_password']}
-            api_response = requests.post(url=self.api_host + '/token?grant_type=client_credentials', json=data, proxies=self.proxy)
+            api_response = requests.post(url=self.api_host + '/token?grant_type=client_credentials', json=data, proxies=self.proxy, timeout=self.request_timeout)
             if api_response.ok:
                 json_dic = api_response.json()
                 if 'access_token' in json_dic:
@@ -409,7 +417,7 @@ class CAhandler(object):
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
         try:
-            result = requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            result = requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._unusedrequests_get() returned error: {0}'.format(str(err_)))
             result = None
@@ -443,7 +451,7 @@ class CAhandler(object):
         """ get template id based on name """
         self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
         try:
-            template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._template_id_lookup() returned error: {0}'.format(err_))
             template_list = []
@@ -463,7 +471,7 @@ class CAhandler(object):
         """ get target system id based on name """
         self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
         try:
-            tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._tsg_id_lookup() returned error: {0}'.format(err_))
             tsg_list = []
@@ -551,7 +559,7 @@ class CAhandler(object):
 
         # search for certificate
         try:
-            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy).json()
+            cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler.revoke(): request get aborted with err: {0}'.format(err_))
             cert_list = []

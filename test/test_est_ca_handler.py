@@ -40,6 +40,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.est_user)
         self.assertFalse(self.cahandler.est_password)
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_003_config_load(self, mock_load_cfg):
@@ -47,6 +48,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host': 'foo_host'}}
         self.cahandler._config_load()
         self.assertEqual('foo_host/.well-known/est', self.cahandler.est_host)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_host_var': 'foo_host'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -55,6 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host_variable': 'est_host_var'}}
         self.cahandler._config_load()
         self.assertEqual('foo_host/.well-known/est', self.cahandler.est_host)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_host_var': 'foo_host'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -65,6 +68,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.est_host)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load est_host_variable:'does_not_exist'", lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_host_var': 'foo_host'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -75,6 +79,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual('foo_host_loc/.well-known/est', self.cahandler.est_host)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite est_host', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_007_config_load(self, mock_load_cfg):
@@ -83,6 +88,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): missing "est_host" parameter', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
@@ -92,6 +98,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.est_client_cert)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
@@ -101,6 +108,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.est_client_cert)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
@@ -111,6 +119,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler.est_user)
         self.assertFalse(self.cahandler.est_password)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
@@ -121,6 +130,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.est_user)
         self.assertTrue(self.cahandler.est_password)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
@@ -129,6 +139,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertEqual('est_user', self.cahandler.est_user)
         self.assertEqual('est_password', self.cahandler.est_password)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_user_var': 'estuser'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -137,6 +148,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_user_variable': 'est_user_var'}}
         self.cahandler._config_load()
         self.assertEqual('estuser', self.cahandler.est_user)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_pass_var': 'estpass'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -145,6 +157,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_password_variable': 'est_pass_var'}}
         self.cahandler._config_load()
         self.assertEqual('estpass', self.cahandler.est_password)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_user_var': 'estuser'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -155,6 +168,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.est_user)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load est_user_variable:'does_not_exist'", lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_pass_var': 'estpass'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -165,6 +179,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.est_password)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load est_password:'does_not_exist'", lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_user_var': 'estuser'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -175,6 +190,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual('estuser_loc', self.cahandler.est_user)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite est_user', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch.dict('os.environ', {'est_pass_var': 'estpass'})
     @patch('examples.ca_handler.est_ca_handler.load_config')
@@ -185,6 +201,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual('estpassword_loc', self.cahandler.est_password)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite est_password', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_019_config_load(self, mock_load_cfg):
@@ -196,6 +213,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.est_password)
         self.assertFalse(self.cahandler.est_client_cert)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either user or client authentication must be configured', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_020_config_load(self, mock_load_cfg):
@@ -207,6 +225,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('est_password', self.cahandler.est_password)
         self.assertEqual(['est_client_cert', 'est_client_key'], self.cahandler.est_client_cert)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_021_config_load(self, mock_load_cfg):
@@ -214,6 +233,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host': 'foo', 'est_user': 'est_user', 'est_password': 'est_password'}}
         self.cahandler._config_load()
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_022_config_load(self, mock_load_cfg):
@@ -221,6 +241,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host': 'foo', 'est_user': 'est_user', 'est_password': 'est_password', 'ca_bundle': True}}
         self.cahandler._config_load()
         self.assertTrue(self.cahandler.ca_bundle)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_023_config_load(self, mock_load_cfg):
@@ -228,6 +249,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host': 'foo', 'est_user': 'est_user', 'est_password': 'est_password', 'ca_bundle': False}}
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.load_config')
     def test_024_config_load(self, mock_load_cfg):
@@ -235,6 +257,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'est_host': 'foo', 'est_user': 'est_user', 'est_password': 'est_password', 'ca_bundle': 'bar'}}
         self.cahandler._config_load()
         self.assertEqual('bar', self.cahandler.ca_bundle)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.parse_url')
     @patch('json.loads')
@@ -247,6 +270,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertTrue(mock_json.called)
         self.assertTrue(mock_url.called)
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.proxy_check')
     @patch('examples.ca_handler.est_ca_handler.parse_url')
@@ -263,6 +287,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_chk.called)
         self.assertEqual({'http': 'proxy.bar.local', 'https': 'proxy.bar.local'},self.cahandler.proxy )
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     @patch('examples.ca_handler.est_ca_handler.proxy_check')
     @patch('examples.ca_handler.est_ca_handler.parse_url')
@@ -281,6 +306,21 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy )
         self.assertIn('WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)', lcm.output)
+        self.assertEqual(20, self.cahandler.request_timeout)
+
+    @patch('examples.ca_handler.est_ca_handler.load_config')
+    def test_028_config_load(self, mock_load_cfg):
+        """ test _config_load - neither client nor user_auth are configured """
+        mock_load_cfg.return_value = {'CAhandler': {'request_timeout': 10}}
+        self.cahandler._config_load()
+        self.assertEqual(10, self.cahandler.request_timeout)
+
+    @patch('examples.ca_handler.est_ca_handler.load_config')
+    def test_029_config_load(self, mock_load_cfg):
+        """ test _config_load - neither client nor user_auth are configured """
+        mock_load_cfg.return_value = {'CAhandler': {'request_timeout': 'foo'}}
+        self.cahandler._config_load()
+        self.assertEqual(20, self.cahandler.request_timeout)
 
     def test_028_revoke(self):
         """ test revocation """
