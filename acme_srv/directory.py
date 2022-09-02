@@ -7,6 +7,7 @@ from .version import __version__, __dbversion__
 from .helper import load_config
 from .db_handler import DBstore
 
+
 class Directory(object):
     """ class for directory handling """
 
@@ -39,7 +40,7 @@ class Directory(object):
             if 'tos_url' in config_dic['Directory']:
                 self.tos_url = config_dic['Directory']['tos_url']
             if 'db_check' in config_dic['Directory']:
-                self.db_check =  config_dic.getboolean('Directory', 'db_check', fallback=False)
+                self.db_check = config_dic.getboolean('Directory', 'db_check', fallback=False)
         if 'EABhandler' in config_dic:
             if 'eab_handler_file' in config_dic['EABhandler']:
                 self.eab = True
