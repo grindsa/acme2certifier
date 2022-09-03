@@ -934,6 +934,7 @@ class DBstore(object):
         """ update database """
         self.logger.debug('DBStore.db_update()')
         self._db_open()
+
         # add poll_identifier if not existingcd
         self.cursor.execute('''PRAGMA table_info(certificate)''')
         certificate_column_list = []
@@ -942,11 +943,9 @@ class DBstore(object):
         if 'poll_identifier' not in certificate_column_list:
             self.logger.info('alter certificate table - add poll_identifier')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
-
         if 'issue_uts' not in certificate_column_list:
             self.logger.info('alter certificate table - add issue_uts')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN issue_uts integer DEFAULT 0''')
-
         if 'expire_uts' not in certificate_column_list:
             self.logger.info('alter certificate table - add expire_uts')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
@@ -969,6 +968,7 @@ class DBstore(object):
             self.logger.info('alter challenge table - add validated')
             self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
 
+        # add eab_kid
         self.cursor.execute('''PRAGMA table_info(account)''')
         account_column_list = []
         for column in self.cursor.fetchall():
@@ -977,10 +977,18 @@ class DBstore(object):
             self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
-        self.cursor.execute('''PRAGMA table_info(order)''')
-        order_column_list = []
+        # change identifier field to text
+        self.cursor.execute('''PRAGMA table_info(orders)''')
         for column in self.cursor.fetchall():
-            print(column)
+            if column[1] == 'identifiers':
+                if 'varchar' in column[2].lower():
+                    self.logger.info('alter order table - change identifier field type to TEXT')
+                    self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
+                    self.cursor.execute('''
+                        CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                    ''')
+                    self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
+                    self.cursor.execute('''DROP TABLE tmp''')
 
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
@@ -1016,6 +1024,7 @@ class DBstore(object):
             self.cursor.execute('''
                 CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
+
         # version update
         self.logger.info('update dbversion to {0}'.format(__dbversion__))
         self.cursor.execute('''INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{0}")'''.format(__dbversion__))
