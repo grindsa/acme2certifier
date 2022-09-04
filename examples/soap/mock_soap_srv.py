@@ -1,15 +1,34 @@
 # -*- coding: utf-8 -*-
 """ soap-server mock providing endpoint for soap ca handler """
-# pylint: disable=c0209, c0413
+# pylint: disable=c0209, c0413, e0401
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+import argparse
 import tempfile
+import json
 import subprocess
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
 import xmltodict
-from acme_srv.helper import b64_encode, logger_setup, convert_string_to_byte
-from examples.ca_handler.xca_ca_handler import CAhandler
+sys.path.insert(0, '.')
+sys.path.insert(0, '..')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+from acme_srv.helper import b64_encode, logger_setup, convert_string_to_byte, load_config   # nopep8
+# pylint: disable=e0611
+from examples.ca_handler.xca_ca_handler import CAhandler  # nopep8
+
+
+def arg_parse():
+    """ simple argparser """
+    parser = argparse.ArgumentParser(description='soap server')
+    parser.add_argument('-d', '--debug', help='debug mode', action="store_true", default=False)
+    parser.add_argument('-c', '--configfile', help='config file', default='soap_srv.cfg')
+    args = parser.parse_args()
+
+    debug = args.debug
+    configfile = args.configfile
+
+    return debug, configfile
+
 
 def _csr_lookup(logger, soap_dic):
     """ get csr from soap request """
@@ -19,7 +38,7 @@ def _csr_lookup(logger, soap_dic):
         if 'soapenv:Body' in soap_dic['soapenv:Envelope']:
             if 'aur:RequestCertificate' in soap_dic['soapenv:Envelope']['soapenv:Body']:
                 if 'aur:request' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']:
-                    if 'aur:CertificateRequestRaw'  in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
+                    if 'aur:CertificateRequestRaw' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
                         csr = soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:CertificateRequestRaw']
     return csr
 
@@ -35,6 +54,7 @@ def _opensslcmd_build(logger, tmp_dir, filename_list):
 
     return cmd_list
 
+
 def _file_load_binary(logger, filename):
     """ load file at once """
     logger.debug('file_open({0})'.format(filename))
@@ -42,11 +62,13 @@ def _file_load_binary(logger, filename):
         lines = _file.read()
     return lines
 
+
 def _file_dump(logger, filename, data_):
     """ dump content to  file """
     logger.debug('file_dump({0})'.format(filename))
     with open(filename, 'w', encoding='utf8') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
+
 
 def _pem2pkcs7_convert(logger, pem):
     """ convert pem bunlde to pkcs#7 by using openssl """
@@ -69,6 +91,7 @@ def _pem2pkcs7_convert(logger, pem):
         content = None
     return content
 
+
 def _get_request_body(environ):
     """ get body from request data """
     try:
@@ -82,18 +105,42 @@ def _get_request_body(environ):
     return request_body
 
 
+def _config_load(logger, config_file):
+    """ load config file"""
+    config_dic = load_config(logger, None, config_file)
+
+    cfg_dic = {}
+    if 'CAhandler' in config_dic:
+        if 'xdb_file' in config_dic['CAhandler']:
+            cfg_dic['xdb_file'] = config_dic['CAhandler']['xdb_file']
+        if 'issuing_ca_name' in config_dic['CAhandler']:
+            cfg_dic['issuing_ca_name'] = config_dic['CAhandler']['issuing_ca_name']
+        if 'issuing_ca_key' in config_dic['CAhandler']:
+            cfg_dic['issuing_ca_key'] = config_dic['CAhandler']['issuing_ca_key']
+        if 'template_name' in config_dic['CAhandler']:
+            cfg_dic['template_name'] = config_dic['CAhandler']['template_name']
+        if 'passphrase' in config_dic['CAhandler']:
+            cfg_dic['passphrase'] = config_dic['CAhandler']['passphrase']
+        if 'ca_cert_chain_list' in config_dic['CAhandler']:
+            cfg_dic['ca_cert_chain_list'] = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
+
+    return cfg_dic
+
+
 def request_process(logger, csr):
     """ construct soap response """
 
-    ca_handler=CAhandler(True, logger)
-    ca_handler.xdb_file = 'acme_srv/xca/acme2certifier.xdb'
-    ca_handler.issuing_ca_name = 'sub-ca'
-    ca_handler.issuing_ca_key = 'sub-ca'
-    ca_handler.template_name = 'acme'
-    ca_handler.passphrase = 'test1234'
-    ca_handler.ca_cert_chain_list = ['root-ca']
+    config_dic = _config_load(logger, CONFIG_FILE)
 
-    (error, cert_bundle, _cert_raw, _unused ) = ca_handler.enroll(csr)
+    ca_handler = CAhandler(True, logger)
+    ca_handler.xdb_file = config_dic['xdb_file']
+    ca_handler.issuing_ca_name = config_dic['issuing_ca_name']
+    ca_handler.issuing_ca_key = config_dic['issuing_ca_key']
+    ca_handler.template_name = config_dic['template_name']
+    ca_handler.passphrase = config_dic['passphrase']
+    ca_handler.ca_cert_chain_list = config_dic['ca_cert_chain_list']
+
+    (error, cert_bundle, _cert_raw, _unused) = ca_handler.enroll(csr)
     if not error:
         pkcs7 = _pem2pkcs7_convert(logger, cert_bundle)
     else:
@@ -111,7 +158,11 @@ def request_process(logger, csr):
     </s:Body>
     </s:Envelope>
     """.format(pkcs7)
+    else:
+        soap_response = None
+
     return convert_string_to_byte(soap_response)
+
 
 def soap_srv(environ, start_response):
     """ echo application """
@@ -133,10 +184,11 @@ def soap_srv(environ, start_response):
 
     return [response]
 
+
 if __name__ == '__main__':
 
+    (DEBUG, CONFIG_FILE) = arg_parse()
 
-    DEBUG = True
     # initialize logger
     LOGGER = logger_setup(DEBUG)
 
