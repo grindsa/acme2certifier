@@ -12,3 +12,5 @@ pysocks
 josepy
 acme
 impacket
+xmltodict
+pyasn1
