@@ -30,6 +30,7 @@ class CAhandler(object):
         self.signing_cert = None
         self.signing_key = None
         self.ca_bundle = False
+        self.email = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -58,7 +59,7 @@ class CAhandler(object):
             else:
                 self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
         else:
-            self.logger.critical('CAhandler._config_load(): signing_cert option is missing on config file')
+            self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
 
         if 'signing_key' in config_dic['CAhandler']:
             if os.path.exists(config_dic['CAhandler']['signing_key']):
@@ -68,12 +69,17 @@ class CAhandler(object):
             else:
                 self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
         else:
-            self.logger.critical('CAhandler._config_load(): signing_key option is missing on config file')
+            self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
 
         if 'profilename' in config_dic['CAhandler']:
             self.profilename = config_dic['CAhandler']['profilename']
         else:
-            self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
+            self.logger.error('CAhandler._config_load(): profilename option is missing on config file')
+
+        if 'email' in config_dic['CAhandler']:
+            self.email = config_dic['CAhandler']['email']
+        else:
+            self.logger.error('CAhandler._config_load(): email option is missing on config file')
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -182,13 +188,13 @@ class CAhandler(object):
                 <aur:request>
                     <aur:ProfileName>{0}</aur:ProfileName>
                     <aur:CertificateRequestRaw>{1}</aur:CertificateRequestRaw>
-                    <aur:Email>requester@email.cz</aur:Email>
+                    <aur:Email>requester{2}</aur:Email>
                     <aur:ReturnCertificateCaChain>true</aur:ReturnCertificateCaChain>
                 </aur:request>
             </aur:RequestCertificate>
         </soapenv:Body>
         </soapenv:Envelope>
-        """.format(self.profilename, pkcs7)  # pylint: disable=c0209
+        """.format(self.profilename, pkcs7, self.email)  # pylint: disable=c0209
 
         return data
 
@@ -199,11 +205,36 @@ class CAhandler(object):
         headers = CaseInsensitiveDict()
         headers["Content-Type"] = "application/soap+xml"
 
-        resp = requests.post(self.soap_srv, headers=headers, data=payload, timeout=20)
-        soap_dic = xmltodict.parse(resp.text)
-        b64_cert_bundle = soap_dic['s:Envelope']['s:Body']['RequestCertificateResponse']['RequestCertificateResult']['IssuedCertificate']
+        b64_cert_bundle = None
+        error = None
 
-        return b64_cert_bundle
+        try:
+            resp = requests.post(self.soap_srv, headers=headers, data=payload, timeout=20)
+            if resp.status_code == 200:
+                soap_dic = xmltodict.parse(resp.text)
+                try:
+                    b64_cert_bundle = soap_dic['s:Envelope']['s:Body']['RequestCertificateResponse']['RequestCertificateResult']['IssuedCertificate']
+                except Exception:
+                    self.logger.error('CAhandler._soaprequest_send() - XML Parsing error')
+                    self.logger.debug('CAhandler._soaprequest_send(): {0}'.format(resp.text))
+            else:
+                self.logger.error('CAhandler._soaprequest_send(): http status_code {0}'.format(resp.status_code))
+                error: 'server error'
+                try:
+                    soap_dic = xmltodict.parse(resp.text)
+                    self.logger.error('CAhandler._soaprequest_send() - faultcode: {0}'.format(soap_dic['s:Envelope']['s:Body']['s:Fault']['faultcode']))
+                    self.logger.error('CAhandler._soaprequest_send() - faultstring: {0}'.format(soap_dic['s:Envelope']['s:Body']['s:Fault']['faultstring']))
+                except Exception:
+                    self.logger.error('CAhandler._soaprequest_send() - unkown error')
+                    self.logger.debug('CAhandler._soaprequest_send(): {0}'.format(resp.text))
+
+        except Exception as err:
+            self.logger.error('CAhandler._soaprequest_send(): {0}'.format(err))
+            error = 'Connection error'
+            payload = None
+            resp = None
+
+        return (error, b64_cert_bundle)
 
     def _get_certificate(self, signature_block_file):
         """Extracts a DER certificate from JAR Signature's "Signature Block File".
@@ -257,14 +288,15 @@ class CAhandler(object):
 
         # build and soap request to be send to ca server
         payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
-        b64_cert_bundle = self._soaprequest_send(payload)
+        (error, b64_cert_bundle) = self._soaprequest_send(payload)
 
-        # extract certificates from pkcs7 bundle we got as response
-        certificate_list = self._get_certificate(b64_decode(self.logger, b64_cert_bundle))
+        if not error and b64_cert_bundle:
+            # extract certificates from pkcs7 bundle we got as response
+            certificate_list = self._get_certificate(b64_decode(self.logger, b64_cert_bundle))
 
-        # create pem bundle and raw file
-        cert_bundle = ''.join(certificate_list)
-        cert_raw = self._certraw_get(certificate_list[0])
+            # create pem bundle and raw file
+            cert_bundle = ''.join(certificate_list)
+            cert_raw = self._certraw_get(certificate_list[0])
 
         self.logger.debug('Certificate.enroll() ended')
 

@@ -7,6 +7,7 @@ import argparse
 import tempfile
 import json
 import subprocess
+from http.client import responses
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
 import xmltodict
 sys.path.insert(0, '.')
@@ -22,12 +23,16 @@ def arg_parse():
     parser = argparse.ArgumentParser(description='soap server')
     parser.add_argument('-d', '--debug', help='debug mode', action="store_true", default=False)
     parser.add_argument('-c', '--configfile', help='config file', default='soap_srv.cfg')
+    parser.add_argument('-e', '--error', help='send soap error message', action="store_true", default=False)
+    parser.add_argument('-s', '--httpstatuscode', help='http status code', default=200)
     args = parser.parse_args()
 
     debug = args.debug
     configfile = args.configfile
+    error = args.error
+    hsc = args.httpstatuscode
 
-    return debug, configfile
+    return debug, configfile, hsc, error
 
 
 def _csr_lookup(logger, soap_dic):
@@ -40,6 +45,11 @@ def _csr_lookup(logger, soap_dic):
                 if 'aur:request' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']:
                     if 'aur:CertificateRequestRaw' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
                         csr = soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:CertificateRequestRaw']
+                    if 'aur:ProfileName' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
+                        logger.info('got request profilename: {0}'.format(soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:ProfileName']))
+                    if 'aur:Email' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
+                        logger.info('got request email: {0}'.format(soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:Email']))
+
     return csr
 
 
@@ -196,7 +206,7 @@ def request_process(logger, csr):
     else:
         pkcs7 = None
 
-    if pkcs7:
+    if not ERROR and pkcs7:
         soap_response = """
     <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <s:Body>
@@ -209,7 +219,15 @@ def request_process(logger, csr):
     </s:Envelope>
     """.format(pkcs7)
     else:
-        soap_response = None
+        soap_response = """
+    <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <s:Body>
+    <s:Fault>
+      <faultcode>s:Client</faultcode>
+      <faultstring>Processing RequestCertificate - Error! by request={ProfileName=fooba,CertificateRequestRaw.Length=2486,Email=foo@test.cz,ReturnCertificateCaChain=True}, profile=SSL 2Y AUTO, pkcs7initials=, ErrorMessage=Cannot parse PKCS7 message!</faultstring>
+    </s:Fault>
+    </s:Body>
+    </s:Envelope>"""
 
     return convert_string_to_byte(soap_response)
 
@@ -222,7 +240,10 @@ def soap_srv(environ, start_response):
     csr = _csr_lookup(LOGGER, stack_d)
 
     if csr:
-        status = "200 OK"
+        # try:
+        status = "{0} {1}".format(HTTP_STATUS_CODE, responses[int(HTTP_STATUS_CODE)])
+        # Except Exception as error:
+        # status = "500 Internal Server Error"
         headers = [("Content-type", "text/xml")]
         start_response(status, headers)
         response = request_process(LOGGER, csr)
@@ -237,16 +258,10 @@ def soap_srv(environ, start_response):
 
 if __name__ == '__main__':
 
-    (DEBUG, CONFIG_FILE) = arg_parse()
+    (DEBUG, CONFIG_FILE, HTTP_STATUS_CODE, ERROR) = arg_parse()
 
     # initialize logger
     LOGGER = logger_setup(DEBUG)
-
-    # JUST FOR DEBUGGING
-    # p7b csr
-    # csr = '<csr>'
-    # response = request_process(LOGGER, csr)
-    # print(response)
 
     httpd = WSGIServer(('0.0.0.0', 8888), WSGIRequestHandler)
     httpd.set_app(soap_srv)
