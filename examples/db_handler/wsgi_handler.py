@@ -977,7 +977,7 @@ class DBstore(object):
             self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
-        self.cursor.execute('''PRAGMA table_info(order)''')
+        self.cursor.execute('''PRAGMA table_info(orders)''')
         order_column_list = []
         for column in self.cursor.fetchall():
             print(column)
