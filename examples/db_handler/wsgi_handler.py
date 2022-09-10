@@ -978,9 +978,16 @@ class DBstore(object):
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
         self.cursor.execute('''PRAGMA table_info(orders)''')
-        order_column_list = []
         for column in self.cursor.fetchall():
-            print(column)
+            if column[1] == 'identifiers':
+                if 'varchar' in column[2].lower():
+                    self.logger.info('alter order table - change identifier field type to TEXT')
+                    self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
+                    self.cursor.execute('''
+                        CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                    ''')
+                    self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
+                    self.cursor.execute('''DROP TABLE tmp''')
 
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
