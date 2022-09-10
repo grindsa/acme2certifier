@@ -26,7 +26,7 @@ profilename: <Profile Name>
 email: <email address>
 ```
 
-- soap_srv - URL of the est server service
+- soap_srv - URL of the SOAP server
 - signing_key - Private key of the certificate used sign the PKCS#7 structure (/path to/key.pem)
 - signing_cert - Certificate attached to the PKCS#7 message send to SOAP server (/path to/certificate.pem)
 - ca_bundle - CA certificate bundle needed to validate the EST server certificate (/path to/ca_bundle.pem). Setting to False disables the certificate check
