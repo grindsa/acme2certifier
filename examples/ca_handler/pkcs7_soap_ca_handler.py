@@ -209,7 +209,7 @@ class CAhandler(object):
         error = None
 
         try:
-            resp = requests.post(self.soap_srv, headers=headers, data=payload, timeout=20)
+            resp = requests.post(self.soap_srv, headers=headers, verify=self.ca_bundle, data=payload, timeout=20)
             if resp.status_code == 200:
                 soap_dic = xmltodict.parse(resp.text)
                 try:
