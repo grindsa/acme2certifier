@@ -47,47 +47,49 @@ class CAhandler(object):
 
         config_dic = load_config(self.logger, 'CAhandler')
 
-        if 'soap_srv' in config_dic['CAhandler']:
-            self.soap_srv = config_dic['CAhandler']['soap_srv']
-        else:
-            self.logger.error('CAhandler._config_load(): soap_srv option is missing on config file')
-
-        if 'signing_cert' in config_dic['CAhandler']:
-            if os.path.exists(config_dic['CAhandler']['signing_cert']):
-                with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
-                    self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
+        if 'CAhandler' in config_dic:
+            if 'soap_srv' in config_dic['CAhandler']:
+                self.soap_srv = config_dic['CAhandler']['soap_srv']
             else:
-                self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
-        else:
-            self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
+                self.logger.error('CAhandler._config_load(): soap_srv option is missing on config file')
 
-        if 'signing_key' in config_dic['CAhandler']:
-            if os.path.exists(config_dic['CAhandler']['signing_key']):
-                with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
-                    self.signing_key = serialization.load_pem_private_key(
-                        open_file.read(), password=self.password, backend=default_backend())
+            if 'signing_cert' in config_dic['CAhandler']:
+                if os.path.exists(config_dic['CAhandler']['signing_cert']):
+                    with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
+                        self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
             else:
-                self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
-        else:
-            self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
+                self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
 
-        if 'profilename' in config_dic['CAhandler']:
-            self.profilename = config_dic['CAhandler']['profilename']
-        else:
-            self.logger.error('CAhandler._config_load(): profilename option is missing on config file')
+            if 'signing_key' in config_dic['CAhandler']:
+                if os.path.exists(config_dic['CAhandler']['signing_key']):
+                    with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
+                        self.signing_key = serialization.load_pem_private_key(
+                            open_file.read(), password=self.password, backend=default_backend())
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
+            else:
+                self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
 
-        if 'email' in config_dic['CAhandler']:
-            self.email = config_dic['CAhandler']['email']
+            if 'ca_bundle' in config_dic['CAhandler']:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+            else:
+                self.logger.warning('CAhandler._config_load(): SOAP server certificate validation disabled')
+
+            if 'profilename' in config_dic['CAhandler']:
+                self.profilename = config_dic['CAhandler']['profilename']
+            else:
+                self.logger.error('CAhandler._config_load(): profilename option is missing on config file')
+
+            if 'email' in config_dic['CAhandler']:
+                self.email = config_dic['CAhandler']['email']
+            else:
+                self.logger.error('CAhandler._config_load(): email option is missing on config file')
         else:
-            self.logger.error('CAhandler._config_load(): email option is missing on config file')
+            self.logger.error('CAhandler._config_load(): CAhandler section is missing')
 
         self.logger.debug('CAhandler._config_load() ended')
-
-    def _stub_func(self, parameter):
-        """" load config from file """
-        self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
-
-        self.logger.debug('CAhandler._stub_func() ended')
 
     def _cert_decode(self, cert):
         self.logger.debug('CAhandler._cert_decode()')
@@ -181,21 +183,20 @@ class CAhandler(object):
         """ build soap request payload """
         self.logger.debug('CAhandler._soaprequest_build()')
         data = """
-        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:aur="http://monetplus.cz/services/kb/aurora">
-        <soapenv:Header/>
-        <soapenv:Body>
-            <aur:RequestCertificate>
-                <aur:request>
-                    <aur:ProfileName>{0}</aur:ProfileName>
-                    <aur:CertificateRequestRaw>{1}</aur:CertificateRequestRaw>
-                    <aur:Email>requester{2}</aur:Email>
-                    <aur:ReturnCertificateCaChain>true</aur:ReturnCertificateCaChain>
-                </aur:request>
-            </aur:RequestCertificate>
-        </soapenv:Body>
-        </soapenv:Envelope>
-        """.format(self.profilename, pkcs7, self.email)  # pylint: disable=c0209
-
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:aur="http://monetplus.cz/services/kb/aurora">
+<soapenv:Header/>
+<soapenv:Body>
+    <aur:RequestCertificate>
+        <aur:request>
+            <aur:ProfileName>{0}</aur:ProfileName>
+            <aur:CertificateRequestRaw>{1}</aur:CertificateRequestRaw>
+            <aur:Email>{2}</aur:Email>
+            <aur:ReturnCertificateCaChain>true</aur:ReturnCertificateCaChain>
+        </aur:request>
+    </aur:RequestCertificate>
+</soapenv:Body>
+</soapenv:Envelope>
+""".format(self.profilename, pkcs7, self.email)  # pylint: disable=c0209
         return data
 
     def _soaprequest_send(self, payload):
@@ -310,7 +311,6 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         rejected = False
-        self._stub_func(cert_name)
 
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
@@ -333,7 +333,6 @@ class CAhandler(object):
         error = None
         cert_bundle = None
         cert_raw = None
-        self._stub_func(payload)
 
         self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw)
