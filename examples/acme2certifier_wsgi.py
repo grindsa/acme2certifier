@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=E0401, R1705, C0209, E5110
+# pylint: disable=E0401, R1705, C0209
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -17,7 +17,7 @@ from acme_srv.housekeeping import Housekeeping
 from acme_srv.nonce import Nonce
 from acme_srv.order import Order
 from acme_srv.trigger import Trigger
-from acme_srv.helper import get_url, load_config, logger_setup, logger_info
+from acme_srv.helper import get_url, load_config, logger_setup, logger_info, config_check
 from acme_srv.version import __dbversion__, __version__
 
 # load config to set debug mode
@@ -430,6 +430,10 @@ def get_handler_cls():
 if __name__ == '__main__':
 
     LOGGER.info('starting acme2certifier version %s', __version__)
+
+    # check configuration for parameters masked in ""
+    config_check(LOGGER, CONFIG)
+
     SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
     SRV.serve_forever()
 

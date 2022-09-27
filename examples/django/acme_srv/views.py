@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=C0209, E5110, E0611, E0401
+# pylint: disable=C0209, E0611, E0401
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
@@ -9,7 +9,7 @@ from acme_srv.account import Account
 from acme_srv.certificate import Certificate
 from acme_srv.challenge import Challenge
 from acme_srv.directory import Directory
-from acme_srv.helper import get_url, load_config, logger_setup, logger_info
+from acme_srv.helper import get_url, load_config, logger_setup, logger_info, config_check
 from acme_srv.housekeeping import Housekeeping
 from acme_srv.nonce import Nonce
 from acme_srv.order import Order
@@ -24,6 +24,9 @@ DEBUG = CONFIG.getboolean('DEFAULT', 'debug', fallback=False)
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 LOGGER.info('starting acme2certifier version %s', __version__)
+
+# check configuration for parameters masked in ""
+config_check(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as version_check:
     version_check.dbversion_check(__dbversion__)
