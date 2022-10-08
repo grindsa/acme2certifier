@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """ propritary soap_ca_handler """
 from __future__ import print_function
+from ast import Break
 # pylint: disable=C0209, E0401
 import os
 import binascii
@@ -16,11 +17,29 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from requests.structures import CaseInsensitiveDict
-from acme_srv.helper import load_config, b64_url_recode, b64_decode, b64_encode, convert_byte_to_string, convert_string_to_byte
+from acme_srv.helper import load_config, b64_url_recode, b64_decode, b64_encode, convert_byte_to_string, convert_string_to_byte, generate_random_string
+
+
+def binary_read(logger, file_name):
+    """ dump filename in binary format """
+    logger.debug('read_binary({0})'.format(file_name))
+    # dump csr into file
+    with open(file_name, 'rb') as reader:
+        content = reader.read()
+
+    return content
+
+
+def binary_write(logger, file_name, content):
+    """ dump filename in binary format """
+    logger.debug('write_binary({0})'.format(file_name))
+    # dump csr into file
+    with open(file_name, 'wb') as writer:
+        writer.write(content)
 
 
 class CAhandler(object):
-    """ EST CA  handler """
+    """ pkcs7 soap ca handler """
 
     def __init__(self, _debug=None, logger=None):
         self.logger = logger
@@ -31,6 +50,7 @@ class CAhandler(object):
         self.signing_key = None
         self.ca_bundle = False
         self.email = None
+        self.signing_script_dic = {}
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -53,24 +73,53 @@ class CAhandler(object):
             else:
                 self.logger.error('CAhandler._config_load(): soap_srv option is missing on config file')
 
-            if 'signing_cert' in config_dic['CAhandler']:
-                if os.path.exists(config_dic['CAhandler']['signing_cert']):
-                    with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
-                        self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
-            else:
-                self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
+            if 'signing_script' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_load(): CSR-signing by external script')
+                self.signing_script_dic['signing_script'] = config_dic['CAhandler']['signing_script']
 
-            if 'signing_key' in config_dic['CAhandler']:
-                if os.path.exists(config_dic['CAhandler']['signing_key']):
-                    with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
-                        self.signing_key = serialization.load_pem_private_key(
-                            open_file.read(), password=self.password, backend=default_backend())
+                if 'signing_user' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_user'] = config_dic['CAhandler']['signing_user']
+
+                if 'signing_alias' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_alias'] = config_dic['CAhandler']['signing_alias']
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
+                    self.logger.error('CAhandler._config_load(): signing_alias option is missing on config file')
+
+                if 'signing_csr_path' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_csr_path'] = config_dic['CAhandler']['signing_csr_path']
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_csr_path option is missing on config file')
+
+                if 'signing_config_variant' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_config_variant'] = config_dic['CAhandler']['signing_config_variant']
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_config_variant option is missing on config file')
+
+                if 'signing_sleep_timer' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_sleep_timer'] = config_dic['CAhandler']['signing_sleep_timer']
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_sleep_timer option is missing on config file')
+
             else:
-                self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
+                self.logger.debug('CAhandler._config_load(): CSR-signing by CA handler')
+                if 'signing_cert' in config_dic['CAhandler']:
+                    if os.path.exists(config_dic['CAhandler']['signing_cert']):
+                        with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
+                            self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
+                    else:
+                        self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
+
+                if 'signing_key' in config_dic['CAhandler']:
+                    if os.path.exists(config_dic['CAhandler']['signing_key']):
+                        with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
+                            self.signing_key = serialization.load_pem_private_key(
+                                open_file.read(), password=self.password, backend=default_backend())
+                    else:
+                        self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
+                else:
+                    self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
 
             if 'ca_bundle' in config_dic['CAhandler']:
                 self.ca_bundle = config_dic['CAhandler']['ca_bundle']
@@ -122,7 +171,7 @@ class CAhandler(object):
 
         return signature, signature_algorithm
 
-    def _create_pkcs7(self, cert, csr, private_key):
+    def _pkcs7_create(self, cert, csr, private_key):
         """Creates the PKCS7 structure and signs it"""
         self.logger.debug('CAhandler._create_pkcs7()')
         content_info = rfc2315.ContentInfo()
@@ -272,6 +321,44 @@ class CAhandler(object):
 
         return b64_encode(self.logger, cert_val)
 
+    def _pkcs7_signing_config_verify(self):
+        """ verify external signing configuration """
+        self.logger.debug('CAhandler._pkcs7_signing_config_verify')
+
+        error = None
+        signing_parameters = ['signing_script', 'signing_user', 'signing_alias', 'signing_csr_path', 'signing_config_variant', 'signing_sleep_timer']
+
+        for ele in signing_parameters:
+            if ele not in self.signing_script_dic:
+                error = 'signing config incomplete: option {0} is missing'.format(ele)
+                break
+            if ele == 'signing_csr_path':
+                if not os.path.isdir(self.signing_script_dic[ele]):
+                    error = 'signing_csr_path {0} does not exist or is not a directory'.format(ele)
+
+        self.logger.debug('CAhandler._pkcs7_signing_config_verify() returned with {0}'.format(error))
+        return error
+
+    def _pkcs7_sign_external(self, csr):
+        """ sign csr by using an external script """
+        self.logger.debug('CAhandler._pkcs7_sign_external')
+
+        # check external signing configuration
+        signing_check = self._pkcs7_signing_config_verify()
+        if signing_check:
+            self.logger.debug('CAhandler._pkcs7_sign_external(): config incomplete: {0}'.format(signing_check))
+        else:
+            # set filenames
+            _fname = generate_random_string(self.logger, 12)
+            unsigned_filename = '{0}/{1}.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
+            signed_filename = '{0}/{1}_signed.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
+
+            # dump csr to file
+            binary_write(self.logger, unsigned_filename, csr)
+
+
+        return 'foo'
+
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -283,10 +370,18 @@ class CAhandler(object):
 
         # convert csr to DER format
         csr_der = b64_decode(self.logger, b64_url_recode(self.logger, csr))
-        # create pkcs7 bundle
-        decoded_cert = self._cert_decode(self.signing_cert)
-        pkcs7_bundle = self._create_pkcs7(decoded_cert, csr_der, self.signing_key)
 
+        if self.signing_script_dic:
+            # signing by external script
+            pkcs7_bundle = self._pkcs7_sign_external(csr_der)
+        else:
+            # create pkcs7 bundle
+            decoded_cert = self._cert_decode(self.signing_cert)
+            # signing by handler
+            pkcs7_bundle = self._pkcs7_create(decoded_cert, csr_der, self.signing_key)
+
+        import sys
+        sys.exit(0)
         # build and soap request to be send to ca server
         payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
         (error, b64_cert_bundle) = self._soaprequest_send(payload)
@@ -303,7 +398,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -326,7 +421,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, _payload):
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
