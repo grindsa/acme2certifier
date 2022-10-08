@@ -382,18 +382,20 @@ class CAhandler(object):
             # dump csr to file
             binary_write(self.logger, unsigned_filename, csr)
 
+            # call signing script with parameters
             rcode = subprocess.call(signing_cmd)
-
             if not rcode:
                 pkcs7_bundle = binary_read(self.logger, signed_filename)
             else:
                 self.logger.error('CAhandler._pkcs7_sign_external() aborted with error: {0}'.format(rcode))
+                pkcs7_bundle = None
 
             # delete temporary files
-            os.remove(unsigned_filename)
-            os.remove(signed_filename)
+            for ele in (unsigned_filename, signed_filename):
+                if os.path.isfile(ele):
+                    os.remove(ele)
 
-        return pkcs7_bundle
+        return (rcode, pkcs7_bundle)
 
     def enroll(self, csr):
         """ enroll certificate  """
@@ -409,16 +411,20 @@ class CAhandler(object):
 
         if self.signing_script_dic:
             # signing by external script
-            pkcs7_bundle = self._pkcs7_sign_external(csr_der)
+            (error, pkcs7_bundle) = self._pkcs7_sign_external(csr_der)
         else:
             # create pkcs7 bundle
             decoded_cert = self._cert_decode(self.signing_cert)
             # signing by handler
             pkcs7_bundle = self._pkcs7_create(decoded_cert, csr_der, self.signing_key)
+            error = None
 
-        # build and soap request to be send to ca server
-        payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
-        (error, b64_cert_bundle) = self._soaprequest_send(payload)
+        if not error:
+            # build and soap request to be send to ca server
+            payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
+            (error, b64_cert_bundle) = self._soaprequest_send(payload)
+        else:
+            b64_cert_bundle = None
 
         if not error and b64_cert_bundle:
             # extract certificates from pkcs7 bundle we got as response
