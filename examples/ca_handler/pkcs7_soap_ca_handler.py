@@ -174,7 +174,7 @@ class CAhandler(object):
 
     def _pkcs7_create(self, cert, csr, private_key):
         """Creates the PKCS7 structure and signs it"""
-        self.logger.debug('CAhandler._create_pkcs7()')
+        self.logger.debug('CAhandler._pkcs7_create()')
         content_info = rfc2315.ContentInfo()
         content_info.setComponentByName('contentType', rfc2315.data)
         content_info.setComponentByName('content', encoder.encode(rfc2315.Data(csr)))
@@ -226,7 +226,7 @@ class CAhandler(object):
         outer_content_info = rfc2315.ContentInfo()
         outer_content_info.setComponentByName('contentType', rfc2315.signedData)
         outer_content_info.setComponentByName('content', encoder.encode(signed_data))
-
+        self.logger.debug('CAhandler._pkcs7_create() ended')
         return encoder.encode(outer_content_info)
 
     def _soaprequest_build(self, pkcs7):
@@ -371,7 +371,7 @@ class CAhandler(object):
         if signing_check:
             self.logger.debug('CAhandler._pkcs7_sign_external(): config incomplete: {0}'.format(signing_check))
         else:
-            # set filenames
+            # define temporary filenames
             _fname = generate_random_string(self.logger, 12)
             unsigned_filename = '{0}/{1}.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
             signed_filename = '{0}/{1}_signed.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
@@ -388,6 +388,10 @@ class CAhandler(object):
                 pkcs7_bundle = binary_read(self.logger, signed_filename)
             else:
                 self.logger.error('CAhandler._pkcs7_sign_external() aborted with error: {0}'.format(rcode))
+
+            # delete temporary files
+            os.remove(unsigned_filename)
+            os.remove(signed_filename)
 
         return pkcs7_bundle
 
