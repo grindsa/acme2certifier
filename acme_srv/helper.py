@@ -125,6 +125,16 @@ def ca_handler_load(logger, config_dic):
     return ca_handler_module
 
 
+def config_check(logger, config_dic):
+    """ check configuration """
+    logger.debug('Helper.config_check()')
+
+    for section, section_dic in config_dic.items():
+        for key, value in section_dic.items():
+            if value.startswith('"') or value.endswith('"'):
+                logger.warning('config_check(): section {0} option: {1} contains " characters. Check if this is really needed!'.format(section, key))
+
+
 def eab_handler_load(logger, config_dic):
     """ load and return eab_handler """
     logger.debug('Helper.eab_handler_load()')
