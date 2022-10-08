@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """ propritary soap_ca_handler """
 from __future__ import print_function
-from ast import Break
+import subprocess
 # pylint: disable=C0209, E0401
 import os
 import binascii
@@ -97,8 +97,9 @@ class CAhandler(object):
 
                 if 'signing_sleep_timer' in config_dic['CAhandler']:
                     self.signing_script_dic['signing_sleep_timer'] = config_dic['CAhandler']['signing_sleep_timer']
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_sleep_timer option is missing on config file')
+
+                if 'signing_interpreter' in config_dic['CAhandler']:
+                    self.signing_script_dic['signing_interpreter'] = config_dic['CAhandler']['signing_interpreter']
 
             else:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by CA handler')
@@ -326,7 +327,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pkcs7_signing_config_verify')
 
         error = None
-        signing_parameters = ['signing_script', 'signing_user', 'signing_alias', 'signing_csr_path', 'signing_config_variant', 'signing_sleep_timer']
+        signing_parameters = ['signing_script', 'signing_alias', 'signing_csr_path', 'signing_config_variant']
 
         for ele in signing_parameters:
             if ele not in self.signing_script_dic:
@@ -338,6 +339,28 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._pkcs7_signing_config_verify() returned with {0}'.format(error))
         return error
+
+    def _signing_command_build(self, csr_unsigned, csr_signed):
+        """ build signing command """
+        self.logger.debug('CAhandler._signing_command_build({0})'.format(csr_unsigned))
+
+        if 'signing_user' in self.signing_script_dic:
+            cmd_list = ['su', self.signing_script_dic['signing_user']]
+        else:
+            cmd_list = []
+
+        if 'signing_interpreter' in self.signing_script_dic:
+            cmd_list.append(self.signing_script_dic['signing_interpreter'])
+
+        # build command
+        if 'signing_script' in self.signing_script_dic:
+            cmd_list.append(self.signing_script_dic['signing_script'])
+            cmd_list.extend([csr_unsigned, csr_signed])
+            if 'signing_alias' in self.signing_script_dic and 'signing_config_variant' in self.signing_script_dic:
+                cmd_list.extend([self.signing_script_dic['signing_alias'], self.signing_script_dic['signing_config_variant']])
+
+        self.logger.debug('CAhandler._signing_command_build() ended with: {0}'.format(' '.join(cmd_list)))
+        return cmd_list
 
     def _pkcs7_sign_external(self, csr):
         """ sign csr by using an external script """
@@ -353,11 +376,20 @@ class CAhandler(object):
             unsigned_filename = '{0}/{1}.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
             signed_filename = '{0}/{1}_signed.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
 
+            # build signing command
+            signing_cmd = self._signing_command_build(unsigned_filename, signed_filename)
+
             # dump csr to file
             binary_write(self.logger, unsigned_filename, csr)
 
+            rcode = subprocess.call(signing_cmd)
 
-        return 'foo'
+            if not rcode:
+                pkcs7_bundle = binary_read(self.logger, signed_filename)
+            else:
+                self.logger.error('CAhandler._pkcs7_sign_external() aborted with error: {0}'.format(rcode))
+
+        return pkcs7_bundle
 
     def enroll(self, csr):
         """ enroll certificate  """
@@ -380,8 +412,6 @@ class CAhandler(object):
             # signing by handler
             pkcs7_bundle = self._pkcs7_create(decoded_cert, csr_der, self.signing_key)
 
-        import sys
-        sys.exit(0)
         # build and soap request to be send to ca server
         payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
         (error, b64_cert_bundle) = self._soaprequest_send(payload)
