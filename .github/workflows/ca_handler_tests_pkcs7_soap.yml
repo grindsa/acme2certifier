@@ -9,8 +9,8 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  pkcs7_soap_handler_tests:
-    name: "pkcs7_soap_handler_tests"
+  pkcs7_soap_handler_signint_tests:
+    name: "pkcs7_soap_handler_tests internal signer"
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -121,5 +121,124 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: pkcs7soap.tar.gz
+        name: pkcs7soap-int.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  pkcs7_soap_handler_signext_tests:
+    name: "pkcs7_soap_handler_tests external signer"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] SOAP server"
+      run: |
+        sudo mkdir -p examples/Docker/data
+        docker network create acme
+        sudo mkdir -p examples/Docker/data/xca
+        sudo chmod -R 777 examples/Docker/data/xca
+        sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
+        sudo touch examples/Docker/data/soap_srv.cfg
+        sudo chmod 777 examples/Docker/data/soap_srv.cfg
+        sudo echo "[CAhandler]" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "xdb_file: /etc/soap-srv/xca/$XCA_DB_NAME" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "issuing_ca_key: $XCA_ISSUING_CA" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/soap_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/soap_srv.cfg
+      env:
+        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
+
+    - name: "[ PREPARE ] Build and start SOAP server"
+      working-directory: examples/Docker/
+      run: |
+        docker-compose -f soap_srv.yml up -d
+        docker-compose -f soap_srv.yml logs
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir certbot
+        mkdir lego
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup a2c with pkcs7_ca_handler"
+      run: |
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo cp examples/soap/mock_signer.py examples/Docker/data/
+        sudo chmod 755 examples/Docker/data/mock_signer.py
+        sudo cp test/ca/sub-ca-key.pem examples/Docker/data/key.pem
+        sudo cp test/ca/sub-ca-cert.pem examples/Docker/data/cert.pem
+        sudo cp test/ca/certs.pem examples/Docker/data/ca_bundle.pem
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/pkcs7_soap_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "signing_script: /var/www/acme2certifier/volume/mock_signer.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "signing_alias: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "signing_config_variant: /var/www/acme2certifier/volume/key.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "signing_csr_path: /var/www/acme2certifier/volume" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profilename: foo" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
+        cat examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        sudo mkdir acme-sh
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
+        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: pkcs7soap-ext.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
