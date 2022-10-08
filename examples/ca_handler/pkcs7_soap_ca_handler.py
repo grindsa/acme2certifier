@@ -71,7 +71,7 @@ class CAhandler(object):
             if 'soap_srv' in config_dic['CAhandler']:
                 self.soap_srv = config_dic['CAhandler']['soap_srv']
             else:
-                self.logger.error('CAhandler._config_load(): soap_srv option is missing on config file')
+                self.logger.error('CAhandler._config_load(): soap_srv option is missing in config file')
 
             if 'signing_script' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by external script')
@@ -83,17 +83,17 @@ class CAhandler(object):
                 if 'signing_alias' in config_dic['CAhandler']:
                     self.signing_script_dic['signing_alias'] = config_dic['CAhandler']['signing_alias']
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_alias option is missing on config file')
+                    self.logger.error('CAhandler._config_load(): signing_alias option is missing in config file')
 
                 if 'signing_csr_path' in config_dic['CAhandler']:
                     self.signing_script_dic['signing_csr_path'] = config_dic['CAhandler']['signing_csr_path']
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_csr_path option is missing on config file')
+                    self.logger.error('CAhandler._config_load(): signing_csr_path option is missing in config file')
 
                 if 'signing_config_variant' in config_dic['CAhandler']:
                     self.signing_script_dic['signing_config_variant'] = config_dic['CAhandler']['signing_config_variant']
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_config_variant option is missing on config file')
+                    self.logger.error('CAhandler._config_load(): signing_config_variant option is missing in config file')
 
                 if 'signing_sleep_timer' in config_dic['CAhandler']:
                     self.signing_script_dic['signing_sleep_timer'] = config_dic['CAhandler']['signing_sleep_timer']
@@ -110,7 +110,7 @@ class CAhandler(object):
                     else:
                         self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_cert option is missing on config file')
+                    self.logger.error('CAhandler._config_load(): signing_cert option is missing in config file')
 
                 if 'signing_key' in config_dic['CAhandler']:
                     if os.path.exists(config_dic['CAhandler']['signing_key']):
@@ -120,7 +120,7 @@ class CAhandler(object):
                     else:
                         self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
                 else:
-                    self.logger.error('CAhandler._config_load(): signing_key option is missing on config file')
+                    self.logger.error('CAhandler._config_load(): signing_key option is missing in config file')
 
             if 'ca_bundle' in config_dic['CAhandler']:
                 self.ca_bundle = config_dic['CAhandler']['ca_bundle']
@@ -130,12 +130,12 @@ class CAhandler(object):
             if 'profilename' in config_dic['CAhandler']:
                 self.profilename = config_dic['CAhandler']['profilename']
             else:
-                self.logger.error('CAhandler._config_load(): profilename option is missing on config file')
+                self.logger.error('CAhandler._config_load(): profilename option is missing in config file')
 
             if 'email' in config_dic['CAhandler']:
                 self.email = config_dic['CAhandler']['email']
             else:
-                self.logger.error('CAhandler._config_load(): email option is missing on config file')
+                self.logger.error('CAhandler._config_load(): email option is missing in config file')
         else:
             self.logger.error('CAhandler._config_load(): CAhandler section is missing')
 

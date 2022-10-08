@@ -19,8 +19,10 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from examples.ca_handler.pkcs7_soap_ca_handler import CAhandler
+        from examples.ca_handler.pkcs7_soap_ca_handler import CAhandler, binary_read, binary_write
         self.cahandler = CAhandler(False, self.logger)
+        self.binary_read = binary_read
+        self.binary_write = binary_write
         # self.cahandler.api_host = 'api_host'
         # self.cahandler.auth = 'auth'
 
@@ -40,6 +42,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): CAhandler section is missing', lcm.output)
 
     @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
@@ -55,13 +58,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
@@ -77,12 +81,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
 
@@ -99,12 +104,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
@@ -120,12 +126,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
@@ -141,12 +148,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_key)
         self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch('os.path.exists')
@@ -163,13 +171,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
             'ERROR:test_a2c:CAhandler._config_load(): signing_cert signing_cert not found.',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
@@ -189,12 +198,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('signing_cert', self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_key option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch('os.path.exists')
@@ -211,13 +221,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_cert)
         self.assertFalse(self.cahandler.signing_key)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
             'ERROR:test_a2c:CAhandler._config_load(): signing_key signing_key not found.',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
@@ -237,13 +248,223 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.signing_cert)
         self.assertEqual('signing_key', self.cahandler.signing_key)
         self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.signing_script_dic)
         error_buffer = [
-            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing on config file',
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_cert option is missing in config file',
             'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
-            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing on config file',
-            'ERROR:test_a2c:CAhandler._config_load(): email option is missing on config file']
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file']
         self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_013_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_script': 'signing_script'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_014_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_alias': 'signing_alias'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_alias': 'signing_alias', 'signing_script': 'signing_script'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_015_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_csr_path': 'signing_csr_path'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_csr_path': 'signing_csr_path', 'signing_script': 'signing_script'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_016_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_config_variant': 'signing_config_variant'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_script': 'signing_script', 'signing_config_variant': 'signing_config_variant'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_017_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_user': 'signing_user'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_script': 'signing_script', 'signing_user': 'signing_user'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_018_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_sleep_timer': 'signing_sleep_timer'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_script': 'signing_script', 'signing_sleep_timer': 'signing_sleep_timer'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    @patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+    @patch('os.path.exists')
+    @patch('examples.ca_handler.pkcs7_soap_ca_handler.load_config')
+    def test_019_config_load(self, mock_load_cfg, mock_file, mock_load):
+        """ test _config_load signing cert configured but does not exist """
+        mock_file.return_value = True
+        mock_load.return_value = 'signing_key'
+        mock_load_cfg.return_value = {'CAhandler': {'signing_script': 'signing_script', 'signing_interpreter': 'signing_interpreter'}}
+        self.maxDiff = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.soap_srv)
+        self.assertFalse(self.cahandler.profilename)
+        self.assertFalse(self.cahandler.email)
+        self.assertFalse(self.cahandler.signing_cert)
+        self.assertFalse(self.cahandler.signing_key)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual({'signing_script': 'signing_script', 'signing_interpreter': 'signing_interpreter'}, self.cahandler.signing_script_dic)
+        error_buffer = [
+            'ERROR:test_a2c:CAhandler._config_load(): soap_srv option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_alias option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_csr_path option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): signing_config_variant option is missing in config file',
+            'WARNING:test_a2c:CAhandler._config_load(): SOAP server certificate validation disabled',
+            'ERROR:test_a2c:CAhandler._config_load(): profilename option is missing in config file',
+            'ERROR:test_a2c:CAhandler._config_load(): email option is missing in config file'
+        ]
+        self.assertEqual(error_buffer, lcm.output)
+
 
     @patch('examples.ca_handler.pkcs7_soap_ca_handler.CAhandler._config_load')
     def test_013_enter(self, mock_cfgload):
@@ -303,7 +524,15 @@ class TestACMEHandler(unittest.TestCase):
 </soapenv:Envelope>\n"""
         self.assertEqual(result, self.cahandler._soaprequest_build(pkcs7))
 
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    def test_021_binary_read(self):
+        """ test read binary file """
+        self.assertEqual('foo', self.binary_read(self.logger, 'filename'))
 
+    @patch("builtins.open", mock_open(read_data='foo'), create=True)
+    def test_022_binary_write(self):
+        """ test wrote binary file """
+        self.assertFalse(self.binary_write(self.logger, 'filename', 'content'))
 
 
 if __name__ == '__main__':
