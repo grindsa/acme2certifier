@@ -267,7 +267,7 @@ class TestACMEHandler(unittest.TestCase):
             cert = fso.read()
         with open(self.dir_path + '/ca/root-ca-cert.pem', 'r') as fso:
             ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
-        self.assertEqual("[20, 0, 'unable to get local issuer certificate']", self.cahandler._certificate_chain_verify(cert, ca_cert))
+        self.assertEqual('unable to get local issuer certificate', self.cahandler._certificate_chain_verify(cert, ca_cert))
 
     def test_033_verifycertificatechain(self):
         """ unsuccessful verification of two level certificate chain with incomplete chain"""
@@ -275,7 +275,7 @@ class TestACMEHandler(unittest.TestCase):
             cert = fso.read()
         with open(self.dir_path + '/ca/sub-ca-cert.pem', 'r') as fso:
             ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
-        self.assertEqual("[2, 1, 'unable to get issuer certificate']", self.cahandler._certificate_chain_verify(cert, ca_cert))
+        self.assertEqual('unable to get issuer certificate', self.cahandler._certificate_chain_verify(cert, ca_cert))
 
     def test_034_verifycertificatechain(self):
         """ successful verification of two level certificate chain with complete chain"""
