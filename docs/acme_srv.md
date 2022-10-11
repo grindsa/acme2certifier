@@ -21,6 +21,7 @@
 | `Challenge` | `challenge_validation_timeout` | Timeout in seconds for challenge validation | Integer | 10 |
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|
 | `DBhandler` | `dbfile` | path and name of database file. If not specified `acme_srv/acme_srv.db` will be used. Parameter is only available for a wsgi handler and will be ignored if django handler is getting used | 'acme/database.db' | `acme_srv/acme_srv.db`|
+| `Directory` | `db_check` | check database connection compare schemes and report as OK/NOK in meta information  | True/False | False|
 | `Directory` | `supress_version` | Do not show version information when fetching the directory resource | True/False | False|
 | `Directory` | `tos_url` | Terms of Service URL | URL | None|
 | `Directory` | `url_prefix` | url prefix for acme2certifier resources | '/foo' | None|

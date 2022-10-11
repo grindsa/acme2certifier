@@ -315,7 +315,7 @@ class CAhandler(object):
         zero_eab_email = "http://api.zerossl.com/acme/eab-credentials-email"
         data = {'email': self.email}
 
-        response = requests.post(zero_eab_email, data=data)
+        response = requests.post(zero_eab_email, data=data, timeout=20)
         if 'success' in response.json() and response.json()['success'] and 'eab_kid' in response.json() and 'eab_hmac_key' in response.json():
             self.eab_kid = response.json()['eab_kid']
             self.eab_hmac_key = response.json()['eab_hmac_key']

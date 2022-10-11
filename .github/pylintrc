@@ -8,6 +8,7 @@
 # r1702 - too many nested blocks
 # w0703 - too general exception
 # W1202 - logging-format-interpolation
+# W3101 - missing timeout for request calls
 disable=C0301, R0205, R0801, R0902, R0903, R1702, W0703, W1202
 
 [DESIGN]
