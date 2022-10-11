@@ -564,7 +564,13 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
         result_func = json.loads(self.application(environ, Mock())[0])
-        self.assertTrue(result_expected.items() <= result_func.items())
+        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
+        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
+        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
+        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
+        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
+        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
+        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
     def test_048_application(self):
         """ test application function wrong pathinfo """
@@ -578,7 +584,14 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'url_prefix/directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
         result_func = json.loads(self.application(environ, Mock())[0])
-        self.assertTrue(result_expected.items() <= result_func.items())
+        result_func = json.loads(self.application(environ, Mock())[0])
+        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
+        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
+        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
+        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
+        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
+        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
+        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
     @patch('examples.acme2certifier_wsgi.CONFIG', {'CAhandler': {'acme_url': 'acme_url'}})
     def test_050_application(self):
@@ -586,7 +599,14 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
         result_func = json.loads(self.application(environ, Mock())[0])
-        self.assertTrue(result_expected.items() <= result_func.items())
+        result_func = json.loads(self.application(environ, Mock())[0])
+        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
+        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
+        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
+        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
+        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
+        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
+        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
     def test_051_get_handler_cls(self):
         """ test get_handler_cls() """

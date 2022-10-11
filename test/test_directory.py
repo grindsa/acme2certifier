@@ -84,8 +84,46 @@ class TestACMEHandler(unittest.TestCase):
         output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
+    def test_010_directory_directory_get(self):
+        """ test Directory.get_directory() - dbcheck nok """
+        self.directory.url_prefix = 'url_prefix'
+        self.directory.dbstore.dbversion_get.return_value = ('0.1', 'script_name')
+        self.directory.version = '0.1'
+        self.directory.dbversion = '0.1.1'
+        self.directory.db_check = True
+        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        result = self.directory.directory_get()
+        self.assertTrue(output_dic.items() <= result.items())
+        self.assertEqual('NOK', result['meta']['db_check'])
+
+    def test_011_directory_directory_get(self):
+        """ test Directory.get_directory() - dbcheck ok """
+        self.directory.url_prefix = 'url_prefix'
+        self.directory.dbstore.dbversion_get.return_value = ('0.1', 'script_name')
+        self.directory.version = '0.1'
+        self.directory.dbversion = '0.1'
+        self.directory.db_check = True
+        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        result = self.directory.directory_get()
+        self.assertTrue(output_dic.items() <= result.items())
+        self.assertEqual('OK', result['meta']['db_check'])
+
+    def test_012_directory_directory_get(self):
+        """ test Directory.get_directory() - dbcheck returned exception """
+        self.directory.url_prefix = 'url_prefix'
+        self.directory.dbstore.dbversion_get.side_effect = Exception('exc_dbversion_get')
+        self.directory.version = '0.1'
+        self.directory.dbversion = '0.1'
+        self.directory.db_check = True
+        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            result = self.directory.directory_get()
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Directory.dbversion_check(): exc_dbversion_get', lcm.output)
+        self.assertTrue(output_dic.items() <= result.items())
+        self.assertEqual('NOK', result['meta']['db_check'])
+
     @patch('acme_srv.directory.load_config')
-    def test_010_config_load(self, mock_load_cfg):
+    def test_013_config_load(self, mock_load_cfg):
         """ test _config_load empty config """
         parser = configparser.ConfigParser()
         # parser['Account'] = {'foo': 'bar'}
@@ -96,7 +134,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_011_config_load(self, mock_load_cfg):
+    def test_014_config_load(self, mock_load_cfg):
         """ test _config_load with unknown values config """
         parser = configparser.ConfigParser()
         parser['Account'] = {'foo': 'bar'}
@@ -107,7 +145,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_012_config_load(self, mock_load_cfg):
+    def test_015_config_load(self, mock_load_cfg):
         """ test _config_load with unknown values config """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar'}
@@ -118,7 +156,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_013_config_load(self, mock_load_cfg):
+    def test_016_config_load(self, mock_load_cfg):
         """ test _config_load supress version number """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'supress_version': True}
@@ -129,7 +167,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_014_config_load(self, mock_load_cfg):
+    def test_017_config_load(self, mock_load_cfg):
         """ test _config_load tos url """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'tos_url': 'tos_url'}
@@ -140,7 +178,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_015_config_load(self, mock_load_cfg):
+    def test_018_config_load(self, mock_load_cfg):
         """ test _config_load eab """
         parser = configparser.ConfigParser()
         parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
@@ -152,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.url_prefix)
 
     @patch('acme_srv.directory.load_config')
-    def test_016_config_load(self, mock_load_cfg):
+    def test_019_config_load(self, mock_load_cfg):
         """ test _config_load all parameters set """
         parser = configparser.ConfigParser()
         parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
@@ -164,7 +202,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.directory.eab)
 
     @patch('acme_srv.directory.load_config')
-    def test_017_config_load(self, mock_load_cfg):
+    def test_020_config_load(self, mock_load_cfg):
         """ test _config_load eab """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'url_prefix': 'url_prefix'}
@@ -176,7 +214,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('url_prefix', self.directory.url_prefix)
 
     @patch('acme_srv.directory.Directory._config_load')
-    def test_018__enter__(self, mock_cfg):
+    def test_021__enter__(self, mock_cfg):
         """ test enter """
         mock_cfg.return_value = True
         self.directory.__enter__()
