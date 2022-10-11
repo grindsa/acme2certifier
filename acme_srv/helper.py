@@ -362,10 +362,7 @@ def csr_extensions_get(logger, csr):
     extension_list = []
     for ext in req.get_extensions():
         # decoding based on python version
-        if sys.version_info[0] >= 3:
-            extension_list.append(base64.b64encode(ext.get_data()).decode())
-        else:
-            extension_list.append(base64.b64encode(ext.get_data()))
+        extension_list.append(base64.b64encode(ext.get_data()).decode())
 
     logger.debug('csr_extensions_get() ended with: {0}'.format(extension_list))
     return extension_list
