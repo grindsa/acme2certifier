@@ -977,7 +977,7 @@ class DBstore(object):
             self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
 
-        # change identifier field to text
+        # change identifier field to text to remove length restriction
         self.cursor.execute('''PRAGMA table_info(orders)''')
         for column in self.cursor.fetchall():
             if column[1] == 'identifiers':

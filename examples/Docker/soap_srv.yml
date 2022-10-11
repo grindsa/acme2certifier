@@ -1,0 +1,20 @@
+version: '3.2'
+services:
+  soap-srv:
+    build:
+      context: ../../.
+      dockerfile: examples/Docker/soap-srv/Dockerfile
+    image: soap-srv
+    volumes:
+      - type: bind
+        source: ./data
+        target: /etc/soap-srv
+        read_only: false
+    ports:
+      - "8888:8888"
+    restart: always
+
+networks:
+  default:
+    external:
+      name: acme
