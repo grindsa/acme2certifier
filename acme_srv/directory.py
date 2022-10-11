@@ -18,6 +18,7 @@ class Directory(object):
         self.supress_version = False
         self.tos_url = None
         self.version = __version__
+        self.dbversion = __dbversion__
         self.db_check = False
         self.eab = False
         self.url_prefix = ""
@@ -82,8 +83,8 @@ class Directory(object):
 
         if self.db_check:
             try:
-                (version, script_name) = self.dbstore.dbversion_get()
-                if version == __dbversion__:
+                (version, _script_name) = self.dbstore.dbversion_get()
+                if version == self.dbversion:
                     d_dic['meta']['db_check'] = 'OK'
                 else:
                     self.logger.error('acme2certifier database error: version mismatch: detected: {0}/ expected: {1}'.format(version, __dbversion__))
