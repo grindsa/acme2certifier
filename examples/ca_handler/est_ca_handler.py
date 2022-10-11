@@ -56,6 +56,7 @@ class CAhandler(object):
         self.est_password = None
         self.ca_bundle = True
         self.proxy = None
+        self.request_timeout = 20
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -75,10 +76,10 @@ class CAhandler(object):
                 if self.est_client_cert:
                     self.logger.debug('CAhandler._cacerts_get() by using client-certs')
                     # client auth
-                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle, proxies=self.proxy)
+                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 else:
                     self.logger.debug('CAhandler._cacerts_get() by using userid/password')
-                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy)
+                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except Exception as err_:
                 self.logger.error('CAhandler._cacerts_get() returned an error: {0}'.format(err_))
@@ -154,6 +155,13 @@ class CAhandler(object):
                 except Exception:
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
+            print(config_dic)
+            if 'request_timeout' in config_dic['CAhandler']:
+                try:
+                    self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
+                except Exception:
+                    self.request_timeout = 20
+
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
                 proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
@@ -203,9 +211,9 @@ class CAhandler(object):
             headers = {'Content-Type': 'application/pkcs10'}
             if self.est_client_cert:
                 # client auth
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle, proxies=self.proxy)
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
             else:
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle, proxies=self.proxy)
+                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
             # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except Exception as err_:
