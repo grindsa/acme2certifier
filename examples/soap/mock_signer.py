@@ -49,5 +49,5 @@ if __name__ == '__main__':
         decoded_cert = ca_handler._cert_decode(signing_cert)
 
         # create pkcs7 bundle and dump it to file
-        pkcs7_bundle = ca_handler._pkcs7_create(decoded_cert, csr_der, signing_key)
+        (_error, pkcs7_bundle) = ca_handler._pkcs7_create(decoded_cert, csr_der, signing_key)
         binary_write(LOGGER, OUT_FILE, pkcs7_bundle)
