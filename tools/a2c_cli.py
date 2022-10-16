@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e5110
+# pylint: disable=c0209
 """ acme2certifier cli client """
 import logging
 import datetime
@@ -11,11 +11,11 @@ import sys
 import time
 import random
 from string import digits, ascii_letters
+import json
+import csv
 from jwcrypto import jwk, jws
 from jwcrypto.common import json_encode
 import requests
-import json
-import csv
 
 VERSION = "0.0.1"
 
@@ -36,7 +36,7 @@ Type /help for available commands
 def csv_dump(logger, filename, content):
     """ dump content csv file """
     logger.debug('csv_dump({0})'.format(filename))
-    with open(filename, 'w', newline='') as file_:
+    with open(filename, 'w', newline='', encoding='utf-8') as file_:
         writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writerows(content)
 
@@ -155,7 +155,7 @@ class MessageOperations(object):
     def send(self, server=None, message=None):
         """ send message """
         self.logger.debug('MessageOperations.send({0})'.format(server))
-        req = requests.post('{0}/housekeeping'.format(server), data=message)
+        req = requests.post('{0}/housekeeping'.format(server), data=message, timeout=20)
         return req
 
 
@@ -195,7 +195,7 @@ class CommandLineInterface(object):
                     try:
                         (_sleep, tme) = line.split(' ', 1)
                         time.sleep(int(tme))
-                    except BaseException:
+                    except Exception:
                         time.sleep(1)
                 else:
                     if line.startswith('#') is False:
@@ -216,6 +216,7 @@ class CommandLineInterface(object):
 
     def _command_check(self, command):
         """ check command """
+        # pylint: disable=c0325
         self.logger.debug('CommandLineInterface._commend_check(): {0}'.format(command))
         if command in ('help', 'H'):
             self.help_print()
@@ -225,7 +226,7 @@ class CommandLineInterface(object):
             self._key_operations(command)
         elif command.startswith('config'):
             self._config_operations(command)
-        elif (command == 'quit' or command == 'Q'):
+        elif (command in ('quit', 'Q')):
             self._quit()
         elif self.status == 'Configured':
             if command.startswith('message'):
@@ -281,9 +282,9 @@ class CommandLineInterface(object):
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
             self._cli_print('incomplete command: "{0}"'.format(command))
-            _key = None
+            _key = None  # lgtm [py/unused-local-variable]
             command = None
-            argument = None
+            argument = None  # lgtm [py/unused-local-variable]
 
         if command and argument:
             key = KeyOperations(self.logger, self._cli_print)
@@ -305,9 +306,9 @@ class CommandLineInterface(object):
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
             self._cli_print('incomplete command: "{0}"'.format(command))
-            _key = None
+            _key = None  # lgtm [py/unused-local-variable]
             command = None
-            argument = None
+            argument = None  # lgtm [py/unused-local-variable]
 
         if command and argument:
             message = MessageOperations(self.logger, self._cli_print)
@@ -327,21 +328,21 @@ class CommandLineInterface(object):
         except Exception:
             self._cli_print('incomplete command: "{0}"'.format(command))
             command = None
-            filename = None
+            filename = None  # lgtm [py/unused-local-variable]
 
         if command and filename:
             try:
-                (_filename, format) = filename.lower().split('.', 2)
+                (_filename, format_) = filename.lower().split('.', 2)
             except Exception:
                 self._cli_print('incomplete filename: "{0}"'.format(command))
-                format = None
-            if format in ('csv', 'json'):
+                format_ = None
+            if format_ in ('csv', 'json'):
                 # process report request
                 message = MessageOperations(self.logger, self._cli_print)
-                signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format})
+                signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format_})
                 response = message.send(server=self.server, message=signed_message)
                 if response.status_code == 200:
-                    if format == 'csv':
+                    if format_ == 'csv':
                         csv_dump(self.logger, filename, response.json())
                     else:
                         file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))

@@ -71,7 +71,7 @@ class Account(object):
                                     data_dic['eab_kid'] = eab_kid
                     try:
                         (db_name, new) = self.dbstore.account_add(data_dic)
-                    except BaseException as err_:
+                    except Exception as err_:
                         self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
                         db_name = None
                         new = False
@@ -120,7 +120,7 @@ class Account(object):
             data_dic = {'name': aname, 'contact': json.dumps(payload['contact'])}
             try:
                 result = self.dbstore.account_update(data_dic)
-            except BaseException as err_:
+            except Exception as err_:
                 self.logger.critical('acme2certifier database error in Account._contacts_update(): {0}'.format(err_))
                 result = None
 
@@ -138,7 +138,7 @@ class Account(object):
         self.logger.debug('Account._delete({0})'.format(aname))
         try:
             result = self.dbstore.account_delete(aname)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Account._delete(): {0}'.format(err_))
             result = None
 
@@ -367,7 +367,7 @@ class Account(object):
                         data_dic = {'name': aname, 'jwk': json.dumps(inner_protected['jwk'])}
                         try:
                             result = self.dbstore.account_update(data_dic)
-                        except BaseException as err_:
+                        except Exception as err_:
                             self.logger.critical('acme2certifier database error in Account._key_change(): {0}'.format(err_))
                             result = None
                         if result:
@@ -459,7 +459,7 @@ class Account(object):
         self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
         try:
             result = self.dbstore.account_lookup(field, value)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Account._lookup(): {0}'.format(err_))
             result = None
         return result
@@ -483,7 +483,7 @@ class Account(object):
                 if 'jwk' in protected:
                     try:
                         result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
-                    except BaseException as err_:
+                    except Exception as err_:
                         self.logger.critical('acme2certifier database error in Account._onlyreturnexisting(): {0}'.format(err_))
                         result = None
 

@@ -57,7 +57,7 @@ class Message(object):
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing)
                 try:
                     account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
-                except BaseException as err_:
+                except Exception as err_:
                     self.logger.critical('acme2certifier database error in Message._name_get(): {0}'.format(err_))
                     account_list = []
                 if account_list:
