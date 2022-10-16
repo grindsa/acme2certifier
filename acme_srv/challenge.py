@@ -501,8 +501,7 @@ class Challenge(object):
                                 if challenge_dic['status'] not in ('valid', 'processing'):
                                     twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
                                     twrv.start()
-                                    _validation = twrv.join(timeout=self.challenge_validation_timeout)
-                                    # _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
+                                    _validation = twrv.join(timeout=self.challenge_validation_timeout)  # lgtm [py/unused-local-variable]
                                     # query challenge again (bcs. it could get updated by self._validate)
                                     challenge_dic = self._info(challenge_name)
                             else:

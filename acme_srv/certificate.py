@@ -699,7 +699,7 @@ class Certificate(object):
             else:
                 response_dic['code'] = code = 400
                 # pylint: disable=w0612, w0622
-                response_dic['data'] = type = 'urn:ietf:params:acme:error:malformed'
+                response_dic['data'] = 'urn:ietf:params:acme:error:malformed'
                 detail = 'url missing in protected header'
 
         # prepare/enrich response

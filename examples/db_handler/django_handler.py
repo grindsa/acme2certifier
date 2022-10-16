@@ -307,7 +307,8 @@ class DBstore(object):
         if account_dict:
             try:
                 jwk_dict = json.loads(account_dict[0]['jwk'].decode())
-            except BaseException:
+            except Exception as _err:
+                self.logger.error('DBStore.cli_jwk_load(): error: {0}'.format(_err))
                 jwk_dict = json.loads(account_dict[0]['jwk'])
         return jwk_dict
 

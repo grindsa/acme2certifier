@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """ database updater """
-# pylint: disable=E0401, C0413, C0209, E5110
+# pylint: disable=E0401, C0413, C0209
 import sys
 import json
 import argparse
