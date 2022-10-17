@@ -4,3 +4,6 @@ ALTER ROLE acme2certifier SET client_encoding TO 'utf8';
 ALTER ROLE acme2certifier SET default_transaction_isolation TO 'read committed';
 ALTER ROLE acme2certifier SET timezone TO 'UTC';
 GRANT ALL PRIVILEGES ON DATABASE acme2certifier TO acme2certifier;
+GRANT ALL ON schema public TO acme2certifier;
+GRANT USAGE ON schema public TO acme2certifier;
+GRANT postgres TO acme2certifier;
