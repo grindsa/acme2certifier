@@ -148,6 +148,10 @@ jobs:
       working-directory: examples/Docker/
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
 
     - name: "[ PREPARE ] configure acme2certifier"
       run: |
@@ -162,6 +166,7 @@ jobs:
         sudo echo "" >> data/acme_srv.cfg
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
         docker-compose restart
         docker-compose logs
 
