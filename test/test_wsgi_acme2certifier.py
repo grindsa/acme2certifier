@@ -562,8 +562,9 @@ class TestACMEHandler(unittest.TestCase):
     def test_047_application(self):
         """ test application function valid pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
+        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
         result_func = json.loads(self.application(environ, Mock())[0])
+        del(result_func['meta']['version'])
         self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
         self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
         self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
@@ -582,9 +583,9 @@ class TestACMEHandler(unittest.TestCase):
     def test_049_application(self):
         """ test application function wrong pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'url_prefix/directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
+        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
         result_func = json.loads(self.application(environ, Mock())[0])
-        result_func = json.loads(self.application(environ, Mock())[0])
+        del(result_func['meta']['version'])
         self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
         self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
         self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
@@ -597,9 +598,9 @@ class TestACMEHandler(unittest.TestCase):
     def test_050_application(self):
         """ test application function wrong pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
+        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
         result_func = json.loads(self.application(environ, Mock())[0])
-        result_func = json.loads(self.application(environ, Mock())[0])
+        del(result_func['meta']['version'])
         self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
         self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
         self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
