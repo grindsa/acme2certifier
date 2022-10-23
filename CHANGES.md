@@ -5,6 +5,19 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Change in 0.23
+
+**Features and Improvements**
+
+- Healthcheck in directory ressource [#94](https://github.com/grindsa/acme2certifier/issues/94)
+- check `acme_srv.cfg` for options starting with "
+
+**Bugfixes**:
+
+- [#95](https://github.com/grindsa/acme2certifier/issues/95)
+- workflow django psql workflow
+- some more linting
+
 # Changes in 0.22
 
 **Features and Improvements**:
