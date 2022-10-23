@@ -396,7 +396,7 @@ class Account(object):
         # load current public key from database
         try:
             pub_key = self.dbstore.jwk_load(aname)
-        except BaseException as err_:
+        except Exception as err_:
             self.logger.critical('acme2certifier database error in Account._key_compare(): {0}'.format(err_))
             pub_key = None
 

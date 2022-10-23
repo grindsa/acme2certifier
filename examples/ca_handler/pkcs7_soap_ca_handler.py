@@ -287,8 +287,8 @@ class CAhandler(object):
         except Exception as err:
             self.logger.error('CAhandler._soaprequest_send(): {0}'.format(err))
             error = 'Connection error'
-            payload = None
-            resp = None
+            payload = None  # lgtm [py/unused-local-variable]
+            resp = None  # lgtm [py/unused-local-variable]
 
         return (error, b64_cert_bundle)
 
@@ -435,7 +435,7 @@ class CAhandler(object):
             (error, b64_cert_bundle) = self._soaprequest_send(payload)
         else:
             self.logger.error('CAhandler.enroll() aborted with error: {0}'.format(error))
-            b64_cert_bundle = None
+            b64_cert_bundle = None  # lgtm [py/unused-local-variable]
 
         if not error and b64_cert_bundle:
             # extract certificates from pkcs7 bundle we got as response
