@@ -501,7 +501,7 @@ def parse_url(logger, url):
     return url_dic
 
 
-def logger_info(logger, addr, url, dat_dic):
+def logger_info(logger, addr, locator, dat_dic):
     """ log responses """
     # create a copy of the dictionary
     data_dic = copy.deepcopy(dat_dic)
@@ -512,7 +512,7 @@ def logger_info(logger, addr, url, dat_dic):
 
     if 'data' in data_dic:
         # remove cert from log entry
-        if '/acme/cert' in url:
+        if '/acme/cert' in locator:
             data_dic['data'] = ' - certificate - '
 
         # remove token from challenge
@@ -530,7 +530,7 @@ def logger_info(logger, addr, url, dat_dic):
                         # python3
                         challenge.update((k, "- modified - ") for k, v in challenge.items() if k == "token")
 
-    logger.info('{0} {1} {2}'.format(addr, url, str(data_dic)))
+    logger.info('{0} {1} {2}'.format(addr, locator, str(data_dic)))
 
 
 def logger_setup(debug):
@@ -886,9 +886,9 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
 
     pem_cert = None
     sock = socks.socksocket()
-    context = ssl.create_default_context()
+    context = ssl.create_default_context()  # NOSONAR
     context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+    context.verify_mode = ssl.CERT_NONE  # NOSONAR
     # reject insecure ssl version
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1

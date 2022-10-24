@@ -10,10 +10,10 @@ def is_ip(hostname: str) -> bool:
     try:
         # Check if hostname is an IP
         socket.inet_aton(hostname)
-        return True
+        result = True
     except Exception:
-        pass
-    return False
+        result = False
+    return result
 
 
 class DnsResolver:
