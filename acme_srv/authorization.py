@@ -143,13 +143,13 @@ class Authorization(object):
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
         return (field_list, output_list)
 
-    def new_get(self, url):
+    def new_get(self, url_):
         """ challenge computation based on get request """
         self.logger.debug('Authorization.new_get()')
         response_dic = {}
         response_dic['code'] = 200
         response_dic['header'] = {}
-        response_dic['data'] = self._authz_info(url)
+        response_dic['data'] = self._authz_info(url_)
         return response_dic
 
     def new_post(self, content):
