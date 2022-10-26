@@ -33,10 +33,10 @@ class Authorization(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _authz_info(self, url):
+    def _authz_info(self, url_):
         """ return authzs information """
-        self.logger.debug('Authorization._authz_info({0})'.format(url))
-        authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
+        self.logger.debug('Authorization._authz_info({0})'.format(url_))
+        authz_name = url_.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
         expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
         authz_info_dic = {}
