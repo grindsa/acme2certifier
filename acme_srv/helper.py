@@ -674,16 +674,19 @@ def dns_server_list_load():
     """ load dns-server from config file """
     config_dic = load_config()
 
+    # define default dns servers
+    default_dns_server_list = ['9.9.9.9', '8.8.8.8']
+
     if 'Challenge' in config_dic:
         if 'dns_server_list' in config_dic['Challenge']:
             try:
                 dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
             except Exception:
-                dns_server_list = ['9.9.9.9', '8.8.8.8']
+                dns_server_list = default_dns_server_list
         else:
-            dns_server_list = ['9.9.9.9', '8.8.8.8']
+            dns_server_list = default_dns_server_list
     else:
-        dns_server_list = ['9.9.9.9', '8.8.8.8']
+        dns_server_list = default_dns_server_list
 
     return dns_server_list
 
