@@ -31,20 +31,20 @@ class Hooks:
             self.raise_success_hook_exception = config_dic.getboolean('Hooks', 'raise_success_hook_exception', fallback=False)
             self.raise_post_hook_exception = config_dic.getboolean('Hooks', 'raise_post_hook_exception', fallback=False)
 
-    def pre_hook(self, certificate_name, order_name, csr) -> None:
+    def pre_hook(self, certificate_name, order_name, _csr) -> None:
         """ run before obtaining any certificates """
-        self.logger.debug('Hook.pre_hook()')
+        self.logger.debug('Hook.pre_hook({0}/{1})'.format(certificate_name, order_name))
         if self.raise_pre_hook_exception:
             raise Exception('raise_pre_hook_exception')
 
-    def post_hook(self, certificate_name, order_name, csr, error) -> None:
+    def post_hook(self, certificate_name, order_name, _csr, _error) -> None:
         """ run after *attempting* to obtain/renew certificates """
-        self.logger.debug('Hook.post_hook()')
+        self.logger.debug('Hook.post_hook({0}/{1})'.format(certificate_name, order_name))
         if self.raise_post_hook_exception:
             raise Exception('raise_post_hook_exception')
 
-    def success_hook(self, certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier) -> None:
+    def success_hook(self, certificate_name, order_name, _csr, _certificate, _certificate_raw, _poll_identifier) -> None:
         """ run after each successful certificate enrollment/renewal """
-        self.logger.debug('Hook.success_hook()')
+        self.logger.debug('Hook.success_hook({0}/{1})'.format(certificate_name, order_name))
         if self.raise_success_hook_exception:
             raise Exception('raise_success_hook_exception')
