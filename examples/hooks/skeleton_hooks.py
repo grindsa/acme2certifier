@@ -25,10 +25,16 @@ class Hooks:
         """ run before obtaining any certificates """
         self.logger.debug('Hook.pre_hook()')
 
+        _hook_list = [certificate_name, order_name, csr]
+
     def post_hook(self, certificate_name, order_name, csr, error) -> None:
         """ run after *attempting* to obtain/renew certificates """
         self.logger.debug('Hook.post_hook()')
 
+        _hook_list = [certificate_name, order_name, csr, error]
+
     def success_hook(self, certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier) -> None:
         """ run after each successful certificate enrollment/renewal """
         self.logger.debug('Hook.success_hook()')
+
+        _hook_list = [certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier]
