@@ -452,8 +452,8 @@ class Challenge(object):
 
     def get(self, url):
         """ get challenge details based on get request """
-        self.logger.debug('Challenge.get({0})'.format(url))
         challenge_name = self._name_get(url)
+        self.logger.debug('Challenge.get({0})'.format(challenge_name))
         response_dic = {}
         response_dic['code'] = 200
         response_dic['data'] = self._info(challenge_name)
