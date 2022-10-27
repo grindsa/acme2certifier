@@ -648,9 +648,8 @@ class Certificate(object):
 
     def new_get(self, url):
         """ get request """
-        self.logger.debug('Certificate.new_get({0})'.format(url))
         certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
-
+        self.logger.debug('Certificate.new_get({0})'.format(certificate_name))
         # fetch certificate dictionary from DB
         certificate_dic = self._info(certificate_name, ['name', 'csr', 'cert', 'order__name', 'order__status_id'])
         response_dic = {}

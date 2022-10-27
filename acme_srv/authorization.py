@@ -33,10 +33,10 @@ class Authorization(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _authz_info(self, auth):
+    def _authz_info(self, url):
         """ return authzs information """
-        self.logger.debug('Authorization._authz_info({0})'.format(auth))
-        authz_name = auth.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
+        authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
+        self.logger.debug('Authorization._authz_info({0})'.format(authz_name))
         expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
         authz_info_dic = {}
@@ -107,9 +107,8 @@ class Authorization(object):
                     self.validity = int(config_dic['Authorization']['validity'])
                 except Exception:
                     self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
-        if 'Directory' in config_dic:
-            if 'url_prefix' in config_dic['Directory']:
-                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
+            self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp=None):
@@ -143,13 +142,13 @@ class Authorization(object):
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
         return (field_list, output_list)
 
-    def new_get(self, url_):
+    def new_get(self, url):
         """ challenge computation based on get request """
         self.logger.debug('Authorization.new_get()')
         response_dic = {}
         response_dic['code'] = 200
         response_dic['header'] = {}
-        response_dic['data'] = self._authz_info(url_)
+        response_dic['data'] = self._authz_info(url)
         return response_dic
 
     def new_post(self, content):
