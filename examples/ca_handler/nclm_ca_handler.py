@@ -396,10 +396,10 @@ class CAhandler(object):
                 else:
                     self.logger.error('CAhandler._login(): No token returned. Aborting...')
             else:
-                self.logger.error('CAhandler._login() error during post: {0}'.format(api_response.status_code()))
+                self.logger.error('CAhandler._login() error during post: {0}'.format(api_response.status_code))
         else:
             # If response code is not ok (200), print the resulting http error code with description
-            self.logger.error('CAhandler._login() error during get: {0}'.format(api_response.status_code()))
+            self.logger.error('CAhandler._login() error during get: {0}'.format(api_response.status_code))
 
     def _request_import(self, csr):
         """ import certificate request to NCLM """
