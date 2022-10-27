@@ -8,7 +8,11 @@
 
 [![Codecov main](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/master?label=test%20coverage%20master)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/master)
 [![Codecov devel](https://img.shields.io/codecov/c/gh/grindsa/acme2certifier/branch/devel?label=test%20coverage%20devel)](https://app.codecov.io/gh/grindsa/acme2certifier/branch/devel)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/grindsa/acme2certifier.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/grindsa/acme2certifier/context:python)
+
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=security_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=grindsa_acme2certifier)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 
 acme2certifier is development project to create an ACME protocol proxy. Main
 intention is to provide ACME services on CA servers which do not support this
