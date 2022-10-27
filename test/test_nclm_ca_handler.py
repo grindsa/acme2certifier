@@ -968,12 +968,12 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse1 = Mock()
         mockresponse1.status_code = lambda: 'foo'
         mockresponse1.ok = None
-        mockresponse1.raise_for_status = Mock(return_value='status')
+        # mockresponse1.raise_for_status = Mock(return_value='status')
         mock_get.return_value = mockresponse1
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._login()
         self.assertFalse(self.cahandler.headers)
-        self.assertIn('ERROR:test_a2c:status', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._login() error during get: foo', lcm.output)
 
     @patch('requests.post')
     @patch('requests.get')
@@ -1013,12 +1013,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = mockresponse1
         mockresponse2 = Mock()
         mockresponse2.ok = None
-        mockresponse2.raise_for_status = Mock(return_value='post_status')
+        mockresponse2.status_code = lambda: 'foo2'
         mock_post.return_value = mockresponse2
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._login()
         self.assertFalse(self.cahandler.headers)
-        self.assertIn('ERROR:test_a2c:post_status', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._login() error during post: foo2', lcm.output)
 
     @patch('requests.post')
     @patch('requests.get')
