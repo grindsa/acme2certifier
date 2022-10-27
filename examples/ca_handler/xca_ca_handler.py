@@ -849,13 +849,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
+    def revoke(self, cert, _rev_reason='unspecified', _rev_date=None):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
-
-        # overwrite revocation date - we ignore what has been submitted
-        rev_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
-        rev_reason = 0
 
         if self.xdb_file:
             # load ca cert and key
@@ -868,7 +864,7 @@ class CAhandler(object):
             if ca_id and serial:
                 # check if certificate has alreay been revoked:
                 if not self._revocation_search('serial', serial):
-                    rev_dic = {'caID': ca_id, 'serial': serial, 'date': rev_date, 'invaldate': rev_date, 'reasonBit': rev_reason}
+                    rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'invaldate': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'reasonBit': 0}
                     row_id = self._revocation_insert(rev_dic)
                     if row_id:
                         code = 200

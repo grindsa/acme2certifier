@@ -513,10 +513,8 @@ class Challenge(object):
                                 # query challenge again (bcs. it could get updated by self._validate)
                                 challenge_dic = self._info(challenge_name)
 
-                            response_dic['data'] = {}
-                            challenge_dic['url'] = protected['url']
                             code = 200
-                            response_dic['data'] = {}
+                            challenge_dic['url'] = protected['url']
                             response_dic['data'] = challenge_dic
                             response_dic['header'] = {}
                             response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
