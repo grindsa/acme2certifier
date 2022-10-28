@@ -62,6 +62,7 @@ ERR_STRING = json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail':
 WSG_INPUT_VARNAME = 'wsgi.input'
 CONTENT_TYPE = 'application/json'
 
+
 def create_header(response_dic, add_json_header=True):
     """ create header """
     # generate header and nonce
