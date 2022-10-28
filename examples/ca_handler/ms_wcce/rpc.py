@@ -48,7 +48,7 @@ def get_dce_rpc_from_string_binding(
     return dce
 
 
-def get_dynamic_endpoint(interface: bytes, target: str, timeout: int = 5) -> str:
+def get_dynamic_endpoint(interface: bytes, target: str, timeout: int = 5):
     """ get endpoint """
     string_binding = r"ncacn_ip_tcp:%s[135]" % target
     rpctransport = transport.DCERPCTransportFactory(string_binding)
