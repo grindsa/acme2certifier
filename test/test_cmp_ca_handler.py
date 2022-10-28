@@ -343,6 +343,8 @@ class TestACMEHandler(unittest.TestCase):
         """test _openssl_cmd_build()"""
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         result = ['openssl_bin', 'cmp', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-total_timeout', '10']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
@@ -350,6 +352,8 @@ class TestACMEHandler(unittest.TestCase):
         """test _openssl_cmd_build() with option including in config dic"""
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         self.cahandler.config_dic = {'foo1': 'bar1', 'foo2': 'bar2'}
         result = ['openssl_bin', 'cmp', '-foo1', 'bar1', '-foo2', 'bar2', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-total_timeout', '10']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
@@ -358,6 +362,8 @@ class TestACMEHandler(unittest.TestCase):
         """test _openssl_cmd_build() - customized msg_timeout"""
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         self.cahandler.config_dic = {'msg_timeout': 10}
         result = ['openssl_bin', 'cmp', '-msg_timeout', '10', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-total_timeout', '10']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
@@ -367,6 +373,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.tmp_dir = '/tmp'
         self.cahandler.config_dic = {'total_timeout': 20}
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
@@ -375,6 +383,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.secret = 'secret'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         self.cahandler.config_dic = {'total_timeout': 20}
         result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
@@ -384,6 +394,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.openssl_bin = 'openssl_bin'
         self.cahandler.ref = 'ref'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         self.cahandler.config_dic = {'total_timeout': 20}
         result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
@@ -394,6 +406,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.ref = 'ref'
         self.cahandler.secret = 'secret'
         self.cahandler.tmp_dir = '/tmp'
+        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
+        self.cahandler.cert_file = '/tmp/cert.pem'
         self.cahandler.config_dic = {'total_timeout': 20}
         result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-ref', 'ref', '-secret', 'secret']
         self.assertEqual(result, self.cahandler._opensslcmd_build())
@@ -480,7 +494,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test file save """
         self.assertFalse(self.cahandler._file_save('filename', 'content'))
         self.assertTrue(mock_op.called)
-        
+
 if __name__ == '__main__':
 
     unittest.main()

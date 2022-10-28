@@ -21,6 +21,8 @@ class CAhandler(object):
         self.recipient = None
         self.ref = None
         self.secret = None
+        self.ca_pubs_file = None
+        self.cert_file = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -39,14 +41,13 @@ class CAhandler(object):
         cert_bundle = None
         ca_pem = None
 
-        # open ca files
-        if os.path.isfile('{0}/capubs.pem'.format(self.tmp_dir)):
-            with open('{0}/capubs.pem'.format(self.tmp_dir), 'r', encoding='utf-8') as fso:
+        if os.path.isfile(self.ca_pubs_file):
+            with open(self.ca_pubs_file, 'r', encoding='utf-8') as fso:
                 ca_pem = fso.read()
 
         # open certificate
-        if os.path.isfile('{0}/cert.pem'.format(self.tmp_dir)):
-            with open('{0}/cert.pem'.format(self.tmp_dir,), 'r', encoding='utf-8') as fso:
+        if os.path.isfile(self.cert_file):
+            with open(self.cert_file, 'r', encoding='utf-8') as fso:
                 cert_raw = fso.read()
 
             # create bundle and raw cert
@@ -114,6 +115,8 @@ class CAhandler(object):
 
         # create temporary directory
         self.tmp_dir = tempfile.mkdtemp()
+        self.ca_pubs_file = '{0}/capubs.pem'.format(self.tmp_dir)
+        self.cert_file = '{0}/cert.pem'.format(self.tmp_dir)
 
         # defaulting openssl_bin
         if not self.openssl_bin:
@@ -135,7 +138,7 @@ class CAhandler(object):
             if value is not True:
                 cmd_list.append(str(value))
 
-        cmd_list.extend(['-csr', '{0}/csr.pem'.format(self.tmp_dir), '-extracertsout', '{0}/capubs.pem'.format(self.tmp_dir), '-certout', '{0}/cert.pem'.format(self.tmp_dir)])
+        cmd_list.extend(['-csr', '{0}/csr.pem'.format(self.tmp_dir), '-extracertsout', self.ca_pubs_file, '-certout', self.cert_file])
 
         # set timeouts if not configured
         if '-msg_timeout' not in cmd_list:
