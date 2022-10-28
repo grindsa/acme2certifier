@@ -202,7 +202,7 @@ class CommandLineInterface(object):
                         self._command_check(line)
 
     def _cli_print(self, text, date_print=True, printreturn=True):
-        """ print text """
+        """ cli printout text """
         self.logger.debug('CommandLineInterface._cli_print()')
         if text:
             if date_print:
@@ -257,7 +257,7 @@ class CommandLineInterface(object):
         self.logger.debug('CommandLineInterface._exec_cmd(): {0}'.format(cmdinput))
         cmdinput = cmdinput.rstrip()
         # skip empty commands
-        if not len(cmdinput) > 1:
+        if  len(cmdinput) <= 1:
             return
 
         if cmdinput.startswith("/"):
@@ -281,7 +281,7 @@ class CommandLineInterface(object):
         try:
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete command: "{0}"'.format(command))
+            self._cli_print('incomplete key-operations command: "{0}"'.format(command))
             _key = None  # lgtm [py/unused-local-variable]
             command = None
             argument = None  # lgtm [py/unused-local-variable]
@@ -305,7 +305,7 @@ class CommandLineInterface(object):
         try:
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete command: "{0}"'.format(command))
+            self._cli_print('incomplete message-operations command: "{0}"'.format(command))
             _key = None  # lgtm [py/unused-local-variable]
             command = None
             argument = None  # lgtm [py/unused-local-variable]
@@ -326,7 +326,7 @@ class CommandLineInterface(object):
         try:
             (_key, command, filename) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete command: "{0}"'.format(command))
+            self._cli_print('incomplete report-operations command: "{0}"'.format(command))
             command = None
             filename = None  # lgtm [py/unused-local-variable]
 
@@ -369,7 +369,7 @@ class CommandLineInterface(object):
         sys.exit(0)
 
     def _server_set(self, server):
-        """ print text """
+        """ configure server """
         self.logger.debug('CommandLineInterface._server_set({0})'.format(server))
 
         (_command, url) = server.split(' ')
@@ -383,7 +383,7 @@ class CommandLineInterface(object):
             self._cli_print('{0} is not a valid url'.format(url))
 
     def help_print(self):
-        """ print help """
+        """ help screen """
         self.logger.debug('CommandLineInterface.help_print()')
         helper = """-------------------------------------------------------------------------------
 /certificate search <parameter> <string> - search certificate for a certain parameter
