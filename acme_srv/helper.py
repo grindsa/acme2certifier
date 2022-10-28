@@ -691,6 +691,23 @@ def dns_server_list_load():
     return dns_server_list
 
 
+def error_dic_get(logger):
+    """ load acme error messages """
+    logger.debug('error_dict_get()')
+    # this is the main dictionary
+    error_dic = {
+        'malformed': 'urn:ietf:params:acme:error:malformed',
+        'invalidcontact': 'urn:ietf:params:acme:error:invalidContact',
+        'accountdoesnotexist': 'urn:ietf:params:acme:error:accountDoesNotExist',
+        'unauthorized': 'urn:ietf:params:acme:error:unauthorized',
+        'externalaccountrequired': 'urn:ietf:params:acme:error:externalAccountRequired',
+        'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
+        'useractionrequired': 'urn:ietf:params:acme:error:userActionRequired',
+        'serverinternal': 'urn:ietf:params:acme:error:serverInternal'}
+
+    return error_dic
+
+
 def patched_create_connection(address, *args, **kwargs):
     """ Wrap urllib3's create_connection to resolve the name elsewhere"""
     # load dns-servers from config file

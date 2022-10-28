@@ -4,7 +4,7 @@
 """ Account class """
 from __future__ import print_function
 import json
-from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad
+from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad, error_dic_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.signature import Signature
@@ -19,6 +19,7 @@ class Account(object):
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'acct_path': '/acme/acct/'}
+        self.err_msg_dic = error_dic_get(self.logger)
         self.ecc_only = False
         self.contact_check_disable = False
         self.tos_check_disable = False
@@ -45,13 +46,13 @@ class Account(object):
 
             if not self.contact_check_disable and not contact:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'incomplete protected payload'
             else:
                 # ecc_only check
                 if self.ecc_only and not content['alg'].startswith('ES'):
                     code = 403
-                    message = 'urn:ietf:params:acme:error:badPublicKey'
+                    message = self.err_msg_dic['badpubkey']
                     detail = 'Only ECC keys are supported'
                 else:
                     # check jwk
@@ -85,7 +86,7 @@ class Account(object):
                     detail = None
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'incomplete protected payload'
 
         self.logger.debug('Account.account._add() ended with:{0}'.format(code))
@@ -102,11 +103,11 @@ class Account(object):
             if not contact_check:
                 # invalidcontact message
                 code = 400
-                message = 'urn:ietf:params:acme:error:invalidContact'
+                message = self.err_msg_dic['invalidcontact']
                 detail = ', '.join(content['contact'])
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:invalidContact'
+            message = self.err_msg_dic['invalidcontact']
             detail = 'no contacts specified'
 
         self.logger.debug('Account._contact_check() ended with:{0}'.format(code))
@@ -128,7 +129,7 @@ class Account(object):
                 code = 200
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                message = self.err_msg_dic['accountdoesnotexist']
                 detail = 'update failed'
 
         return (code, message, detail)
@@ -148,7 +149,7 @@ class Account(object):
             detail = None
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+            message = self.err_msg_dic['accountdoesnotexist']
             detail = 'deletion failed'
 
         self.logger.debug('Account._delete() ended with:{0}'.format(code))
@@ -211,21 +212,21 @@ class Account(object):
                         detail = None
                     else:
                         code = 403
-                        message = 'urn:ietf:params:acme:error:unauthorized'
+                        message = self.err_msg_dic['unauthorized']
                         detail = 'eab signature verification failed'
                         self.logger.error('Account._eab_check() returned error: {0}'.format(error))
                 else:
                     code = 403
-                    message = 'urn:ietf:params:acme:error:unauthorized'
+                    message = self.err_msg_dic['unauthorized']
                     detail = 'eab kid lookup failed'
             else:
                 code = 403
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'Malformed request'
         else:
             # no external account binding key in payload - error
             code = 403
-            message = 'urn:ietf:params:acme:error:externalAccountRequired'
+            message = self.err_msg_dic['externalaccountrequired']
             detail = 'external account binding required'
 
         self.logger.debug('Account._eab_check() ended with:{0}'.format(code))
@@ -282,19 +283,19 @@ class Account(object):
                             detail = None
                         else:
                             code = 400
-                            message = 'urn:ietf:params:acme:error:malformed'
+                            message = self.err_msg_dic['malformed']
                             detail = 'inner jws must omit nonce header'
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'url parameter differ in inner and outer jws'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'inner or outer jws is missing url header parameter'
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'inner jws is missing jwk'
 
         self.logger.debug('Account._inner_jws_check() ended with: {0}:{1}'.format(code, detail))
@@ -312,19 +313,19 @@ class Account(object):
                         (code, message, detail) = self._key_compare(aname, inner_payload['oldkey'])
                     else:
                         code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
+                        message = self.err_msg_dic['malformed']
                         detail = 'old key is missing'
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'kid and account objects do not match'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'account object is missing on inner payload'
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'kid is missing in outer header'
 
         self.logger.debug('Account._inner_payload_check() ended with: {0}:{1}'.format(code, detail))
@@ -343,11 +344,11 @@ class Account(object):
                     (code, message, detail) = self._inner_payload_check(aname, outer_protected, inner_payload)
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:badPublicKey'
+                message = self.err_msg_dic['badpubkey']
                 detail = 'public key does already exists'
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'inner jws is missing jwk'
 
         self.logger.debug('Account._key_change_validate() ended with: {0}:{1}'.format(code, detail))
@@ -376,15 +377,15 @@ class Account(object):
                             detail = None
                         else:
                             code = 500
-                            message = 'urn:ietf:params:acme:error:serverInternal'
+                            message = self.err_msg_dic['serverinternal']
                             detail = 'key rollover failed'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'malformed request. not a key-change'
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'malformed request'
 
         return (code, message, detail)
@@ -412,11 +413,11 @@ class Account(object):
                 detail = None
             else:
                 code = 401
-                message = 'urn:ietf:params:acme:error:unauthorized'
+                message = self.err_msg_dic['unauthorized']
                 detail = 'wrong public key'
         else:
             code = 401
-            message = 'urn:ietf:params:acme:error:unauthorized'
+            message = self.err_msg_dic['unauthorized']
             detail = 'wrong public key'
 
         self.logger.debug('Account._key_compare() ended with: {0}'.format(code))
@@ -468,7 +469,7 @@ class Account(object):
     def _name_get(self, content):
         """ get id for account depricated"""
         self.logger.debug('Account._name_get()')
-        # _deprecated = True
+        # _deprecated
         return self.message._name_get(content)
 
     def _onlyreturnexisting(self, protected, payload):
@@ -493,20 +494,20 @@ class Account(object):
                         detail = None
                     else:
                         code = 400
-                        message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                        message = self.err_msg_dic['accountdoesnotexist']
                         detail = None
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'jwk structure missing'
 
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:userActionRequired'
+                message = self.err_msg_dic['useractionrequired']
                 detail = 'onlyReturnExisting must be true'
         else:
             code = 500
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = self.err_msg_dic['serverinternal']
             detail = 'onlyReturnExisting without payload'
 
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
@@ -523,12 +524,12 @@ class Account(object):
                 detail = None
             else:
                 code = 403
-                message = 'urn:ietf:params:acme:error:userActionRequired'
+                message = self.err_msg_dic['useractionrequired']
                 detail = 'tosfalse'
         else:
             self.logger.debug('no tos statement found.')
             code = 403
-            message = 'urn:ietf:params:acme:error:userActionRequired'
+            message = self.err_msg_dic['useractionrequired']
             detail = 'tosfalse'
 
         self.logger.debug('Account._tos_check() ended with:{0}'.format(code))
@@ -605,13 +606,12 @@ class Account(object):
             if 'status' in payload:
                 # account deactivation
                 if payload['status'].lower() == 'deactivated':
-                    # account_name = self.message.name_get(protected)
                     (code, message, detail) = self._delete(account_name)
                     if code == 200:
                         response_dic['data'] = payload
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'status attribute without sense'
             elif 'contact' in payload:
                 (code, message, detail) = self._contacts_update(account_name, payload)
@@ -620,7 +620,7 @@ class Account(object):
                     response_dic['data'] = self._info(account_obj)
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    message = self.err_msg_dic['accountdoesnotexist']
                     detail = 'update failed'
             elif 'payload' in payload:
                 # this could be a key-change
@@ -637,7 +637,7 @@ class Account(object):
                     response_dic['data'] = {'status': 'invalid'}
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'dont know what to do with this request'
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
