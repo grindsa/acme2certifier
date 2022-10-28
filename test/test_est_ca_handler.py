@@ -442,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_host = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Error', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Error', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll() _cacerts_get error: Error', lcm.output)
 
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
     def test_039_enroll(self, mock_ca):
@@ -460,7 +460,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_host = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Authentication information missing', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Authentication information missing', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Authentication information missing.', lcm.output)
 
     @patch('examples.ca_handler.est_ca_handler.CAhandler._simpleenroll')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
@@ -472,7 +472,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_user = 'est_usr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Error', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Error', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll() _simpleenroll error: Error', lcm.output)
 
     @patch('examples.ca_handler.est_ca_handler.CAhandler._simpleenroll')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
