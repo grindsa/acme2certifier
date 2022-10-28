@@ -257,7 +257,7 @@ class CommandLineInterface(object):
         self.logger.debug('CommandLineInterface._exec_cmd(): {0}'.format(cmdinput))
         cmdinput = cmdinput.rstrip()
         # skip empty commands
-        if  len(cmdinput) <= 1:
+        if len(cmdinput) <= 1:
             return
 
         if cmdinput.startswith("/"):
