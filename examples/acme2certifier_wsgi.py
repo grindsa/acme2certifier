@@ -61,7 +61,8 @@ HTTP_CODE_DIC = {
 ERR_STRING = json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')
 WSG_INPUT_VARNAME = 'wsgi.input'
 CONTENT_TYPE = ('Content-Type', 'application/json')
-METHOD_NOT_ALLOWED_RESPONSE ='405 {0}'.format(HTTP_CODE_DIC[405]), [CONTENT_TYPE]
+METHOD_NOT_ALLOWED_RESPONSE = '405 {0}'.format(HTTP_CODE_DIC[405]), [CONTENT_TYPE]
+
 
 def create_header(response_dic, add_json_header=True):
     """ create header """
