@@ -966,7 +966,7 @@ class TestACMEHandler(unittest.TestCase):
         """ CAhandler._unusedrequests_get """
         self.cahandler.api_host = 'api_host'
         mockresponse1 = Mock()
-        mockresponse1.status_code = lambda: 'foo'
+        mockresponse1.status_code = 'foo'
         mockresponse1.ok = None
         # mockresponse1.raise_for_status = Mock(return_value='status')
         mock_get.return_value = mockresponse1
@@ -1013,7 +1013,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = mockresponse1
         mockresponse2 = Mock()
         mockresponse2.ok = None
-        mockresponse2.status_code = lambda: 'foo2'
+        mockresponse2.status_code = 'foo2'
         mock_post.return_value = mockresponse2
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._login()
