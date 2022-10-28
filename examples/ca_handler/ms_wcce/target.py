@@ -84,7 +84,7 @@ class DnsResolver:
         try:
             answers = self.resolver.resolve(hostname, tcp=self.use_tcp)
             if len(answers) == 0:
-                raise Exception()
+                raise SystemError()
 
             ip_addr = answers[0].to_text()
         except Exception as err_:
