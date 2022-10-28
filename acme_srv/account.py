@@ -271,20 +271,14 @@ class Account(object):
             if 'url' in outer_protected and 'url' in inner_protected:
                 # inner and outer JWS must have the same "url" header parameter
                 if outer_protected['url'] == inner_protected['url']:
-                    if self.inner_header_nonce_allow:
+                    if self.inner_header_nonce_allow or 'nonce' not in inner_protected:
                         code = 200
                         message = None
                         detail = None
                     else:
-                        # inner JWS must omit nonce header
-                        if 'nonce' not in inner_protected:
-                            code = 200
-                            message = None
-                            detail = None
-                        else:
-                            code = 400
-                            message = self.err_msg_dic['malformed']
-                            detail = 'inner jws must omit nonce header'
+                        code = 400
+                        message = self.err_msg_dic['malformed']
+                        detail = 'inner jws must omit nonce header'
                 else:
                     code = 400
                     message = self.err_msg_dic['malformed']
