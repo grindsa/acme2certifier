@@ -27,9 +27,8 @@ class EABhandler(object):
         self.logger.debug('EABhandler._config_load()')
 
         config_dic = load_config(self.logger, 'EABhandler')
-        if 'EABhandler' in config_dic:
-            if 'key' in config_dic['EABhandler']:
-                self.key = config_dic['EABhandler']['key']
+        if 'EABhandler' in config_dic and 'key' in config_dic['EABhandler']:
+            self.key = config_dic['EABhandler']['key']
 
         self.logger.debug('EABhandler._config_load() ended')
 
