@@ -377,13 +377,11 @@ class CAhandler(object):
                         cert_bundle = str(order.fullchain_pem)
                         cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
                     else:
-                        # raise Exception("Error getting certificate: " + str(order.error))
                         self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
                         error = 'Error getting certificate: {0}'.format(order.error)
                 else:
                     self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
                     error = 'Bad ACME account: {0}'.format(regr.body.error)
-                    # raise Exception("Bad ACME account: " + str(regr.body.error))
 
             except Exception as err:
                 self.logger.error('CAhandler.enroll: error: {0}'.format(err))

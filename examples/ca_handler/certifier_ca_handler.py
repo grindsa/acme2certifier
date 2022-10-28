@@ -93,15 +93,13 @@ class CAhandler(object):
         if 'status' in ca_list and 'message' in ca_list:
             # we got an error from get_ca()
             ca_dic = ca_list
-        elif 'cas' in ca_list:
-            if ca_list['cas']:
-                for cas in ca_list['cas']:
-                    if filter_key in cas:
-                        if cas[filter_key] == filter_value:
-                            ca_dic = cas
-                            break
+        elif 'cas' in ca_list and ca_list['cas']:
+            for cas in ca_list['cas']:
+                if filter_key in cas and cas[filter_key] == filter_value:
+                    ca_dic = cas
+                    break
         if not ca_dic:
-            ca_dic = {'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}
+            ca_dic = {'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}
         self.logger.debug('CAhandler._ca_get_properties() ended with: {0}'.format(ca_dic))
         return ca_dic
 
@@ -112,7 +110,6 @@ class CAhandler(object):
         cert_dic = {}
 
         if 'href' in ca_dic:
-            # data = {'ca' : ca_dic['href'], 'pkcs10' : csr}
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
             cert_dic = self._api_post(self.api_host + '/v1/requests', data)
 
@@ -460,7 +457,7 @@ class CAhandler(object):
                 else:
                     error = 'serial number lookup via rest failed'
             else:
-                error = 'CA could not be found'
+                error = 'Cannot find CA'
         else:
             error = 'No payload given'
 

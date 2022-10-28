@@ -386,13 +386,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_034__ca_get_properties(self, mock_caget):
         """ CAhandler._ca_get_properties() ca_get returns nothing """
         mock_caget.return_value = []
-        self.assertEqual({'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
+        self.assertEqual({'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get')
     def test_035__ca_get_properties(self, mock_caget):
         """ CAhandler._ca_get_properties() ca_get returns wrong information """
         mock_caget.return_value = 'foo'
-        self.assertEqual({'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
+        self.assertEqual({'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get')
     def test_036__ca_get_properties(self, mock_caget):
@@ -404,13 +404,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_037__ca_get_properties(self, mock_caget):
         """ CAhandler._ca_get_properties() ca_get returns empty ca_list """
         mock_caget.return_value = {'cas': None}
-        self.assertEqual({'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
+        self.assertEqual({'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get')
     def test_038__ca_get_properties(self, mock_caget):
         """ CAhandler._ca_get_properties() ca_get returns ca_list but filter does not match """
         mock_caget.return_value = {'cas': [{'foo': 'bar'}]}
-        self.assertEqual({'status': 404, 'message': 'CA could not be found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
+        self.assertEqual({'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}, self.cahandler._ca_get_properties('filterkey', 'filtervalue'))
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get')
     def test_039__ca_get_properties(self, mock_caget):
@@ -716,7 +716,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_b64dec.return_value = 'foodecode'
         mock_p2d.return_value = 'p2d'
         mock_caprop.return_value = {}
-        self.assertEqual(('CA could not be found', None, 'foodecode'), self.cahandler.trigger(payload))
+        self.assertEqual(('Cannot find CA', None, 'foodecode'), self.cahandler.trigger(payload))
 
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
