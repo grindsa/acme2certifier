@@ -39,16 +39,21 @@ def _csr_lookup(logger, soap_dic):
     """ get csr from soap request """
     logger.debug('_csr_lookup()')
     csr = None
-    if 'soapenv:Envelope' in soap_dic:
-        if 'soapenv:Body' in soap_dic['soapenv:Envelope']:
-            if 'aur:RequestCertificate' in soap_dic['soapenv:Envelope']['soapenv:Body']:
-                if 'aur:request' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']:
-                    if 'aur:CertificateRequestRaw' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
-                        csr = soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:CertificateRequestRaw']
-                    if 'aur:ProfileName' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
-                        logger.info('got request profilename: {0}'.format(soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:ProfileName']))
-                    if 'aur:Email' in soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']:
-                        logger.info('got request email: {0}'.format(soap_dic['soapenv:Envelope']['soapenv:Body']['aur:RequestCertificate']['aur:request']['aur:Email']))
+
+    soapenvelope = 'soapenv:Envelope'
+    soapbody = 'soapenv:Body'
+    aurrequestcertificate = 'aur:RequestCertificate'
+    aurrequest = 'aur:request'
+    if soapenvelope in soap_dic:
+        if soapbody in soap_dic[soapenvelope]:
+            if aurrequestcertificate in soap_dic[soapenvelope][soapbody]:
+                if aurrequest in soap_dic[soapenvelope][soapbody][aurrequestcertificate]:
+                    if 'aur:CertificateRequestRaw' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
+                        csr = soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:CertificateRequestRaw']
+                    if 'aur:ProfileName' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
+                        logger.info('got request profilename: {0}'.format(soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:ProfileName']))
+                    if 'aur:Email' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
+                        logger.info('got request email: {0}'.format(soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:Email']))
 
     return csr
 
