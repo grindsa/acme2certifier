@@ -242,19 +242,19 @@ class CAhandler(object):
                         (error, cert_raw) = self._simpleenroll(csr)
                     else:
                         error = 'Authentication information missing'
-                        self.logger.error('CAhandler.enroll(): {0}'.format(error))
+                        self.logger.error('CAhandler.enroll(): Authentication information missing.')
                     if not error:
                         cert_bundle = cert_raw + ca_pem
                         cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
                         cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
                         cert_raw = cert_raw.replace('\n', '')
                     else:
-                        self.logger.error('CAhandler.enroll(): {0}'.format(error))
+                        self.logger.error('CAhandler.enroll() _simpleenroll error: {0}'.format(error))
                 else:
                     error = 'no CA certificates found'
-                    self.logger.error('CAhandler.enroll(): {0}'.format(error))
+                    self.logger.error('CAhandler.enroll(): no CA certificates found')
             else:
-                self.logger.error('CAhandler.enroll(): {0}'.format(error))
+                self.logger.error('CAhandler.enroll() _cacerts_get error: {0}'.format(error))
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
