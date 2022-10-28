@@ -60,8 +60,8 @@ HTTP_CODE_DIC = {
 
 ERR_STRING = json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')
 WSG_INPUT_VARNAME = 'wsgi.input'
-CONTENT_TYPE = 'application/json'
-
+CONTENT_TYPE = ('Content-Type', 'application/json')
+METHOD_NOT_ALLOWED_RESPONSE ='405 {0}'.format(HTTP_CODE_DIC[405]), [CONTENT_TYPE]
 
 def create_header(response_dic, add_json_header=True):
     """ create header """
@@ -69,11 +69,11 @@ def create_header(response_dic, add_json_header=True):
     if add_json_header:
         if 'code' in response_dic:
             if response_dic['code'] in (200, 201):
-                headers = [('Content-Type', CONTENT_TYPE)]
+                headers = [CONTENT_TYPE]
             else:
                 headers = [('Content-Type', 'application/problem+json')]
         else:
-            headers = [('Content-Type', CONTENT_TYPE)]
+            headers = [CONTENT_TYPE]
     else:
         headers = []
 
@@ -146,7 +146,7 @@ def authz(environ, start_response):
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
             return [json.dumps(response_dic['data']).encode('utf-8')]
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -167,7 +167,7 @@ def newaccount(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -209,7 +209,7 @@ def cert(environ, start_response):
             return [response_dic['data']]
 
         else:
-            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+            start_response(METHOD_NOT_ALLOWED_RESPONSE)
             return [ERR_STRING]
 
 
@@ -234,7 +234,7 @@ def chall(environ, start_response):
             response_dic = challenge.get(get_url(environ, True))
 
             # generate header
-            headers = [('Content-Type', CONTENT_TYPE)]
+            headers = [CONTENT_TYPE]
             # create the response
             start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
 
@@ -244,7 +244,7 @@ def chall(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
         else:
-            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+            start_response(METHOD_NOT_ALLOWED_RESPONSE)
             return [ERR_STRING]
 
 
@@ -257,7 +257,7 @@ def newnonce(environ, start_response):
         start_response(status, headers)
         return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
 
 
@@ -277,7 +277,7 @@ def neworders(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -297,7 +297,7 @@ def order(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -319,7 +319,7 @@ def revokecert(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -342,7 +342,7 @@ def trigger(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
@@ -365,7 +365,7 @@ def housekeeping(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE)])
+        start_response(METHOD_NOT_ALLOWED_RESPONSE)
         return [ERR_STRING]
 
 
