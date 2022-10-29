@@ -1573,15 +1573,18 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
     def test_221_error_dic_get(self):
         """ test error_dic_get """
         result = {
+            'badcsr': 'urn:ietf:params:acme:error:badCSR',
             'malformed': 'urn:ietf:params:acme:error:malformed',
             'invalidcontact': 'urn:ietf:params:acme:error:invalidContact',
             'accountdoesnotexist': 'urn:ietf:params:acme:error:accountDoesNotExist',
-            'alreadyrevoked': 'urn:ietf:params:acme:error:alreadyRevoked',
             'unauthorized': 'urn:ietf:params:acme:error:unauthorized',
             'externalaccountrequired': 'urn:ietf:params:acme:error:externalAccountRequired',
             'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
             'useractionrequired': 'urn:ietf:params:acme:error:userActionRequired',
-            'serverinternal': 'urn:ietf:params:acme:error:serverInternal'}
+            'alreadyrevoked' : 'urn:ietf:params:acme:error:alreadyRevoked',
+            'serverinternal': 'urn:ietf:params:acme:error:serverInternal',
+            'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
+            'ordernotready': 'urn:ietf:params:acme:error:orderNotReady'}
         self.assertEqual(result, self.error_dic_get(self.logger))
 
 if __name__ == '__main__':

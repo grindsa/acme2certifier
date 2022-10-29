@@ -4,7 +4,7 @@
 # pylint: disable=c0209
 from __future__ import print_function
 import json
-from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now
+from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, error_dic_get
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -19,6 +19,7 @@ class Order(object):
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
+        self.error_msg_dic = error_dic_get(self.logger)
         self.validity = 86400
         self.authz_validity = 86400
         self.expiry_check_disable = False
@@ -51,11 +52,6 @@ class Order(object):
             data_dic['name'] = order_name
             data_dic['identifiers'] = json.dumps(payload['identifiers'])
 
-            # if 'notBefore' in payload:
-            #    data_dic['notbefore'] = payload['notBefore']
-            # if 'notAfter' in payload:
-            #    data_dic['notafter'] = payload['notAfter']
-
             # check identifiers
             error = self._identifiers_check(payload['identifiers'])
 
@@ -87,9 +83,9 @@ class Order(object):
                         except Exception as err_:
                             self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
                 else:
-                    error = 'urn:ietf:params:acme:error:malformed'
+                    error = self.error_msg_dic['malformed']
         else:
-            error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
+            error = self.error_msg_dic['unsupportedidentifier']
 
         self.logger.debug('Order._add() ended')
         return (error, order_name, auth_dic, uts_to_date_utc(expires))
@@ -118,9 +114,8 @@ class Order(object):
                 except Exception:
                     self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
 
-        if 'Directory' in config_dic:
-            if 'url_prefix' in config_dic['Directory']:
-                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
+            self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
         self.logger.debug('Order._config_load() ended.')
 
@@ -148,12 +143,12 @@ class Order(object):
             for identifier in identifiers_list:
                 if 'type' in identifier:
                     if identifier['type'].lower() not in allowed_identifers:
-                        error = 'urn:ietf:params:acme:error:unsupportedIdentifier'
+                        error = self.error_msg_dic['unsupportedidentifier']
                         break
                 else:
-                    error = 'urn:ietf:params:acme:error:malformed'
+                    error = self.error_msg_dic['malformed']
         else:
-            error = 'urn:ietf:params:acme:error:malformed'
+            error = self.error_msg_dic['malformed']
 
         self.logger.debug('Order._identifiers_check() done with {0}:'.format(error))
         return error
@@ -201,11 +196,11 @@ class Order(object):
                             detail = 'enrollment failed'
                     else:
                         code = 400
-                        message = 'urn:ietf:params:acme:error:badCSR'
+                        message = self.error_msg_dic['badcsr']
                         detail = 'csr is missing in payload'
                 else:
                     code = 403
-                    message = 'urn:ietf:params:acme:error:orderNotReady'
+                    message = self.error_msg_dic['ordernotready']
                     detail = 'Order is not ready'
             else:
                 self.logger.debug('polling request()')
@@ -223,7 +218,7 @@ class Order(object):
                         certificate_name = cert_dic['name']
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.error_msg_dic['malformed']
             detail = 'url is missing in protected'
 
         self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
@@ -240,26 +235,24 @@ class Order(object):
             csr = b64_url_recode(self.logger, csr)
 
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
-                # certificate = Certificate(self.debug, self.server_name, self.logger)
                 certificate_name = certificate.store_csr(order_name, csr)
                 if certificate_name:
                     (error, detail) = certificate.enroll_and_store(certificate_name, csr, order_name)
                     if not error:
                         code = 200
                         message = certificate_name
-                        # detail = None
                     else:
                         code = 400
                         message = error
-                        if message == 'urn:ietf:params:acme:error:serverInternal':
+                        if message == self.error_msg_dic['serverinternal']:
                             code = 500
                 else:
                     code = 500
-                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    message = self.error_msg_dic['serverinternal']
                     detail = 'CSR processing failed'
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:unauthorized'
+            message = self.error_msg_dic['unauthorized']
             detail = 'order: {0} not found'.format(order_name)
 
         self.logger.debug('Order._csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
@@ -284,12 +277,10 @@ class Order(object):
                 order_dic['status'] = tmp_dic['status']
             if 'expires' in tmp_dic:
                 order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
-            if 'notbefore' in tmp_dic:
-                if tmp_dic['notbefore'] != 0:
-                    order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
-            if 'notafter' in tmp_dic:
-                if tmp_dic['notafter'] != 0:
-                    order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
+            if 'notbefore' in tmp_dic and tmp_dic['notbefore'] != 0:
+                order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
+            if 'notafter' in tmp_dic and tmp_dic['notafter'] != 0:
+                order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
             if 'identifiers' in tmp_dic:
                 try:
                     order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
@@ -404,15 +395,15 @@ class Order(object):
                         (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
                     else:
                         code = 403
-                        message = 'urn:ietf:params:acme:error:orderNotReady'
+                        message = self.error_msg_dic['ordernotready']
                         detail = 'order not found'
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.error_msg_dic['malformed']
                     detail = 'order name is missing'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.error_msg_dic['malformed']
                 detail = 'url is missing in protected'
 
             if code == 200:
