@@ -168,7 +168,6 @@ class CAhandler(object):
                 ec.ECDSA(hashes.SHA256())
             )
         else:
-            # raise UnsupportedKey
             signature = None
             signature_algorithm = None
 
@@ -263,26 +262,29 @@ class CAhandler(object):
         b64_cert_bundle = None
         error = None
 
+        senvelope_field_name = 's:Envelope'
+        sbody_field_name = ['s:Body']
+
         try:
             resp = requests.post(self.soap_srv, headers=headers, verify=self.ca_bundle, data=payload, timeout=20)
             if resp.status_code == 200:
                 soap_dic = xmltodict.parse(resp.text)
                 try:
-                    b64_cert_bundle = soap_dic['s:Envelope']['s:Body']['RequestCertificateResponse']['RequestCertificateResult']['IssuedCertificate']
+                    b64_cert_bundle = soap_dic[senvelope_field_name][sbody_field_name]['RequestCertificateResponse']['RequestCertificateResult']['IssuedCertificate']
                 except Exception:
                     self.logger.error('CAhandler._soaprequest_send() - XML Parsing error')
-                    self.logger.debug('CAhandler._soaprequest_send(): {0}'.format(resp.text))
+                    self.logger.debug('CAhandler._soaprequest_send() xml2dict: {0}'.format(resp.text))
                     error = 'Parsing error'
             else:
                 self.logger.error('CAhandler._soaprequest_send(): http status_code {0}'.format(resp.status_code))
                 error = 'Server error'
                 try:
                     soap_dic = xmltodict.parse(resp.text)
-                    self.logger.error('CAhandler._soaprequest_send() - faultcode: {0}'.format(soap_dic['s:Envelope']['s:Body']['s:Fault']['faultcode']))
-                    self.logger.error('CAhandler._soaprequest_send() - faultstring: {0}'.format(soap_dic['s:Envelope']['s:Body']['s:Fault']['faultstring']))
+                    self.logger.error('CAhandler._soaprequest_send() - faultcode: {0}'.format(soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultcode']))
+                    self.logger.error('CAhandler._soaprequest_send() - faultstring: {0}'.format(soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultstring']))
                 except Exception:
                     self.logger.error('CAhandler._soaprequest_send() - unkown error')
-                    self.logger.debug('CAhandler._soaprequest_send(): {0}'.format(resp.text))
+                    self.logger.debug('CAhandler._soaprequest_send() unk: {0}'.format(resp.text))
 
         except Exception as err:
             self.logger.error('CAhandler._soaprequest_send(): {0}'.format(err))
@@ -309,8 +311,6 @@ class CAhandler(object):
 
         cert_list = []
         for cert in content.getComponentByName('certificates'):
-            # cert_obj = x509.load_der_x509_certificate(cert, default_backend())
-            # print(encoder.encode(cert))
             cert_obj = x509.load_der_x509_certificate(encoder.encode(cert), default_backend())
             cert_pem = cert_obj.public_bytes(serialization.Encoding.PEM)
             cert_list.append(convert_byte_to_string(cert_pem))
