@@ -7,7 +7,7 @@ import time
 import json
 import requests
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check
+from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
 
 
 class CAhandler(object):
@@ -19,6 +19,7 @@ class CAhandler(object):
         self.ca_bundle = True
         self.credential_dic = {'api_user': None, 'api_password': None}
         self.tsg_info_dic = {'name': None, 'id': None}
+        self.endpoint_dic = {'tsg': '/targetsystemgroups/'}
         self.template_info_dic = {'name': None, 'id': None}
         self.request_delta_treshold = 300
         self.headers = None
@@ -216,23 +217,17 @@ class CAhandler(object):
             self.error = 'api_host to be set in config file'
 
         if not self.error:
-            if 'api_user' in self.credential_dic and bool(self.credential_dic['api_user']):
-                pass
-            else:
+            if not bool('api_user' in self.credential_dic and bool(self.credential_dic['api_user'])):
                 self.logger.error('"api_user" to be set in config file')
                 self.error = 'api_user to be set in config file'
 
         if not self.error:
-            if 'api_password' in self.credential_dic and bool(self.credential_dic['api_password']):
-                pass
-            else:
+            if not bool('api_password' in self.credential_dic and bool(self.credential_dic['api_password'])):
                 self.logger.error('"api_password" to be set in config file')
                 self.error = 'api_password to be set in config file'
 
         if not self.error:
-            if 'name' in self.tsg_info_dic and bool(self.tsg_info_dic['name']):
-                pass
-            else:
+            if not bool('name' in self.tsg_info_dic and bool(self.tsg_info_dic['name'])):
                 self.logger.error('"tsg_name" to be set in config file')
                 self.error = 'tsg_name to be set in config file'
 
@@ -363,10 +358,9 @@ class CAhandler(object):
                             break
                     else:
                         for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
-                            if 'pkcs10' in _req:
-                                if _req['pkcs10'] == csr:
-                                    req_id = _req['requestId']
-                                    break
+                            if 'pkcs10' in _req and _req['pkcs10'] == csr:
+                                req_id = _req['requestId']
+                                break
         except Exception as err_:
             self.logger.error('_csr_id_lookup(): response incomplete: {0}'.format(err_))
 
@@ -387,7 +381,6 @@ class CAhandler(object):
             if api_response.ok:
                 json_dic = api_response.json()
                 if 'access_token' in json_dic:
-                    # self.token = json_dic['access_token']
                     self.headers = {"Authorization": "Bearer {0}".format(json_dic['access_token'])}
                     _username = json_dic.get('username', None)
                     _realms = json_dic.get('realms', None)
@@ -405,7 +398,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._request_import()')
         data_dic = {'pkcs10': csr}
         try:
-            result = self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
+            result = self._api_post(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
         except Exception as err_:
             self.logger.error('CAhandler._request_import() returned error: {0}'.format(str(err_)))
             result = None
@@ -415,7 +408,7 @@ class CAhandler(object):
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
         try:
-            result = requests.get(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            result = requests.get(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._unusedrequests_get() returned error: {0}'.format(str(err_)))
             result = None
@@ -516,7 +509,7 @@ class CAhandler(object):
                     if 'id' in self.template_info_dic and self.template_info_dic['id']:
                         data_dic['template'] = {'selectedId': self.template_info_dic['id']}
 
-                    self._api_post(self.api_host + '/targetsystemgroups/' + str(self.tsg_info_dic['id']) + '/enroll', data_dic)
+                    self._api_post(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/enroll', data_dic)
                     # wait for certificate enrollment to get finished
                     time.sleep(self.wait_interval)
                     cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
@@ -562,6 +555,7 @@ class CAhandler(object):
             self.logger.error('CAhandler.revoke(): request get aborted with err: {0}'.format(err_))
             cert_list = []
 
+        err_dic = error_dic_get(self.logger)
         if 'certificates' in cert_list:
             try:
                 cert_id = cert_list['certificates'][0]['certificateId']
@@ -573,15 +567,15 @@ class CAhandler(object):
                 except Exception as err:
                     self.logger.error('CAhandler.revoke(): _api_post got aborted with err: {0}'.format(err))
                     code = 500
-                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    message = err_dic['serverinternal']
                     detail = 'Revocation operation failed'
             except Exception:
                 code = 404
-                message = 'urn:ietf:params:acme:error:serverInternal'
+                message = err_dic['serverinternal']
                 detail = 'CertificateID could not be found'
         else:
             code = 404
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = err_dic['serverinternal']
             detail = 'Cert could not be found'
 
         return (code, message, detail)
