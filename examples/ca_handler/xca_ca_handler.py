@@ -8,7 +8,7 @@ import uuid
 import json
 from OpenSSL import crypto
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get
 
 
 def dict_from_row(row):
@@ -155,9 +155,8 @@ class CAhandler(object):
         else:
             error = 'xdb_file must be specified in config file'
 
-        if not error:
-            if not self.issuing_ca_name:
-                error = 'issuing_ca_name must be set in config file'
+        if not error and not self.issuing_ca_name:
+            error = 'issuing_ca_name must be set in config file'
 
         if error:
             self.logger.debug('CAhandler config error: {0}'.format(error))
@@ -206,7 +205,7 @@ class CAhandler(object):
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
-        self.logger.debug('CAhandler._csr_insert()')
+        self.logger.debug('CAhandler._csr_import()')
 
         csr_info = self._csr_search('request', csr)
 
@@ -221,7 +220,7 @@ class CAhandler(object):
             csr_info = {'item': row_id, 'signed': 1, 'request': csr}
             self._csr_insert(csr_info)
 
-        self.logger.debug('CAhandler._csr_insert()')
+        self.logger.debug('CAhandler._csr_import() ended')
         return csr_info
 
     def _cert_insert(self, cert_dic):
@@ -853,6 +852,8 @@ class CAhandler(object):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
+        err_msg_dic = error_dic_get(self.logger)
+
         if self.xdb_file:
             # load ca cert and key
             (_ca_key, _ca_cert, ca_id) = self._ca_load()
@@ -872,19 +873,19 @@ class CAhandler(object):
                         detail = None
                     else:
                         code = 500
-                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        message = err_msg_dic['serverinternal']
                         detail = 'database update failed'
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                    message = err_msg_dic['alreadyrevoked']
                     detail = 'Certificate has already been revoked'
             else:
                 code = 500
-                message = 'urn:ietf:params:acme:error:serverInternal'
+                message = err_msg_dic['serverinternal']
                 detail = 'certificate lookup failed'
         else:
             code = 500
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = err_msg_dic['serverinternal']
             detail = 'configuration error'
 
         self.logger.debug('Certificate.revoke() ended')

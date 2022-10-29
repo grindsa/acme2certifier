@@ -124,14 +124,14 @@ class DBstore(object):
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
         return authz_list
 
-    def authorizations_expired_search(self, akey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def authorizations_expired_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(akey, value))
+        self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(mkey, value))
         # quick hack
         if operant == '<=':
-            akey = '{0}__lte'.format(akey)
+            mkey = '{0}__lte'.format(mkey)
         self.logger.debug('DBStore.authorizations_invalid_search() ended')
-        return Authorization.objects.filter(**{akey: value}).exclude(status__name='expired').values(*vlist)
+        return Authorization.objects.filter(**{mkey: value}).exclude(status__name='expired').values(*vlist)
 
     def authorization_update(self, data_dic):
         """ update existing authorization """
@@ -261,13 +261,13 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
-    def certificates_search(self, ckey, value, vlist=('name', 'csr', 'cert', 'order__name'), operator=None):
+    def certificates_search(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name'), operator=None):
         """ search certificate based on "something" """
-        self.logger.debug('DBStore.certificates_search({0}:{1})'.format(ckey, value))
+        self.logger.debug('DBStore.certificates_search({0}:{1})'.format(mkey, value))
         # quick hack
         if operator == '<=':
-            ckey = '{0}__lte'.format(ckey)
-        return Certificate.objects.filter(**{ckey: value}).values(*vlist)
+            mkey = '{0}__lte'.format(mkey)
+        return Certificate.objects.filter(**{mkey: value}).values(*vlist)
 
     def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
         """ search account for a given id """
@@ -423,10 +423,10 @@ class DBstore(object):
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def orders_invalid_search(self, okey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def orders_invalid_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(okey, value))
+        self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(mkey, value))
         # quick hack
         if operant == '<=':
-            okey = '{0}__lte'.format(okey)
-        return Order.objects.filter(**{okey: value}, status__id__gt=1).values(*vlist)
+            mkey = '{0}__lte'.format(mkey)
+        return Order.objects.filter(**{mkey: value}, status__id__gt=1).values(*vlist)
