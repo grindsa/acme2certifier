@@ -3,7 +3,7 @@
 """ Signature class """
 # pylint: disable=c0209
 from __future__ import print_function
-from acme_srv.helper import signature_check, load_config
+from acme_srv.helper import signature_check, load_config, error_dic_get
 from acme_srv.db_handler import DBstore
 
 
@@ -14,6 +14,7 @@ class Signature(object):
         self.debug = debug
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
+        self.err_msg_dic = error_dic_get(self.logger)
         self.server_name = srv_name
         cfg = load_config()
         if 'Directory' in cfg:
@@ -47,6 +48,7 @@ class Signature(object):
         self.logger.debug('Signature.cli_check({0})'.format(aname))
         result = False
         error = None
+
         if content:
             if aname:
                 self.logger.debug('check signature against account key')
@@ -54,11 +56,11 @@ class Signature(object):
                 if pub_key:
                     (result, error) = signature_check(self.logger, content, pub_key)
                 else:
-                    error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    error = self.err_msg_dic['accountdoesnotexist']
             else:
-                error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                error = self.err_msg_dic['accountdoesnotexist']
         else:
-            error = 'urn:ietf:params:acme:error:malformed'
+            error = self.err_msg_dic['malformed']
 
         self.logger.debug('Signature.cli_check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)
@@ -75,18 +77,18 @@ class Signature(object):
                 if pub_key:
                     (result, error) = signature_check(self.logger, content, pub_key)
                 else:
-                    error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    error = self.err_msg_dic['accountdoesnotexist']
             elif use_emb_key:
                 self.logger.debug('check signature against key includedn in jwk')
                 if 'jwk' in protected:
                     pub_key = protected['jwk']
                     (result, error) = signature_check(self.logger, content, pub_key)
                 else:
-                    error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                    error = self.err_msg_dic['accountdoesnotexist']
             else:
-                error = 'urn:ietf:params:acme:error:accountDoesNotExist'
+                error = self.err_msg_dic['accountdoesnotexist']
         else:
-            error = 'urn:ietf:params:acme:error:malformed'
+            error = self.err_msg_dic['malformed']
 
         self.logger.debug('Signature.check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)
