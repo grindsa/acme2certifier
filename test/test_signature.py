@@ -136,7 +136,7 @@ class TestACMEHandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
         mock_load_cfg.return_value = parser
-        self.signature.__init__()
+        self.signature.__init__(False, 'http://tester.local', self.logger)
         self.assertEqual('url_prefix/acme/revokecert', self.signature.revocation_path )
 
     @patch('acme_srv.signature.load_config')
@@ -145,7 +145,7 @@ class TestACMEHandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
-        self.signature.__init__()
+        self.signature.__init__(False, 'http://tester.local', self.logger)
         self.assertEqual('/acme/revokecert', self.signature.revocation_path )
 
     def test_018_signature__cli_jwk_load(self):
