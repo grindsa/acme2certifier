@@ -199,14 +199,15 @@ class DBstore(object):
         self.cursor.execute('''
             CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
         ''')
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'invalid'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'pending'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'ready'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'processing'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'valid'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
-        self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
+        insert_status_statement = '''INSERT INTO status(name) VALUES(:name)'''
+        self.cursor.execute(insert_status_statement, {'name': 'invalid'})
+        self.cursor.execute(insert_status_statement, {'name': 'pending'})
+        self.cursor.execute(insert_status_statement, {'name': 'ready'})
+        self.cursor.execute(insert_status_statement, {'name': 'processing'})
+        self.cursor.execute(insert_status_statement, {'name': 'valid'})
+        self.cursor.execute(insert_status_statement, {'name': 'expired'})
+        self.cursor.execute(insert_status_statement, {'name': 'deactivated'})
+        self.cursor.execute(insert_status_statement, {'name': 'revoked'})
         self.logger.debug('create orders')
         self.cursor.execute('''
             CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -742,8 +743,6 @@ class DBstore(object):
             if lookup:
                 for ele in vlist:
                     result[ele] = lookup[ele]
-                    # if ele == 'order__name':
-                    #    result['order'] = lookup[ele]
             cert_list.append(result)
 
         self._db_close()
@@ -955,9 +954,10 @@ class DBstore(object):
         self.cursor.execute(pre_statement, ['deactivated'])
         if not self.cursor.fetchone():
             self.logger.info('adding additional status')
-            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'expired'})
-            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'deactivated'})
-            self.cursor.execute('''INSERT INTO status(name) VALUES(:name)''', {'name': 'revoked'})
+            insert_status_statement = '''INSERT INTO status(name) VALUES(:name)'''
+            self.cursor.execute(insert_status_statement, {'name': 'expired'})
+            self.cursor.execute(insert_status_statement, {'name': 'deactivated'})
+            self.cursor.execute(insert_status_statement, {'name': 'revoked'})
 
         self.cursor.execute('''PRAGMA table_info(challenge)''')
         challenges_column_list = []
@@ -980,19 +980,18 @@ class DBstore(object):
         # change identifier field to text to remove length restriction
         self.cursor.execute('''PRAGMA table_info(orders)''')
         for column in self.cursor.fetchall():
-            if column[1] == 'identifiers':
-                if 'varchar' in column[2].lower():
-                    self.logger.info('alter order table - change identifier field type to TEXT')
-                    self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
-                    self.cursor.execute('''
-                        CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                    ''')
-                    self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
-                    self.cursor.execute('''DROP TABLE tmp''')
+            if column[1] == 'identifiers' and 'varchar' in column[2].lower():
+                self.logger.info('alter order table - change identifier field type to TEXT')
+                self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
+                self.cursor.execute('''
+                    CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                ''')
+                self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
+                self.cursor.execute('''DROP TABLE tmp''')
 
         # housekeeping table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
-        if not self.cursor.fetchone()[0] == 1:
+        if self.cursor.fetchone()[0] != 1:
             self.logger.info('create housekeeping table and trigger')
             self.cursor.execute('''
                 CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -1011,7 +1010,7 @@ class DBstore(object):
 
         # cahandler table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
-        if not self.cursor.fetchone()[0] == 1:
+        if self.cursor.fetchone()[0] != 1:
             self.logger.info('create cahandler table')
             self.cursor.execute('''
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -1019,7 +1018,7 @@ class DBstore(object):
 
         # cliaccount table
         self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cliaccount'")
-        if not self.cursor.fetchone()[0] == 1:
+        if self.cursor.fetchone()[0] != 1:
             self.logger.info('create cliaccount table')
             self.cursor.execute('''
                 CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
