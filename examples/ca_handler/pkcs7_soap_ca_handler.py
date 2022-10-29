@@ -263,7 +263,7 @@ class CAhandler(object):
         error = None
 
         senvelope_field_name = 's:Envelope'
-        sbody_field_name = ['s:Body']
+        sbody_field_name = 's:Body'
 
         try:
             resp = requests.post(self.soap_srv, headers=headers, verify=self.ca_bundle, data=payload, timeout=20)

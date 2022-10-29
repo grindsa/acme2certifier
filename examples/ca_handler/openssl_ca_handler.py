@@ -224,10 +224,8 @@ class CAhandler(object):
             else:
                 error = 'cert_save_path must be specified in config file'
 
-        if not error:
-            if self.openssl_conf:
-                if not os.path.exists(self.openssl_conf):
-                    error = 'openssl_conf {0} does not exist'.format(self.openssl_conf)
+        if not error and self.openssl_conf and not os.path.exists(self.openssl_conf):
+            error = 'openssl_conf {0} does not exist'.format(self.openssl_conf)
 
         if not error and not self.ca_cert_chain_list:
             error = 'ca_cert_chain_list must be specified in config file'
@@ -580,9 +578,7 @@ class CAhandler(object):
             # result = self._certificate_chain_verify(cert, ca_cert)
 
             # proceed if the cert and ca-cert belong together
-            # if not result:
             serial = cert_serial_get(self.logger, cert)
-            # serial = serial.replace('0x', '')
             if ca_key and ca_cert and serial:
                 serial = hex(serial).replace('0x', '')
                 if os.path.exists(self.issuer_dict['issuing_ca_crl']):
@@ -616,10 +612,6 @@ class CAhandler(object):
                 code = 400
                 message = 'urn:ietf:params:acme:error:serverInternal'
                 detail = 'configuration error'
-            # else:
-            #    code = 400
-            #    message = 'urn:ietf:params:acme:error:serverInternal'
-            #    detail = result
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:serverInternal'
