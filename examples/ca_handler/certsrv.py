@@ -16,6 +16,8 @@ __version__ = "2.1.1"
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 30
+UNKOWN_ERR_MSG = "An unknown error occured"
+DEPRECATIONWARNING = "This function is deprecated. Use the method on the Certsrv class instead"
 
 
 class RequestDeniedException(Exception):
@@ -199,7 +201,7 @@ class Certsrv(object):
                         r'The disposition message is "([^"]+)', response.text
                     ).group(1)
                 except AttributeError:
-                    error = "An unknown error occured"
+                    error = UNKOWN_ERR_MSG
                 # pylint: disable=w0707
                 raise RequestDeniedException(error, response.text)
 
@@ -235,7 +237,7 @@ class Certsrv(object):
                 ).group(1)
 
             except AttributeError:
-                error = "An unknown error occured"
+                error = UNKOWN_ERR_MSG
             raise CouldNotRetrieveCertificateException(error, response.text)
         else:
             return response.content
@@ -266,7 +268,7 @@ class Certsrv(object):
 
         if response.headers["Content-Type"] != "application/pkix-cert":
             raise CouldNotRetrieveCertificateException(
-                "An unknown error occured", response.content
+                UNKOWN_ERR_MSG, response.content
             )
 
         return response.content
@@ -296,7 +298,7 @@ class Certsrv(object):
 
         if chain_response.headers["Content-Type"] != "application/x-pkcs7-certificates":
             raise CouldNotRetrieveCertificateException(
-                "An unknown error occured", chain_response.content
+                UNKOWN_ERR_MSG, chain_response.content
             )
 
         return chain_response.content
@@ -384,7 +386,7 @@ def get_cert(server, csr, template, username, password, encoding="b64", **kwargs
 
     """
     warnings.warn(
-        "This function is deprecated. Use the method on the Certsrv class instead",
+        DEPRECATIONWARNING,
         DeprecationWarning,
     )
     certsrv = Certsrv(server, username, password, **kwargs)
@@ -419,7 +421,7 @@ def get_existing_cert(server, req_id, username, password, encoding="b64", **kwar
         This method is deprecated.
     """
     warnings.warn(
-        "This function is deprecated. Use the method on the Certsrv class instead",
+        DEPRECATIONWARNING,
         DeprecationWarning,
     )
     certsrv = Certsrv(server, username, password, **kwargs)
@@ -448,7 +450,7 @@ def get_ca_cert(server, username, password, encoding="b64", **kwargs):
         This method is deprecated.
     """
     warnings.warn(
-        "This function is deprecated. Use the method on the Certsrv class instead",
+        DEPRECATIONWARNING,
         DeprecationWarning,
     )
     certsrv = Certsrv(server, username, password, **kwargs)
@@ -477,7 +479,7 @@ def get_chain(server, username, password, encoding="bin", **kwargs):
         This method is deprecated.
     """
     warnings.warn(
-        "This function is deprecated. Use the method on the Certsrv class instead",
+        DEPRECATIONWARNING,
         DeprecationWarning,
     )
     certsrv = Certsrv(server, username, password, **kwargs)
@@ -504,7 +506,7 @@ def check_credentials(server, username, password, **kwargs):
         This method is deprecated.
     """
     warnings.warn(
-        "This function is deprecated. Use the method on the Certsrv class instead",
+        DEPRECATIONWARNING,
         DeprecationWarning,
     )
     certsrv = Certsrv(server, username, password, **kwargs)
