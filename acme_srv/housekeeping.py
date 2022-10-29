@@ -10,7 +10,7 @@ from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
 from acme_srv.message import Message
 from acme_srv.order import Order
-from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now
+from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now, error_dic_get
 from acme_srv.version import __version__
 
 
@@ -20,6 +20,7 @@ class Housekeeping(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, None, self.logger)
+        self.error_msg_dic = error_dic_get(self.logger)
         self.debug = debug
 
     def __enter__(self):
@@ -103,15 +104,15 @@ class Housekeeping(object):
                     code = 200
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.error_msg_dic['malformed']
                     detail = 'unknown report format'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.error_msg_dic['malformed']
                 detail = 'unknown report type'
         else:
             code = 403
-            message = 'urn:ietf:params:acme:error:unauthorized'
+            message = self.error_msg_dic['unauthorized']
             detail = 'No permissions to download reports'
 
         self.logger.debug('Housekeeping._clireport_get() returned with: {0}/{1}'.format(code, detail))
@@ -122,46 +123,55 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._config_load()')
         config_dic = load_config()
         if 'Housekeeping' in config_dic:
-            pass
+            self.logger.debug('Housekeeping._config_load()')
 
     def _convert_data(self, cert_list):
         """ convert data from uts to real date """
         self.logger.debug('Housekeeping._convert_dates()')
+
+        cert_serial_field = 'certificate.serial'
+        cert_issue_date_field = 'certificate.issue_uts'
+        cert_issue_dateh_field = 'certificate.issue_date'
+        cert_expire_date_field = 'certificate.expire_uts'
+        cert_expire_dateh_field = 'certificate.expire_date'
+        cert_raw_field = 'certificate.cert_raw'
+        date_format = '%Y-%m-%d %H:%M:%S'
+
         for cert in cert_list:
             expire_list = ('order.expires', 'authorization.expires', 'challenge.expires')
             for ele in expire_list:
                 if ele in cert and cert[ele]:
-                    cert[ele] = uts_to_date_utc(cert[ele], '%Y-%m-%d %H:%M:%S')
+                    cert[ele] = uts_to_date_utc(cert[ele], date_format)
 
             # set uts to 0 if we do not have them in dictionary
-            if 'certificate.issue_uts' not in cert or 'certificate.expire_uts' not in cert:
-                cert['certificate.issue_uts'] = 0
-                cert['certificate.expire_uts'] = 0
+            if cert_issue_date_field not in cert or cert_expire_date_field not in cert:
+                cert[cert_issue_date_field] = 0
+                cert[cert_expire_date_field] = 0
 
             # if uts is zero we try to get the dates from certificate
-            if cert['certificate.issue_uts'] == 0 or cert['certificate.expire_uts'] == 0:
+            if cert[cert_issue_date_field] == 0 or cert[cert_expire_date_field] == 0:
                 # cover cases without certificate in dict
-                if 'certificate.cert_raw' in cert:
-                    (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['certificate.cert_raw'])
-                    cert['certificate.issue_uts'] = issue_uts
-                    cert['certificate.expire_uts'] = expire_uts
+                if cert_raw_field in cert:
+                    (issue_uts, expire_uts) = cert_dates_get(self.logger, cert[cert_raw_field])
+                    cert[cert_issue_date_field] = issue_uts
+                    cert[cert_expire_date_field] = expire_uts
                 else:
-                    cert['certificate.issue_uts'] = 0
-                    cert['certificate.expire_uts'] = 0
+                    cert[cert_issue_date_field] = 0
+                    cert[cert_expire_date_field] = 0
 
-            if cert['certificate.issue_uts'] > 0 and cert['certificate.expire_uts'] > 0:
-                cert['certificate.issue_date'] = uts_to_date_utc(cert['certificate.issue_uts'], '%Y-%m-%d %H:%M:%S')
-                cert['certificate.expire_date'] = uts_to_date_utc(cert['certificate.expire_uts'], '%Y-%m-%d %H:%M:%S')
+            if cert[cert_issue_date_field] > 0 and cert[cert_expire_date_field] > 0:
+                cert[cert_issue_dateh_field] = uts_to_date_utc(cert[cert_issue_date_field], date_format)
+                cert[cert_expire_dateh_field] = uts_to_date_utc(cert[cert_expire_date_field], date_format)
             else:
-                cert['certificate.issue_date'] = ''
-                cert['certificate.expire_date'] = ''
+                cert[cert_issue_dateh_field] = ''
+                cert[cert_expire_dateh_field] = ''
 
             # add serial number
-            if 'certificate.cert_raw' in cert:
+            if cert_raw_field in cert:
                 try:
-                    cert['certificate.serial'] = cert_serial_get(self.logger, cert['certificate.cert_raw'])
+                    cert[cert_serial_field] = cert_serial_get(self.logger, cert[cert_raw_field])
                 except Exception:
-                    cert['certificate.serial'] = ''
+                    cert[cert_serial_field] = ''
 
         return cert_list
 
@@ -249,36 +259,41 @@ class Housekeeping(object):
 
         tmp_json = {}
         error_list = []
+
+        account_field = 'account.name'
+        order_field = 'order.name'
+        authz_field = 'authorization.name'
+        chall_field = 'challenge.name'
         for ele in account_list:
 
             # we have to ensure that all keys we need to nest are in
-            if ele.keys() >= {'account.name', 'order.name', 'authorization.name', 'challenge.name'}:
+            if ele.keys() >= {account_field, order_field, authz_field, chall_field}:
 
                 # create account entry in case it does not exist
-                if ele['account.name'] not in tmp_json:
-                    tmp_json[ele['account.name']] = {}
-                    tmp_json[ele['account.name']]['orders_dic'] = {}
+                if ele[account_field] not in tmp_json:
+                    tmp_json[ele[account_field]] = {}
+                    tmp_json[ele[account_field]]['orders_dic'] = {}
 
-                if ele['order.name'] not in tmp_json[ele['account.name']]['orders_dic']:
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']] = {}
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'] = {}
+                if ele[order_field] not in tmp_json[ele[account_field]]['orders_dic']:
+                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]] = {}
+                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'] = {}
 
-                if ele['authorization.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic']:
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']] = {}
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'] = {}
+                if ele[authz_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic']:
+                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]] = {}
+                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'] = {}
 
-                if ele['challenge.name'] not in tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic']:
-                    tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']] = {}
+                if ele[chall_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic']:
+                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]] = {}
 
                 for value in ele:
                     if value.startswith('account.'):
-                        tmp_json[ele['account.name']][value] = ele[value]
+                        tmp_json[ele[account_field]][value] = ele[value]
                     elif value.startswith('order.'):
-                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']][value] = ele[value]
+                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]][value] = ele[value]
                     elif value.startswith('authorization.'):
-                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']][value] = ele[value]
+                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]][value] = ele[value]
                     elif value.startswith('challenge'):
-                        tmp_json[ele['account.name']]['orders_dic'][ele['order.name']]['authorizations_dic'][ele['authorization.name']]['challenges_dic'][ele['challenge.name']][value] = ele[value]
+                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]][value] = ele[value]
 
             else:
                 error_list.append(ele)
