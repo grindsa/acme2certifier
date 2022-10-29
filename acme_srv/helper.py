@@ -696,6 +696,7 @@ def error_dic_get(logger):
     logger.debug('error_dict_get()')
     # this is the main dictionary
     error_dic = {
+        'badcsr': 'urn:ietf:params:acme:error:badCSR',
         'malformed': 'urn:ietf:params:acme:error:malformed',
         'invalidcontact': 'urn:ietf:params:acme:error:invalidContact',
         'accountdoesnotexist': 'urn:ietf:params:acme:error:accountDoesNotExist',
@@ -704,7 +705,9 @@ def error_dic_get(logger):
         'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
         'useractionrequired': 'urn:ietf:params:acme:error:userActionRequired',
         'alreadyrevoked' : 'urn:ietf:params:acme:error:alreadyRevoked',
-        'serverinternal': 'urn:ietf:params:acme:error:serverInternal'}
+        'serverinternal': 'urn:ietf:params:acme:error:serverInternal',
+        'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
+        'ordernotready': 'urn:ietf:params:acme:error:orderNotReady'}
 
     return error_dic
 
