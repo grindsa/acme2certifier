@@ -4,7 +4,7 @@
 # pylint: disable=C0209
 from __future__ import print_function
 import json
-from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check
+from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -14,12 +14,12 @@ class Challenge(object):
     """ Challenge handler """
 
     def __init__(self, debug=None, srv_name=None, logger=None, expiry=3600):
-        # self.debug = debug
         self.server_name = srv_name
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, self.server_name, self.logger)
         self.path_dic = {'chall_path': '/acme/chall/', 'authz_path': '/acme/authz/'}
+        self.err_msg_dic = error_dic_get(self.logger)
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.challenge_validation_timeout = 10
@@ -163,9 +163,8 @@ class Challenge(object):
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
 
-        if 'Directory' in config_dic:
-            if 'url_prefix' in config_dic['Directory']:
-                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
+            self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
@@ -265,11 +264,10 @@ class Challenge(object):
             # authorization update to valid state
             self._update_authz(challenge_name, {'status': 'valid'})
 
-        if payload:
-            if 'keyAuthorization' in payload:
-                # update challenge to ready state
-                data_dic = {'name': challenge_name, 'keyauthorization': payload['keyAuthorization']}
-                self._update(data_dic)
+        if payload and 'keyAuthorization' in payload:
+            # update challenge to ready state
+            data_dic = {'name': challenge_name, 'keyauthorization': payload['keyAuthorization']}
+            self._update(data_dic)
 
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
@@ -402,18 +400,18 @@ class Challenge(object):
                     # check if we got a SPC token in the challenge request
                     if not bool(payload['atc']):
                         code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
+                        message = self.err_msg_dic['malformed']
                         detail = 'SPC token is missing'
                     else:
                         code = 200
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'atc claim is missing'
             else:
                 code = 200
         else:
-            message = 'urn:ietf:params:acme:error:malformed'
+            message = self.err_msg_dic['malformed']
             detail = 'invalid challenge: {0}'.format(challenge_dic)
 
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
@@ -520,15 +518,15 @@ class Challenge(object):
                             response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
                     else:
                         code = 400
-                        message = 'urn:ietf:params:acme:error:malformed'
+                        message = self.err_msg_dic['malformed']
                         detail = 'invalid challenge: {0}'.format(challenge_name)
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
+                    message = self.err_msg_dic['malformed']
                     detail = 'could not get challenge'
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
