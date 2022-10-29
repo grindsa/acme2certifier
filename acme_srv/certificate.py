@@ -4,7 +4,7 @@
 """ certificate class """
 from __future__ import print_function
 import json
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -19,6 +19,7 @@ class Certificate(object):
         self.logger = logger
         self.cahandler = None
         self.dbstore = DBstore(self.debug, self.logger)
+        self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
         self.ignore_pre_hook_failure = False
         self.ignore_post_hook_failure = True
@@ -174,9 +175,8 @@ class Certificate(object):
                 except Exception as err_:
                     self.logger.error('acme2certifier Certificate._config_load() enrollment_timeout parsing error: {0}'.format(err_))
 
-        if 'Directory' in config_dic:
-            if 'url_prefix' in config_dic['Directory']:
-                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
+            self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
@@ -299,7 +299,7 @@ class Certificate(object):
                 if poll_identifier:
                     detail = poll_identifier
                 else:
-                    error = 'urn:ietf:params:acme:error:serverInternal'
+                    error = self.err_msg_dic['serverinternal']
 
         if self.hooks:
             try:
@@ -483,7 +483,7 @@ class Certificate(object):
             rev_reason = self._revocation_reason_check(payload['reason'])
             # successful
             if not rev_reason:
-                error = 'urn:ietf:params:acme:error:badRevocationReason'
+                error = self.err_msg_dic['badrevocationreason']
         else:
             # set revocation reason to unspecified
             rev_reason = 'unspecified'
@@ -503,7 +503,7 @@ class Certificate(object):
                     # all good set code to 200
                     code = 200
                 else:
-                    error = 'urn:ietf:params:acme:error:unauthorized'
+                    error = self.err_msg_dic['unauthorized']
 
         self.logger.debug('Certificate._revocation_request_validate() ended with: {0}, {1}'.format(code, error))
         return (code, error)
@@ -632,7 +632,7 @@ class Certificate(object):
                 except Exception as err_:
                     self.logger.error('acme2certifier database error in Certificate.enroll_and_store(): split of {0} failed with err: {1}'.format(enroll_result, err_))
                     result = None
-                    error = 'urn:ietf:params:acme:error:serverInternal'
+                    error = self.err_msg_dic['serverinternal']
                     detail = 'unexpected enrollment result'
             else:
                 result = None
@@ -640,7 +640,7 @@ class Certificate(object):
                 detail = 'timeout'
         else:
             result = None
-            error = 'urn:ietf:params:acme:badCSR'
+            error = self.err_msg_dic['badcsr']
             detail = 'CSR validation failed'
 
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
@@ -664,18 +664,18 @@ class Certificate(object):
                     response_dic['header']['Content-Type'] = 'application/pem-certificate-chain'
                 else:
                     response_dic['code'] = 500
-                    response_dic['data'] = 'urn:ietf:params:acme:error:serverInternal'
+                    response_dic['data'] = self.err_msg_dic['serverinternal']
             elif certificate_dic['order__status_id'] == 4:
                 # order status is processing - ratelimiting
                 response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after)}
                 response_dic['code'] = 403
-                response_dic['data'] = 'urn:ietf:params:acme:error:rateLimited'
+                response_dic['data'] = self.err_msg_dic['ratelimited']
             else:
                 response_dic['code'] = 403
-                response_dic['data'] = 'urn:ietf:params:acme:error:orderNotReady'
+                response_dic['data'] = self.err_msg_dic['ordernotready']
         else:
             response_dic['code'] = 500
-            response_dic['data'] = 'urn:ietf:params:acme:error:serverInternal'
+            response_dic['data'] = self.err_msg_dic['serverinternal']
 
         self.logger.debug('Certificate.new_get({0}) ended'.format(response_dic['code']))
 
@@ -698,7 +698,7 @@ class Certificate(object):
             else:
                 response_dic['code'] = code = 400
                 # pylint: disable=w0612, w0622
-                response_dic['data'] = 'urn:ietf:params:acme:error:malformed'
+                response_dic['data'] = self.err_msg_dic['malformed']
                 detail = 'url missing in protected header'
 
         # prepare/enrich response
@@ -743,7 +743,7 @@ class Certificate(object):
             else:
                 # message could not get decoded
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
+                message = self.err_msg_dic['malformed']
                 detail = 'certificate not found'
 
         # prepare/enrich response

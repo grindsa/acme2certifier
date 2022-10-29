@@ -1581,10 +1581,12 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             'externalaccountrequired': 'urn:ietf:params:acme:error:externalAccountRequired',
             'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
             'useractionrequired': 'urn:ietf:params:acme:error:userActionRequired',
-            'alreadyrevoked' : 'urn:ietf:params:acme:error:alreadyRevoked',
+            'alreadyrevoked': 'urn:ietf:params:acme:error:alreadyRevoked',
             'serverinternal': 'urn:ietf:params:acme:error:serverInternal',
             'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
-            'ordernotready': 'urn:ietf:params:acme:error:orderNotReady'}
+            'ordernotready': 'urn:ietf:params:acme:error:orderNotReady',
+            'ratelimited': 'urn:ietf:params:acme:error:rateLimited',
+            'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
         self.assertEqual(result, self.error_dic_get(self.logger))
 
 if __name__ == '__main__':

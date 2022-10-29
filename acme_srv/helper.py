@@ -705,7 +705,9 @@ def error_dic_get(logger):
         'alreadyrevoked': 'urn:ietf:params:acme:error:alreadyRevoked',
         'serverinternal': 'urn:ietf:params:acme:error:serverInternal',
         'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
-        'ordernotready': 'urn:ietf:params:acme:error:orderNotReady'}
+        'ordernotready': 'urn:ietf:params:acme:error:orderNotReady',
+        'ratelimited': 'urn:ietf:params:acme:error:rateLimited',
+        'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
 
     return error_dic
 
