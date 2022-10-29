@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Directory class """
+# pylint: disable=c0209, e0401, r0913
 from __future__ import print_function
 import uuid
 from .version import __version__, __dbversion__
@@ -42,12 +43,10 @@ class Directory(object):
                 self.tos_url = config_dic['Directory']['tos_url']
             if 'db_check' in config_dic['Directory']:
                 self.db_check = config_dic.getboolean('Directory', 'db_check', fallback=False)
-        if 'EABhandler' in config_dic:
-            if 'eab_handler_file' in config_dic['EABhandler']:
-                self.eab = True
-        if 'Directory' in config_dic:
-            if 'url_prefix' in config_dic['Directory']:
-                self.url_prefix = config_dic['Directory']['url_prefix']
+        if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
+            self.eab = True
+        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
+            self.url_prefix = config_dic['Directory']['url_prefix']
 
         self.logger.debug('CAhandler._config_load() ended')
 
