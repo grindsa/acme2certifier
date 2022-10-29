@@ -36,6 +36,9 @@ import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
 
 
+USER_AGENT = 'acme2certifier/{0}'.format(__version__)
+
+
 def b64decode_pad(logger, string):
     """ b64 decoding and padding of missing "=" """
     logger.debug('b64decode_pad()')
@@ -81,8 +84,6 @@ def build_pem_file(logger, existing, certificate, wrap, csr=False):
     logger.debug('build_pem_file()')
     if csr:
         pem_file = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
-        # req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_ASN1, base64.b64decode(certificate))
-        # pem_file = convert_byte_to_string(OpenSSL.crypto.dump_certificate_request(OpenSSL.crypto.FILETYPE_PEM,req))
     else:
         if existing:
             if wrap:
@@ -506,9 +507,8 @@ def logger_info(logger, addr, locator, dat_dic):
     # create a copy of the dictionary
     data_dic = copy.deepcopy(dat_dic)
 
-    if 'header' in data_dic:
-        if 'Replay-Nonce' in data_dic['header']:
-            data_dic['header']['Replay-Nonce'] = '- modified -'
+    if 'header' in data_dic and 'Replay-Nonce' in data_dic['header']:
+        data_dic['header']['Replay-Nonce'] = '- modified -'
 
     if 'data' in data_dic:
         # remove cert from log entry
@@ -544,9 +544,8 @@ def logger_setup(debug):
 
     # define standard log format
     log_format = '%(message)s'
-    if 'Helper' in config_dic:
-        if 'log_format' in config_dic['Helper']:
-            log_format = config_dic['Helper']['log_format']
+    if 'Helper' in config_dic and 'log_format' in config_dic['Helper']:
+        log_format = config_dic['Helper']['log_format']
 
     logging.basicConfig(
         format=log_format,
@@ -634,7 +633,6 @@ def signature_check(logger, message, pub_key, json_=False):
     else:
         error = 'No key specified.'
 
-    # return result
     return (result, error)
 
 
@@ -756,7 +754,7 @@ def url_get_with_own_dns(logger, url, verify=True):
     connection._orig_create_connection = connection.create_connection
     connection.create_connection = patched_create_connection
     try:
-        req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)})
+        req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT})
         result = req.text
     except Exception as err_:
         result = None
@@ -785,7 +783,7 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, t
         result = url_get_with_own_dns(logger, url, verify)
     else:
         try:
-            req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
+            req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, proxies=proxy_list)
             result = req.text
         except Exception as err_:
             logger.debug('url_get({0}): error'.format(err_))
@@ -794,7 +792,7 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, t
             old_gai_family = urllib3_cn.allowed_gai_family
             try:
                 urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'acme2certifier/{0}'.format(__version__)}, proxies=proxy_list)
+                req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, proxies=proxy_list)
                 result = req.text
             except Exception as err_:
                 result = None
@@ -814,7 +812,6 @@ def txt_get(logger, fqdn, dns_srv=None):
         dns.resolver.default_resolver.nameservers = dns_srv
     txt_record_list = []
     try:
-        # result = dns.resolver.query(fqdn, 'TXT')[0].strings[0]
         response = dns.resolver.query(fqdn, 'TXT')
         for rrecord in response:
             txt_record_list.append(rrecord.strings[0])
@@ -825,7 +822,7 @@ def txt_get(logger, fqdn, dns_srv=None):
 
 
 def uts_now():
-    """ return unixtimestamp in utc """
+    """ unixtimestamp in utc """
     return calendar.timegm(datetime.utcnow().utctimetuple())
 
 
