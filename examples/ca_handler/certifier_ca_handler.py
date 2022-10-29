@@ -10,7 +10,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get
 
 
 class CAhandler(object):
@@ -378,6 +378,10 @@ class CAhandler(object):
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+
+        # get error message
+        err_dic = error_dic_get(self.logger)
+
         # lookup REST-PATH of issuing CA
         ca_dic = self._ca_get_properties('name', self.ca_name)
         if 'href' in ca_dic:
@@ -392,9 +396,8 @@ class CAhandler(object):
                         data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
                         cert_dic = self._api_post(cert_dic['certificates'][0]['href'] + '/status', data)
                         if 'status' in cert_dic:
-                            # code = cert_dic['status']
                             code = 400
-                            message = 'urn:ietf:params:acme:error:alreadyRevoked'
+                            message = err_dic['alreadyrevoked']
                             if 'message' in cert_dic:
                                 detail = cert_dic['message']
                             else:
@@ -405,19 +408,19 @@ class CAhandler(object):
                             detail = None
                     else:
                         code = 404
-                        message = 'urn:ietf:params:acme:error:serverInternal'
+                        message = err_dic['serverinternal']
                         detail = 'Cert path could not be found'
                 else:
                     code = 404
-                    message = 'urn:ietf:params:acme:error:serverInternal'
+                    message = err_dic['serverinternal']
                     detail = 'Cert could not be found'
             else:
                 code = 404
-                message = 'urn:ietf:params:acme:error:serverInternal'
+                message = err_dic['serverinternal']
                 detail = 'failed to get serial number from cert'
         else:
             code = 404
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = err_dic['serverinternal']
             detail = 'CA could not be found'
 
         return (code, message, detail)
