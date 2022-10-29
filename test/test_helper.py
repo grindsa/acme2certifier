@@ -1576,6 +1576,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             'malformed': 'urn:ietf:params:acme:error:malformed',
             'invalidcontact': 'urn:ietf:params:acme:error:invalidContact',
             'accountdoesnotexist': 'urn:ietf:params:acme:error:accountDoesNotExist',
+            'alreadyrevoked': 'urn:ietf:params:acme:error:alreadyRevoked',
             'unauthorized': 'urn:ietf:params:acme:error:unauthorized',
             'externalaccountrequired': 'urn:ietf:params:acme:error:externalAccountRequired',
             'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
