@@ -788,7 +788,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_csr.return_value = False
         certificate_name = 'cert_name'
         csr = 'csr'
-        self.assertEqual(('urn:ietf:params:acme:badCSR', 'CSR validation failed'), self.certificate.enroll_and_store(certificate_name, csr))
+        self.assertEqual(('urn:ietf:params:acme:error:badCSR', 'CSR validation failed'), self.certificate.enroll_and_store(certificate_name, csr))
 
     @patch('acme_srv.threadwithreturnvalue.ThreadWithReturnValue.join')
     @patch('acme_srv.threadwithreturnvalue.ThreadWithReturnValue.start')
