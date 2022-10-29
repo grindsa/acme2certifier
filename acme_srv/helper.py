@@ -704,7 +704,7 @@ def error_dic_get(logger):
         'externalaccountrequired': 'urn:ietf:params:acme:error:externalAccountRequired',
         'badpubkey': 'urn:ietf:params:acme:error:badPublicKey',
         'useractionrequired': 'urn:ietf:params:acme:error:userActionRequired',
-        'alreadyrevoked' : 'urn:ietf:params:acme:error:alreadyRevoked',
+        'alreadyrevoked': 'urn:ietf:params:acme:error:alreadyRevoked',
         'serverinternal': 'urn:ietf:params:acme:error:serverInternal',
         'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
         'ordernotready': 'urn:ietf:params:acme:error:orderNotReady'}
