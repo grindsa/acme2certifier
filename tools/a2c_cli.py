@@ -336,27 +336,34 @@ class CommandLineInterface(object):
             except Exception:
                 self._cli_print('incomplete filename: "{0}"'.format(command))
                 format_ = None
+
             if format_ in ('csv', 'json'):
-                # process report request
-                message = MessageOperations(self.logger, self._cli_print)
-                signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format_})
-                response = message.send(server=self.server, message=signed_message)
-                if response.status_code == 200:
-                    if format_ == 'csv':
-                        csv_dump(self.logger, filename, response.json())
-                    else:
-                        file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
-                    self._cli_print('saving report to {0}'.format(filename))
-                else:
-                    if 'message' in response.json():
-                        message = response.json()['message']
-                    elif 'detail' in response.json():
-                        message = response.json()['detail']
-                    else:
-                        message = None
-                    self._cli_print('ERROR: {0} - {1}'.format(response.status_code, message))
+                self._report_generate(filename, format_, command)
             else:
                 self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"'.format(format))
+
+    def _report_generate(self, filename, format_, command):
+        """ generate report """
+        self.logger.debug('CommandLineInterface._report_generate()')
+
+        # process report request
+        message = MessageOperations(self.logger, self._cli_print)
+        signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format_})
+        response = message.send(server=self.server, message=signed_message)
+        if response.status_code == 200:
+            if format_ == 'csv':
+                csv_dump(self.logger, filename, response.json())
+            else:
+                file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
+            self._cli_print('saving report to {0}'.format(filename))
+        else:
+            if 'message' in response.json():
+                message = response.json()['message']
+            elif 'detail' in response.json():
+                message = response.json()['detail']
+            else:
+                message = None
+            self._cli_print('ERROR: {0} - {1}'.format(response.status_code, message))
 
     def _prompt_get(self):
         """ get prompt """
