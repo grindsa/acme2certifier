@@ -514,6 +514,28 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
+    def _revocation_check(self, serial, ca_id, err_msg_dic):
+        self.logger.debug('CAhandler.revoke({0}/{1})'.format(serial, ca_id))
+        # check if certificate has alreay been revoked:
+        if not self._revocation_search('serial', serial):
+            rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'invaldate': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'reasonBit': 0}
+            row_id = self._revocation_insert(rev_dic)
+            if row_id:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 500
+                message = err_msg_dic['serverinternal']
+                detail = 'database update failed'
+        else:
+            code = 400
+            message = err_msg_dic['alreadyrevoked']
+            detail = 'Certificate has already been revoked'
+
+        self.logger.debug('CAhandler.revoke() ended with: {0}'.format(code))
+        return (code, message, detail)
+
     def _revocation_search(self, column, value):
         """ load ca key from database """
         self.logger.debug('CAhandler._revocation_search()')
@@ -685,6 +707,109 @@ class CAhandler(object):
         self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
         return cert_validity
 
+    def _xca_template_process(self, template_dic, csr_extensions_dic, cert, ca_cert):
+        """ add xca template """
+        self.logger.debug('Certificate._xca_template_process()')
+        extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+        ]
+
+        # key_usage
+        (kuc, ku_string) = self._keyusage_generate(template_dic, csr_extensions_dic)
+        extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
+
+        # extended key_usage
+        (ekuc, eku_string) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
+        if eku_string:
+            extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(eku_string)))
+
+        # add cdp
+        if 'crlDist' in template_dic and template_dic['crlDist']:
+            extension_list.append(crypto.X509Extension(convert_string_to_byte('crlDistributionPoints'), False, convert_string_to_byte(template_dic['crlDist'])))
+
+        # add basicConstraints
+        if 'ca' in template_dic:
+            if 'bcCritical' in template_dic:
+                try:
+                    bcc = bool(int(template_dic['bcCritical']))
+                except Exception:
+                    bcc = False
+            else:
+                bcc = False
+            if template_dic['ca'] == '1':
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:TRUE')))
+            elif template_dic['ca'] == '2':
+                extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:FALSE')))
+
+        return extension_list
+
+    def _cert_sign(self, csr, request_name, ca_key, ca_cert, ca_id):
+        self.logger.debug('Certificate._cert_sign()')
+        # load request
+        req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+
+        # copy cn of request
+        subject = req.get_subject()
+        # rewrite CN if required
+        if not subject.CN:
+            self.logger.info('rewrite CN to {0}'.format(request_name))
+            subject.CN = request_name
+
+        # create certificate object
+        cert = crypto.X509()
+        cert.set_pubkey(req.get_pubkey())
+        cert.set_version(2)
+        cert.set_serial_number(uuid.uuid4().int & (1 << 63) - 1)
+        cert.set_issuer(ca_cert.get_subject())
+
+        # load template if configured
+        if self.template_name:
+            (dn_dic, template_dic) = self._template_load()
+        else:
+            dn_dic = {}
+            template_dic = {}
+
+        # set cert_validity
+        if 'validity' in template_dic:
+            self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
+            # take validity from template
+            cert_validity = template_dic['validity']
+        else:
+            cert_validity = self.cert_validity_days
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(cert_validity * 86400)
+
+        # get extension list from CSR
+        csr_extensions_list = req.get_extensions()
+        extension_list = self._extension_list_generate(template_dic, cert, ca_cert, csr_extensions_list)
+
+        # add extensions (copy from CSR and take the ones we constructed)
+        # cert.add_extensions(csr_extensions_list)
+        cert.add_extensions(extension_list)
+
+        if dn_dic:
+            self.logger.info('modify subject with template data')
+            subject = self._subject_modify(subject, dn_dic)
+        cert.set_subject(subject)
+
+        # sign csr
+        cert.sign(ca_key, 'sha256')
+        serial = cert.get_serial_number()
+
+        # get hsshes
+        issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
+        name_hash = cert.subject_name_hash() & 0x7fffffff
+
+        # store certificate
+        self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
+
+        cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
+        cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
+
+        self.logger.debug('Certificate._cert_sign() ended.')
+        return (cert_bundle, cert_raw)
+
     def enroll(self, csr):
         """ enroll certificate  """
         # pylint: disable=R0914, R0915
@@ -707,66 +832,7 @@ class CAhandler(object):
                 (ca_key, ca_cert, ca_id) = self._ca_load()
 
                 if ca_key and ca_cert and ca_id:
-                    # load request
-                    req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
-
-                    # copy cn of request
-                    subject = req.get_subject()
-                    # rewrite CN if required
-                    if not subject.CN:
-                        self.logger.info('rewrite CN to {0}'.format(request_name))
-                        subject.CN = request_name
-
-                    # create certificate object
-                    cert = crypto.X509()
-                    cert.set_pubkey(req.get_pubkey())
-                    cert.set_version(2)
-                    cert.set_serial_number(uuid.uuid4().int & (1 << 63) - 1)
-                    cert.set_issuer(ca_cert.get_subject())
-
-                    # load template if configured
-                    if self.template_name:
-                        (dn_dic, template_dic) = self._template_load()
-                    else:
-                        dn_dic = {}
-                        template_dic = {}
-
-                    # set cert_validity
-                    if 'validity' in template_dic:
-                        self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
-                        # take validity from template
-                        cert_validity = template_dic['validity']
-                    else:
-                        cert_validity = self.cert_validity_days
-                    cert.gmtime_adj_notBefore(0)
-                    cert.gmtime_adj_notAfter(cert_validity * 86400)
-
-                    # get extension list from CSR
-                    csr_extensions_list = req.get_extensions()
-                    extension_list = self._extension_list_generate(template_dic, cert, ca_cert, csr_extensions_list)
-
-                    # add extensions (copy from CSR and take the ones we constructed)
-                    # cert.add_extensions(csr_extensions_list)
-                    cert.add_extensions(extension_list)
-
-                    if dn_dic:
-                        self.logger.info('modify subject with template data')
-                        subject = self._subject_modify(subject, dn_dic)
-                    cert.set_subject(subject)
-
-                    # sign csr
-                    cert.sign(ca_key, 'sha256')
-                    serial = cert.get_serial_number()
-
-                    # get hsshes
-                    issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
-                    name_hash = cert.subject_name_hash() & 0x7fffffff
-
-                    # store certificate
-                    self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
-
-                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
-                    cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
+                    (cert_bundle, cert_raw) = self._cert_sign(csr, request_name, ca_key, ca_cert, ca_id)
                 else:
                     error = 'ca lookup failed'
             else:
@@ -783,38 +849,8 @@ class CAhandler(object):
             csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
 
         if template_dic:
-            extension_list = [
-                crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-            ]
-
-            # key_usage
-            (kuc, ku_string) = self._keyusage_generate(template_dic, csr_extensions_dic)
-            extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
-
-            # extended key_usage
-            (ekuc, eku_string) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
-            if eku_string:
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(eku_string)))
-
-            # add cdp
-            if 'crlDist' in template_dic and template_dic['crlDist']:
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('crlDistributionPoints'), False, convert_string_to_byte(template_dic['crlDist'])))
-
-            # add basicConstraints
-            if 'ca' in template_dic:
-                if 'bcCritical' in template_dic:
-                    try:
-                        bcc = bool(int(template_dic['bcCritical']))
-                    except Exception:
-                        bcc = False
-                else:
-                    bcc = False
-                if template_dic['ca'] == '1':
-                    extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:TRUE')))
-                elif template_dic['ca'] == '2':
-                    extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:FALSE')))
-
+            # prcoess xca template
+            extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
         else:
             default_extension_list = [
                 crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
@@ -863,22 +899,7 @@ class CAhandler(object):
                 serial = '{:X}'.format(serial)
 
             if ca_id and serial:
-                # check if certificate has alreay been revoked:
-                if not self._revocation_search('serial', serial):
-                    rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'invaldate': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'reasonBit': 0}
-                    row_id = self._revocation_insert(rev_dic)
-                    if row_id:
-                        code = 200
-                        message = None
-                        detail = None
-                    else:
-                        code = 500
-                        message = err_msg_dic['serverinternal']
-                        detail = 'database update failed'
-                else:
-                    code = 400
-                    message = err_msg_dic['alreadyrevoked']
-                    detail = 'Certificate has already been revoked'
+                (code, message, detail) = self._revocation_check(serial, ca_id, err_msg_dic)
             else:
                 code = 500
                 message = err_msg_dic['serverinternal']
