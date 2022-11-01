@@ -101,6 +101,66 @@ class DBstore(object):
         self.logger.debug('DBStore._cahandler_search() ended')
         return result
 
+    def _certificate_account_check(self, account_name, certificate_dic, order_dic):
+        self.logger.debug('DBStore._certificate_account_check({0})'.format(account_name))
+
+        result = None
+        if account_name:
+            # if there is an acoount name validate it against the account_name from db-query
+            if order_dic['account__name'] == account_name:
+                result = certificate_dic['order__name']
+                self.logger.debug('message signed with account key')
+            else:
+                self.logger.debug('account_name and and account_name from oder differ.')
+        else:
+            # no account name given (message signed with domain key)
+            result = certificate_dic['order__name']
+            self.logger.debug('message signed with domain key')
+
+        self.logger.debug('DBStore._certificate_account_check() ended with: {0}'.format(result))
+        return result
+
+    def _certificate_insert(self, data_dic):
+        """ insert certificate """
+        self.logger.debug('_certificate_insert() for {0}'.format(data_dic['name']))
+        # change order name to id but tackle cases where we cannot do this
+        try:
+            data_dic['order'] = dict_from_row(self._order_search('name', data_dic['order']))['id']
+        except Exception:
+            data_dic['order'] = 0
+
+        self._db_open()
+        if 'csr' not in data_dic:
+            data_dic['csr'] = ''
+        if 'error' in data_dic:
+            self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr) VALUES(:name, :error, :order, :csr)''', data_dic)
+        else:
+            self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
+        self._db_close()
+        self.logger.debug('insert new entry for {0}'.format(data_dic['name']))
+
+        rid = self.cursor.lastrowid
+        self.logger.debug('_certificate_insert() ended with: {0}'.format(rid))
+        return rid
+
+    def _certificate_update(self, data_dic, exists):
+        self.logger.debug('_certificate_update() for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
+
+        self._db_open()
+        if 'error' in data_dic:
+            self.cursor.execute('''UPDATE Certificate SET error = :error, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
+        else:
+            if 'expire_uts' not in data_dic:
+                data_dic['expire_uts'] = 0
+            if 'issue_uts' not in data_dic:
+                data_dic['issue_uts'] = 0
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts WHERE name = :name''', data_dic)
+        self._db_close()
+        rid = dict_from_row(exists)['id']
+
+        self.logger.debug('_certificate_update() ended with: {0}'.format(rid))
+        return rid
+
     def _certificate_search(self, column, string):
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore._certificate_search(column:{0}, pattern:{1})'.format(column, string))
@@ -253,6 +313,126 @@ class DBstore(object):
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
         # self.logger.debug('DBStore._db_open() ended')
+
+    def _db_update_account(self):
+        """ update account table """
+        self.logger.debug('DBStore._db_update_account()')
+
+        # add eab_kid
+        self.cursor.execute('''PRAGMA table_info(account)''')
+        account_column_list = []
+        for column in self.cursor.fetchall():
+            account_column_list.append(column[1])
+        if 'eab_kid' not in account_column_list:
+            self.logger.info('alter account table - add eab_kid')
+            self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
+
+    def _db_update_cahandler(self):
+        """ alter cahandler table """
+        self.logger.debug('DBStore._db_update_cahandler()')
+
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
+        if self.cursor.fetchone()[0] != 1:
+            self.logger.info('create cahandler table')
+            self.cursor.execute('''
+                CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
+
+    def _db_update_certificate(self):
+        """ alter certificate table """
+        self.logger.debug('DBStore._db_update_certificate()')
+
+        # add poll_identifier if not existing
+        self.cursor.execute('''PRAGMA table_info(certificate)''')
+        certificate_column_list = []
+        for column in self.cursor.fetchall():
+            certificate_column_list.append(column[1])
+        if 'poll_identifier' not in certificate_column_list:
+            self.logger.info('alter certificate table - add poll_identifier')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
+        if 'issue_uts' not in certificate_column_list:
+            self.logger.info('alter certificate table - add issue_uts')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN issue_uts integer DEFAULT 0''')
+        if 'expire_uts' not in certificate_column_list:
+            self.logger.info('alter certificate table - add expire_uts')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
+
+    def _db_update_challenge(self):
+        """ alter challenge table """
+        self.logger.debug('DBStore._db_update_certificate()')
+
+        self.cursor.execute('''PRAGMA table_info(challenge)''')
+        challenges_column_list = []
+        for column in self.cursor.fetchall():
+            challenges_column_list.append(column[1])
+
+        if 'validated' not in challenges_column_list:
+            self.logger.info('alter challenge table - add validated')
+            self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
+
+    def _db_update_cliaccount(self):
+        """ alter cliaccount table """
+        self.logger.debug('DBStore._db_update_cliaccount()')
+
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cliaccount'")
+        if self.cursor.fetchone()[0] != 1:
+            self.logger.info('create cliaccount table')
+            self.cursor.execute('''
+                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
+
+    def _db_update_housekeeping(self):
+        """ alter housekeeping table """
+        self.logger.debug('DBStore._db_update_housekeeping()')
+
+        # housekeeping table
+        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
+        if self.cursor.fetchone()[0] != 1:
+            self.logger.info('create housekeeping table and trigger')
+            self.cursor.execute('''
+                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            ''')
+            self.cursor.execute('''
+                CREATE TRIGGER [UpdateLastTime]
+                    AFTER
+                    UPDATE
+                    ON housekeeping
+                    FOR EACH ROW
+                    WHEN NEW.modified_at <= OLD.modified_at
+                BEGIN
+                    update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
+                END
+            ''')
+
+    def _db_update_orders(self):
+        """ alter orders table """
+        self.logger.debug('DBStore._db_update_orders()')
+
+        # change identifier field to text to remove length restriction
+        self.cursor.execute('''PRAGMA table_info(orders)''')
+        for column in self.cursor.fetchall():
+            if column[1] == 'identifiers' and 'varchar' in column[2].lower():
+                self.logger.info('alter order table - change identifier field type to TEXT')
+                self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
+                self.cursor.execute('''
+                    CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                ''')
+                self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
+                self.cursor.execute('''DROP TABLE tmp''')
+
+    def _db_update_status(self):
+        """ update status table """
+        self.logger.debug('DBStore._db_update_status()')
+
+        # add additional values to status table
+        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format('name')
+        self.cursor.execute(pre_statement, ['deactivated'])
+        if not self.cursor.fetchone():
+            self.logger.info('adding additional status')
+            insert_status_statement = '''INSERT INTO status(name) VALUES(:name)'''
+            self.cursor.execute(insert_status_statement, {'name': 'expired'})
+            self.cursor.execute(insert_status_statement, {'name': 'deactivated'})
+            self.cursor.execute(insert_status_statement, {'name': 'revoked'})
 
     def _order_search(self, column, string):
         """ search order table for a certain key/value pair """
@@ -535,17 +715,7 @@ class DBstore(object):
             order_dic = self.order_lookup('name', certificate_dic['order__name'], ['name', 'account__name'])
             if order_dic:
                 if 'account__name' in order_dic:
-                    if account_name:
-                        # if there is an acoount name validate it against the account_name from db-query
-                        if order_dic['account__name'] == account_name:
-                            result = certificate_dic['order__name']
-                            self.logger.debug('message signed with account key')
-                        else:
-                            self.logger.debug('account_name and and account_name from oder differ.')
-                    else:
-                        # no account name given (message signed with domain key)
-                        result = certificate_dic['order__name']
-                        self.logger.debug('message signed with domain key')
+                    result = self._certificate_account_check(account_name, certificate_dic, order_dic)
                 else:
                     self.logger.debug('account_name missing in order_dic')
             else:
@@ -662,37 +832,10 @@ class DBstore(object):
         exists = self._certificate_search('name', data_dic['name'])
 
         if bool(exists):
-            # update
-            self.logger.debug('update existing entry for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
-            self._db_open()
-            if 'error' in data_dic:
-                self.cursor.execute('''UPDATE Certificate SET error = :error, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
-            else:
-                if 'expire_uts' not in data_dic:
-                    data_dic['expire_uts'] = 0
-                if 'issue_uts' not in data_dic:
-                    data_dic['issue_uts'] = 0
-                self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts WHERE name = :name''', data_dic)
-            self._db_close()
-            rid = dict_from_row(exists)['id']
+            rid = self._certificate_update(data_dic, exists)
         else:
-            # insert
-            self.logger.debug('insert new entry for {0}'.format(data_dic['name']))
-            # change order name to id but tackle cases where we cannot do this
-            try:
-                data_dic['order'] = dict_from_row(self._order_search('name', data_dic['order']))['id']
-            except Exception:
-                data_dic['order'] = 0
+            rid = self._certificate_insert(data_dic)
 
-            self._db_open()
-            if 'csr' not in data_dic:
-                data_dic['csr'] = ''
-            if 'error' in data_dic:
-                self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr) VALUES(:name, :error, :order, :csr)''', data_dic)
-            else:
-                self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
-            self._db_close()
-            rid = self.cursor.lastrowid
         self.logger.debug('DBStore.certificate_add() ended with: {0}'.format(rid))
         return rid
 
@@ -934,95 +1077,29 @@ class DBstore(object):
         self.logger.debug('DBStore.db_update()')
         self._db_open()
 
-        # add poll_identifier if not existingcd
-        self.cursor.execute('''PRAGMA table_info(certificate)''')
-        certificate_column_list = []
-        for column in self.cursor.fetchall():
-            certificate_column_list.append(column[1])
-        if 'poll_identifier' not in certificate_column_list:
-            self.logger.info('alter certificate table - add poll_identifier')
-            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN poll_identifier text''')
-        if 'issue_uts' not in certificate_column_list:
-            self.logger.info('alter certificate table - add issue_uts')
-            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN issue_uts integer DEFAULT 0''')
-        if 'expire_uts' not in certificate_column_list:
-            self.logger.info('alter certificate table - add expire_uts')
-            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN expire_uts integer DEFAULT 0''')
+        # update certificate table
+        self._db_update_certificate()
 
-        # add additional values to status table
-        pre_statement = 'SELECT * from status WHERE status.{0} LIKE ?'.format('name')
-        self.cursor.execute(pre_statement, ['deactivated'])
-        if not self.cursor.fetchone():
-            self.logger.info('adding additional status')
-            insert_status_statement = '''INSERT INTO status(name) VALUES(:name)'''
-            self.cursor.execute(insert_status_statement, {'name': 'expired'})
-            self.cursor.execute(insert_status_statement, {'name': 'deactivated'})
-            self.cursor.execute(insert_status_statement, {'name': 'revoked'})
+        # update status table
+        self._db_update_status()
 
-        self.cursor.execute('''PRAGMA table_info(challenge)''')
-        challenges_column_list = []
-        for column in self.cursor.fetchall():
-            challenges_column_list.append(column[1])
+        # update challenge table
+        self._db_update_challenge()
 
-        if 'validated' not in challenges_column_list:
-            self.logger.info('alter challenge table - add validated')
-            self.cursor.execute('''ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0''')
+        # update account table
+        self._db_update_account()
 
-        # add eab_kid
-        self.cursor.execute('''PRAGMA table_info(account)''')
-        account_column_list = []
-        for column in self.cursor.fetchall():
-            account_column_list.append(column[1])
-        if 'eab_kid' not in account_column_list:
-            self.logger.info('alter account table - add eab_kid')
-            self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
+        # update order table
+        self._db_update_orders()
 
-        # change identifier field to text to remove length restriction
-        self.cursor.execute('''PRAGMA table_info(orders)''')
-        for column in self.cursor.fetchall():
-            if column[1] == 'identifiers' and 'varchar' in column[2].lower():
-                self.logger.info('alter order table - change identifier field type to TEXT')
-                self.cursor.execute('''ALTER TABLE orders RENAME TO tmp''')
-                self.cursor.execute('''
-                    CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                ''')
-                self.cursor.execute('''INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp''')
-                self.cursor.execute('''DROP TABLE tmp''')
+        # create housekeeping table
+        self._db_update_housekeeping()
 
-        # housekeeping table
-        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='housekeeping'")
-        if self.cursor.fetchone()[0] != 1:
-            self.logger.info('create housekeeping table and trigger')
-            self.cursor.execute('''
-                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            ''')
-            self.cursor.execute('''
-                CREATE TRIGGER [UpdateLastTime]
-                    AFTER
-                    UPDATE
-                    ON housekeeping
-                    FOR EACH ROW
-                    WHEN NEW.modified_at <= OLD.modified_at
-                BEGIN
-                    update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
-                END
-            ''')
+        # create ca_handler table
+        self._db_update_cahandler()
 
-        # cahandler table
-        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cahandler'")
-        if self.cursor.fetchone()[0] != 1:
-            self.logger.info('create cahandler table')
-            self.cursor.execute('''
-                CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            ''')
-
-        # cliaccount table
-        self.cursor.execute("SELECT count(*) from sqlite_master where type='table' and name='cliaccount'")
-        if self.cursor.fetchone()[0] != 1:
-            self.logger.info('create cliaccount table')
-            self.cursor.execute('''
-                CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            ''')
+        # create cliaccount table
+        self._db_update_cliaccount()
 
         # version update
         self.logger.info('update dbversion to {0}'.format(__dbversion__))
