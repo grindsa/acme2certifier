@@ -61,6 +61,41 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _script_config_load(self, config_dic):
+        """ load configuriation options for external signing script """
+        self.logger.debug('CAhandler._script_config_load()')
+
+        parameters_dic = {'signing_script': 0, 'signing_user': 0, 'signing_alias': 1, 'signing_csr_path': 1, 'signing_config_variant': 1, 'signing_sleep_timer': 0, 'signing_interpreter': 0}
+        for ele, value in parameters_dic.items():
+            if ele in config_dic['CAhandler']:
+                self.signing_script_dic[ele] = config_dic['CAhandler'][ele]
+            else:
+                if value:
+                    self.logger.error('CAhandler._config_load(): {0} option is missing in config file'.format(ele))
+
+    def _self_signing_config_load(self, config_dic):
+        """ load configuriation options for self signing """
+        self.logger.debug('CAhandler._self_signing_config_load()')
+
+        if 'signing_cert' in config_dic['CAhandler']:
+            if os.path.exists(config_dic['CAhandler']['signing_cert']):
+                with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
+                    self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
+            else:
+                self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
+        else:
+            self.logger.error('CAhandler._config_load(): signing_cert option is missing in config file')
+
+        if 'signing_key' in config_dic['CAhandler']:
+            if os.path.exists(config_dic['CAhandler']['signing_key']):
+                with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
+                    self.signing_key = serialization.load_pem_private_key(
+                        open_file.read(), password=self.password, backend=default_backend())
+            else:
+                self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
+        else:
+            self.logger.error('CAhandler._config_load(): signing_key option is missing in config file')
+
     def _config_load(self):
         # pylint: disable=R0912
         """" load config from file """
@@ -76,52 +111,10 @@ class CAhandler(object):
 
             if 'signing_script' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by external script')
-                self.signing_script_dic['signing_script'] = config_dic['CAhandler']['signing_script']
-
-                if 'signing_user' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_user'] = config_dic['CAhandler']['signing_user']
-
-                if 'signing_alias' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_alias'] = config_dic['CAhandler']['signing_alias']
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_alias option is missing in config file')
-
-                if 'signing_csr_path' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_csr_path'] = config_dic['CAhandler']['signing_csr_path']
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_csr_path option is missing in config file')
-
-                if 'signing_config_variant' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_config_variant'] = config_dic['CAhandler']['signing_config_variant']
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_config_variant option is missing in config file')
-
-                if 'signing_sleep_timer' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_sleep_timer'] = config_dic['CAhandler']['signing_sleep_timer']
-
-                if 'signing_interpreter' in config_dic['CAhandler']:
-                    self.signing_script_dic['signing_interpreter'] = config_dic['CAhandler']['signing_interpreter']
-
+                self._script_config_load(config_dic)
             else:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by CA handler')
-                if 'signing_cert' in config_dic['CAhandler']:
-                    if os.path.exists(config_dic['CAhandler']['signing_cert']):
-                        with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
-                            self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
-                    else:
-                        self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_cert option is missing in config file')
-
-                if 'signing_key' in config_dic['CAhandler']:
-                    if os.path.exists(config_dic['CAhandler']['signing_key']):
-                        with open(config_dic['CAhandler']['signing_key'], 'rb') as open_file:
-                            self.signing_key = serialization.load_pem_private_key(
-                                open_file.read(), password=self.password, backend=default_backend())
-                    else:
-                        self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
-                else:
-                    self.logger.error('CAhandler._config_load(): signing_key option is missing in config file')
+                self._self_signing_config_load(config_dic)
 
             if 'ca_bundle' in config_dic['CAhandler']:
                 self.ca_bundle = config_dic['CAhandler']['ca_bundle']
@@ -137,6 +130,7 @@ class CAhandler(object):
                 self.email = config_dic['CAhandler']['email']
             else:
                 self.logger.error('CAhandler._config_load(): email option is missing in config file')
+
         else:
             self.logger.error('CAhandler._config_load(): CAhandler section is missing')
 
