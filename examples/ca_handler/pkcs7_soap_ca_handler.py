@@ -96,6 +96,30 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._config_load(): signing_key option is missing in config file')
 
+    def _global_config_load(self, config_dic):
+        """ load configuriation options for external signing script """
+        self.logger.debug('CAhandler._global_config_load()')
+
+        if 'soap_srv' in config_dic['CAhandler']:
+            self.soap_srv = config_dic['CAhandler']['soap_srv']
+        else:
+            self.logger.error('CAhandler._config_load(): soap_srv option is missing in config file')
+
+        if 'ca_bundle' in config_dic['CAhandler']:
+            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+        else:
+            self.logger.warning('CAhandler._config_load(): SOAP server certificate validation disabled')
+
+        if 'profilename' in config_dic['CAhandler']:
+            self.profilename = config_dic['CAhandler']['profilename']
+        else:
+            self.logger.error('CAhandler._config_load(): profilename option is missing in config file')
+
+        if 'email' in config_dic['CAhandler']:
+            self.email = config_dic['CAhandler']['email']
+        else:
+            self.logger.error('CAhandler._config_load(): email option is missing in config file')
+
     def _config_load(self):
         # pylint: disable=R0912
         """" load config from file """
@@ -104,10 +128,9 @@ class CAhandler(object):
         config_dic = load_config(self.logger, 'CAhandler')
 
         if 'CAhandler' in config_dic:
-            if 'soap_srv' in config_dic['CAhandler']:
-                self.soap_srv = config_dic['CAhandler']['soap_srv']
-            else:
-                self.logger.error('CAhandler._config_load(): soap_srv option is missing in config file')
+
+            # load global options needed for both configurations
+            self._global_config_load(config_dic)
 
             if 'signing_script' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by external script')
@@ -115,21 +138,6 @@ class CAhandler(object):
             else:
                 self.logger.debug('CAhandler._config_load(): CSR-signing by CA handler')
                 self._self_signing_config_load(config_dic)
-
-            if 'ca_bundle' in config_dic['CAhandler']:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-            else:
-                self.logger.warning('CAhandler._config_load(): SOAP server certificate validation disabled')
-
-            if 'profilename' in config_dic['CAhandler']:
-                self.profilename = config_dic['CAhandler']['profilename']
-            else:
-                self.logger.error('CAhandler._config_load(): profilename option is missing in config file')
-
-            if 'email' in config_dic['CAhandler']:
-                self.email = config_dic['CAhandler']['email']
-            else:
-                self.logger.error('CAhandler._config_load(): email option is missing in config file')
 
         else:
             self.logger.error('CAhandler._config_load(): CAhandler section is missing')
