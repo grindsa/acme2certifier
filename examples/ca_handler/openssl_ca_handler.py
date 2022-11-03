@@ -503,6 +503,31 @@ class CAhandler(object):
 
         return cert
 
+    def _cert_extension_apply(self, cert, ca_cert, req):
+        """ add cert extensions """
+        self.logger.debug('CAhandler._cert_extension_apply()')
+
+        default_extension_list = [
+            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        ]
+
+        # load certificate_profile (if applicable)
+        if self.openssl_conf:
+            cert_extension_dic = self._certificate_extensions_load()
+        else:
+            cert_extension_dic = []
+
+        if cert_extension_dic:
+            cert.add_extensions(self._cert_extension_dic_add(cert, ca_cert, cert_extension_dic, default_extension_list, req))
+        else:
+            cert.add_extensions(self._cert_extension_add(req, cert, default_extension_list))
+
+        self.logger.debug('CAhandler._cert_extension_apply() ended')
+        return cert
+
     def enroll(self, csr):
         """ enroll certificate """
         # pylint: disable=R0914, R0915
@@ -535,29 +560,13 @@ class CAhandler(object):
                         setattr(subject, 'CN', enforce_cn)
 
                     cert = self._cert_signing_prep(ca_cert, req, subject)
-
-                    default_extension_list = [
-                        crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                        crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-                        crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-                        crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-                    ]
-
-                    # load certificate_profile (if applicable)
-                    if self.openssl_conf:
-                        cert_extension_dic = self._certificate_extensions_load()
-                    else:
-                        cert_extension_dic = []
-
-                    if cert_extension_dic:
-                        cert.add_extensions(self._cert_extension_dic_add(cert, ca_cert, cert_extension_dic, default_extension_list, req))
-                    else:
-                        cert.add_extensions(self._cert_extension_add(req, cert, default_extension_list))
+                    cert = self._cert_extension_apply(cert, ca_cert, req)
 
                     cert.sign(ca_key, 'sha256')
 
                     # store certifiate
                     self._certificate_store(cert)
+
                     # create bundle and raw cert
                     # pylint: disable=R1732
                     cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
