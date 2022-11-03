@@ -8,7 +8,7 @@ import base64
 import uuid
 import re
 from OpenSSL import crypto
-# pylint: disable=C0209, E0401
+# pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
 
@@ -453,6 +453,56 @@ class CAhandler(object):
 
         return extension_list
 
+    def _cert_extension_dic_add(self, cert, ca_cert, cert_extension_dic, default_extension_list, req):
+        """ add extension from templat """
+        self.logger.debug('CAhandler._cert_extension_dic_add()')
+
+        try:
+            # remove duplicate extensions
+            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
+        except Exception as err_:
+            self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
+            # remove duplicate extensions
+            extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+
+        cert.add_extensions(extension_list)
+
+    def _cert_extension_add(self, req, cert, default_extension_list):
+        """ add extensions """
+        self.logger.debug('CAhandler._cert_extension_add()')
+
+         # add keyUsage if it does not exist in CSR
+        ku_is_in = False
+        for ext in req.get_extensions():
+            if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
+                ku_is_in = True
+        if not ku_is_in:
+            default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
+
+        # remove duplicate extensions
+        extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+
+        # add default extensions
+        cert.add_extensions(extension_list)
+
+    def _cert_signing_prep(self, ca_cert, req, subject):
+        """ enroll certificate """
+        # pylint: disable=R0914, R0915
+        self.logger.debug('CAhandler._cert_signing()')
+
+        # sign csr
+        cert = crypto.X509()
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
+        cert.set_issuer(ca_cert.get_subject())
+        cert.set_subject(subject)
+        cert.set_pubkey(req.get_pubkey())
+        cert.set_serial_number(uuid.uuid4().int)
+        cert.set_version(2)
+        # cert.add_extensions(req.get_extensions())
+
+        return cert
+
     def enroll(self, csr):
         """ enroll certificate """
         # pylint: disable=R0914, R0915
@@ -475,29 +525,16 @@ class CAhandler(object):
                     # load ca cert and key
                     (ca_key, ca_cert) = self._ca_load()
 
-                    # load certificate_profile (if applicable)
-                    if self.openssl_conf:
-                        cert_extension_dic = self._certificate_extensions_load()
-                    else:
-                        cert_extension_dic = []
 
                     # creating a rest form CSR
                     req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+
                     subject = req.get_subject()
                     if self.cn_enforce and enforce_cn:
                         self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
                         setattr(subject, 'CN', enforce_cn)
 
-                    # sign csr
-                    cert = crypto.X509()
-                    cert.gmtime_adj_notBefore(0)
-                    cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
-                    cert.set_issuer(ca_cert.get_subject())
-                    cert.set_subject(subject)
-                    cert.set_pubkey(req.get_pubkey())
-                    cert.set_serial_number(uuid.uuid4().int)
-                    cert.set_version(2)
-                    # cert.add_extensions(req.get_extensions())
+                    cert = self._cert_signing_prep(ca_cert, req, subject)
 
                     default_extension_list = [
                         crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
@@ -506,30 +543,16 @@ class CAhandler(object):
                         crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
                     ]
 
-                    if cert_extension_dic:
-                        try:
-                            # remove duplicate extensions
-                            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
-                        except Exception as err_:
-                            self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
-                            # remove duplicate extensions
-                            extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
-                        cert.add_extensions(extension_list)
-
+                    # load certificate_profile (if applicable)
+                    if self.openssl_conf:
+                        cert_extension_dic = self._certificate_extensions_load()
                     else:
-                        # add keyUsage if it does not exist in CSR
-                        ku_is_in = False
-                        for ext in req.get_extensions():
-                            if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
-                                ku_is_in = True
-                        if not ku_is_in:
-                            default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
+                        cert_extension_dic = []
 
-                        # remove duplicate extensions
-                        extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
-
-                        # add default extensions
-                        cert.add_extensions(extension_list)
+                    if cert_extension_dic:
+                        cert.add_extensions(self._cert_extension_dic_add(cert, ca_cert, cert_extension_dic, default_extension_list, req))
+                    else:
+                        cert.add_extensions(self._cert_extension_add(req, cert, default_extension_list))
 
                     cert.sign(ca_key, 'sha256')
 
