@@ -218,6 +218,13 @@ class CAhandler(object):
             else:
                 error = 'issuing_ca_cert must be specified in config file'
 
+        self.logger.debug('CAhandler._config_check_issuer() ended with:  {0}'.format(error))
+        return error
+
+    def _config_check_crl(self, error):
+        """ check crl config """
+        self.logger.debug('CAhandler._config_check_crl()')
+
         if not error:
             if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
                 if not os.path.exists(self.issuer_dict['issuing_ca_crl']):
@@ -225,7 +232,7 @@ class CAhandler(object):
             else:
                 error = 'issuing_ca_crl must be specified in config file'
 
-        self.logger.debug('CAhandler._config_check_issuer() ended with:  {0}'.format(error))
+        self.logger.debug('CAhandler._config_check_crl() ended with:  {0}'.format(error))
         return error
 
     def _config_parameters_check(self, error):
@@ -254,6 +261,7 @@ class CAhandler(object):
 
         # run checks
         error = self._config_check_issuer()
+        error = self._config_check_crl(error)
         error = self._config_parameters_check(error)
 
         if error:
