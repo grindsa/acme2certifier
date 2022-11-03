@@ -460,21 +460,30 @@ class CAhandler(object):
 
         return template_list
 
+    def _templates_enumerate(self, template_list):
+        """ get template id based on name """
+        self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
+
+        for template in template_list['template']['items']:
+            if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
+                if 'displayName' in template and template['displayName'] == self.template_info_dic['name']:
+                    if 'policyLinkId' in template:
+                        self.template_info_dic['id'] = template['policyLinkId']
+                        break
+
     def _template_id_lookup(self):
         """ get template id based on name """
         self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
 
+        # get list of templates
         template_list = self._template_list_get()
 
+        # enumerate templates to get template-id
         if 'template' in template_list and 'items' in template_list['template']:
-            for template in template_list['template']['items']:
-                if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
-                    if 'displayName' in template and template['displayName'] == self.template_info_dic['name']:
-                        if 'policyLinkId' in template:
-                            self.template_info_dic['id'] = template['policyLinkId']
-                            break
+            self._templates_enumerate(template_list)
         else:
             self.logger.error('CAhandler._template_id_lookup() no templates found for filter: {0}...'.format(self.template_info_dic['name']))
+
         self.logger.debug('CAhandler._template_id_lookup() ended with: {0}'.format(str(self.template_info_dic['id'])))
 
     def _tsg_id_lookup(self):
