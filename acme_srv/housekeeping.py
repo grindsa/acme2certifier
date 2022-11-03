@@ -84,7 +84,8 @@ class Housekeeping(object):
                 print('{0}|{1}|{2}|{3}|{4}|{5}'.format(account['name'][:15].ljust(15), account['contact'][:20].ljust(20), str(bool(account['cliadmin'])).ljust(6), str(bool(account['reportadmin'])).ljust(6), str(bool(account['certificateadmin'])).ljust(7), account['created_at'].ljust(20)))
             print('\n')
         except Exception as err:
-            self.logger.error('acme2certifier  error in Housekeeping._cliaccounts_format(): {0}'.format(err))
+            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
+            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): {0}'.format(err))
 
     def _clireport_get(self, payload, permissions_dic):
         """ get reports for CLI """
