@@ -554,7 +554,7 @@ class CAhandler(object):
             # remove duplicate extensions
             extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
 
-        cert.add_extensions(extension_list)
+        return extension_list
 
     def _cert_extension_add(self, req, cert, default_extension_list):
         """ add extensions """
@@ -571,8 +571,8 @@ class CAhandler(object):
         # remove duplicate extensions
         extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
 
-        # add default extensions
-        cert.add_extensions(extension_list)
+        self.logger.debug('CAhandler._cert_extension_add() ended')
+        return extension_list
 
     def _cert_signing_prep(self, ca_cert, req, subject):
         """ enroll certificate """
@@ -588,8 +588,8 @@ class CAhandler(object):
         cert.set_pubkey(req.get_pubkey())
         cert.set_serial_number(uuid.uuid4().int)
         cert.set_version(2)
-        # cert.add_extensions(req.get_extensions())
 
+        self.logger.debug('CAhandler._cert_signing() ended')
         return cert
 
     def _cert_extension_apply(self, cert, ca_cert, req):
