@@ -320,6 +320,35 @@ class CAhandler(object):
         self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
         return req_all
 
+    def _reqcn_lookup(self, req):
+        self.logger.debug('CAhandler._reqcn_lookup()')
+
+        req_cn = None
+        if 'subjectName' in req:
+            # split the subject and filter CN
+            subject_list = req['subjectName'].split(',')
+            for field in subject_list:
+                field = field.strip()
+                if field.startswith('CN='):
+                    req_cn = field.lower().replace('cn=', '')
+                    break
+
+        self.logger.debug('CAhandler._reqcn_lookup() ended with: {0}'.format(req_cn))
+        return req_cn
+
+    def _reqid_from_last_requests(self, last_request_list, csr):
+        """ get reqid """
+        self.logger.debug('CAhandler._reqid_from_last_requests()')
+
+        req_id = None
+        for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
+            if 'pkcs10' in _req and _req['pkcs10'] == csr:
+                req_id = _req['requestId']
+                break
+
+        self.logger.debug('CAhandler._reqid_from_last_requests() ended with: {0}'.format(req_id))
+        return req_id
+
     def _reqid_lookup(self, csr, csr_cn, uts_n, unused_request_list, last_request_list):
         """ lookup request """
         self.logger.debug('CAhandler._reqid_lookup()')
@@ -332,23 +361,16 @@ class CAhandler(object):
             # check the import date and consider only csr which are less then 5min old
             csr_uts = date_to_uts_utc(req['addedAt'][:25], '%Y-%m-%dT%H:%M:%S.%f')
             if uts_n - csr_uts < self.request_delta_treshold:
-                if 'subjectName' in req:
-                    # split the subject and filter CN
-                    subject_list = req['subjectName'].split(',')
-                    for field in subject_list:
-                        field = field.strip()
-                        if field.startswith('CN='):
-                            req_cn = field.lower().replace('cn=', '')
-                            break
+
+                # get common name from requst
+                req_cn = self._reqcn_lookup(req)
+
                 if csr_cn:
                     if req_cn == csr_cn.lower() and 'requestID' in req:
                         req_id = req['requestID']
                         break
                 else:
-                    for _req in sorted(last_request_list, key=lambda i: i['requestId'], reverse=True):
-                        if 'pkcs10' in _req and _req['pkcs10'] == csr:
-                            req_id = _req['requestId']
-                            break
+                    req_id = self._reqid_from_last_requests(last_request_list, csr)
 
         self.logger.debug('CAhandler._reqid_lookup() ended with: {0}'.format(req_id))
         return req_id
