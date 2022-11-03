@@ -62,6 +62,40 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_load() ended')
         return (ca_key, ca_cert)
 
+    def _chain_verify(self, cert, ca_cert, error):
+        """ Create a certificate store and add ca cert(s) """
+        self.logger.debug('CAhandler._certificate_chain_verify()')
+
+        try:
+            store = crypto.X509Store()
+            store.add_cert(ca_cert)
+        except Exception:
+            error = 'issuing certificate could not be added to trust-store'
+
+        if not error:
+            # add ca chain to truststore
+            for cert_name in self.ca_cert_chain_list:
+                try:
+                    with open(cert_name, 'r', encoding='utf8') as fso:
+                        cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+                    store.add_cert(cain_cert)
+                except Exception:
+                    error = 'certificate {0} could not be added to trust store'.format(cert_name)
+
+        if not error:
+            # Create a certificate context using the store and the downloaded certificate
+            store_ctx = crypto.X509StoreContext(store, cert)
+            # Verify the certificate, returns None if it can validate the certificate
+            try:
+                # pylint: disable=E1111
+                result = store_ctx.verify_certificate()
+            except Exception as err_:
+                result = str(err_)
+        else:
+            result = error
+
+        return result
+
     def _certificate_chain_verify(self, cert, ca_cert):
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_chain_verify()')
@@ -76,34 +110,7 @@ class CAhandler(object):
             error = err_
 
         if not error:
-            # Create a certificate store and add ca cert(s)
-            try:
-                store = crypto.X509Store()
-                store.add_cert(ca_cert)
-            except Exception:
-                error = 'issuing certificate could not be added to trust-store'
-
-            if not error:
-                # add ca chain to truststore
-                for cert_name in self.ca_cert_chain_list:
-                    try:
-                        with open(cert_name, 'r', encoding='utf8') as fso:
-                            cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
-                        store.add_cert(cain_cert)
-                    except Exception:
-                        error = 'certificate {0} could not be added to trust store'.format(cert_name)
-
-            if not error:
-                # Create a certificate context using the store and the downloaded certificate
-                store_ctx = crypto.X509StoreContext(store, cert)
-                # Verify the certificate, returns None if it can validate the certificate
-                try:
-                    # pylint: disable=E1111
-                    result = store_ctx.verify_certificate()
-                except Exception as err_:
-                    result = str(err_)
-            else:
-                result = error
+            result = self._chain_verify(cert, ca_cert, error)
         else:
             result = 'certificate could not get parsed'
 
@@ -193,9 +200,10 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._certificate_store() ended')
 
-    def _config_check(self):
-        """ check config for consitency """
-        self.logger.debug('CAhandler._config_check()')
+    def _config_check_issuer(self):
+        """ check issuing CA configuration """
+        self.logger.debug('CAhandler._config_check_issuer()')
+
         error = None
         if 'issuing_ca_key' in self.issuer_dict and self.issuer_dict['issuing_ca_key']:
             if not os.path.exists(self.issuer_dict['issuing_ca_key']):
@@ -217,6 +225,13 @@ class CAhandler(object):
             else:
                 error = 'issuing_ca_crl must be specified in config file'
 
+        self.logger.debug('CAhandler._config_check_issuer() ended with:  {0}'.format(error))
+        return error
+
+    def _config_parameters_check(self, error):
+        """ check remaining configuration """
+        self.logger.debug('CAhandler._config_parameters_check()')
+
         if not error:
             if self.cert_save_path:
                 if not os.path.exists(self.cert_save_path):
@@ -230,16 +245,43 @@ class CAhandler(object):
         if not error and not self.ca_cert_chain_list:
             error = 'ca_cert_chain_list must be specified in config file'
 
+        self.logger.debug('CAhandler._config_parameters_check() ended with:  {0}'.format(error))
+        return error
+
+    def _config_check(self):
+        """ check config for consitency """
+        self.logger.debug('CAhandler._config_check()')
+
+        # run checks
+        error = self._config_check_issuer()
+        error = self._config_parameters_check(error)
+
         if error:
             self.logger.error('CAhandler config error: {0}'.format(error))
 
         self.logger.debug('CAhandler._config_check() ended')
         return error
 
-    def _config_load(self):
+    def _config_domainlists_load(self, config_dic):
         """" load config from file """
-        self.logger.debug('CAhandler._config_load()')
-        config_dic = load_config(self.logger, 'CAhandler')
+        self.logger.debug('CAhandler._config_domainlists_load()')
+        if 'openssl_conf' in config_dic['CAhandler']:
+            self.openssl_conf = config_dic['CAhandler']['openssl_conf']
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        if 'blocked_domainlist' in config_dic['CAhandler']:
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blocked_domainlist'])
+        if 'whitelist' in config_dic['CAhandler']:
+            self.allowed_domainlist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.logger.error('CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"')
+        if 'blacklist' in config_dic['CAhandler']:
+            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
+        self.logger.debug('CAhandler._config_domainlists_load() ended')
+
+    def _config_credentials_load(self, config_dic):
+        """ load credential config """
+        self.logger.debug('CAhandler._config_credentials_load()')
 
         if 'issuing_ca_key' in config_dic['CAhandler']:
             self.issuer_dict['issuing_ca_key'] = config_dic['CAhandler']['issuing_ca_key']
@@ -254,6 +296,17 @@ class CAhandler(object):
             if 'passphrase' in self.issuer_dict and self.issuer_dict['passphrase']:
                 self.logger.info('CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable')
             self.issuer_dict['passphrase'] = config_dic['CAhandler']['issuing_ca_key_passphrase']
+
+        # convert passphrase
+        if 'passphrase' in self.issuer_dict:
+            self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
+
+        self.logger.debug('CAhandler._config_credentials_load() ended')
+
+    def _config_policy_load(self, config_dic):
+        """ load certificate policy """
+        self.logger.debug('CAhandler._config_policy_load()')
+
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
         if 'cert_validity_days' in config_dic['CAhandler']:
@@ -262,25 +315,26 @@ class CAhandler(object):
             self.cert_save_path = config_dic['CAhandler']['cert_save_path']
         if 'issuing_ca_crl' in config_dic['CAhandler']:
             self.issuer_dict['issuing_ca_crl'] = config_dic['CAhandler']['issuing_ca_crl']
-        # convert passphrase
-        if 'passphrase' in self.issuer_dict:
-            self.issuer_dict['passphrase'] = self.issuer_dict['passphrase'].encode('ascii')
-        if 'openssl_conf' in config_dic['CAhandler']:
-            self.openssl_conf = config_dic['CAhandler']['openssl_conf']
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-        if 'blocked_domainlist' in config_dic['CAhandler']:
-            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blocked_domainlist'])
-        if 'whitelist' in config_dic['CAhandler']:
-            self.allowed_domainlist = json.loads(config_dic['CAhandler']['whitelist'])
-            self.logger.error('CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"')
-        if 'blacklist' in config_dic['CAhandler']:
-            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blacklist'])
-            self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
         try:
             self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
         except Exception:
             self.logger.error('CAhandler._config_load() variable cn_enforce cannot be parsed')
+
+        self.logger.debug('CAhandler._config_policy_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('CAhandler._config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+
+        # load credentials
+        self._config_credentials_load(config_dic)
+
+        # load policy options
+        self._config_policy_load(config_dic)
+
+        # load allow/block lists
+        self._config_domainlists_load(config_dic)
 
         self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
@@ -305,9 +359,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._crl_check() with:{0}'.format(sn_match))
         return sn_match
 
-    def _csr_check(self, csr):
-        """ check CSR against definied allowed_domainlists """
-        self.logger.debug('CAhandler._csr_check()')
+    def _chk_san_lists_get(self, csr):
+        """ check lists  """
+        self.logger.debug('CAhandler._chk_san_lists_get()')
 
         # get sans and build a list
         _san_list = csr_san_get(self.logger, csr)
@@ -326,6 +380,13 @@ class CAhandler(object):
                     check_list.append(False)
                     self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
 
+        self.logger.debug('CAhandler._chk_san_lists_get() ended')
+        return (san_list, check_list)
+
+    def _cn_add(self, csr, san_list):
+        """ add CN if required """
+        self.logger.debug('CAhandler._cn_add()')
+
         # get common name and attach it to san_list
         cn_ = csr_cn_get(self.logger, csr)
 
@@ -341,6 +402,16 @@ class CAhandler(object):
                 # append cn to san_list
                 self.logger.debug('Ahandler._csr_check(): append cn to san_list')
                 san_list.append(cn_)
+
+        self.logger.debug('CAhandler._cn_add() ended with: {0}'.format(enforced_cn))
+        return (san_list, enforced_cn)
+
+    def _csr_check(self, csr):
+        """ check CSR against definied allowed_domainlists """
+        self.logger.debug('CAhandler._csr_check()')
+
+        (san_list, check_list) = self._chk_san_lists_get(csr)
+        (san_list, enforced_cn) = self._cn_add(csr, san_list)
 
         if self.allowed_domainlist or self.blocked_domainlist:
             result = False
@@ -361,6 +432,22 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check() ended with: {0} enforce_cn: {1}'.format(result, enforced_cn))
         return (result, enforced_cn)
 
+    def _list_regex_check(self, entry, list_):
+        """ check entry against regex """
+        self.logger.debug('CAhandler._list_regex_check()')
+
+        check_result = False
+        for regex in list_:
+            if regex.startswith('*.'):
+                regex = regex.replace('*.', '.')
+            regex_compiled = re.compile(regex)
+            if bool(regex_compiled.search(entry)):
+                # parameter is in set flag accordingly and stop loop
+                check_result = True
+
+        self.logger.debug('CAhandler._list_regex_check() ended with: {0}'.format(check_result))
+        return check_result
+
     def _list_check(self, entry, list_, toggle=False):
         """ check string against list """
         self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
@@ -371,13 +458,7 @@ class CAhandler(object):
 
         if entry:
             if list_:
-                for regex in list_:
-                    if regex.startswith('*.'):
-                        regex = regex.replace('*.', '.')
-                    regex_compiled = re.compile(regex)
-                    if bool(regex_compiled.search(entry)):
-                        # parameter is in set flag accordingly and stop loop
-                        check_result = True
+                check_result = self._list_regex_check(entry, list_)
             else:
                 # empty list, flip parameter to make the check successful
                 check_result = True
@@ -471,7 +552,7 @@ class CAhandler(object):
         """ add extensions """
         self.logger.debug('CAhandler._cert_extension_add()')
 
-         # add keyUsage if it does not exist in CSR
+        # add keyUsage if it does not exist in CSR
         ku_is_in = False
         for ext in req.get_extensions():
             if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
@@ -549,7 +630,6 @@ class CAhandler(object):
 
                     # load ca cert and key
                     (ca_key, ca_cert) = self._ca_load()
-
 
                     # creating a rest form CSR
                     req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
