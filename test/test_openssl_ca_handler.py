@@ -1076,7 +1076,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.openssl_ca_handler.CAhandler._config_check')
     def test_125_enroll(self, mock_cfgchk, mock_csrchk):
-        """ enroll test error returned from config_check"""
+        """ enroll test error returned from csr_check """
         mock_cfgchk.return_value = None
         mock_csrchk.side_effect = Exception('exc_csr_check')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
