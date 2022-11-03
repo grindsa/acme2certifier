@@ -208,9 +208,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_id_lookup() ended with: {0}'.format(cert_id))
         return cert_id
 
-    def _config_check(self):
+    def _config_api_access_check(self):
         """ check config for consitency """
-        self.logger.debug('CAhandler._config_check()')
+        self.logger.debug('CAhandler._config_api_access_check()')
 
         if not self.api_host:
             self.logger.error('"api_host" to be set in config file')
@@ -226,6 +226,12 @@ class CAhandler(object):
                 self.logger.error('"api_password" to be set in config file')
                 self.error = 'api_password to be set in config file'
 
+        self.logger.debug('CAhandler._config_api_access_check() ended')
+
+    def _config_names_check(self):
+        """ check config for consitency """
+        self.logger.debug('CAhandler._config_names_check()')
+
         if not self.error:
             if not bool('name' in self.tsg_info_dic and bool(self.tsg_info_dic['name'])):
                 self.logger.error('"tsg_name" to be set in config file')
@@ -238,56 +244,70 @@ class CAhandler(object):
         if not self.error and self.ca_bundle is False:
             self.logger.warning('"ca_bundle" set to "False" - validation of server certificate disabled')
 
-    def _config_load(self):
-        """" load config from file """
-        # pylint: disable=r0912
-        self.logger.debug('CAhandler._config_load()')
-        config_dic = load_config(self.logger, 'CAhandler')
-        if 'CAhandler' in config_dic:
-            if 'api_host' in config_dic['CAhandler']:
-                self.api_host = config_dic['CAhandler']['api_host']
-            if 'api_user_variable' in config_dic['CAhandler']:
-                try:
-                    self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
-            if 'api_user' in config_dic['CAhandler']:
-                if self.credential_dic['api_user']:
-                    self.logger.info('CAhandler._config_load() overwrite api_user')
-                self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
-            if 'api_password_variable' in config_dic['CAhandler']:
-                try:
-                    self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
-            if 'api_password' in config_dic['CAhandler']:
-                if self.credential_dic['api_password']:
-                    self.logger.info('CAhandler._config_load() overwrite api_password')
-                self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
-            if 'ca_name' in config_dic['CAhandler']:
-                self.ca_name = config_dic['CAhandler']['ca_name']
-            if 'tsg_name' in config_dic['CAhandler']:
-                self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
-            if 'template_name' in config_dic['CAhandler']:
-                self.template_info_dic['name'] = config_dic['CAhandler']['template_name']
-            if 'request_delta_treshold' in config_dic['CAhandler']:
-                try:
-                    self.request_delta_treshold = int(config_dic['CAhandler']['request_delta_treshold'])
-                except Exception:
-                    self.logger.error('CAhandler._config_load() could not load request_delta_treshold:{0}'.format(config_dic['CAhandler']['request_delta_treshold']))
+        self.logger.debug('CAhandler._config_names_check() ended')
 
-            # check if we get a ca bundle for verification
-            if 'ca_bundle' in config_dic['CAhandler']:
-                try:
-                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-                except Exception:
-                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+    def _config_check(self):
+        """ check config for consitency """
+        self.logger.debug('CAhandler._config_check()')
 
-            if 'request_timeout' in config_dic['CAhandler']:
-                try:
-                    self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
-                except Exception:
-                    self.request_timeout = 20
+        self._config_api_access_check()
+        self._config_names_check()
+
+        self.logger.debug('CAhandler._config_check() ended')
+
+    def _config_api_user_load(self, config_dic):
+        """ load user """
+        self.logger.debug('CAhandler._config_api_user_load()')
+
+        if 'api_user_variable' in config_dic['CAhandler']:
+            try:
+                self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+        if 'api_user' in config_dic['CAhandler']:
+            if self.credential_dic['api_user']:
+                self.logger.info('CAhandler._config_load() overwrite api_user')
+            self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+
+        self.logger.debug('CAhandler._config_api_user_load() ended.')
+
+    def _config_api_password_load(self, config_dic):
+        """ load password """
+        self.logger.debug('CAhandler._config_api_password_load()')
+
+        if 'api_password_variable' in config_dic['CAhandler']:
+            try:
+                self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+        if 'api_password' in config_dic['CAhandler']:
+            if self.credential_dic['api_password']:
+                self.logger.info('CAhandler._config_load() overwrite api_password')
+            self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
+
+        self.logger.debug('CAhandler._config_api_password_load() ended')
+
+    def _config_names_load(self, config_dic):
+        """ load names from config"""
+        self.logger.debug('CAhandler._config_names_load()')
+
+        if 'api_host' in config_dic['CAhandler']:
+            self.api_host = config_dic['CAhandler']['api_host']
+
+        if 'ca_name' in config_dic['CAhandler']:
+            self.ca_name = config_dic['CAhandler']['ca_name']
+
+        if 'tsg_name' in config_dic['CAhandler']:
+            self.tsg_info_dic['name'] = config_dic['CAhandler']['tsg_name']
+
+        if 'template_name' in config_dic['CAhandler']:
+            self.template_info_dic['name'] = config_dic['CAhandler']['template_name']
+
+        self.logger.debug('CAhandler._config_names_load() ended')
+
+    def _config_proxy_load(self, config_dic):
+        """ load proxy configuration """
+        self.logger.debug('CAhandler._config_proxy_load()')
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
@@ -299,6 +319,47 @@ class CAhandler(object):
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('CAhandler._config_proxy_load() ended')
+
+    def _config_timer_load(self, config_dic):
+        """ load timer """
+        self.logger.debug('CAhandler._config_proxy_load()')
+
+        if 'request_delta_treshold' in config_dic['CAhandler']:
+            try:
+                self.request_delta_treshold = int(config_dic['CAhandler']['request_delta_treshold'])
+            except Exception:
+                self.logger.error('CAhandler._config_load() could not load request_delta_treshold:{0}'.format(config_dic['CAhandler']['request_delta_treshold']))
+
+        # check if we get a ca bundle for verification
+        if 'ca_bundle' in config_dic['CAhandler']:
+            try:
+                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+            except Exception:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+
+        if 'request_timeout' in config_dic['CAhandler']:
+            try:
+                self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
+            except Exception:
+                self.request_timeout = 20
+
+        self.logger.debug('CAhandler._config_proxy_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        # pylint: disable=r0912
+        self.logger.debug('CAhandler._config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+        if 'CAhandler' in config_dic:
+
+            self._config_names_load(config_dic)
+            self._config_api_user_load(config_dic)
+            self._config_api_password_load(config_dic)
+            self._config_timer_load(config_dic)
+
+        self._config_proxy_load(config_dic)
 
         self.logger.debug('CAhandler._config_load() ended')
 
