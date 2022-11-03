@@ -1103,7 +1103,7 @@ class TestACMEHandler(unittest.TestCase):
 
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.housekeeping._cliaccounts_format(result)
-        self.assertIn('ERROR:test_a2c:acme2certifier error in Housekeeping._cliaccounts_format(): string indices must be integers', lcm.output)
+        self.assertIn('ERROR:test_a2c:acme2certifier error in Housekeeping._cliaccounts_format()', lcm.output)
         self.assertIn(call('\nName           |Contact             |cliadm|repadm|certadm|Created at          '), mock_print.mock_calls)
         self.assertIn(call('------------------------------------------------------------------------------'), mock_print.mock_calls)
 
