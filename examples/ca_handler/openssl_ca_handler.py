@@ -556,7 +556,7 @@ class CAhandler(object):
 
         return extension_list
 
-    def _cert_extension_add(self, req, cert, default_extension_list):
+    def _cert_extension_add(self, req, default_extension_list):
         """ add extensions """
         self.logger.debug('CAhandler._cert_extension_add()')
 
@@ -612,7 +612,7 @@ class CAhandler(object):
         if cert_extension_dic:
             cert.add_extensions(self._cert_extension_dic_add(cert, ca_cert, cert_extension_dic, default_extension_list, req))
         else:
-            cert.add_extensions(self._cert_extension_add(req, cert, default_extension_list))
+            cert.add_extensions(self._cert_extension_add(req, default_extension_list))
 
         self.logger.debug('CAhandler._cert_extension_apply() ended')
         return cert
