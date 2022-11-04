@@ -77,6 +77,24 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
+    def _ca_id_get(self, ca_list):
+        """ get ca_id """
+        self.logger.debug('CAhandler._ca_id_get()')
+        ca_id = None
+        if 'items' in ca_list['ca']:
+            for ca_ in ca_list['ca']['items']:
+                # compare name or description field against config value
+                if ('displayName' in ca_ and ca_['displayName'] == self.ca_name):
+                    # pylint: disable=R1723
+                    if 'policyLinkId' in ca_:
+                        ca_id = ca_['policyLinkId']
+                        break
+                    else:
+                        self.logger.error('ca_id.lookup() policyLinkId field is missing  ...')
+
+        self.logger.debug('CAhandler._ca_id_get() with {0}'.format(ca_id))
+        return ca_id
+
     def _ca_policylink_id_lookup(self):
         """ lookup CA ID based on CA_name """
         self.logger.debug('CAhandler._ca_policylink_id_lookup()')
@@ -85,16 +103,7 @@ class CAhandler(object):
         ca_list = requests.get(self.api_host + '/policy/ca?entityRef=CONTAINER&entityId={0}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0'.format(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         ca_id = None
         if 'ca' in ca_list:
-            if 'items' in ca_list['ca']:
-                for ca_ in ca_list['ca']['items']:
-                    # compare name or description field against config value
-                    if ('displayName' in ca_ and ca_['displayName'] == self.ca_name):
-                        # pylint: disable=R1723
-                        if 'policyLinkId' in ca_:
-                            ca_id = ca_['policyLinkId']
-                            break
-                        else:
-                            self.logger.error('ca_id.lookup() policyLinkId field is missing  ...')
+            ca_id = self._ca_id_get(ca_list)
         else:
             # log error
             self.logger.error('ca_id.lookup() no CAs found in response ...')
@@ -106,7 +115,8 @@ class CAhandler(object):
         return ca_id
 
     def _cert_bundle_get(self, cert_dic, count, cert_id, cert_raw, cert_bundle, issuer_loop, error):
-
+        """ get ca bundle """
+        self.logger.debug('CAhandler._cert_bundle_get()')
         if count == 1:
             if 'der' in cert_dic['certificate']:
                 cert_raw = cert_dic['certificate']['der']
