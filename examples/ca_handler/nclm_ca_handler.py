@@ -6,7 +6,7 @@ import os
 import time
 import json
 import requests
-# pylint: disable=C0209, E0401
+# pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
 
 
@@ -105,15 +105,39 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_policylink_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
+    def _cert_bundle_get(self, cert_dic, count, cert_id, cert_raw, cert_bundle, issuer_loop, error):
+
+        if count == 1:
+            if 'der' in cert_dic['certificate']:
+                cert_raw = cert_dic['certificate']['der']
+            else:
+                error = 'no der certificate returned for id {0}'.format(cert_id)
+                self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
+
+        if 'pem' in cert_dic['certificate']:
+            cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
+        else:
+            error = 'no pem certificate returned for id {0}'.format(cert_id)
+            self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
+
+        if 'issuerInfo' in cert_dic['certificate']:
+            if 'id' in cert_dic['certificate']['issuerInfo'] and cert_dic['certificate']['issuerInfo']['id'] != cert_id:
+                self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_dic['certificate']['issuerInfo']['id']))
+                cert_id = cert_dic['certificate']['issuerInfo']['id']
+                issuer_loop = True
+
+        self.logger.debug('CAhandler._cert_bundle_get() ended with: {0}'.format(cert_id))
+        return (error, cert_raw, cert_bundle, issuer_loop, cert_id)
+
     def _cert_bundle_build(self, cert_id):
         """ download cert and create bundle """
         self.logger.debug('CAhandler._cert_bundle_build({0})'.format(cert_id))
         cert_bundle = ''
         error = None
         cert_raw = None
-
         issuer_loop = True
         count = 0
+
         while issuer_loop:
             # set issuer loop to False to avoid ending in an endless loop
             issuer_loop = False
@@ -122,24 +146,7 @@ class CAhandler(object):
 
             cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             if 'certificate' in cert_dic:
-                if count == 1:
-                    if 'der' in cert_dic['certificate']:
-                        cert_raw = cert_dic['certificate']['der']
-                    else:
-                        error = 'no der certificate returned for id {0}'.format(cert_id)
-                        self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
-
-                if 'pem' in cert_dic['certificate']:
-                    cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
-                else:
-                    error = 'no pem certificate returned for id {0}'.format(cert_id)
-                    self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
-
-                if 'issuerInfo' in cert_dic['certificate']:
-                    if 'id' in cert_dic['certificate']['issuerInfo'] and cert_dic['certificate']['issuerInfo']['id'] != cert_id:
-                        self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_dic['certificate']['issuerInfo']['id']))
-                        cert_id = cert_dic['certificate']['issuerInfo']['id']
-                        issuer_loop = True
+                (error, cert_raw, cert_bundle, issuer_loop, cert_id) = self._cert_bundle_get(cert_dic, count, cert_id, cert_raw, cert_bundle, issuer_loop, error)
             else:
                 self.logger.error('CAhandler._cert_bundle_build(): invalid reponse returned for id: {0}'.format(cert_id))
                 error = 'invalid reponse returned for id: {0}'.format(cert_id)
@@ -175,11 +182,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_list_fetch() ended with {0} entries'.format(len(cert_list)))
         return cert_list
 
-    def _cert_id_lookup(self, csr_cn, san_list=None):
-        """ lookup cert id based on CN """
-        self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
+    def _cert_list_lookup(self, csr_cn):
+        """ get certificates """
+        self.logger.debug('CAhandler._cert_list_lookup({0})'.format(csr_cn))
 
-        # get certificates
         try:
             if csr_cn:
                 url = self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
@@ -190,16 +196,35 @@ class CAhandler(object):
             self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
             cert_list = []
 
+        self.logger.debug('CAhandler._cert_list_lookup() ended')
+        return cert_list
+
+    def _cert_id_get(self, cert_list, san_list):
+        """ lookup certificate id from certificate_list """
+        self.logger.debug('CAhandler._cert_id_get()')
+        cert_id = None
+        for cert in sorted(cert_list, key=lambda i: i['certificateId'], reverse=True):
+            # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
+            if san_list and 'subjectAltName' in cert:
+                result = self._san_compare(san_list, cert['subjectAltName'])
+                if result and 'certificateId' in cert:
+                    cert_id = cert['certificateId']
+                    break
+
+        self.logger.debug('CAhandler._cert_id_get() ended')
+        return cert_id
+
+    def _cert_id_lookup(self, csr_cn, san_list=None):
+        """ lookup cert id based on CN """
+        self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
+
+        # get certificate list having the csr cn
+        cert_list = self._cert_list_lookup(csr_cn)
+
         cert_id = None
         if cert_list:
             try:
-                for cert in sorted(cert_list, key=lambda i: i['certificateId'], reverse=True):
-                    # lets compare the SAN (this is more reliable than comparing the CN (certbot does not set a CN
-                    if san_list and 'subjectAltName' in cert:
-                        result = self._san_compare(san_list, cert['subjectAltName'])
-                        if result and 'certificateId' in cert:
-                            cert_id = cert['certificateId']
-                            break
+                cert_id = self._cert_id_get(cert_list, san_list)
             except Exception as err_:
                 self.logger.error('_cert_id_lookup(): response incomplete: {0}'.format(err_))
         else:
