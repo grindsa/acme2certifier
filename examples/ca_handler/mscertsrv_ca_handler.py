@@ -67,6 +67,125 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+
+    def _check_credentials(self, ca_server):
+        """ check creadentials """
+        self.logger.debug('CAhandler.__check_credentials()')
+        auth_check = ca_server.check_credentials()
+        self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
+        return auth_check
+
+    def _cert_bundle_create(self, ca_pem=None, cert_raw=None):
+        """ create bundle """
+        self.logger.debug('CAhandler._cert_bundle_create()')
+
+        error = None
+        cert_bundle = None
+
+        if ca_pem and cert_raw:
+            cert_bundle = cert_raw + ca_pem
+            cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
+            cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
+            cert_raw = cert_raw.replace('\n', '')
+        else:
+            self.logger.error('cert bundling failed')
+            error = 'cert bundling failed'
+
+        return (error, cert_bundle, cert_raw)
+
+    def _config_user_load(self, config_dic):
+        """ load username """
+        self.logger.debug('CAhandler._config_user_load()')
+
+        if 'user_variable' in config_dic['CAhandler']:
+            try:
+                self.user = os.environ[config_dic['CAhandler']['user_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+        if 'user' in config_dic['CAhandler']:
+            if self.user:
+                self.logger.info('CAhandler._config_load() overwrite user')
+            self.user = config_dic['CAhandler']['user']
+
+        self.logger.debug('CAhandler._config_user_load() ended')
+
+    def _config_password_load(self, config_dic):
+        """ load username """
+        self.logger.debug('CAhandler._config_password_load()')
+
+        if 'password_variable' in config_dic['CAhandler']:
+            try:
+                self.password = os.environ[config_dic['CAhandler']['password_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+        if 'password' in config_dic['CAhandler']:
+            if self.password:
+                self.logger.info('CAhandler._config_load() overwrite password')
+            self.password = config_dic['CAhandler']['password']
+
+        self.logger.debug('CAhandler._config_password_load() ended')
+
+    def _config_hostname_load(self, config_dic):
+        """ load hostname """
+        self.logger.debug('CAhandler._config_hostname_load()')
+
+        if 'host_variable' in config_dic['CAhandler']:
+            try:
+                self.host = os.environ[config_dic['CAhandler']['host_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
+        if 'host' in config_dic['CAhandler']:
+            if self.host:
+                self.logger.info('CAhandler._config_load() overwrite host')
+            self.host = config_dic['CAhandler']['host']
+
+        self.logger.debug('CAhandler._config_hostname_load() ended')
+
+    def _config_parameters_load(self, config_dic):
+        """ load hostname """
+        self.logger.debug('CAhandler._config_parameters_load()')
+
+        if 'template' in config_dic['CAhandler']:
+            self.template = config_dic['CAhandler']['template']
+        if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] == 'ntlm':
+            self.auth_method = config_dic['CAhandler']['auth_method']
+        # check if we get a ca bundle for verification
+        if 'ca_bundle' in config_dic['CAhandler']:
+            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+
+        self.logger.debug('CAhandler._config_parameters_load() ended')
+
+    def _config_proxy_load(self, config_dic):
+        """ load hostname """
+        self.logger.debug('CAhandler._config_proxy_load()')
+
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
+            try:
+                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_server = proxy_check(self.logger, self.host, proxy_list)
+                self.proxy = {'http': proxy_server, 'https': proxy_server}
+            except Exception as err_:
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('CAhandler._config_proxy_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('CAhandler._config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+
+        if 'CAhandler' in config_dic:
+            # load parameters from config dic
+            self._config_hostname_load(config_dic)
+            self._config_user_load(config_dic)
+            self._config_password_load(config_dic)
+            self._config_parameters_load(config_dic)
+
+        # load proxy config
+        self._config_proxy_load(config_dic)
+
+        self.logger.debug('CAhandler._config_load() ended')
+
     def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
         """ convert pkcs7 to pem """
         self.logger.debug('CAhandler._pkcs7_to_pem()')
@@ -95,13 +214,6 @@ class CAhandler(object):
 
         self.logger.debug('Certificate._pkcs7_to_pem() ended')
         return result
-
-    def _check_credentials(self, ca_server):
-        """ check creadentials """
-        self.logger.debug('CAhandler.__check_credentials()')
-        auth_check = ca_server.check_credentials()
-        self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
-        return auth_check
 
     def enroll(self, csr):
         """ enroll certificate from via MS certsrv """
@@ -138,14 +250,9 @@ class CAhandler(object):
                     cert_raw = None
                     self.logger.error('ca_server.get_cert() failed with error: {0}'.format(err_))
 
-                if ca_pem and cert_raw:
-                    cert_bundle = cert_raw + ca_pem
-                    cert_raw = cert_raw.replace('-----BEGIN CERTIFICATE-----\n', '')
-                    cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
-                    cert_raw = cert_raw.replace('\n', '')
-                else:
-                    self.logger.error('cert bundling failed')
-                    error = 'cert bundling failed'
+                # create bundle
+                (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+
             else:
                 self.logger.error('Connection or Credentialcheck failed')
                 error = 'Connection or Credentialcheck failed.'
@@ -155,57 +262,6 @@ class CAhandler(object):
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
-
-    def _config_load(self):
-        """" load config from file """
-        self.logger.debug('CAhandler._config_load()')
-        config_dic = load_config(self.logger, 'CAhandler')
-        if 'CAhandler' in config_dic:
-
-            if 'host_variable' in config_dic['CAhandler']:
-                try:
-                    self.host = os.environ[config_dic['CAhandler']['host_variable']]
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
-            if 'host' in config_dic['CAhandler']:
-                if self.host:
-                    self.logger.info('CAhandler._config_load() overwrite host')
-                self.host = config_dic['CAhandler']['host']
-            if 'user_variable' in config_dic['CAhandler']:
-                try:
-                    self.user = os.environ[config_dic['CAhandler']['user_variable']]
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
-            if 'user' in config_dic['CAhandler']:
-                if self.user:
-                    self.logger.info('CAhandler._config_load() overwrite user')
-                self.user = config_dic['CAhandler']['user']
-            if 'password_variable' in config_dic['CAhandler']:
-                try:
-                    self.password = os.environ[config_dic['CAhandler']['password_variable']]
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
-            if 'password' in config_dic['CAhandler']:
-                if self.password:
-                    self.logger.info('CAhandler._config_load() overwrite password')
-                self.password = config_dic['CAhandler']['password']
-            if 'template' in config_dic['CAhandler']:
-                self.template = config_dic['CAhandler']['template']
-            if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] == 'ntlm':
-                self.auth_method = config_dic['CAhandler']['auth_method']
-            # check if we get a ca bundle for verification
-            if 'ca_bundle' in config_dic['CAhandler']:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-
-        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
-            try:
-                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
-                proxy_server = proxy_check(self.logger, self.host, proxy_list)
-                self.proxy = {'http': proxy_server, 'https': proxy_server}
-            except Exception as err_:
-                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
-
-        self.logger.debug('CAhandler._config_load() ended')
 
     def poll(self, _cert_name, poll_identifier, _csr):
         """ poll status of pending CSR and download certificates """
