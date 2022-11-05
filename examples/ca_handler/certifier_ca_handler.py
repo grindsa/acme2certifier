@@ -297,6 +297,33 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
+    def _poll_cert_get(self, request_dic):
+        """ get certificate via poll request """
+        self.logger.debug('CAhandler._poll_cert_get()')
+
+        cert_bundle = None
+        cert_raw = None
+        poll_identifier = None
+        break_loop = False
+        if 'certificate' in request_dic:
+            # poll identifier for later storage
+            cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            # pylint: disable=R1723
+            if 'certificateBase64' in cert_dic:
+                # this is a valid cert generate the bundle
+                error = None
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                cert_raw = cert_dic['certificateBase64']
+                poll_identifier = None
+                break_loop = True
+            else:
+                error = 'Request accepted but no certificateBase64 returned'
+        else:
+            error = 'Request accepted but no certificate returned'
+
+        self.logger.debug('CAhandler._poll_cert_get() ended')
+        return (error, cert_bundle, cert_raw, poll_identifier, break_loop)
+
     def _loop_poll(self, request_url):
         """ poll request """
         self.logger.debug('CAhandler._loop_poll({0})'.format(request_url))
@@ -316,21 +343,9 @@ class CAhandler(object):
                 # check response
                 if 'status' in request_dic:
                     if request_dic['status'] == 'accepted':
-                        if 'certificate' in request_dic:
-                            # poll identifier for later storage
-                            cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
-                            # pylint: disable=R1723
-                            if 'certificateBase64' in cert_dic:
-                                # this is a valid cert generate the bundle
-                                error = None
-                                cert_bundle = self._pem_cert_chain_generate(cert_dic)
-                                cert_raw = cert_dic['certificateBase64']
-                                poll_identifier = None
-                                break
-                            else:
-                                error = 'Request accepted but no certificateBase64 returned'
-                        else:
-                            error = 'Request accepted but no certificate returned'
+                        (error, cert_bundle, cert_raw, poll_identifier, break_loop) = self._poll_cert_get(request_dic)
+                        if break_loop:
+                            break
                     elif request_dic['status'] == 'rejected':
                         error = 'Request rejected by operator'
                         poll_identifier = None
