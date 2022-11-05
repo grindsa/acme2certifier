@@ -62,42 +62,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certs_bundle() ended with {0}/{1}'.format(bool(cert_bundle), bool(cert_raw)))
         return (cert_bundle, cert_raw)
 
-    def _config_load(self):
-        """" load config from file """
-        # pylint: disable=R0912, R0915
-        self.logger.debug('CAhandler._config_load()')
-        config_dic = load_config(self.logger, 'CAhandler')
-
-        if 'CAhandler' in config_dic:
-            for ele in config_dic['CAhandler']:
-                if ele.startswith('cmp_'):
-                    if ele == 'cmp_openssl_bin':
-                        self.openssl_bin = config_dic['CAhandler']['cmp_openssl_bin']
-                    elif ele == 'cmp_recipient':
-                        if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
-                            value = config_dic['CAhandler'][ele]
-                        else:
-                            value = '/' + config_dic['CAhandler'][ele]
-                        value = value.replace(', ', '/')
-                        value = value.replace(',', '/')
-                        self.config_dic['recipient'] = value
-                    elif ele == 'cmp_ref_variable':
-                        try:
-                            self.ref = os.environ[config_dic['CAhandler']['cmp_ref_variable']]
-                        except Exception as err:
-                            self.logger.error('CAhandler._config_load() could not load cmp_ref:{0}'.format(err))
-                    elif ele == 'cmp_secret_variable':
-                        try:
-                            self.secret = os.environ[config_dic['CAhandler']['cmp_secret_variable']]
-                        except Exception as err:
-                            self.logger.error('CAhandler._config_load() could not load cmp_secret_variable:{0}'.format(err))
-                    elif ele in ('cmp_secret', 'cmp_ref'):
-                        continue
-                    else:
-                        if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
-                            self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
-                        else:
-                            self.config_dic[ele[4:]] = config_dic['CAhandler'][ele]
+    def _config_refsecret_load(self, config_dic):
+        """" load ref secrets from file """
+        self.logger.debug('CAhandler._config_refsecret_load()')
 
         if 'CAhandler' in config_dic and 'cmp_ref' in config_dic['CAhandler']:
             if self.ref:
@@ -107,6 +74,12 @@ class CAhandler(object):
             if self.secret:
                 self.logger.info('CAhandler._config_load() overwrite cmp_secret variable')
             self.secret = config_dic['CAhandler']['cmp_secret']
+
+        self.logger.debug('CAhandler._config_refsecret_load() ended')
+
+    def _config_paramters_load(self):
+        """" load refsecrets from file """
+        self.logger.debug('CAhandler._config_paramters_load()')
 
         if 'cmd' not in self.config_dic:
             self.config_dic['cmd'] = 'ir'
@@ -125,6 +98,58 @@ class CAhandler(object):
 
         if not self.recipient:
             self.logger.error('CAhandler config error: "cmp_recipient" is missing in config_file.')
+
+        self.logger.debug('CAhandler._config_paramters_load() ended')
+
+    def _config_cmpparameter_load(self, ele, config_dic):
+        """ load cmp parameters """
+        self.logger.debug('CAhandler._config_cmpparameter_load()')
+
+        if ele == 'cmp_openssl_bin':
+            self.openssl_bin = config_dic['CAhandler']['cmp_openssl_bin']
+        elif ele == 'cmp_recipient':
+            if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
+                value = config_dic['CAhandler'][ele]
+            else:
+                value = '/' + config_dic['CAhandler'][ele]
+            value = value.replace(', ', '/')
+            value = value.replace(',', '/')
+            self.config_dic['recipient'] = value
+        elif ele == 'cmp_ref_variable':
+            try:
+                self.ref = os.environ[config_dic['CAhandler']['cmp_ref_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load cmp_ref:{0}'.format(err))
+        elif ele == 'cmp_secret_variable':
+            try:
+                self.secret = os.environ[config_dic['CAhandler']['cmp_secret_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load cmp_secret_variable:{0}'.format(err))
+        elif ele in ('cmp_secret', 'cmp_ref'):
+            pass
+        else:
+            if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
+                self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
+            else:
+                self.config_dic[ele[4:]] = config_dic['CAhandler'][ele]
+
+        self.logger.debug('CAhandler._config_cmpparameter_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        # pylint: disable=R0912, R0915
+        self.logger.debug('CAhandler._config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+
+        if 'CAhandler' in config_dic:
+            for ele in config_dic['CAhandler']:
+                if ele.startswith('cmp_'):
+                    self._config_cmpparameter_load(ele, config_dic)
+
+        # load ref/psk information
+        self._config_refsecret_load(config_dic)
+        # load file and directory names
+        self._config_paramters_load()
 
         self.logger.debug('CAhandler._config_load() ended')
 
