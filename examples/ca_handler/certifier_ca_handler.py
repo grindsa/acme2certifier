@@ -132,6 +132,45 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get_properties() ended')
         return api_response
 
+    def _certificate_revoke(self, serial, ca_dic, rev_reason, rev_date):
+        self.logger.debug('CAhandler._certificate_revoke()')
+
+        code = None
+        message = None
+        detail = None
+
+        # get error message
+        err_dic = error_dic_get(self.logger)
+
+        # get certificate information via rest by search for ca+ serial
+        cert_dic = self._cert_get_properties(serial, ca_dic['href'])
+        if 'certificates' in cert_dic:
+            if len(cert_dic['certificates']) > 0 and 'href' in cert_dic['certificates'][0]:
+                # revoke the cert
+                data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
+                cert_dic = self._api_post(cert_dic['certificates'][0]['href'] + '/status', data)
+                if 'status' in cert_dic:
+                    code = 400
+                    message = err_dic['alreadyrevoked']
+                    if 'message' in cert_dic:
+                        detail = cert_dic['message']
+                    else:
+                        detail = 'no details'
+                else:
+                    code = 200
+                    message = None
+                    detail = None
+            else:
+                code = 404
+                message = err_dic['serverinternal']
+                detail = 'Cert path could not be found'
+        else:
+            code = 404
+            message = err_dic['serverinternal']
+            detail = 'Cert could not be found'
+
+        return (code, message, detail)
+
     def _config_load(self):
         """" load config from file """
         # pylint: disable=R0912, R0915
@@ -329,6 +368,28 @@ class CAhandler(object):
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+    def _trigger_bundle_build(self, cert_raw, ca_dic):
+        self.logger.debug('CAhandler._trigger_bundle_build()')
+        error = None
+        cert_bundle = None
+
+        # get serial from pem file
+        serial = cert_serial_get(self.logger, cert_raw)
+        if serial:
+            # get certificate information via rest by search for ca+ serial
+            cert_list = self._cert_get_properties(serial, ca_dic['href'])
+            # the first entry is the cert we are looking for
+            if 'certificates' in cert_list and len(cert_list['certificates'][0]) > 0:
+                cert_dic = cert_list['certificates'][0]
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+            else:
+                error = 'no certifcates found in rest query'
+        else:
+            error = 'serial number lookup via rest failed'
+
+        self.logger.debug('CAhandler._trigger_bundle_build() ended with:  {0}'.format(error))
+        return (error, cert_bundle)
+
     def enroll(self, csr):
         """ enroll certificate """
         self.logger.debug('Certificate.enroll()')
@@ -375,6 +436,8 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+
+
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
@@ -388,32 +451,7 @@ class CAhandler(object):
             # get serial from pem file
             serial = cert_serial_get(self.logger, cert)
             if serial:
-                # get certificate information via rest by search for ca+ serial
-                cert_dic = self._cert_get_properties(serial, ca_dic['href'])
-                if 'certificates' in cert_dic:
-                    if len(cert_dic['certificates']) > 0 and 'href' in cert_dic['certificates'][0]:
-                        # revoke the cert
-                        data = {'newStatus': 'revoked', 'crlReason': rev_reason, 'invalidityDate': rev_date}
-                        cert_dic = self._api_post(cert_dic['certificates'][0]['href'] + '/status', data)
-                        if 'status' in cert_dic:
-                            code = 400
-                            message = err_dic['alreadyrevoked']
-                            if 'message' in cert_dic:
-                                detail = cert_dic['message']
-                            else:
-                                detail = 'no details'
-                        else:
-                            code = 200
-                            message = None
-                            detail = None
-                    else:
-                        code = 404
-                        message = err_dic['serverinternal']
-                        detail = 'Cert path could not be found'
-                else:
-                    code = 404
-                    message = err_dic['serverinternal']
-                    detail = 'Cert could not be found'
+                (code, message, detail) = self._certificate_revoke(serial, ca_dic, rev_reason, rev_date)
             else:
                 code = 404
                 message = err_dic['serverinternal']
@@ -446,19 +484,7 @@ class CAhandler(object):
             # lookup REST-PATH of issuing CA
             ca_dic = self._ca_get_properties('name', self.ca_name)
             if 'href' in ca_dic:
-                # get serial from pem file
-                serial = cert_serial_get(self.logger, cert_raw)
-                if serial:
-                    # get certificate information via rest by search for ca+ serial
-                    cert_list = self._cert_get_properties(serial, ca_dic['href'])
-                    # the first entry is the cert we are looking for
-                    if 'certificates' in cert_list and len(cert_list['certificates'][0]) > 0:
-                        cert_dic = cert_list['certificates'][0]
-                        cert_bundle = self._pem_cert_chain_generate(cert_dic)
-                    else:
-                        error = 'no certifcates found in rest query'
-                else:
-                    error = 'serial number lookup via rest failed'
+                (error, cert_bundle) = self._trigger_bundle_build(cert_raw, ca_dic)
             else:
                 error = 'Cannot find CA'
         else:
