@@ -48,6 +48,29 @@ class CAhandler(object):
             self.logger.error('CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file')
         self.logger.debug('CAhandler._auth_set() ended')
 
+    def _api_poll(self, request_dic):
+        """ poll request """
+        self.logger.debug('CAhandler._api_poll()')
+
+        cert_bundle = None
+        cert_raw = None
+
+        if 'certificate' in request_dic:
+            # poll identifier for later storage
+            cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            if 'certificateBase64' in cert_dic:
+                # this is a valid cert generate the bundle
+                error = None
+                cert_bundle = self._pem_cert_chain_generate(cert_dic)
+                cert_raw = cert_dic['certificateBase64']
+            else:
+                error = 'certificateBase64 is missing in cert request response'
+        else:
+            error = 'No certificate structure in request response'
+
+        self.logger.debug('CAhandler._api_poll() ended')
+        return (error, cert_bundle, cert_raw)
+
     def _api_post(self, url, data):
         """
         generic wrapper for an API post call
@@ -171,62 +194,72 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def _config_load(self):
-        """" load config from file """
-        # pylint: disable=R0912, R0915
-        self.logger.debug('_config_load()')
-        config_dic = load_config(self.logger, 'CAhandler')
-        if 'CAhandler' in config_dic:
-            if 'api_host' in config_dic['CAhandler']:
-                self.api_host = config_dic['CAhandler']['api_host']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
-
-            if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
-                if 'api_user_variable' in config_dic['CAhandler']:
-                    try:
-                        self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
-                    except Exception as err:
-                        self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
-                if 'api_user' in config_dic['CAhandler']:
-                    if self.api_user:
-                        self.logger.info('CAhandler._config_load() overwrite api_user')
-                    self.api_user = config_dic['CAhandler']['api_user']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file')
-
-            if 'api_password' in config_dic['CAhandler'] or 'api_password_variable' in config_dic['CAhandler']:
-                if 'api_password_variable' in config_dic['CAhandler']:
-                    try:
-                        self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
-                    except Exception as err:
-                        self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
-                if 'api_password' in config_dic['CAhandler']:
-                    if self.api_password:
-                        self.logger.info('CAhandler._config_load() overwrite api_password_variable')
-                    self.api_password = config_dic['CAhandler']['api_password']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file')
-
-            if 'ca_name' in config_dic['CAhandler']:
-                self.ca_name = config_dic['CAhandler']['ca_name']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file')
-            if 'polling_timeout' in config_dic['CAhandler']:
-                self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
-
-            if 'request_timeout' in config_dic['CAhandler']:
+    def _config_user_load(self, config_dic):
+        """ load username """
+        self.logger.debug('_config_user_load()')
+        if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
+            if 'api_user_variable' in config_dic['CAhandler']:
                 try:
-                    self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
-                except Exception:
-                    self.request_timeout = 20
+                    self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+            if 'api_user' in config_dic['CAhandler']:
+                if self.api_user:
+                    self.logger.info('CAhandler._config_load() overwrite api_user')
+                self.api_user = config_dic['CAhandler']['api_user']
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file')
 
-            # check if we get a ca bundle for verification
-            if 'ca_bundle' in config_dic['CAhandler']:
+        self.logger.debug('_config_user_load() ended')
+
+    def _config_password_load(self, config_dic):
+        """ load password """
+        self.logger.debug('_config_password_load()')
+
+        if 'api_password' in config_dic['CAhandler'] or 'api_password_variable' in config_dic['CAhandler']:
+            if 'api_password_variable' in config_dic['CAhandler']:
                 try:
-                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-                except Exception:
-                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+                    self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+            if 'api_password' in config_dic['CAhandler']:
+                if self.api_password:
+                    self.logger.info('CAhandler._config_load() overwrite api_password_variable')
+                self.api_password = config_dic['CAhandler']['api_password']
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file')
+
+        self.logger.debug('_config_password_load() ended')
+
+    def _config_parameter_load(self, config_dic):
+        """ load parameters """
+        self.logger.debug('_config_parameter_load()')
+
+        if 'ca_name' in config_dic['CAhandler']:
+            self.ca_name = config_dic['CAhandler']['ca_name']
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file')
+        if 'polling_timeout' in config_dic['CAhandler']:
+            self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+
+        if 'request_timeout' in config_dic['CAhandler']:
+            try:
+                self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
+            except Exception:
+                self.request_timeout = 20
+
+        # check if we get a ca bundle for verification
+        if 'ca_bundle' in config_dic['CAhandler']:
+            try:
+                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+            except Exception:
+                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+
+        self.logger.debug('_config_parameter_load() ended')
+
+    def _config_proxy_load(self, config_dic):
+        """ load parameters """
+        self.logger.debug('_config_proxy_load()')
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
@@ -238,6 +271,29 @@ class CAhandler(object):
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
                 self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('_config_proxy_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        # pylint: disable=R0912, R0915
+        self.logger.debug('_config_load()')
+        config_dic = load_config(self.logger, 'CAhandler')
+        if 'CAhandler' in config_dic:
+            if 'api_host' in config_dic['CAhandler']:
+                self.api_host = config_dic['CAhandler']['api_host']
+            else:
+                self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
+
+            # load user from config
+            self._config_user_load(config_dic)
+            # load password from config
+            self._config_password_load(config_dic)
+            # load parameters from config
+            self._config_parameter_load(config_dic)
+
+        # load proxy configuration
+        self._config_proxy_load(config_dic)
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -288,34 +344,53 @@ class CAhandler(object):
         self.logger.debug('CAhandler._loop_poll() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw, poll_identifier)
 
-    def _pem_cert_chain_generate(self, cert_dic):
-        """ build certificate chain based """
+    def _pem_list_cert_get(self, cert_dic):
+        self.logger.debug('CAhandler._pem_list_cert_get()')
+        if 'issuer' in cert_dic:
+            self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
+            ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+        else:
+            self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
+            ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+
+        cert_dic = {}
+        if 'certificates' in ca_cert_dic:
+            if 'active' in ca_cert_dic['certificates']:
+                cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+
+        self.logger.debug('CAhandler._pem_list_cert_get() ended')
+        return cert_dic
+
+    def _pem_list_build(self, cert_dic):
+        self.logger.debug('CAhandler._pem_list_build()')
+
         pem_list = []
         issuer_loop = True
+        while issuer_loop:
+            if 'certificateBase64' in cert_dic:
+                pem_list.append(cert_dic['certificateBase64'])
+            else:
+                # stop if there is no pem content in the json response
+                issuer_loop = False  # lgtm [py/unused-local-variable]
+                break
+            if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
+                cert_dic = self._pem_list_cert_get(cert_dic)
+            else:
+                issuer_loop = False   # lgtm [py/unused-local-variable]
+                break
+
+        self.logger.debug('CAhandler._pem_list_build() ended')
+        return pem_list
+
+    def _pem_cert_chain_generate(self, cert_dic):
+        """ build certificate chain based """
+        self.logger.debug('CAhandler._pem_cert_chain_generate()')
 
         if cert_dic:
-            while issuer_loop:
-                if 'certificateBase64' in cert_dic:
-                    pem_list.append(cert_dic['certificateBase64'])
-                else:
-                    # stop if there is no pem content in the json response
-                    issuer_loop = False  # lgtm [py/unused-local-variable]
-                    break
-                if 'issuer' in cert_dic or 'issuerCa' in cert_dic:
-                    if 'issuer' in cert_dic:
-                        self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
-                        ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
-                    else:
-                        self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
-                        ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            pem_list = self._pem_list_build(cert_dic)
+        else:
+            pem_list = []
 
-                    cert_dic = {}
-                    if 'certificates' in ca_cert_dic:
-                        if 'active' in ca_cert_dic['certificates']:
-                            cert_dic = requests.get(ca_cert_dic['certificates']['active'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
-                else:
-                    issuer_loop = False   # lgtm [py/unused-local-variable]
-                    break
         if pem_list:
             pem_file = ''
             for cert in pem_list:
@@ -345,18 +420,7 @@ class CAhandler(object):
         # check response
         if 'status' in request_dic:
             if request_dic['status'] == 'accepted':
-                if 'certificate' in request_dic:
-                    # poll identifier for later storage
-                    cert_dic = requests.get(request_dic['certificate'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
-                    if 'certificateBase64' in cert_dic:
-                        # this is a valid cert generate the bundle
-                        error = None
-                        cert_bundle = self._pem_cert_chain_generate(cert_dic)
-                        cert_raw = cert_dic['certificateBase64']
-                    else:
-                        error = 'certificateBase64 is missing in cert request response'
-                else:
-                    error = 'No certificate structure in request response'
+                (error, cert_bundle, cert_raw) = self._api_poll(request_dic)
             elif request_dic['status'] == 'rejected':
                 error = 'Request rejected by operator'
                 rejected = True
@@ -435,8 +499,6 @@ class CAhandler(object):
             self.logger.debug('skipping cert: {0} as there is no poll_identifier'.format(cert_name))
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
-
-
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
         """ revoke certificate """
