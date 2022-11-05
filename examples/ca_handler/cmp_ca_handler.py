@@ -101,6 +101,20 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_paramters_load() ended')
 
+    def _config_cmprecipient_load(self, config_dic):
+        """ load and format recipient """
+        self.logger.debug('CAhandler._config_cmprecipient_load()')
+
+        if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
+            value = config_dic['CAhandler']['cmp_recipient']
+        else:
+            value = '/' + config_dic['CAhandler']['cmp_recipient']
+        value = value.replace(', ', '/')
+        value = value.replace(',', '/')
+        self.config_dic['recipient'] = value
+
+        self.logger.debug('CAhandler._config_cmprecipient_load() ended')
+
     def _config_cmpparameter_load(self, ele, config_dic):
         """ load cmp parameters """
         self.logger.debug('CAhandler._config_cmpparameter_load()')
@@ -108,13 +122,7 @@ class CAhandler(object):
         if ele == 'cmp_openssl_bin':
             self.openssl_bin = config_dic['CAhandler']['cmp_openssl_bin']
         elif ele == 'cmp_recipient':
-            if config_dic['CAhandler']['cmp_recipient'].startswith('/'):
-                value = config_dic['CAhandler'][ele]
-            else:
-                value = '/' + config_dic['CAhandler'][ele]
-            value = value.replace(', ', '/')
-            value = value.replace(',', '/')
-            self.config_dic['recipient'] = value
+            self._config_cmprecipient_load(config_dic)
         elif ele == 'cmp_ref_variable':
             try:
                 self.ref = os.environ[config_dic['CAhandler']['cmp_ref_variable']]
@@ -126,7 +134,7 @@ class CAhandler(object):
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load cmp_secret_variable:{0}'.format(err))
         elif ele in ('cmp_secret', 'cmp_ref'):
-            pass
+            self.logger.debug('CAhandler._config_cmpparameter_load() ignore {0}'.format(ele))
         else:
             if config_dic['CAhandler'][ele] == 'True' or config_dic['CAhandler'][ele] == 'False':
                 self.config_dic[ele[4:]] = config_dic.getboolean('CAhandler', ele, fallback=False)
