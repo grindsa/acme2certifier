@@ -243,7 +243,7 @@ class TestACMEHandler(unittest.TestCase):
         self.message.dbstore.account_lookup.side_effect = Exception('exc_mess__name_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.message._name_get(protected)
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Message._name_get(): exc_mess__name_get', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Message._name_rev_get(): exc_mess__name_get', lcm.output)
 
     def test_026__enter__(self):
         """ test enter """

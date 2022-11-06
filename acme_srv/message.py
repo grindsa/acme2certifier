@@ -42,6 +42,26 @@ class Message(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
+    def _name_rev_get(self, content):
+        """ this is needed for cases where we get a revocation message signed with account key but account name is missing """
+        self.logger.debug('Message._name_rev_get()')
+
+        try:
+            account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Message._name_rev_get(): {0}'.format(err_))
+            account_list = []
+        if account_list:
+            if 'name' in account_list:
+                kid = account_list['name']
+            else:
+                kid = None
+        else:
+            kid = None
+
+        self.logger.debug('Message._name_rev_get() ended with kid: {0}'.format(kid))
+        return kid
+
     def _name_get(self, content):
         """ get name for account """
         self.logger.debug('Message._name_get()')
@@ -53,25 +73,49 @@ class Message(object):
                 kid = None
         elif 'jwk' in content and 'url' in content:
             if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
-                # this is needed for cases where we get a revocation message signed with account key but account name is missing)
-                try:
-                    account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
-                except Exception as err_:
-                    self.logger.critical('acme2certifier database error in Message._name_get(): {0}'.format(err_))
-                    account_list = []
-                if account_list:
-                    if 'name' in account_list:
-                        kid = account_list['name']
-                    else:
-                        kid = None
-                else:
-                    kid = None
+                # this is needed for cases where we get a revocation message signed with account key but account name is missing
+                kid = self._name_rev_get(content)
             else:
                 kid = None
         else:
             kid = None
         self.logger.debug('Message._name_get() returns: {0}'.format(kid))
         return kid
+
+    def _check(self, skip_nonce_check, skip_signature_check, content, protected, use_emb_key):
+        """ decoding successful - check nonce for anti replay protection """
+        self.logger.debug('Message._check()')
+
+        account_name = None
+        if skip_nonce_check or self.disable_dic['nonce_check_disable']:
+            # nonce check can be skipped by configuration and in case of key-rollover
+            if self.disable_dic['nonce_check_disable']:
+                self.logger.error('**** NONCE CHECK DISABLED!!! Severe security issue ****')
+            else:
+                self.logger.info('skip nonce check of inner payload during keyrollover')
+            code = 200
+            message = None
+            detail = None
+        else:
+            (code, message, detail) = self.nonce.check(protected)
+
+        if code == 200 and not skip_signature_check:
+            # nonce check successful - check signature
+            account_name = self._name_get(protected)
+            signature = Signature(self.debug, self.server_name, self.logger)
+            # we need the decoded protected header to grab a key to verify signature
+            (sig_check, error, error_detail) = signature.check(account_name, content, use_emb_key, protected)
+            if sig_check:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = error
+                detail = error_detail
+
+        self.logger.debug('Message._check() ended with: {0}'.format(code))
+        return (code, message, detail, account_name)
 
     # pylint: disable=R0914
     def check(self, content, use_emb_key=False, skip_nonce_check=False):
@@ -88,33 +132,7 @@ class Message(object):
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
         account_name = None
         if result:
-            # decoding successful - check nonce for anti replay protection
-            if skip_nonce_check or self.disable_dic['nonce_check_disable']:
-                # nonce check can be skipped by configuration and in case of key-rollover
-                if self.disable_dic['nonce_check_disable']:
-                    self.logger.error('**** NONCE CHECK DISABLED!!! Severe security issue ****')
-                else:
-                    self.logger.info('skip nonce check of inner payload during keyrollover')
-                code = 200
-                message = None
-                detail = None
-            else:
-                (code, message, detail) = self.nonce.check(protected)
-
-            if code == 200 and not skip_signature_check:
-                # nonce check successful - check signature
-                account_name = self._name_get(protected)
-                signature = Signature(self.debug, self.server_name, self.logger)
-                # we need the decoded protected header to grab a key to verify signature
-                (sig_check, error, error_detail) = signature.check(account_name, content, use_emb_key, protected)
-                if sig_check:
-                    code = 200
-                    message = None
-                    detail = None
-                else:
-                    code = 403
-                    message = error
-                    detail = error_detail
+            (code, message, detail, account_name) = self._check(skip_nonce_check, skip_signature_check, content, protected, use_emb_key)
         else:
             # message could not get decoded
             code = 400
