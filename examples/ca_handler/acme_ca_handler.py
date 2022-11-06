@@ -53,50 +53,66 @@ class CAhandler(object):
         return self
 
     def __exit__(self, *args):
-        """ cose the connection at the end of the context """
+        """ close the connection at the end of the context """
+
+    def _config_account_load(self, config_dic):
+        self.logger.debug('CAhandler._config_account_load()')
+
+        if 'acme_keyfile' in config_dic['CAhandler']:
+            self.keyfile = config_dic['CAhandler']['acme_keyfile']
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
+
+        if 'acme_url' in config_dic['CAhandler']:
+            self.url = config_dic['CAhandler']['acme_url']
+            self.url_dic = parse_url(self.logger, self.url)
+        else:
+            self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
+
+        if 'acme_account' in config_dic['CAhandler']:
+            self.account = config_dic['CAhandler']['acme_account']
+
+        if 'account_path' in config_dic['CAhandler']:
+            self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
+
+        if 'acme_account_keysize' in config_dic['CAhandler']:
+            self.key_size = config_dic['CAhandler']['acme_account_keysize']
+
+        if 'acme_account_email' in config_dic['CAhandler']:
+            self.email = config_dic['CAhandler']['acme_account_email']
+
+        self.logger.debug('CAhandler._config_account_load() ended')
+
+    def _config_parameters_load(self, config_dic):
+        """" load eab config """
+        self.logger.debug('CAhandler._config_eab_load()')
+
+        if 'directory_path' in config_dic['CAhandler']:
+            self.path_dic['directory_path'] = config_dic['CAhandler']['directory_path']
+
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            try:
+                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
+
+        if 'eab_kid' in config_dic['CAhandler']:
+            self.eab_kid = config_dic['CAhandler']['eab_kid']
+
+        if 'eab_hmac_key' in config_dic['CAhandler']:
+            self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
+
+        self.logger.debug('CAhandler._config_eab_load() ended')
 
     def _config_load(self):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config()
         if 'CAhandler' in config_dic:
-            if 'acme_keyfile' in config_dic['CAhandler']:
-                self.keyfile = config_dic['CAhandler']['acme_keyfile']
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
 
-            if 'acme_url' in config_dic['CAhandler']:
-                self.url = config_dic['CAhandler']['acme_url']
-                self.url_dic = parse_url(self.logger, self.url)
-            else:
-                self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
-
-            if 'acme_account' in config_dic['CAhandler']:
-                self.account = config_dic['CAhandler']['acme_account']
-
-            if 'account_path' in config_dic['CAhandler']:
-                self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
-
-            if 'directory_path' in config_dic['CAhandler']:
-                self.path_dic['directory_path'] = config_dic['CAhandler']['directory_path']
-
-            if 'acme_account_keysize' in config_dic['CAhandler']:
-                self.key_size = config_dic['CAhandler']['acme_account_keysize']
-
-            if 'acme_account_email' in config_dic['CAhandler']:
-                self.email = config_dic['CAhandler']['acme_account_email']
-
-            if 'allowed_domainlist' in config_dic['CAhandler']:
-                try:
-                    self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
-
-            if 'eab_kid' in config_dic['CAhandler']:
-                self.eab_kid = config_dic['CAhandler']['eab_kid']
-
-            if 'eab_hmac_key' in config_dic['CAhandler']:
-                self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
+            # load account configuration and paramters
+            self._config_account_load(config_dic)
+            self._config_parameters_load(config_dic)
 
             self.logger.debug('CAhandler._config_load() ended')
         else:
@@ -122,6 +138,38 @@ class CAhandler(object):
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
 
+    def _sancheck_lists_create(self, csr):
+        self.logger.debug('CAhandler.sancheck_lists_create()')
+
+        check_list = []
+        san_list = []
+
+        # get sans and build a list
+        _san_list = csr_san_get(self.logger, csr)
+
+        if _san_list:
+            for san in _san_list:
+                try:
+                    # SAN list must be modified/filtered)
+                    (_san_type, san_value) = san.lower().split(':')
+                    san_list.append(san_value)
+                except Exception:
+                    # force check to fail as something went wrong during parsing
+                    check_list.append(False)
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
+
+        # get common name and attach it to san_list
+        cn_ = csr_cn_get(self.logger, csr)
+
+        if cn_:
+            cn_ = cn_.lower()
+            if cn_ not in san_list:
+                # append cn to san_list
+                self.logger.debug('Ahandler._csr_check(): append cn to san_list')
+                san_list.append(cn_)
+
+        return (san_list, check_list)
+
     def _csr_check(self, csr):
         """ check CSR against definied whitelists """
         self.logger.debug('CAhandler._csr_check()')
@@ -130,32 +178,7 @@ class CAhandler(object):
 
             result = False
 
-            # get sans and build a list
-            _san_list = csr_san_get(self.logger, csr)
-
-            check_list = []
-            san_list = []
-
-            if _san_list:
-                for san in _san_list:
-                    try:
-                        # SAN list must be modified/filtered)
-                        (_san_type, san_value) = san.lower().split(':')
-                        san_list.append(san_value)
-                    except Exception:
-                        # force check to fail as something went wrong during parsing
-                        check_list.append(False)
-                        self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
-
-            # get common name and attach it to san_list
-            cn_ = csr_cn_get(self.logger, csr)
-
-            if cn_:
-                cn_ = cn_.lower()
-                if cn_ not in san_list:
-                    # append cn to san_list
-                    self.logger.debug('Ahandler._csr_check(): append cn to san_list')
-                    san_list.append(cn_)
+            (san_list, check_list)  = self._sancheck_lists_create(csr)
 
             # go over the san list and check each entry
             for san in san_list:
@@ -173,6 +196,21 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
         return result
 
+    def _entry_check(self, entry, regex, check_result):
+        """ check string against regex """
+        self.logger.debug('_entry_check({0}/{1}):'.format(entry, regex))
+
+        if regex.startswith('*.'):
+            regex = regex.replace('*.', '.')
+        regex_compiled = re.compile(regex)
+
+        if bool(regex_compiled.search(entry)):
+            # parameter is in set flag accordingly and stop loop
+            check_result = True
+
+        self.logger.debug('_entry_check() ended with: {0}'.format(check_result))
+        return check_result
+
     def _list_check(self, entry, list_, toggle=False):
         """ check string against list """
         self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
@@ -184,12 +222,8 @@ class CAhandler(object):
         if entry:
             if list_:
                 for regex in list_:
-                    if regex.startswith('*.'):
-                        regex = regex.replace('*.', '.')
-                    regex_compiled = re.compile(regex)
-                    if bool(regex_compiled.search(entry)):
-                        # parameter is in set flag accordingly and stop loop
-                        check_result = True
+                    # check entry
+                    check_result = self._entry_check(entry, regex, check_result)
             else:
                 # empty list, flip parameter to make the check successful
                 check_result = True
@@ -255,6 +289,39 @@ class CAhandler(object):
         self.logger.debug('CAhandler._user_key_load() ended')
         return user_key
 
+    def _order_issue(self, acmeclient, user_key, csr_pem):
+        """ isuse order """
+        self.logger.debug('CAhandler.enroll() issuing signing order')
+        self.logger.debug('CAhandler.enroll() csr: ' + str(csr_pem))
+        order = acmeclient.new_order(csr_pem)
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        # query challenges
+        for authzr in list(order.authorizations):
+            (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
+            if challenge_name and challenge_content:
+                # store challenge in database to allow challenge validation
+                self._challenge_store(challenge_name, challenge_content)
+                _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
+
+        self.logger.debug('CAhandler.enroll() polling for certificate')
+        order = acmeclient.poll_and_finalize(order)
+
+        if order.fullchain_pem:
+            self.logger.debug('CAhandler.enroll() successful')
+            cert_bundle = str(order.fullchain_pem)
+            cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
+        else:
+            self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
+            error = 'Error getting certificate: {0}'.format(order.error)
+
+        self.logger.debug('CAhandler.enroll() ended')
+        return (error, cert_bundle, cert_raw)
+
+
     def _account_lookup(self, acmeclient, reg, directory):
         """ lookup account """
         self.logger.debug('CAhandler._account_lookup()')
@@ -271,6 +338,32 @@ class CAhandler(object):
                 # remove acc_path
                 self.account = self.account.replace(self.path_dic['acct_path'], '')
 
+    def _account_create(self, acmeclient, user_key, directory):
+        """ register account """
+        self.logger.debug('CAhandler._account_create(): register new account with email: {0}'.format(self.email))
+
+        regr = None
+        if self.email:
+            self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
+            if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
+                # get zerossl eab credentials
+                self._zerossl_eab_get()
+            if self.eab_kid and self.eab_hmac_key:
+                # we have to do some freaky eab to keep ZeroSSL happy
+                eab = messages.ExternalAccountBinding.from_data(account_public_key=user_key, kid=self.eab_kid, hmac_key=self.eab_hmac_key, directory=directory)
+                reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, external_account_binding=eab)
+            else:
+                # register with email
+                reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
+            regr = acmeclient.new_account(reg)
+            self.logger.debug('CAhandler.__account_register(): new account reqistered: {0}'.format(regr.uri))
+        else:
+            self.logger.error('CAhandler.__account_register(): registration aborted. Email address is missing')
+            regr = None
+
+        self.logger.debug('CAhandler._account_create() ended with: {0}'.format(bool(regr)))
+        return regr
+
     def _account_register(self, acmeclient, user_key, directory):
         """ register account / check registration """
         self.logger.debug('CAhandler._account_register({0})'.format(self.email))
@@ -282,23 +375,7 @@ class CAhandler(object):
             regr = acmeclient.query_registration(regr)
             self.logger.debug('CAhandler.__account_register(): found existing account: {0}'.format(regr.uri))
         except Exception:
-            if self.email:
-                self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
-                if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
-                    # get zerossl eab credentials
-                    self._zerossl_eab_get()
-                if self.eab_kid and self.eab_hmac_key:
-                    # we have to do some freaky eab to keep ZeroSSL happy
-                    eab = messages.ExternalAccountBinding.from_data(account_public_key=user_key, kid=self.eab_kid, hmac_key=self.eab_hmac_key, directory=directory)
-                    reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, external_account_binding=eab)
-                else:
-                    # register with email
-                    reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
-                regr = acmeclient.new_account(reg)
-                self.logger.debug('CAhandler.__account_register(): new account reqistered: {0}'.format(regr.uri))
-            else:
-                self.logger.error('CAhandler.__account_register(): registration aborted. Email address is missing')
-                regr = None
+            regr = self._account_create(acmeclient, user_key, directory)
 
         if regr:
             if self.url and 'acct_path' in self.path_dic:
@@ -357,28 +434,7 @@ class CAhandler(object):
                     regr = self._account_register(acmeclient, user_key, directory)
 
                 if regr.body.status == "valid":
-                    self.logger.debug('CAhandler.enroll() issuing signing order')
-                    self.logger.debug('CAhandler.enroll() CSR: ' + str(csr_pem))
-                    order = acmeclient.new_order(csr_pem)
-
-                    # query challenges
-                    for authzr in list(order.authorizations):
-                        (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
-                        if challenge_name and challenge_content:
-                            # store challenge in database to allow challenge validation
-                            self._challenge_store(challenge_name, challenge_content)
-                            _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
-
-                    self.logger.debug('CAhandler.enroll() polling for certificate')
-                    order = acmeclient.poll_and_finalize(order)
-
-                    if order.fullchain_pem:
-                        self.logger.debug('CAhandler.enroll() successful')
-                        cert_bundle = str(order.fullchain_pem)
-                        cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
-                    else:
-                        self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
-                        error = 'Error getting certificate: {0}'.format(order.error)
+                    (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
                 else:
                     self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
                     error = 'Bad ACME account: {0}'.format(regr.body.error)

@@ -297,7 +297,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _poll_cert_get(self, request_dic, poll_identifier):
+    def _poll_cert_get(self, request_dic, poll_identifier, error):
         """ get certificate via poll request """
         self.logger.debug('CAhandler._poll_cert_get()')
 
@@ -348,7 +348,7 @@ class CAhandler(object):
                 request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
 
                 # check response
-                (error, cert_bundle, cert_raw, poll_identifier, break_loop) = self._poll_cert_get(request_dic, request_url)
+                (error, cert_bundle, cert_raw, poll_identifier, break_loop) = self._poll_cert_get(request_dic, request_url, error)
                 if break_loop:
                     break
 
