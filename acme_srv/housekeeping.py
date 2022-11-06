@@ -87,30 +87,44 @@ class Housekeeping(object):
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): {0}'.format(err))
 
+    def _report_get(self, payload):
+        """ create report """
+        self.logger.debug('Housekeeping._report_get()')
+
+        message = None
+        detail = None
+        response_dic = {}
+
+        if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
+            if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
+                if payload['data']['name'] == 'certificates':
+                    response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
+                elif payload['data']['name'] == 'accounts':
+                    response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
+                code = 200
+            else:
+                code = 400
+                message = self.error_msg_dic['malformed']
+                detail = 'unknown report format'
+        else:
+            code = 400
+            message = self.error_msg_dic['malformed']
+            detail = 'unknown report type'
+
+        self.logger.debug('Housekeeping._report_get() ended')
+        return (response_dic, code, message, detail)
+
     def _clireport_get(self, payload, permissions_dic):
         """ get reports for CLI """
         self.logger.debug('Housekeeping._clireport_get()')
+
         response_dic = {}
         message = None
         detail = None
 
         if 'reportadmin' in permissions_dic and permissions_dic['reportadmin']:
-
-            if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
-                if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
-                    if payload['data']['name'] == 'certificates':
-                        response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
-                    elif payload['data']['name'] == 'accounts':
-                        response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
-                    code = 200
-                else:
-                    code = 400
-                    message = self.error_msg_dic['malformed']
-                    detail = 'unknown report format'
-            else:
-                code = 400
-                message = self.error_msg_dic['malformed']
-                detail = 'unknown report type'
+            # create reports as we have permissions to do so
+            (response_dic, code, message, detail) = self._report_get(payload)
         else:
             code = 403
             message = self.error_msg_dic['unauthorized']
@@ -183,9 +197,9 @@ class Housekeeping(object):
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
 
-    def _data_dic_build(self, config_dic):
-        """ cli user manager """
-        self.logger.debug('Housekeeping._data_dic_build()')
+    def _data_dic_create(self, config_dic):
+        """ create dictionalry """
+        self.logger.debug('Housekeeping._data_dic_create()')
 
         data_dic = {}
         if 'jwkname' in config_dic:
@@ -193,7 +207,17 @@ class Housekeeping(object):
         else:
             if 'jwk' in config_dic and 'kid' in config_dic['jwk']:
                 data_dic['name'] = config_dic['jwk']['kid']
+
+        self.logger.debug('Housekeeping._data_dic_create() ended')
+        return data_dic
+
+    def _data_dic_build(self, config_dic):
+        """ cli user manager """
+        self.logger.debug('Housekeeping._data_dic_build()')
+
+        data_dic = self._data_dic_create(config_dic)
         if 'delete' not in config_dic or not config_dic['delete']:
+
             if 'permissions' in config_dic:
                 try:
                     data_dic.update(config_dic['permissions'])
@@ -206,6 +230,7 @@ class Housekeeping(object):
             if 'email' in config_dic:
                 data_dic['contact'] = config_dic['email']
 
+        self.logger.debug('Housekeeping._data_dic_build() ended')
         return data_dic
 
     def _json_dump(self, filename, data_):
@@ -254,17 +279,47 @@ class Housekeeping(object):
 
         return (field_list, new_list)
 
-    def _to_acc_json(self, account_list):
-        """ stack list to json """
-        self.logger.debug('Housekeeping._to_acc_json()')
+    def _account_list_convert(self, tmp_json):
+        """ create account list """
+        self.logger.debug('Housekeeping._account_list_convert()')
 
-        tmp_json = {}
-        error_list = []
+        account_list = []
+        for account in tmp_json:
+            tmp_json[account]['orders'] = []
+            for order in tmp_json[account]['orders_dic']:
+                tmp_json[account]['orders_dic'][order]['authorizations'] = []
+                for authorization in tmp_json[account]['orders_dic'][order]['authorizations_dic']:
+                    tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'] = []
+                    # build list from challenges and delete dictionary
+                    for _name, challenge in tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic'].items():
+                        tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'].append(challenge)
+                    del tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic']
+                    # build list from authorizations
+                    tmp_json[account]['orders_dic'][order]['authorizations'].append(tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization])
+                # delete authorization dictionary
+                del tmp_json[account]['orders_dic'][order]['authorizations_dic']
+                # build list of orders
+                tmp_json[account]['orders'].append(tmp_json[account]['orders_dic'][order])
+            del tmp_json[account]['orders_dic']
+
+            # add entry to output list
+            account_list.append(tmp_json[account])
+
+        self.logger.debug('Housekeeping._account_list_convert() ended')
+        return account_list
+
+    def _account_dic_create(self, account_list):
+        """ account list create """
+        self.logger.debug('Housekeeping._account_dic_create()')
 
         account_field = 'account.name'
         order_field = 'order.name'
         authz_field = 'authorization.name'
         chall_field = 'challenge.name'
+
+        tmp_json = {}
+        error_list = []
+
         for ele in account_list:
 
             # we have to ensure that all keys we need to nest are in
@@ -299,28 +354,18 @@ class Housekeeping(object):
             else:
                 error_list.append(ele)
 
-        # convert nested dictionaries (challenges, authorizations and orders) into list
-        account_list = []
-        for account in tmp_json:
-            tmp_json[account]['orders'] = []
-            for order in tmp_json[account]['orders_dic']:
-                tmp_json[account]['orders_dic'][order]['authorizations'] = []
-                for authorization in tmp_json[account]['orders_dic'][order]['authorizations_dic']:
-                    tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'] = []
-                    # build list from challenges and delete dictionary
-                    for _name, challenge in tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic'].items():
-                        tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'].append(challenge)
-                    del tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic']
-                    # build list from authorizations
-                    tmp_json[account]['orders_dic'][order]['authorizations'].append(tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization])
-                # delete authorization dictionary
-                del tmp_json[account]['orders_dic'][order]['authorizations_dic']
-                # build list of orders
-                tmp_json[account]['orders'].append(tmp_json[account]['orders_dic'][order])
-            del tmp_json[account]['orders_dic']
+        self.logger.debug('Housekeeping._account_dic_create() ended')
+        return (tmp_json, error_list)
 
-            # add entry to output list
-            account_list.append(tmp_json[account])
+    def _to_acc_json(self, account_list):
+        """ stack list to json """
+        self.logger.debug('Housekeeping._to_acc_json()')
+
+        # create main dictionary and errorlist
+        (tmp_json, error_list) = self._account_dic_create(account_list)
+
+        # convert nested dictionaries (challenges, authorizations and orders) into list
+        account_list = self._account_list_convert(tmp_json)
 
         # add errors
         if error_list:
