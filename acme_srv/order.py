@@ -301,9 +301,28 @@ class Order(object):
         self.logger.debug('Order._authz_list_lookup() ended')
         return authz_list
 
+    def _validity_list_create(self, authz_list, order_dic, order_name):
+        self.logger.debug('Order._validity_list_create()')
+        validity_list = []
+        for authz in authz_list:
+            if 'name' in authz:
+                order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
+            if 'status__name' in authz:
+                if authz['status__name'] == 'valid':
+                    validity_list.append(True)
+                else:
+                    validity_list.append(False)
+
+        # update orders status from pending to ready
+        if validity_list and 'status' in order_dic:
+            if False not in validity_list and order_dic['status'] == 'pending':
+                self._update({'name': order_name, 'status': 'ready'})
+
+        self.logger.debug('Order._lookup() ended')
+
     def _lookup(self, order_name):
         """ sohw order details based on ordername """
-        self.logger.debug('Order._lookup({0})'.format(order_name))
+        self.logger.debug('Order._validity_list_create({0})'.format(order_name))
         order_dic = {}
 
         tmp_dic = self._info(order_name)
@@ -315,21 +334,9 @@ class Order(object):
 
             if authz_list:
                 order_dic["authorizations"] = []
-                # collect status of different authorizations in list
-                validity_list = []
-                for authz in authz_list:
-                    if 'name' in authz:
-                        order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
-                    if 'status__name' in authz:
-                        if authz['status__name'] == 'valid':
-                            validity_list.append(True)
-                        else:
-                            validity_list.append(False)
 
-                # update orders status from pending to ready
-                if validity_list and 'status' in order_dic:
-                    if False not in validity_list and order_dic['status'] == 'pending':
-                        self._update({'name': order_name, 'status': 'ready'})
+                # collect status of different authorizations in list and update order status
+                self._validity_list_create(authz_list, order_dic, order_name)
 
         self.logger.debug('Order._lookup() ended')
         return order_dic
