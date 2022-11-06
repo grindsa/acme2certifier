@@ -67,6 +67,40 @@ class Trigger(object):
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
 
+    def _cert_store(self, cert_bundle, cert_raw):
+        """ store certificate """
+        self.logger.debug('Trigger._cert_store()')
+
+        # returned cert_raw is in dear format, convert to pem to lookup the pubic key
+        cert_pem = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
+
+        # lookup certificate_name by comparing public keys
+        cert_name_list = self._certname_lookup(cert_pem)
+
+        if cert_name_list:
+            for cert in cert_name_list:
+                data_dic = {'cert': cert_bundle, 'name': cert['cert_name'], 'cert_raw': cert_raw}
+                try:
+                    self.dbstore.certificate_add(data_dic)
+                except Exception as err_:
+                    self.logger.critical('acme2certifier database error in trigger._payload_process() add: {0}'.format(err_))
+                if 'order_name' in cert and cert['order_name']:
+                    try:
+                        # update order status to 5 (valid)
+                        self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
+                    except Exception as err_:
+                        self.logger.critical('acme2certifier database error in trigger._payload_process() upd: {0}'.format(err_))
+            code = 200
+            message = 'OK'
+            detail = None
+        else:
+            code = 400
+            message = 'certificate_name lookup failed'
+            detail = None
+
+        self.logger.debug('Trigger._cert_store() ended')
+        return (code, message, detail)
+
     def _payload_process(self, payload):
         """ process payload """
         self.logger.debug('Trigger._payload_process()')
@@ -74,32 +108,8 @@ class Trigger(object):
             if payload:
                 (error, cert_bundle, cert_raw) = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
-                    # returned cert_raw is in dear format, convert to pem to lookup the pubic key
-                    cert_pem = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
-
-                    # lookup certificate_name by comparing public keys
-                    cert_name_list = self._certname_lookup(cert_pem)
-
-                    if cert_name_list:
-                        for cert in cert_name_list:
-                            data_dic = {'cert': cert_bundle, 'name': cert['cert_name'], 'cert_raw': cert_raw}
-                            try:
-                                self.dbstore.certificate_add(data_dic)
-                            except Exception as err_:
-                                self.logger.critical('acme2certifier database error in trigger._payload_process() add: {0}'.format(err_))
-                            if 'order_name' in cert and cert['order_name']:
-                                try:
-                                    # update order status to 5 (valid)
-                                    self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
-                                except Exception as err_:
-                                    self.logger.critical('acme2certifier database error in trigger._payload_process() upd: {0}'.format(err_))
-                        code = 200
-                        message = 'OK'
-                        detail = None
-                    else:
-                        code = 400
-                        message = 'certificate_name lookup failed'
-                        detail = None
+                    # store certificate and create responses
+                    (code, message, detail) = self._cert_store(cert_bundle, cert_raw)
                 else:
                     code = 400
                     message = error
