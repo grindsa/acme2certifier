@@ -67,7 +67,6 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-
     def _check_credentials(self, ca_server):
         """ check creadentials """
         self.logger.debug('CAhandler.__check_credentials()')
