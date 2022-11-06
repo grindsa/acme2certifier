@@ -35,6 +35,30 @@ class Order(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _auth_add(self, oid, payload, auth_dic):
+        self.logger.debug('Order._auth_add({0})'.format(oid))
+
+        if oid:
+            error = None
+            for auth in payload['identifiers']:
+                # generate name
+                auth_name = generate_random_string(self.logger, 12)
+                # store to return to upper func
+                auth_dic[auth_name] = auth.copy()
+                auth['name'] = auth_name
+                auth['order'] = oid
+                auth['status'] = 'pending'
+                auth['expires'] = uts_now() + self.authz_validity
+                try:
+                    self.dbstore.authorization_add(auth)
+                except Exception as err_:
+                    self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
+        else:
+            error = self.error_msg_dic['malformed']
+
+        self.logger.debug('Order._auth_add() ended with {0}'.format(error))
+        return error
+
     def _add(self, payload, aname):
         """ add order request to database """
         self.logger.debug('Order._add({0})'.format(aname))
@@ -54,7 +78,6 @@ class Order(object):
 
             # check identifiers
             error = self._identifiers_check(payload['identifiers'])
-
             # change order status if needed
             if error:
                 data_dic['status'] = 1
@@ -67,33 +90,18 @@ class Order(object):
                 oid = None
 
             if not error:
-                if oid:
-                    error = None
-                    for auth in payload['identifiers']:
-                        # generate name
-                        auth_name = generate_random_string(self.logger, 12)
-                        # store to return to upper func
-                        auth_dic[auth_name] = auth.copy()
-                        auth['name'] = auth_name
-                        auth['order'] = oid
-                        auth['status'] = 'pending'
-                        auth['expires'] = uts_now() + self.authz_validity
-                        try:
-                            self.dbstore.authorization_add(auth)
-                        except Exception as err_:
-                            self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
-                else:
-                    error = self.error_msg_dic['malformed']
+                # authorization add
+                error = self._auth_add(oid, payload, auth_dic)
         else:
             error = self.error_msg_dic['unsupportedidentifier']
 
         self.logger.debug('Order._add() ended')
         return (error, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def _config_load(self):
+    def _config_orderconfig_load(self, config_dic):
         """" load config from file """
-        self.logger.debug('Order._config_load()')
-        config_dic = load_config()
+        self.logger.debug('Order._config_orderconfig_load()')
+
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
@@ -107,6 +115,17 @@ class Order(object):
                     self.validity = int(config_dic['Order']['validity'])
                 except Exception:
                     self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
+
+        self.logger.debug('Order._config_orderconfig_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Order._config_load()')
+
+        config_dic = load_config()
+        # load order config
+        self._config_orderconfig_load(config_dic)
+
         if 'Authorization' in config_dic:
             if 'validity' in config_dic['Authorization']:
                 try:
@@ -163,6 +182,46 @@ class Order(object):
             result = None
         return result
 
+    def _finalize(self, order_name, payload):
+        """ finalize request """
+        self.logger.debug('Order._finalize()')
+
+        certificate_name = None
+        message = None
+        detail = None
+
+        # lookup order-status (must be ready to proceed)
+        order_dic = self._info(order_name)
+        if 'status' in order_dic and order_dic['status'] == 'ready':
+            # update order_status / set to processing
+            self._update({'name': order_name, 'status': 'processing'})
+            if 'csr' in payload:
+                self.logger.debug('CSR found()')
+                # this is a new request
+                (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'])
+                # change status only if we do not have a poll_identifier (stored in detail variable)
+                if code == 200:
+                    if not detail:
+                        # update order_status / set to valid
+                        self._update({'name': order_name, 'status': 'valid'})
+                elif certificate_name == 'timeout':
+                    code = 200
+                    message = certificate_name
+                else:
+                    message = certificate_name
+                    detail = 'enrollment failed'
+            else:
+                code = 400
+                message = self.error_msg_dic['badcsr']
+                detail = 'csr is missing in payload'
+        else:
+            code = 403
+            message = self.error_msg_dic['ordernotready']
+            detail = 'Order is not ready'
+
+        self.logger.debug('Order._finalize() ended')
+        return (code, message, detail, certificate_name)
+
     def _process(self, order_name, protected, payload):
         """ process order """
         self.logger.debug('Order._process({0})'.format(order_name))
@@ -172,36 +231,8 @@ class Order(object):
 
         if 'url' in protected:
             if 'finalize' in protected['url']:
-                self.logger.debug('finalize request()')
-
-                # lookup order-status (must be ready to proceed)
-                order_dic = self._info(order_name)
-                if 'status' in order_dic and order_dic['status'] == 'ready':
-                    # update order_status / set to processing
-                    self._update({'name': order_name, 'status': 'processing'})
-                    if 'csr' in payload:
-                        self.logger.debug('CSR found()')
-                        # this is a new request
-                        (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'])
-                        # change status only if we do not have a poll_identifier (stored in detail variable)
-                        if code == 200:
-                            if not detail:
-                                # update order_status / set to valid
-                                self._update({'name': order_name, 'status': 'valid'})
-                        elif certificate_name == 'timeout':
-                            code = 200
-                            message = certificate_name
-                        else:
-                            message = certificate_name
-                            detail = 'enrollment failed'
-                    else:
-                        code = 400
-                        message = self.error_msg_dic['badcsr']
-                        detail = 'csr is missing in payload'
-                else:
-                    code = 403
-                    message = self.error_msg_dic['ordernotready']
-                    detail = 'Order is not ready'
+                # finalize order
+                (code, message, detail, certificate_name) = self._finalize(order_name, payload)
             else:
                 self.logger.debug('polling request()')
                 code = 200
