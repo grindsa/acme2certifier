@@ -233,7 +233,7 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'status': 'status_value', 'authorizations': [], 'expires': '2018-12-01T05:00:00Z', 'notAfter': '2018-12-01T05:00:00Z', 'notBefore': '2018-12-01T05:00:00Z'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(e_result, self.order._lookup('foo'))
-        self.assertIn('ERROR:test_a2c:Order.lookup(): error while parsing the identifier wrongvalue', lcm.output)
+        self.assertIn('ERROR:test_a2c:Order._order_dic_create(): error while parsing the identifier wrongvalue', lcm.output)
 
     @patch('acme_srv.order.Order._update')
     @patch('acme_srv.order.Order._info')
@@ -730,7 +730,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {'status': 'valid'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._lookup('oname')
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._lookup(): exc_authz_lookup', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Order._authz_list_lookup(): exc_authz_lookup', lcm.output)
 
     def test_085_order_invalidate(self):
         """ test Order.invalidate - dbstore.order_update() raises an exception  """

@@ -266,6 +266,41 @@ class Order(object):
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Order._update(): {0}'.format(err_))
 
+    def _order_dic_create(self, tmp_dic):
+        """ create order dictionary """
+        self.logger.debug('Order._order_dic_create()')
+
+        order_dic = {}
+        if 'status' in tmp_dic:
+            order_dic['status'] = tmp_dic['status']
+        if 'expires' in tmp_dic:
+            order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
+        if 'notbefore' in tmp_dic and tmp_dic['notbefore'] != 0:
+            order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
+        if 'notafter' in tmp_dic and tmp_dic['notafter'] != 0:
+            order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
+        if 'identifiers' in tmp_dic:
+            try:
+                order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
+            except Exception:
+                self.logger.error('Order._order_dic_create(): error while parsing the identifier {0}'.format(tmp_dic['identifiers']))
+
+        self.logger.debug('Order._order_dic_create() ended')
+        return order_dic
+
+    def _authz_list_lookup(self, order_name):
+        """ lookup authorization list """
+        self.logger.debug('Order._authz_list_lookup({0})'.format(order_name))
+
+        try:
+            authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Order._authz_list_lookup(): {0}'.format(err_))
+            authz_list = []
+
+        self.logger.debug('Order._authz_list_lookup() ended')
+        return authz_list
+
     def _lookup(self, order_name):
         """ sohw order details based on ordername """
         self.logger.debug('Order._lookup({0})'.format(order_name))
@@ -273,24 +308,11 @@ class Order(object):
 
         tmp_dic = self._info(order_name)
         if tmp_dic:
-            if 'status' in tmp_dic:
-                order_dic['status'] = tmp_dic['status']
-            if 'expires' in tmp_dic:
-                order_dic['expires'] = uts_to_date_utc(tmp_dic['expires'])
-            if 'notbefore' in tmp_dic and tmp_dic['notbefore'] != 0:
-                order_dic['notBefore'] = uts_to_date_utc(tmp_dic['notbefore'])
-            if 'notafter' in tmp_dic and tmp_dic['notafter'] != 0:
-                order_dic['notAfter'] = uts_to_date_utc(tmp_dic['notafter'])
-            if 'identifiers' in tmp_dic:
-                try:
-                    order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
-                except Exception:
-                    self.logger.error('Order.lookup(): error while parsing the identifier {0}'.format(tmp_dic['identifiers']))
-            try:
-                authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
-            except Exception as err_:
-                self.logger.critical('acme2certifier database error in Order._lookup(): {0}'.format(err_))
-                authz_list = []
+
+            # create order dictionary and lookup authorizatio list
+            order_dic = self._order_dic_create(tmp_dic)
+            authz_list = self._authz_list_lookup(order_name)
+
             if authz_list:
                 order_dic["authorizations"] = []
                 # collect status of different authorizations in list
@@ -360,9 +382,9 @@ class Order(object):
                 response_dic['data']['status'] = 'pending'
                 response_dic['data']['expires'] = expires
                 response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
-                for auth_name in auth_dic:
+                for auth_name, value in auth_dic.items():
                     response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], auth_name))
-                    response_dic['data']['identifiers'].append(auth_dic[auth_name])
+                    response_dic['data']['identifiers'].append(value)
             else:
                 code = 400
                 message = error
@@ -373,6 +395,34 @@ class Order(object):
 
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
+
+    def _parse(self, protected, payload):
+        """ new oder parse """
+        self.logger.debug('Order._parse()')
+
+        order_name = certificate_name = None
+
+        if 'url' in protected:
+            order_name = self._name_get(protected['url'])
+            if order_name:
+                order_dic = self._lookup(order_name)
+                if order_dic:
+                    (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
+                else:
+                    code = 403
+                    message = self.error_msg_dic['ordernotready']
+                    detail = 'order not found'
+            else:
+                code = 400
+                message = self.error_msg_dic['malformed']
+                detail = 'order name is missing'
+        else:
+            code = 400
+            message = self.error_msg_dic['malformed']
+            detail = 'url is missing in protected'
+
+        self.logger.debug('Order._parse() ended with code: {0}'.format(code))
+        return (code, message, detail, certificate_name, order_name)
 
     def parse(self, content):
         """ new oder request """
@@ -387,24 +437,9 @@ class Order(object):
         (code, message, detail, protected, payload, _account_name) = self.message.check(content)
 
         if code == 200:
-            if 'url' in protected:
-                order_name = self._name_get(protected['url'])
-                if order_name:
-                    order_dic = self._lookup(order_name)
-                    if order_dic:
-                        (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
-                    else:
-                        code = 403
-                        message = self.error_msg_dic['ordernotready']
-                        detail = 'order not found'
-                else:
-                    code = 400
-                    message = self.error_msg_dic['malformed']
-                    detail = 'order name is missing'
-            else:
-                code = 400
-                message = self.error_msg_dic['malformed']
-                detail = 'url is missing in protected'
+
+            # parse message
+            (code, message, detail, certificate_name, order_name) = self._parse(protected, payload)
 
             if code == 200:
                 # create response
