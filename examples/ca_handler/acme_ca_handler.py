@@ -178,7 +178,7 @@ class CAhandler(object):
 
             result = False
 
-            (san_list, check_list)  = self._sancheck_lists_create(csr)
+            (san_list, check_list) = self._sancheck_lists_create(csr)
 
             # go over the san list and check each entry
             for san in san_list:
@@ -320,7 +320,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw)
-
 
     def _account_lookup(self, acmeclient, reg, directory):
         """ lookup account """
