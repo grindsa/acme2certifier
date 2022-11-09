@@ -502,33 +502,51 @@ def parse_url(logger, url):
     return url_dic
 
 
+def _logger_nonce_modify(data_dic):
+    """ remove nonce from log entry """
+    if 'header' in data_dic and 'Replay-Nonce' in data_dic['header']:
+        data_dic['header']['Replay-Nonce'] = '- modified -'
+    return data_dic
+
+
+def _logger_certificate_modify(data_dic, locator):
+    """ remove cert from log entry """
+    if '/acme/cert' in locator:
+        data_dic['data'] = ' - certificate - '
+    return data_dic
+
+
+def _logger_token_modify(data_dic):
+    """ remove token from challenge """
+    if 'token' in data_dic['data']:
+        data_dic['data']['token'] = '- modified -'
+    return data_dic
+
+
+def _logger_challenges_modify(data_dic):
+    """ remove token from challenge """
+    if 'challenges' in data_dic['data']:
+        for challenge in data_dic['data']['challenges']:
+            if 'token' in challenge:
+                challenge.update((k, "- modified - ") for k, v in challenge.items() if k == "token")
+    return data_dic
+
+
 def logger_info(logger, addr, locator, dat_dic):
     """ log responses """
     # create a copy of the dictionary
     data_dic = copy.deepcopy(dat_dic)
 
-    if 'header' in data_dic and 'Replay-Nonce' in data_dic['header']:
-        data_dic['header']['Replay-Nonce'] = '- modified -'
-
+    data_dic = _logger_nonce_modify(data_dic)
     if 'data' in data_dic:
         # remove cert from log entry
-        if '/acme/cert' in locator:
-            data_dic['data'] = ' - certificate - '
+        data_dic = _logger_certificate_modify(data_dic, locator)
+
+        # remove token
+        data_dic = _logger_token_modify(data_dic)
 
         # remove token from challenge
-        if 'token' in data_dic['data']:
-            data_dic['data']['token'] = '- modified -'
-
-        # remove tokens
-        if 'challenges' in data_dic['data']:
-            for challenge in data_dic['data']['challenges']:
-                if 'token' in challenge:
-                    try:
-                        # python2
-                        challenge.update((k, "- modified - ") for k, v in challenge.iteritems() if k == "token")
-                    except AttributeError:
-                        # python3
-                        challenge.update((k, "- modified - ") for k, v in challenge.items() if k == "token")
+        data_dic = _logger_challenges_modify(data_dic)
 
     logger.info('{0} {1} {2}'.format(addr, locator, str(data_dic)))
 
@@ -636,6 +654,27 @@ def signature_check(logger, message, pub_key, json_=False):
     return (result, error)
 
 
+def _fqdn_resolve(req, host):
+    """ resolve hostname """
+    for rrtype in ['A', 'AAAA']:
+        try:
+            answers = req.query(host, rrtype)
+            for rdata in answers:
+                result = str(rdata)
+                invalid = False
+                break
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            result = None
+            invalid = True
+        except Exception:
+            result = None
+            invalid = False
+        if result is not None:
+            break
+
+    return (result, invalid)
+
+
 def fqdn_resolve(host, dnssrv=None):
     """ dns resolver """
     req = dns.resolver.Resolver()
@@ -645,22 +684,9 @@ def fqdn_resolve(host, dnssrv=None):
         if dnssrv:
             # add specific dns server
             req.nameservers = dnssrv
-        for rrtype in ['A', 'AAAA']:
-            try:
-                answers = req.query(host, rrtype)
-                for rdata in answers:
-                    result = str(rdata)
-                    invalid = False
-                    break
-            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-                result = None
-                invalid = True
-            except Exception:
-                result = None
-                invalid = False
-            # if result != None:
-            if result is not None:
-                break
+        # resolve hostname
+        (result, invalid) = _fqdn_resolve(req, host)
+
     else:
         result = None
         invalid = False

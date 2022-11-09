@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -71,6 +71,10 @@ class TestACMEHandler(unittest.TestCase):
         self.load_config = load_config
         self.logger_setup = logger_setup
         self.logger_info = logger_info
+        self.logger_nonce_modify = _logger_nonce_modify
+        self.logger_certificate_modify = _logger_certificate_modify
+        self.logger_token_modify = _logger_token_modify
+        self.logger_challenges_modify = _logger_challenges_modify
         self.patched_create_connection = patched_create_connection
         self.print_debug = print_debug
         self.proxy_check = proxy_check
@@ -1588,6 +1592,56 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             'ratelimited': 'urn:ietf:params:acme:error:rateLimited',
             'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
         self.assertEqual(result, self.error_dic_get(self.logger))
+
+    def test_222_logger_nonce_modify(self):
+        """ test _logger_nonce_modify() """
+        data_dic = {'foo': 'bar'}
+        self.assertEqual({'foo': 'bar'}, self.logger_nonce_modify(data_dic))
+
+    def test_223_logger_nonce_modify(self):
+        """ test _logger_nonce_modify() """
+        data_dic = {'foo': 'bar', 'header': {'foo': 'bar'}}
+        self.assertEqual({'foo': 'bar', 'header': {'foo': 'bar'}}, self.logger_nonce_modify(data_dic))
+
+    def test_224_logger_nonce_modify(self):
+        """ test _logger_nonce_modify() """
+        data_dic = {'foo': 'bar', 'header': {'Replay-Nonce': 'bar'}}
+        self.assertEqual({'foo': 'bar', 'header': {'Replay-Nonce': '- modified -'}}, self.logger_nonce_modify(data_dic))
+
+    def test_225_logger_certificate_modify(self):
+        """ test _logger_certificate_modify() """
+        data_dic = {'data': 'bar'}
+        self.assertEqual({'data': 'bar'}, self.logger_certificate_modify(data_dic, 'locator'))
+
+    def test_226_logger_certificate_modify(self):
+        """ test _logger_certificate_modify() """
+        data_dic = {'data': 'bar'}
+        self.assertEqual({'data': ' - certificate - '}, self.logger_certificate_modify(data_dic, 'foo/acme/cert'))
+
+    def test_227_logger_token_modify(self):
+        """ test _logger_token_modify() """
+        data_dic = {'data': 'bar'}
+        self.assertEqual({'data': 'bar'}, self.logger_token_modify(data_dic))
+
+    def test_228_logger_token_modify(self):
+        """ test _logger_token_modify() """
+        data_dic = {'data': {'token': 'token'}}
+        self.assertEqual({'data': {'token': '- modified -'}}, self.logger_token_modify(data_dic))
+
+    def test_229_logger_challenges_modify(self):
+        """ test _logger_challenges_modify() """
+        data_dic = {'data': 'bar'}
+        self.assertEqual({'data': 'bar'}, self.logger_challenges_modify(data_dic))
+
+    def test_230_logger_challenges_modify(self):
+        """ test _logger_challenges_modify() """
+        data_dic = {'data': {'challenges': [{'token': 'token1'}]}}
+        self.assertEqual({'data': {'challenges': [{'token': '- modified - '}]}}, self.logger_challenges_modify(data_dic))
+
+    def test_231_logger_challenges_modify(self):
+        """ test _logger_challenges_modify() """
+        data_dic = {'data': {'challenges': [{'token': 'token1'}, {'token': 'token2'}]}}
+        self.assertEqual({'data': {'challenges': [{'token': '- modified - '}, {'token': '- modified - '}]}}, self.logger_challenges_modify(data_dic))
 
 if __name__ == '__main__':
     unittest.main()
