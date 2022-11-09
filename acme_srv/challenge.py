@@ -65,9 +65,35 @@ class Challenge(object):
         self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
         return challenge_list
 
+    def _challenge_validate(self, pub_key, challenge_name, challenge_dic, payload):
+        """ challenge validate """
+        self.logger.debug('Challenge._challenge_validate({0})'.format(challenge_name))
+
+        jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+        for _ele in range(0, 5):
+            if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
+                (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+            elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+                (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+            elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
+                (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+            elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
+                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+            else:
+                self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
+                result = False
+                invalid = True
+            if result or invalid:
+                # break loop if we got any good or bad response
+                break
+
+        self.logger.debug('Challenge._challenge_validate() ended with: {0}/{1}'.format(result, invalid))
+        return (result, invalid)
+
     def _check(self, challenge_name, payload):
         """ challenge check """
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
+
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
         except Exception as err_:
@@ -82,29 +108,14 @@ class Challenge(object):
                 pub_key = None
 
             if pub_key:
-                jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-                for _ele in range(0, 5):
-                    if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                        (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                    elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                        (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                    elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
-                        (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-                    elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                        (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
-                    else:
-                        self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
-                        result = False
-                        invalid = True
-                    if result or invalid:
-                        # break loop if we got any good or bad response
-                        break
+                (result, invalid) = self._challenge_validate(pub_key, challenge_name, challenge_dic, payload)
             else:
                 result = False
                 invalid = False
         else:
             result = False
             invalid = False
+
         self.logger.debug('challenge._check() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
@@ -143,10 +154,22 @@ class Challenge(object):
         self.logger.debug('Challenge._info({0}) ended'.format(challenge_name))
         return challenge_dic
 
-    def _config_load(self):
-        """" load config from file """
-        self.logger.debug('Challenge._config_load()')
-        config_dic = load_config()
+    def _config_proxy_load(self, config_dic):
+        """ load proxy config """
+        self.logger.debug('Challenge._config_proxy_load()')
+
+        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
+            try:
+                self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+            except Exception as err_:
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('Challenge._config_proxy_load() ended')
+
+    def _config_challenge_load(self, config_dic):
+        """ load proxy config """
+        self.logger.debug('Challenge._config_challenge_load()')
+
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
             if 'dns_server_list' in config_dic['Challenge']:
@@ -160,19 +183,45 @@ class Challenge(object):
                 except Exception as err_:
                     self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: {0}'.format(err_))
 
+        self.logger.debug('Challenge._config_challenge_load() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Challenge._config_load()')
+        config_dic = load_config()
+
+        # load challenge parameters
+        self._config_challenge_load(config_dic)
+
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
-        if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
-            try:
-                self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
-            except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+        # load proxy config from config
+        self._config_proxy_load(config_dic)
 
         self.logger.debug('Challenge._config_load() ended.')
+
+    def _extensions_validate(self, cert, extension_value, fqdn):
+        """ validate extension """
+        self.logger.debug('Challenge._extensions_validate({0}/{1})'.format(extension_value, fqdn))
+        result = False
+        san_list = cert_san_get(self.logger, cert, recode=False)
+        fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
+        if fqdn_in_san:
+            extension_list = cert_extensions_get(self.logger, cert, recode=False)
+            if extension_value in extension_list:
+                self.logger.debug('alpn validation successful')
+                result = True
+            else:
+                self.logger.debug('alpn validation not successful')
+        else:
+            self.logger.debug('fqdn check against san failed')
+
+        self.logger.debug('Challenge._extensions_validate() ended with: {0}'.format(result))
+        return result
 
     def _name_get(self, url):
         """ get challenge """
@@ -213,6 +262,46 @@ class Challenge(object):
             if mtype == 'tkauth-01':
                 challenge_dic['tkauth-type'] = 'atc'
         return challenge_dic
+
+    def _parse(self, code, payload, protected, challenge_name, challenge_dic):
+        # pylint: disable=R0913
+        """ challenge parse """
+        self.logger.debug('Challenge._parse({0})'.format(challenge_name))
+
+        response_dic = {}
+        message = None
+        detail = None
+
+        # check tnauthlist payload
+        if self.tnauthlist_support:
+            (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
+
+        if code == 200:
+            # start validation
+            if 'status' in challenge_dic:
+                if challenge_dic['status'] not in ('valid', 'processing'):
+                    twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
+                    twrv.start()
+                    _validation = twrv.join(timeout=self.challenge_validation_timeout)  # lgtm [py/unused-local-variable]
+                    # query challenge again (bcs. it could get updated by self._validate)
+                    challenge_dic = self._info(challenge_name)
+            else:
+                # rather unlikely that we run in this situation but you never know
+                twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
+                twrv.start()
+                _validation = twrv.join(timeout=self.challenge_validation_timeout)
+                # _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
+                # query challenge again (bcs. it could get updated by self._validate)
+                challenge_dic = self._info(challenge_name)
+
+            code = 200
+            challenge_dic['url'] = protected['url']
+            response_dic['data'] = challenge_dic
+            response_dic['header'] = {}
+            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
+
+        self.logger.debug('Challenge._parse() ended with: {0}'.format(code))
+        return (code, message, detail, response_dic)
 
     def _update(self, data_dic):
         """ update challenge """
@@ -294,19 +383,7 @@ class Challenge(object):
                 proxy_server = None
             cert = servercert_get(self.logger, fqdn, 443, proxy_server)
             if cert:
-                san_list = cert_san_get(self.logger, cert, recode=False)
-                fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
-                if fqdn_in_san:
-                    extension_list = cert_extensions_get(self.logger, cert, recode=False)
-                    if extension_value in extension_list:
-                        self.logger.debug('alpn validation successful')
-                        result = True
-                    else:
-                        self.logger.debug('alpn validation not successful')
-                        result = False
-                else:
-                    self.logger.debug('fqdn check against san failed')
-                    result = False
+                result = self._extensions_validate(cert, extension_value, fqdn)
             else:
                 self.logger.debug('no cert returned...')
                 result = False
@@ -475,7 +552,7 @@ class Challenge(object):
         return challenge_list
 
     def parse(self, content):
-        """ new oder request """
+        """ parse challenge """
         self.logger.debug('Challenge.parse()')
 
         response_dic = {}
@@ -489,33 +566,8 @@ class Challenge(object):
                     challenge_dic = self._info(challenge_name)
 
                     if challenge_dic:
-                        # check tnauthlist payload
-                        if self.tnauthlist_support:
-                            (code, message, detail) = self._validate_tnauthlist_payload(payload, challenge_dic)
+                        (code, message, detail, response_dic) = self._parse(code, payload, protected, challenge_name, challenge_dic)
 
-                        if code == 200:
-                            # start validation
-                            if 'status' in challenge_dic:
-                                if challenge_dic['status'] not in ('valid', 'processing'):
-                                    twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
-                                    twrv.start()
-                                    _validation = twrv.join(timeout=self.challenge_validation_timeout)  # lgtm [py/unused-local-variable]
-                                    # query challenge again (bcs. it could get updated by self._validate)
-                                    challenge_dic = self._info(challenge_name)
-                            else:
-                                # rather unlikely that we run in this situation but you never know
-                                twrv = ThreadWithReturnValue(target=self._validate, args=(challenge_name, payload))
-                                twrv.start()
-                                _validation = twrv.join(timeout=self.challenge_validation_timeout)
-                                # _validation = self._validate(challenge_name, payload)  # lgtm [py/unused-local-variable]
-                                # query challenge again (bcs. it could get updated by self._validate)
-                                challenge_dic = self._info(challenge_name)
-
-                            code = 200
-                            challenge_dic['url'] = protected['url']
-                            response_dic['data'] = challenge_dic
-                            response_dic['header'] = {}
-                            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
                     else:
                         code = 400
                         message = self.err_msg_dic['malformed']
