@@ -341,6 +341,20 @@ class Certificate(object):
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
+    def _identifier_tnauth_chk(self, identifier, tnauthlist):
+        """ check tnauth identifier against tnauthlist """
+        self.logger.debug('Certificate._identifier_tnauth_chk({0})'.format(identifier))
+
+        result = False
+        # get the tnauthlist identifier
+        if 'type' in identifier and identifier['type'].lower() == 'tnauthlist':
+            # check if tnauthlist extension is in extension list
+            if 'value' in identifier and identifier['value'] in tnauthlist:
+                result = True
+
+        self.logger.debug('Certificate._identifier_tnauth_chk() endedt with {0}'.format(result))
+        return result
+
     def _identifer_tnauth_list(self, identifier_dic, tnauthlist):
         """ compare identifiers and check if each san is in identifer list """
         self.logger.debug('Certificate._identifer_tnauth_list()')
@@ -356,15 +370,7 @@ class Certificate(object):
             identifier_status.append(False)
         elif identifiers and tnauthlist:
             for identifier in identifiers:
-                # get the tnauthlist identifier
-                if 'type' in identifier and identifier['type'].lower() == 'tnauthlist':
-                    # check if tnauthlist extension is in extension list
-                    if 'value' in identifier and identifier['value'] in tnauthlist:
-                        identifier_status.append(True)
-                    else:
-                        identifier_status.append(False)
-                else:
-                    identifier_status.append(False)
+                identifier_status.append(self._identifier_tnauth_chk(identifier, tnauthlist))
         else:
             identifier_status.append(False)
 
@@ -555,26 +561,9 @@ class Certificate(object):
             result = None
         return result
 
-    def cleanup(self, timestamp=None, purge=False):
-        """ cleanup routine to shrink table-size """
+    def _cleanup(self, report_list, timestamp, purge):
+        """ cleanup  """
         self.logger.debug('Certificate.cleanup({0},{1})'.format(timestamp, purge))
-
-        field_list = ['id', 'name', 'expire_uts', 'issue_uts', 'cert', 'cert_raw', 'csr', 'created_at', 'order__id', 'order__name']
-
-        # get expired certificates
-        try:
-            certificate_list = self.dbstore.certificates_search('expire_uts', timestamp, field_list, '<=')
-        except Exception as err_:
-            self.logger.critical('acme2certifier database error in Certificate.cleanup() search: {0}'.format(err_))
-            certificate_list = []
-
-        report_list = []
-        for cert in certificate_list:
-            (to_be_cleared, cert) = self._invalidation_check(cert, timestamp, purge)
-
-            if to_be_cleared:
-                report_list.append(cert)
-
         if not purge:
             # we are just modifiying data
             for cert in report_list:
@@ -596,23 +585,59 @@ class Certificate(object):
                     self.dbstore.certificate_delete('id', cert['id'])
                 except Exception as err_:
                     self.logger.critical('acme2certifier database error in Certificate.cleanup() delete: {0}'.format(err_))
+
+        self.logger.debug('Certificate.cleanup() ended')
+
+    def cleanup(self, timestamp=None, purge=False):
+        """ cleanup routine to shrink table-size """
+        self.logger.debug('Certificate.cleanup({0},{1})'.format(timestamp, purge))
+
+        field_list = ['id', 'name', 'expire_uts', 'issue_uts', 'cert', 'cert_raw', 'csr', 'created_at', 'order__id', 'order__name']
+
+        # get expired certificates
+        try:
+            certificate_list = self.dbstore.certificates_search('expire_uts', timestamp, field_list, '<=')
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Certificate.cleanup() search: {0}'.format(err_))
+            certificate_list = []
+
+        report_list = []
+        for cert in certificate_list:
+            (to_be_cleared, cert) = self._invalidation_check(cert, timestamp, purge)
+
+            if to_be_cleared:
+                report_list.append(cert)
+
+        # cleanup
+        self._cleanup(report_list, timestamp, purge)
+
         self.logger.debug('Certificate.cleanup() ended with: {0} certs'.format(len(report_list)))
         return (field_list, report_list)
 
+    def _dates_update(self, cert):
+        """ update issue and expiry date with date from certificate """
+        self.logger.debug('Certificate._dates_update()')
+
+        if 'issue_uts' in cert and 'expire_uts' in cert:
+            if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
+                if cert['cert_raw']:
+                    (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
+                    if issue_uts or expire_uts:
+                        self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
+
+        self.logger.debug('Certificate._dates_update() ended')
+
     def dates_update(self):
         """ scan certificates and update issue/expiry date """
-        self.logger.debug('Certificate.certificate_dates_update()')
+        self.logger.debug('Certificate.dates_update()')
 
         with Certificate(self.debug, None, self.logger) as certificate:
             cert_list = certificate.certlist_search('issue_uts', 0, vlist=('id', 'name', 'cert', 'cert_raw', 'issue_uts', 'expire_uts'))
             self.logger.debug('Got {0} certificates to be updated...'.format(len(cert_list)))
             for cert in cert_list:
-                if 'issue_uts' in cert and 'expire_uts' in cert:
-                    if cert['issue_uts'] == 0 and cert['expire_uts'] == 0:
-                        if cert['cert_raw']:
-                            (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
-                            if issue_uts or expire_uts:
-                                self._store_cert(cert['name'], cert['cert'], cert['cert_raw'], issue_uts, expire_uts)
+                self._dates_update(cert)
+
+        self.logger.debug('Certificate.dates_update() ended')
 
     def enroll_and_store(self, certificate_name, csr, order_name=None):
         """ check csr and trigger enrollment """
