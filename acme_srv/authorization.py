@@ -75,6 +75,29 @@ class Authorization(object):
             self.logger.debug('Authorization._challengeset_get() ended')
             return challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_value)
 
+    def _authz_info_dic_update(self, authz_info_dic, auth_info):
+        """ enrich authinfo dic with information """
+        self.logger.debug('Authorization._authz_info_dic_update()')
+
+        tnauth = False
+        if 'status__name' in auth_info[0]:
+            authz_info_dic['status'] = auth_info[0]['status__name']
+        else:
+            authz_info_dic['status'] = 'pending'
+
+        if 'type' in auth_info[0] and 'value' in auth_info[0]:
+            authz_info_dic['identifier'] = {'type': auth_info[0]['type'], 'value': auth_info[0]['value']}
+            if auth_info[0]['type'] == 'TNAuthList':
+                tnauth = True
+            # add fildcard flag into authoritzation response and modify identifier
+            if auth_info[0]['value'].startswith('*.'):
+                self.logger.debug('Authorization._authz_info() - adding wildcard flag')
+                authz_info_dic['identifier']['value'] = auth_info[0]['value'][2:]
+                authz_info_dic['wildcard'] = True
+
+        self.logger.debug('Authorization._authz_info_dic_update() ended')
+        return (authz_info_dic, tnauth)
+
     def _authz_info(self, url):
         """ return authzs information """
         self.logger.debug('Authorization._authz_info()')
@@ -94,24 +117,11 @@ class Authorization(object):
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
             # get authorization information from db to be inserted in message
-            tnauth = None
+            tnauth = False
             auth_info = self._authz_lookup(authz_name, ['status__name', 'type', 'value'])
 
             if auth_info:
-                if 'status__name' in auth_info[0]:
-                    authz_info_dic['status'] = auth_info[0]['status__name']
-                else:
-                    authz_info_dic['status'] = 'pending'
-
-                if 'type' in auth_info[0] and 'value' in auth_info[0]:
-                    authz_info_dic['identifier'] = {'type': auth_info[0]['type'], 'value': auth_info[0]['value']}
-                    if auth_info[0]['type'] == 'TNAuthList':
-                        tnauth = True
-                    # add fildcard flag into authoritzation response and modify identifier
-                    if auth_info[0]['value'].startswith('*.'):
-                        self.logger.debug('Authorization._authz_info() - adding wildcard flag')
-                        authz_info_dic['identifier']['value'] = auth_info[0]['value'][2:]
-                        authz_info_dic['wildcard'] = True
+                (authz_info_dic, tnauth) = self._authz_info_dic_update(authz_info_dic, auth_info)
             else:
                 authz_info_dic['status'] = 'pending'
 
