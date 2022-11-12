@@ -313,6 +313,20 @@ class Certificate(object):
         self.logger.debug('Certificate._enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error, detail)
 
+    def _identifier_chk(self, cert_type, cert_value, identifiers, san_is_in):
+        """ check identifier """
+        self.logger.debug('Certificate._identifer_status_list({0}/{1})'.format(cert_type, cert_value))
+
+        if cert_type and cert_value:
+            for identifier in identifiers:
+                if 'type' in identifier:
+                    if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
+                        san_is_in = True
+                        break
+
+        self.logger.debug('Certificate._identifer_status_list({0})'.format(san_is_in))
+        return san_is_in
+
     def _identifer_status_list(self, identifiers, san_list):
         """ compare identifiers and check if each san is in identifer list """
         self.logger.debug('Certificate._identifer_status_list()')
@@ -326,12 +340,9 @@ class Certificate(object):
                 cert_type = None
                 cert_value = None
 
-            if cert_type and cert_value:
-                for identifier in identifiers:
-                    if 'type' in identifier:
-                        if (identifier['type'].lower() == cert_type and identifier['value'].lower() == cert_value):
-                            san_is_in = True
-                            break
+            # check identifiers
+            san_is_in = self._identifier_chk(cert_type, cert_value, identifiers, san_is_in)
+
             self.logger.debug('SAN check for {0} against identifiers returned {1}'.format(san.lower(), san_is_in))
             identifier_status.append(san_is_in)
 
@@ -387,6 +398,41 @@ class Certificate(object):
             result = None
         return result
 
+    def _expiredate_get(self, cert, timestamp, to_be_cleared):
+        """ get expirey date from certificate """
+        self.logger.debug('Certificate._expiredate_get()')
+
+        # in case cert_expiry in table is 0 try to get it from cert
+        if cert['expire_uts'] == 0:
+            if 'cert_raw' in cert and cert['cert_raw']:
+                # get expiration from certificate
+                (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
+                if 0 < expire_uts < timestamp:
+                    # returned date is other than 0 and lower than given timestamp
+                    cert['issue_uts'] = issue_uts
+                    cert['expire_uts'] = expire_uts
+                    to_be_cleared = True
+            else:
+                if 'csr' in cert and cert['csr']:
+                    # cover cases for enrollments in flight
+                    # we assume that a CSR should turn int a cert within two weeks
+                    if 'created_at' in cert:
+                        created_at_uts = date_to_uts_utc(cert['created_at'])
+                        if 0 < created_at_uts < timestamp - (14 * 86400):
+                            to_be_cleared = True
+                    else:
+                        # this scneario should never been happen so lets be careful and not clear it
+                        to_be_cleared = False
+                else:
+                    # no csr and no cert - to be cleared
+                    to_be_cleared = True
+        else:
+            # expired based on expire_uts from db
+            to_be_cleared = True
+
+        self.logger.debug('Certificate._expiredate_get() ended with: to_be_cleared:  {0}'.format(to_be_cleared))
+        return to_be_cleared
+
     def _invalidation_check(self, cert, timestamp, purge=False):
         """ check if cert must be invalidated """
         if 'name' in cert:
@@ -398,42 +444,13 @@ class Certificate(object):
 
         if cert and 'name' in cert:
             if 'cert' in cert and cert['cert'] and 'removed by' in cert['cert'].lower():
-                if not purge:
+                if purge:
                     # skip entries which had been cleared before cert[cert] check is needed to cover corner cases
-                    to_be_cleared = False
-                else:
-                    # purge entries
                     to_be_cleared = True
 
             elif 'expire_uts' in cert:
-                # in case cert_expiry in table is 0 try to get it from cert
-                if cert['expire_uts'] == 0:
-                    if 'cert_raw' in cert and cert['cert_raw']:
-                        # get expiration from certificate
-                        (issue_uts, expire_uts) = cert_dates_get(self.logger, cert['cert_raw'])
-                        if 0 < expire_uts < timestamp:
-                            # returned date is other than 0 and lower than given timestamp
-                            cert['issue_uts'] = issue_uts
-                            cert['expire_uts'] = expire_uts
-                            to_be_cleared = True
-                    else:
-                        if 'csr' in cert and cert['csr']:
-                            # cover cases for enrollments in flight
-                            # we assume that a CSR should turn int a cert within two weeks
-                            if 'created_at' in cert:
-                                created_at_uts = date_to_uts_utc(cert['created_at'])
-                                if 0 < created_at_uts < timestamp - (14 * 86400):
-                                    to_be_cleared = True
-                            else:
-                                # this scneario should never been happen so lets be careful and not clear it
-                                to_be_cleared = False
-                        else:
-                            # no csr and no cert - to be cleared
-                            to_be_cleared = True
-
-                else:
-                    # expired based on expire_uts from db
-                    to_be_cleared = True
+                # get expiry date from either dictionary or certificate
+                to_be_cleared = self._expiredate_get(cert, timestamp, to_be_cleared)
             else:
                 # this scneario should never been happen so lets be careful and not clear it
                 to_be_cleared = False
@@ -445,6 +462,7 @@ class Certificate(object):
             self.logger.debug('Certificate._invalidation_check({0}) ended with {1}'.format(cert['name'], to_be_cleared))
         else:
             self.logger.debug('Certificate._invalidation_check() ended with {0}'.format(to_be_cleared))
+
         return (to_be_cleared, cert)
 
     def _order_update(self, data_dic):
