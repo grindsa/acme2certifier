@@ -45,11 +45,14 @@ class Authorization(object):
         self.logger.debug('Authorization._expiry_update() ended')
 
     def _authz_lookup(self, authz_name, vlist=None):
-        self.logger.debug('Authorization._authz_lookup()')
+        self.logger.debug('Authorization._authz_lookup({0})'.format(authz_name))
 
         # lookup authorization based on name
         try:
-            authz = self.dbstore.authorization_lookup('name', authz_name, vlist)
+            if vlist:
+                authz = self.dbstore.authorization_lookup('name', authz_name, vlist)
+            else:
+                authz = self.dbstore.authorization_lookup('name', authz_name)
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Authorization._authz_lookup({0}) lookup: {1}'.format(authz_name, err_))
             authz = None
