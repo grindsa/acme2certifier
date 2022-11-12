@@ -33,8 +33,52 @@ class Authorization(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _expiry_update(self, authz_name, token, expires):
+        """ expiry date and token of an existing authorization """
+        self.logger.debug('Authorization._expiry_update()')
+
+        try:
+            self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
+        except Exception as err_:
+            self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
+
+        self.logger.debug('Authorization._expiry_update() ended')
+
+    def _authz_lookup(self, authz_name, vlist=None):
+        self.logger.debug('Authorization._authz_lookup()')
+
+        # lookup authorization based on name
+        try:
+            authz = self.dbstore.authorization_lookup('name', authz_name, vlist)
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Authorization._authz_lookup({0}) lookup: {1}'.format(authz_name, err_))
+            authz = None
+
+        self.logger.debug('Authorization._authz_lookup() ended')
+        return authz
+
+
+    def _challengeset_get(self, authz_info_dic, authz_name, token, tnauth, expires):
+        """ get challenge set """
+        self.logger.debug('Authorization._challengeset_get({0})'.format(authz_name))
+
+        with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
+            # get challenge data (either existing or new ones)
+            if 'identifier' in authz_info_dic:
+                if 'value' in authz_info_dic['identifier']:
+                    id_value = authz_info_dic['identifier']['value']
+                else:
+                    id_value = None
+            else:
+                id_value = None
+
+            self.logger.debug('Authorization._challengeset_get() ended')
+            return challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_value)
+
     def _authz_info(self, url):
         """ return authzs information """
+        self.logger.debug('Authorization._authz_info()')
+
         authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
         self.logger.debug('Authorization._authz_info({0})'.format(authz_name))
         expires = uts_now() + self.validity
@@ -42,27 +86,16 @@ class Authorization(object):
         authz_info_dic = {}
 
         # lookup authorization based on name
-        try:
-            authz = self.dbstore.authorization_lookup('name', authz_name)
-        except Exception as err_:
-            self.logger.critical('acme2certifier database error in Authorization._authz_info({0}) lookup1: {1}'.format(authz_name, err_))
-            authz = None
+        authz = self._authz_lookup(authz_name)
 
         if authz:
             # update authorization with expiry date and token (just to be sure)
-            try:
-                self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
-            except Exception as err_:
-                self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
+            self._expiry_update(authz_name, token, expires)
             authz_info_dic['expires'] = uts_to_date_utc(expires)
 
             # get authorization information from db to be inserted in message
             tnauth = None
-            try:
-                auth_info = self.dbstore.authorization_lookup('name', authz_name, ['status__name', 'type', 'value'])
-            except Exception as err_:
-                self.logger.error('acme2certifier database error in Authorization._authz_info({0}) lookup2: {1}'.format(authz_name, err_))
-                auth_info = {}
+            auth_info = self._authz_lookup(authz_name, ['status__name', 'type', 'value'])
 
             if auth_info:
                 if 'status__name' in auth_info[0]:
@@ -82,16 +115,8 @@ class Authorization(object):
             else:
                 authz_info_dic['status'] = 'pending'
 
-            with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
-                # get challenge data (either existing or new ones)
-                if 'identifier' in authz_info_dic:
-                    if 'value' in authz_info_dic['identifier']:
-                        id_value = authz_info_dic['identifier']['value']
-                    else:
-                        id_value = None
-                else:
-                    id_value = None
-                authz_info_dic['challenges'] = challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_value)
+            # get challenge-set
+            authz_info_dic['challenges'] = self._challengeset_get(authz_info_dic, authz_name, token, tnauth, expires)
 
         self.logger.debug('Authorization._authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
         return authz_info_dic
@@ -99,6 +124,7 @@ class Authorization(object):
     def _config_load(self):
         """" load config from file """
         self.logger.debug('Authorization._config_load()')
+
         config_dic = load_config()
         if 'Authorization' in config_dic:
             self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
