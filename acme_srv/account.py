@@ -507,6 +507,53 @@ class Account(object):
         self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
         return (code, message, detail)
 
+    def _parse_deactivation(self, account_name, payload):
+        self.logger.debug('Account._parse_deactivation({0})'.format(account_name))
+        data = None
+        # account deactivation
+        if payload['status'].lower() == 'deactivated':
+            (code, message, detail) = self._delete(account_name)
+            if code == 200:
+                data = payload
+        else:
+            code = 400
+            message = self.err_msg_dic['malformed']
+            detail = 'status attribute without sense'
+
+        self.logger.debug('Account._parse_deactivation() ended')
+        return (code, message, detail, data)
+
+    def _parse_contacts_update(self, account_name, payload):
+        """ update contacts """
+        self.logger.debug('Account._parse_contacts_update({0})'.format(account_name))
+        data = None
+        (code, message, detail) = self._contacts_update(account_name, payload)
+        if code == 200:
+            account_obj = self._lookup(account_name)
+            data = self._info(account_obj)
+        else:
+            code = 400
+            message = self.err_msg_dic['accountdoesnotexist']
+            detail = 'update failed'
+
+        self.logger.debug('Account._parse_deactivation() ended')
+        return (code, message, detail, data)
+
+    def _parse_query(self, account_name):
+        """ update contacts """
+        self.logger.debug('Account._parse_query({0})'.format(account_name))
+
+        # this is a query for account information
+        account_obj = self._lookup(account_name)
+        if account_obj:
+            data = self._info(account_obj)
+            data['status'] = 'valid'
+        else:
+            data = {'status': 'invalid'}
+
+        self.logger.debug('Account._parse_deactivation() ended')
+        return data
+
     def _tos_check(self, content):
         """ check terms of service """
         self.logger.debug('Account._tos_check()')
@@ -529,6 +576,39 @@ class Account(object):
         self.logger.debug('Account._tos_check() ended with:{0}'.format(code))
         return (code, message, detail)
 
+    def _new(self, code, payload, protected):
+        """ generate a new account """
+        self.logger.debug('Account._new()')
+
+        # onlyReturnExisting check
+        if 'onlyreturnexisting' in payload:
+            (code, message, detail) = self._onlyreturnexisting(protected, payload)
+        else:
+            # tos check
+            if self.tos_url and not self.tos_check_disable:
+                (code, message, detail) = self._tos_check(payload)
+
+            # check for external account binding
+            if code == 200 and self.eab_check:
+                (code, message, detail) = self._eab_check(protected, payload)
+
+            # contact check
+            if code == 200 and not self.contact_check_disable:
+                (code, message, detail) = self._contact_check(payload)
+
+            # add account to database
+            if code == 200:
+                if 'contact' in payload:
+                    contact_list = payload['contact']
+                else:
+                    contact_list = []
+
+                # add new account
+                (code, message, detail) = self._add(protected, payload, contact_list)
+
+        self.logger.debug('Account._new() ended with: {0}'.format(code))
+        return (code, message, detail)
+
     def new(self, content):
         """ generate a new account """
         self.logger.debug('Account.account_new()')
@@ -537,29 +617,7 @@ class Account(object):
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
         if code == 200:
-            # onlyReturnExisting check
-            if 'onlyreturnexisting' in payload:
-                (code, message, detail) = self._onlyreturnexisting(protected, payload)
-            else:
-                # tos check
-                if self.tos_url and not self.tos_check_disable:
-                    (code, message, detail) = self._tos_check(payload)
-
-                # check for external account binding
-                if code == 200 and self.eab_check:
-                    (code, message, detail) = self._eab_check(protected, payload)
-
-                # contact check
-                if code == 200 and not self.contact_check_disable:
-                    (code, message, detail) = self._contact_check(payload)
-
-                # add account to database
-                if code == 200:
-                    if 'contact' in payload:
-                        contact_list = payload['contact']
-                    else:
-                        contact_list = []
-                    (code, message, detail) = self._add(protected, payload, contact_list)
+            (code, message, detail) = self._new(code, payload, protected)
 
         if code in (200, 201):
             response_dic['data'] = {}
@@ -594,45 +652,32 @@ class Account(object):
         self.logger.debug('Account.parse()')
 
         response_dic = {}
+
+        data = None
         # check message
         (code, message, detail, protected, payload, account_name) = self.message.check(content)
         if code == 200:
             if 'status' in payload:
-                # account deactivation
-                if payload['status'].lower() == 'deactivated':
-                    (code, message, detail) = self._delete(account_name)
-                    if code == 200:
-                        response_dic['data'] = payload
-                else:
-                    code = 400
-                    message = self.err_msg_dic['malformed']
-                    detail = 'status attribute without sense'
+                (code, message, detail, data) = self._parse_deactivation(account_name, payload)
+
             elif 'contact' in payload:
-                (code, message, detail) = self._contacts_update(account_name, payload)
-                if code == 200:
-                    account_obj = self._lookup(account_name)
-                    response_dic['data'] = self._info(account_obj)
-                else:
-                    code = 400
-                    message = self.err_msg_dic['accountdoesnotexist']
-                    detail = 'update failed'
+                (code, message, detail, data) = self._parse_contacts_update(account_name, payload)
+
             elif 'payload' in payload:
                 # this could be a key-change
                 (code, message, detail) = self._key_change(account_name, payload, protected)
                 if code == 200:
                     response_dic['data'] = {}
             elif not payload:
-                # this is a query for account information
-                account_obj = self._lookup(account_name)
-                if account_obj:
-                    response_dic['data'] = self._info(account_obj)
-                    response_dic['data']['status'] = 'valid'
-                else:
-                    response_dic['data'] = {'status': 'invalid'}
+                data = self._parse_query(account_name)
             else:
                 code = 400
                 message = self.err_msg_dic['malformed']
                 detail = 'dont know what to do with this request'
+
+        if data:
+            response_dic['data'] = data
+
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
