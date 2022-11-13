@@ -82,6 +82,20 @@ class Account(object):
         self.logger.debug('Account.account._account_add_check() ended with: {0}'.format(account_name))
         return (code, message, detail)
 
+    def _account_eab_add(self, payload, data_dic):
+        """ prepare add keyid """
+        self.logger.debug('Account.account._account_eab_add()')
+
+        if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
+            if 'protected' in payload['externalaccountbinding']:
+                eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+                self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
+                if eab_kid:
+                    data_dic['eab_kid'] = eab_kid
+
+        self.logger.debug('Account.account._account_eab_add()')
+        return data_dic
+
     def _account_add(self, account_name, content, contact, payload):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._account_add({0})'.format(account_name))
@@ -101,12 +115,7 @@ class Account(object):
             }
             # add eab_kid to data_dic if eab_check is enabled and kid is part of the request
             if self.eab_check:
-                if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
-                    if 'protected' in payload['externalaccountbinding']:
-                        eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
-                        self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
-                        if eab_kid:
-                            data_dic['eab_kid'] = eab_kid
+                data_dic = self._account_eab_add(payload, data_dic)
 
             # check code to be returned
             (code, message, detail) = self._account_add_check(account_name, data_dic)
