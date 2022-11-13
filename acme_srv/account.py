@@ -58,6 +58,30 @@ class Account(object):
         self.logger.debug('Account._account_lookup() ended with:{0}'.format(code))
         return (code, message, detail)
 
+    def _account_add_check(self, account_name, data_dic):
+        """ perform database operation """
+        self.logger.debug('Account.account._account_add_check({0})'.format(account_name))
+
+        try:
+            (db_name, new) = self.dbstore.account_add(data_dic)
+        except Exception as err_:
+            self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
+            db_name = None
+            new = False
+
+        self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
+
+        if new:
+            code = 201
+            message = account_name
+        else:
+            code = 200
+            message = db_name
+        detail = None
+
+        self.logger.debug('Account.account._account_add_check() ended with: {0}'.format(account_name))
+        return (code, message, detail)
+
     def _account_add(self, account_name, content, contact, payload):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._account_add({0})'.format(account_name))
@@ -83,20 +107,9 @@ class Account(object):
                         self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
                         if eab_kid:
                             data_dic['eab_kid'] = eab_kid
-            try:
-                (db_name, new) = self.dbstore.account_add(data_dic)
-            except Exception as err_:
-                self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
-                db_name = None
-                new = False
-            self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
-            if new:
-                code = 201
-                message = account_name
-            else:
-                code = 200
-                message = db_name
-            detail = None
+
+            # check code to be returned
+            (code, message, detail) = self._account_add_check(account_name, data_dic)
 
         self.logger.debug('Account.account._account_add() ended with: {0}'.format(account_name))
         return (code, message, detail)
