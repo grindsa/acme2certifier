@@ -36,6 +36,28 @@ class Account(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _account_lookup(self, jwk):
+        """ lookup account """
+        self.logger.debug('Account._account_lookup(}')
+
+        try:
+            result = self.dbstore.account_lookup('jwk', json.dumps(jwk))
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Account._onlyreturnexisting(): {0}'.format(err_))
+            result = None
+
+        if result:
+            code = 200
+            message = result['name']
+            detail = None
+        else:
+            code = 400
+            message = self.err_msg_dic['accountdoesnotexist']
+            detail = None
+
+        self.logger.debug('Account._account_lookup() ended with:{0}'.format(code))
+        return (code, message, detail)
+
     def _add(self, content, payload, contact):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._add()')
@@ -112,6 +134,18 @@ class Account(object):
 
         self.logger.debug('Account._contact_check() ended with:{0}'.format(code))
         return (code, message, detail)
+
+    def _contact_list_build(self, payload):
+        """ build contact list """
+        self.logger.debug('Account._contact_list_build()')
+
+        if 'contact' in payload:
+            contact_list = payload['contact']
+        else:
+            contact_list = []
+
+        self.logger.debug('Account._contact_list_build() ended')
+        return contact_list
 
     def _contacts_update(self, aname, payload):
         """ update account """
@@ -348,6 +382,30 @@ class Account(object):
         self.logger.debug('Account._key_change_validate() ended with: {0}:{1}'.format(code, detail))
         return (code, message, detail)
 
+    def _key_rollover(self, aname, protected, inner_protected, inner_payload):
+        """ key update after key change """
+        self.logger.debug('Account._key_rollover({0})'.format(aname))
+
+        (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
+        if code == 200:
+            data_dic = {'name': aname, 'jwk': json.dumps(inner_protected['jwk'])}
+            try:
+                result = self.dbstore.account_update(data_dic)
+            except Exception as err_:
+                self.logger.critical('acme2certifier database error in Account._key_change(): {0}'.format(err_))
+                result = None
+            if result:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 500
+                message = self.err_msg_dic['serverinternal']
+                detail = 'key rollover failed'
+
+        self.logger.debug('Account._key_rollover() ended with: {0}'.format(code))
+        return (code, message, detail)
+
     def _key_change(self, aname, payload, protected):
         """ key change for a given account """
         self.logger.debug('Account._key_change({0})'.format(aname))
@@ -357,22 +415,8 @@ class Account(object):
                 # check message
                 (code, message, detail, inner_protected, inner_payload, _account_name) = self.message.check(json.dumps(payload), use_emb_key=True, skip_nonce_check=True)
                 if code == 200:
-                    (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
-                    if code == 200:
-                        data_dic = {'name': aname, 'jwk': json.dumps(inner_protected['jwk'])}
-                        try:
-                            result = self.dbstore.account_update(data_dic)
-                        except Exception as err_:
-                            self.logger.critical('acme2certifier database error in Account._key_change(): {0}'.format(err_))
-                            result = None
-                        if result:
-                            code = 200
-                            message = None
-                            detail = None
-                        else:
-                            code = 500
-                            message = self.err_msg_dic['serverinternal']
-                            detail = 'key rollover failed'
+                    # key rollover
+                    (code, message, detail) = self._key_rollover(aname, protected, inner_protected, inner_payload)
             else:
                 code = 400
                 message = self.err_msg_dic['malformed']
@@ -382,6 +426,7 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'malformed request'
 
+        self.logger.debug('Account._key_change() ended with: {0}'.format(code))
         return (code, message, detail)
 
     def _key_compare(self, aname, old_key):
@@ -469,6 +514,7 @@ class Account(object):
     def _onlyreturnexisting(self, protected, payload):
         """ check onlyreturnexisting """
         self.logger.debug('Account._onlyreturnexisting(}')
+
         if 'onlyreturnexisting' in payload:
             if payload['onlyreturnexisting']:
                 code = None
@@ -476,20 +522,7 @@ class Account(object):
                 detail = None
 
                 if 'jwk' in protected:
-                    try:
-                        result = self.dbstore.account_lookup('jwk', json.dumps(protected['jwk']))
-                    except Exception as err_:
-                        self.logger.critical('acme2certifier database error in Account._onlyreturnexisting(): {0}'.format(err_))
-                        result = None
-
-                    if result:
-                        code = 200
-                        message = result['name']
-                        detail = None
-                    else:
-                        code = 400
-                        message = self.err_msg_dic['accountdoesnotexist']
-                        detail = None
+                    (code, message, detail) = self._account_lookup(protected['jwk'])
                 else:
                     code = 400
                     message = self.err_msg_dic['malformed']
@@ -536,7 +569,7 @@ class Account(object):
             message = self.err_msg_dic['accountdoesnotexist']
             detail = 'update failed'
 
-        self.logger.debug('Account._parse_deactivation() ended')
+        self.logger.debug('Account._parse_contacts_update() ended')
         return (code, message, detail, data)
 
     def _parse_query(self, account_name):
@@ -551,7 +584,7 @@ class Account(object):
         else:
             data = {'status': 'invalid'}
 
-        self.logger.debug('Account._parse_deactivation() ended')
+        self.logger.debug('Account._parse_query() ended')
         return data
 
     def _tos_check(self, content):
@@ -598,10 +631,7 @@ class Account(object):
 
             # add account to database
             if code == 200:
-                if 'contact' in payload:
-                    contact_list = payload['contact']
-                else:
-                    contact_list = []
+                contact_list = self._contact_list_build(payload)
 
                 # add new account
                 (code, message, detail) = self._add(protected, payload, contact_list)
