@@ -58,9 +58,53 @@ class Account(object):
         self.logger.debug('Account._account_lookup() ended with:{0}'.format(code))
         return (code, message, detail)
 
+    def _account_add(self, account_name, content, contact, payload):
+        """ prepare db insert and call DBstore helper """
+        self.logger.debug('Account.account._account_add({0})'.format(account_name))
+
+        # ecc_only check
+        if self.ecc_only and not content['alg'].startswith('ES'):
+            code = 403
+            message = self.err_msg_dic['badpubkey']
+            detail = 'Only ECC keys are supported'
+        else:
+            # check jwk
+            data_dic = {
+                'name': account_name,
+                'alg': content['alg'],
+                'jwk': json.dumps(content['jwk']),
+                'contact': json.dumps(contact),
+            }
+            # add eab_kid to data_dic if eab_check is enabled and kid is part of the request
+            if self.eab_check:
+                if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
+                    if 'protected' in payload['externalaccountbinding']:
+                        eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+                        self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
+                        if eab_kid:
+                            data_dic['eab_kid'] = eab_kid
+            try:
+                (db_name, new) = self.dbstore.account_add(data_dic)
+            except Exception as err_:
+                self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
+                db_name = None
+                new = False
+            self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
+            if new:
+                code = 201
+                message = account_name
+            else:
+                code = 200
+                message = db_name
+            detail = None
+
+        self.logger.debug('Account.account._account_add() ended with: {0}'.format(account_name))
+        return (code, message, detail)
+
     def _add(self, content, payload, contact):
         """ prepare db insert and call DBstore helper """
         self.logger.debug('Account.account._add()')
+
         account_name = generate_random_string(self.logger, 12)
 
         # check request
@@ -71,41 +115,8 @@ class Account(object):
                 message = self.err_msg_dic['malformed']
                 detail = 'incomplete protected payload'
             else:
-                # ecc_only check
-                if self.ecc_only and not content['alg'].startswith('ES'):
-                    code = 403
-                    message = self.err_msg_dic['badpubkey']
-                    detail = 'Only ECC keys are supported'
-                else:
-                    # check jwk
-                    data_dic = {
-                        'name': account_name,
-                        'alg': content['alg'],
-                        'jwk': json.dumps(content['jwk']),
-                        'contact': json.dumps(contact),
-                    }
-                    # add eab_kid to data_dic if eab_check is enabled and kid is part of the request
-                    if self.eab_check:
-                        if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
-                            if 'protected' in payload['externalaccountbinding']:
-                                eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
-                                self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
-                                if eab_kid:
-                                    data_dic['eab_kid'] = eab_kid
-                    try:
-                        (db_name, new) = self.dbstore.account_add(data_dic)
-                    except Exception as err_:
-                        self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
-                        db_name = None
-                        new = False
-                    self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
-                    if new:
-                        code = 201
-                        message = account_name
-                    else:
-                        code = 200
-                        message = db_name
-                    detail = None
+                # add account
+                (code, message, detail) = self._account_add(account_name, content, contact, payload)
         else:
             code = 400
             message = self.err_msg_dic['malformed']
@@ -220,6 +231,38 @@ class Account(object):
         self.logger.debug('_eab_kid_get() ended with: {0}'.format(eab_key_id))
         return eab_key_id
 
+    def _eab_verify(self, payload):
+        """" check for external account binding """
+        self.logger.debug('_eab_check()')
+
+        # get key identifier
+        eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
+        if eab_kid:
+            # get eab_mac_key
+            with self.eab_handler(self.logger) as eab_handler:
+                eab_mac_key = eab_handler.mac_key_get(eab_kid)
+        else:
+            eab_mac_key = None
+
+        if eab_mac_key:
+            (result, error) = self._eab_signature_verify(payload['externalaccountbinding'], eab_mac_key)
+            if result:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = self.err_msg_dic['unauthorized']
+                detail = 'eab signature verification failed'
+                self.logger.error('Account._eab_check() returned error: {0}'.format(error))
+        else:
+            code = 403
+            message = self.err_msg_dic['unauthorized']
+            detail = 'eab kid lookup failed'
+
+        self.logger.debug('_eab_check() ended with: {0}'.format(code))
+        return (code, message, detail)
+
     def _eab_check(self, protected, payload):
         """" check for external account binding """
         self.logger.debug('_eab_check()')
@@ -229,30 +272,8 @@ class Account(object):
             jwk_compare = self._eab_jwk_compare(protected, payload['externalaccountbinding']['payload'])
 
             if jwk_compare and 'protected' in payload['externalaccountbinding']:
-                # get key identifier
-                eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
-                if eab_kid:
-                    # get eab_mac_key
-                    with self.eab_handler(self.logger) as eab_handler:
-                        eab_mac_key = eab_handler.mac_key_get(eab_kid)
-                else:
-                    eab_mac_key = None
-
-                if eab_mac_key:
-                    (result, error) = self._eab_signature_verify(payload['externalaccountbinding'], eab_mac_key)
-                    if result:
-                        code = 200
-                        message = None
-                        detail = None
-                    else:
-                        code = 403
-                        message = self.err_msg_dic['unauthorized']
-                        detail = 'eab signature verification failed'
-                        self.logger.error('Account._eab_check() returned error: {0}'.format(error))
-                else:
-                    code = 403
-                    message = self.err_msg_dic['unauthorized']
-                    detail = 'eab kid lookup failed'
+                # verify eab signature
+                (code, message, detail) = self._eab_verify(payload)
             else:
                 code = 403
                 message = self.err_msg_dic['malformed']
@@ -280,6 +301,27 @@ class Account(object):
         self.logger.debug('Account._eab_signature_verify() ended with: {0}'.format(sig_check))
         return (sig_check, error)
 
+    def _header_url_compare(self, outer_protected, inner_protected):
+        """ compare url header of inner and outer header """
+        self.logger.debug('Account._header_url_compare()')
+
+        if outer_protected['url'] == inner_protected['url']:
+            if self.inner_header_nonce_allow or 'nonce' not in inner_protected:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 400
+                message = self.err_msg_dic['malformed']
+                detail = 'inner jws must omit nonce header'
+        else:
+            code = 400
+            message = self.err_msg_dic['malformed']
+            detail = 'url parameter differ in inner and outer jws'
+
+        self.logger.debug('Account._header_url_compare() ended with: {0}'.format(code))
+        return (code, message, detail)
+
     def _info(self, account_obj):
         """ account info """
         self.logger.debug('Account._info()')
@@ -304,19 +346,7 @@ class Account(object):
         if 'jwk' in inner_protected:
             if 'url' in outer_protected and 'url' in inner_protected:
                 # inner and outer JWS must have the same "url" header parameter
-                if outer_protected['url'] == inner_protected['url']:
-                    if self.inner_header_nonce_allow or 'nonce' not in inner_protected:
-                        code = 200
-                        message = None
-                        detail = None
-                    else:
-                        code = 400
-                        message = self.err_msg_dic['malformed']
-                        detail = 'inner jws must omit nonce header'
-                else:
-                    code = 400
-                    message = self.err_msg_dic['malformed']
-                    detail = 'url parameter differ in inner and outer jws'
+                (code, message, detail) = self._header_url_compare(outer_protected, inner_protected)
             else:
                 code = 400
                 message = self.err_msg_dic['malformed']
