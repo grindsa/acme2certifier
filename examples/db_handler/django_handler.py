@@ -41,6 +41,16 @@ class DBstore(object):
         self.logger.debug('DBStore._authorization_getinstance({0})'.format(name))
         return Authorization.objects.get(name=name)
 
+    def _modify_key(self, mkey, operant):
+        """ quick hack """
+        self.logger.debug('DBStore._modify_key({0}/{1})'.format(mkey, operant))
+
+        if operant == '<=':
+            mkey = '{0}__lte'.format(mkey)
+
+        self.logger.debug('DBStore._modify_key() ended with: {0}'.format(mkey))
+        return mkey
+
     def _order_getinstance(self, value=id, mkey='id'):
         """ get order instance """
         self.logger.debug('DBStore._order_getinstance({0}:{1})'.format(mkey, value))
@@ -127,9 +137,9 @@ class DBstore(object):
     def authorizations_expired_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(mkey, value))
-        # quick hack
-        if operant == '<=':
-            mkey = '{0}__lte'.format(mkey)
+
+        mkey = self._modify_key(mkey, operant)
+
         self.logger.debug('DBStore.authorizations_invalid_search() ended')
         return Authorization.objects.filter(**{mkey: value}).exclude(status__name='expired').values(*vlist)
 
@@ -264,9 +274,7 @@ class DBstore(object):
     def certificates_search(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name'), operator=None):
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificates_search({0}:{1})'.format(mkey, value))
-        # quick hack
-        if operator == '<=':
-            mkey = '{0}__lte'.format(mkey)
+        mkey = self._modify_key(mkey, operator)
         return Certificate.objects.filter(**{mkey: value}).values(*vlist)
 
     def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
@@ -426,7 +434,5 @@ class DBstore(object):
     def orders_invalid_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(mkey, value))
-        # quick hack
-        if operant == '<=':
-            mkey = '{0}__lte'.format(mkey)
+        mkey = self._modify_key(mkey, operant)
         return Order.objects.filter(**{mkey: value}, status__id__gt=1).values(*vlist)
