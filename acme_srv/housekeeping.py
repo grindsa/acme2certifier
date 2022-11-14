@@ -140,6 +140,40 @@ class Housekeeping(object):
         if 'Housekeeping' in config_dic:
             self.logger.debug('Housekeeping._config_load()')
 
+    def _uts_fields_set(self, cert, cert_raw_field, cert_issue_date_field, cert_expire_date_field):
+        """ set uts to 0 if we do not have them in dictionary """
+        self.logger.debug('Housekeeping._zero_uts_fields()')
+
+        if cert_issue_date_field not in cert or cert_expire_date_field not in cert:
+            cert[cert_issue_date_field] = 0
+            cert[cert_expire_date_field] = 0
+
+        # if uts is zero we try to get the dates from certificate
+        if cert[cert_issue_date_field] == 0 or cert[cert_expire_date_field] == 0:
+            # cover cases without certificate in dict
+            if cert_raw_field in cert:
+                (issue_uts, expire_uts) = cert_dates_get(self.logger, cert[cert_raw_field])
+                cert[cert_issue_date_field] = issue_uts
+                cert[cert_expire_date_field] = expire_uts
+            else:
+                cert[cert_issue_date_field] = 0
+                cert[cert_expire_date_field] = 0
+
+        self.logger.debug('Housekeeping._uts_fields_set() ended.')
+        return cert
+
+    def _cert_serial_add(self, cert_raw):
+        """ add serial number form cert """
+        self.logger.debug('Housekeeping._cert_serial_add()')
+
+        try:
+            serial = cert_serial_get(self.logger, cert_raw)
+        except Exception:
+            serial = ''
+
+        self.logger.debug('Housekeeping._cert_serial_add() ended')
+        return serial
+
     def _convert_data(self, cert_list):
         """ convert data from uts to real date """
         self.logger.debug('Housekeeping._convert_dates()')
@@ -158,21 +192,8 @@ class Housekeeping(object):
                 if ele in cert and cert[ele]:
                     cert[ele] = uts_to_date_utc(cert[ele], date_format)
 
-            # set uts to 0 if we do not have them in dictionary
-            if cert_issue_date_field not in cert or cert_expire_date_field not in cert:
-                cert[cert_issue_date_field] = 0
-                cert[cert_expire_date_field] = 0
-
-            # if uts is zero we try to get the dates from certificate
-            if cert[cert_issue_date_field] == 0 or cert[cert_expire_date_field] == 0:
-                # cover cases without certificate in dict
-                if cert_raw_field in cert:
-                    (issue_uts, expire_uts) = cert_dates_get(self.logger, cert[cert_raw_field])
-                    cert[cert_issue_date_field] = issue_uts
-                    cert[cert_expire_date_field] = expire_uts
-                else:
-                    cert[cert_issue_date_field] = 0
-                    cert[cert_expire_date_field] = 0
+            # set timestamps for issue and expiry dates
+            cert = self._uts_fields_set(cert, cert_raw_field, cert_issue_date_field, cert_expire_date_field)
 
             if cert[cert_issue_date_field] > 0 and cert[cert_expire_date_field] > 0:
                 cert[cert_issue_dateh_field] = uts_to_date_utc(cert[cert_issue_date_field], date_format)
@@ -183,10 +204,7 @@ class Housekeeping(object):
 
             # add serial number
             if cert_raw_field in cert:
-                try:
-                    cert[cert_serial_field] = cert_serial_get(self.logger, cert[cert_raw_field])
-                except Exception:
-                    cert[cert_serial_field] = ''
+                cert[cert_serial_field] = self._cert_serial_add(cert[cert_raw_field])
 
         return cert_list
 
