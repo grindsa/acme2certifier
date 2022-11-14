@@ -327,6 +327,7 @@ class Housekeeping(object):
         return account_list
 
     def _dicstructure_create(self, tmp_json, ele, account_field, order_field, authz_field, chall_field):
+        # pylint: disable=r0913
         """ create dictionary structure """
         self.logger.debug('Housekeeping._dicstructure_create()')
 
@@ -348,7 +349,6 @@ class Housekeeping(object):
 
         self.logger.debug('Housekeeping._dicstructure_create() ended')
         return tmp_json
-
 
     def _account_dic_create(self, account_list):
         """ account list create """
