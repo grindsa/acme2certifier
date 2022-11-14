@@ -60,7 +60,6 @@ class Authorization(object):
         self.logger.debug('Authorization._authz_lookup() ended')
         return authz
 
-
     def _challengeset_get(self, authz_info_dic, authz_name, token, tnauth, expires):
         """ get challenge set """
         self.logger.debug('Authorization._challengeset_get({0})'.format(authz_name))
