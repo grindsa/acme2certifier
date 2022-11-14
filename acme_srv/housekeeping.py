@@ -326,6 +326,30 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._account_list_convert() ended')
         return account_list
 
+    def _dicstructure_create(self, tmp_json, ele, account_field, order_field, authz_field, chall_field):
+        """ create dictionary structure """
+        self.logger.debug('Housekeeping._dicstructure_create()')
+
+        # create account entry in case it does not exist
+        if ele[account_field] not in tmp_json:
+            tmp_json[ele[account_field]] = {}
+            tmp_json[ele[account_field]]['orders_dic'] = {}
+
+        if ele[order_field] not in tmp_json[ele[account_field]]['orders_dic']:
+            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]] = {}
+            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'] = {}
+
+        if ele[authz_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic']:
+            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]] = {}
+            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'] = {}
+
+        if ele[chall_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic']:
+            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]] = {}
+
+        self.logger.debug('Housekeeping._dicstructure_create() ended')
+        return tmp_json
+
+
     def _account_dic_create(self, account_list):
         """ account list create """
         self.logger.debug('Housekeeping._account_dic_create()')
@@ -343,22 +367,10 @@ class Housekeeping(object):
             # we have to ensure that all keys we need to nest are in
             if ele.keys() >= {account_field, order_field, authz_field, chall_field}:
 
-                # create account entry in case it does not exist
-                if ele[account_field] not in tmp_json:
-                    tmp_json[ele[account_field]] = {}
-                    tmp_json[ele[account_field]]['orders_dic'] = {}
+                # create dictionary structure (if needed)
+                tmp_json = self._dicstructure_create(tmp_json, ele, account_field, order_field, authz_field, chall_field)
 
-                if ele[order_field] not in tmp_json[ele[account_field]]['orders_dic']:
-                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]] = {}
-                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'] = {}
-
-                if ele[authz_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic']:
-                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]] = {}
-                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'] = {}
-
-                if ele[chall_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic']:
-                    tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]] = {}
-
+                # dump data in
                 for value in ele:
                     if value.startswith('account.'):
                         tmp_json[ele[account_field]][value] = ele[value]
