@@ -362,11 +362,10 @@ class CAhandler(object):
                 cmd_list.append(self.signing_script_dic['signing_interpreter'])
 
             # build command
-            if 'signing_script' in self.signing_script_dic:
-                cmd_list.append(self.signing_script_dic['signing_script'])
-                cmd_list.extend([csr_unsigned, csr_signed])
-                if 'signing_alias' in self.signing_script_dic and 'signing_config_variant' in self.signing_script_dic:
-                    cmd_list.extend([self.signing_script_dic['signing_alias'], self.signing_script_dic['signing_config_variant']])
+            cmd_list.append(self.signing_script_dic['signing_script'])
+            cmd_list.extend([csr_unsigned, csr_signed])
+            if 'signing_alias' in self.signing_script_dic and 'signing_config_variant' in self.signing_script_dic:
+                cmd_list.extend([self.signing_script_dic['signing_alias'], self.signing_script_dic['signing_config_variant']])
         else:
             cmd_list = []
 
