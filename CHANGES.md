@@ -5,6 +5,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.23.1
+
+**Bugfixes**:
+
+- [#99 - Authorization.value max_length too short for SAN entrie](https://github.com/grindsa/acme2certifier/issues/99)
+
 # Changes in 0.23
 
 **Features and Improvements**:
