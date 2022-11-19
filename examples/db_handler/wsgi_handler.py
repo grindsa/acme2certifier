@@ -274,7 +274,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create authorization')
         self.cursor.execute('''
-            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" varchar(64) NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" text NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.logger.debug('create challenge')
         self.cursor.execute('''
@@ -326,6 +326,22 @@ class DBstore(object):
         if 'eab_kid' not in account_column_list:
             self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
+
+    def _db_update_authorization(self):
+        """ alter orders table """
+        self.logger.debug('DBStore._db_update_authorization()')
+
+        # change identifier field to text to remove length restriction
+        self.cursor.execute('''PRAGMA table_info(authorization)''')
+        for column in self.cursor.fetchall():
+            if column[1] == 'value' and 'varchar' in column[2].lower():
+                self.logger.info('alter authorization table - change value field type to TEXT')
+                self.cursor.execute('''ALTER TABLE authorization RENAME TO tmp''')
+                self.cursor.execute('''
+                    CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" text NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                ''')
+                self.cursor.execute('''INSERT INTO authorization(id, name, order_id, type, value, expires, token, status_id, created_at) SELECT id, name, order_id, type, value, expires, token, status_id, created_at  FROM tmp''')
+                self.cursor.execute('''DROP TABLE tmp''')
 
     def _db_update_cahandler(self):
         """ alter cahandler table """
@@ -1091,6 +1107,9 @@ class DBstore(object):
 
         # update order table
         self._db_update_orders()
+
+        # update authorization table
+        self._db_update_authorization()
 
         # create housekeeping table
         self._db_update_housekeeping()
