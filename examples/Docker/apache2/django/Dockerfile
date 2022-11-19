@@ -19,7 +19,7 @@ RUN apt-get install --no-install-recommends -y \
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt && pip3 install django_rename_app
+RUN pip3 install -r /tmp/requirements.txt && pip3 install django_rename_app==0.1.3
 
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
@@ -59,7 +59,6 @@ WORKDIR /var/www/acme2certifier/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-# CMD ["bash"]
 CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
 
 EXPOSE 80 443

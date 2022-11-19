@@ -22,7 +22,7 @@ COPY requirements.txt /tmp/requirements.txt
 # RUN pip3 install -r /tmp/requirements.txt
 
 RUN pip3 install -r /tmp/requirements.txt && \
-    pip3 install supervisor django_rename_app
+    pip3 install supervisor django_rename_app==0.1.3
 
 # create folders for acme2certifier
 RUN mkdir -p /var/www/acme2certifier/volume && \
@@ -62,7 +62,6 @@ WORKDIR /var/www/acme2certifier/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-# CMD ["bash"]
 CMD ["/usr/local/bin/supervisord"]
 
 EXPOSE 80 443
