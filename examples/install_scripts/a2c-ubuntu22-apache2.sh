@@ -6,9 +6,9 @@ apache2ctl -M | grep -i wsgi
 
 # 3 download a2c and unpack it
 cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
+curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$1 -o a2c-master.tgz
 tar xvfz a2c-master.tgz
-cd /tmp/acme2certifier-master
+cd /tmp/acme2certifier-$1
 
 # 4 install needed python modules
 sudo pip3 install -r requirements.txt
@@ -40,10 +40,10 @@ sudo mkdir /var/www/acme2certifier/acme_srv
 sudo cp -R acme_srv /var/www/acme2certifier/
 
 # 13 use default configuration file
-sudo cp examples/acme_srv.cfg /var/www/acme2certifier/acme_srv/   
+sudo cp examples/acme_srv.cfg /var/www/acme2certifier/acme_srv/
 
 # 14 configure a2c with openssl handler - to be modified!!!!
-sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/www/acme2certifier/acme_srv/
+sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
 sudo mkdir -p /var/www/acme2certifier/volume/acme_ca/certs
 sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem /var/www/acme2certifier/volume/acme_ca/
 
@@ -58,4 +58,4 @@ sudo chmod a+x /var/www/acme2certifier/acme_srv
 
 # 20 delete default apache configuration and restart apache2 server
 sudo rm /etc/apache2/sites-enabled/000-default.conf
-sudo systemctl reload apache2
+# sudo systemctl reload apache2
