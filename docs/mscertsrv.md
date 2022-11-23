@@ -44,6 +44,13 @@ X-Powered-By: ASP.NET
 
 ## Installation
 
+- you need to allow the md4 algorithm in `openssl.cfg`
+
+```bash
+$ sudo sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
+$ sudo sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+```
+
 - install [certsrv](https://github.com/magnuswatn/certsrv) via pip (module is already part of the docker images)
 
 ```bash
