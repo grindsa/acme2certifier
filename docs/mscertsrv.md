@@ -1,4 +1,4 @@
-<!-- markdownlint-disable  MD013 -->
+<!-- markdownlint-disable MD013 MD014 -->
 <!-- wiki-title CA handler for Microsoft Certification Authority Web Enrollment Service -->
 # CA handler for Microsoft Certification Authority Web Enrollment Service
 
