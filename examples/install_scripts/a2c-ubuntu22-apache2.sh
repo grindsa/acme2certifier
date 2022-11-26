@@ -1,3 +1,5 @@
+BRANCH="${1:-master}"
+
 # 1 install needed packages
 sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
 
@@ -6,9 +8,9 @@ apache2ctl -M | grep -i wsgi
 
 # 3 download a2c and unpack it
 cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$1 -o a2c-master.tgz
-tar xvfz a2c-master.tgz
-cd /tmp/acme2certifier-$1
+curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$BRANCH -o ac2-$BRANCH.tgz
+tar xvfz a2c-$BRANCH.tgz
+cd /tmp/acme2certifier-$BRANCH
 
 # 4 install needed python modules
 sudo pip3 install -r requirements.txt

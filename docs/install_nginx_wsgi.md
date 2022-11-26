@@ -1,4 +1,4 @@
-<!-- markdownlint-disable  MD013 MD029 -->
+<!-- markdownlint-disable  MD013 MD014 MD029 -->
 <!-- wiki-title Installation on NGINX runnig on CentOS -->
 # Installation on NGINX runnig on CentOS
 
@@ -6,100 +6,119 @@ I barely know NGINX. Main input has been taken from [here](https://hostpresto.co
 
 Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
 
-1. setup your project directory
+1. Install missing packages
 
 ```bash
-[root@srv ~]# mkdir /opt/acme2certifier
+$ sudo yum install -y epel-release
+$ sudo yum update -y
+$ sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-plugin-python3 policycoreutils-python-utils
 ```
 
-2. download the archive and unpack it into `/opt/acme2certifier`.
-3. create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/` or use the example stored in the examples directory
-4. modify the [configuration file](acme_srv.md) according to you needs
-5. set the `handler_file` parameter in `acme_srv.cfg` or copy the correct ca handler from `/opt/acme2certifier/examples/ca_handler directory` to `/opt/acme2certifier/acme_srv/ca_handler.py`
-6. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
-7. activate the wsgi database handler
+2. Setup your project directory
+
+```bash
+$ mkdir /opt/acme2certifier
+```
+
+3. download the archive and unpack it into a temporary directory.
+
+```bash
+$ cd /tmp
+$ curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
+$ tar xvfz a2c-master.tgz
+$ cd /tmp/acme2certifier-master
+```
+
+4. Install the missing python modules
+
+```bash
+$ pip install -r /opt/acme2certifier/requirements.txt
+```
+
+5. create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/` or use the example stored in the examples directory
+6. modify the [configuration file](acme_srv.md) according to you needs
+7. set the `handler_file` parameter in `acme_srv.cfg` or copy the correct ca handler from `/opt/acme2certifier/examples/ca_handler directory` to `/opt/acme2certifier/acme_srv/ca_handler.py`
+8. configure the connection to your ca server. [Example for Insta Certifier](certifier.md)
+9. activate the wsgi database handler
 
 ```bash
 root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme_srv/db_handler.py
 ```
 
-8. copy the application file "acme2certifer_wsgi.py" from examples directory
+10. copy the application file "acme2certifer_wsgi.py" from examples directory
 
 ```bash
 root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
 ```
 
-9. set the correct permissions to the acme_srv-subdirectory
+11. set the correct permissions to the acme_srv-subdirectory
 
 ```bash
-[root@srv ~]# chmod a+x /opt/acme2certifier/acme_srv
+$ chmod a+x /opt/acme2certifier/acme_srv
 ```
 
-10. set the ownership of the acme_srv subdirectory to the user running nginx
+12. set the ownership of the acme_srv subdirectory to the user running nginx
 
 ```bash
-[root@srv ~]# chown -R nginx /opt/acme2certifier/acme_srv
-```
-
-11. install the missing python modules
-
-```bash
-[root@srv ~]# pip install -r requirements.txt
-```
-
-12. Install uswgi by using pip
-
-```bash
-[root@srv ~]# pip install uwsgi
+$ chown -R nginx /opt/acme2certifier/acme_srv
 ```
 
 13. Test acme2certifier by starting the application
 
 ```bash
-[root@srv ~]# uwsgi --socket 0.0.0.0:8000 --protocol=http -w acme2certifier_wsgi
+cd /opt/acme2certifier
+$ uwsgi --http-socket :8000 --plugin python3 --wsgi-file acme2certifier_wsgi.py
+
 ```
 
 14. Check access to directory resource in a parallel session to verify that everything works so far
 
 ```bash
-[root@srv ~]# curl http://127.0.0.1:8000/directory
-{"newAccount": "http://127.0.0.1:8000/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme_srv/key-change", "newNonce": "http://127.0.0.1:8000/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme_srv/neworders", "revokeCert": "http://127.0.0.1:8000/acme_srv/revokecert"}[root@srv ~]#
+$ curl http://127.0.0.1:8000/directory
+{"newAccount": "http://127.0.0.1:8000/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme_srv/key-change", "newNonce": "http://127.0.0.1:8000/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme_srv/neworders", "revokeCert": "http://127.0.0.1:8000/acme_srv/revokecert"}$
 ```
 
 15. create an uWSGI config file or use the one stored in examples/nginx directory
 
 ```bash
-[root@srv ~]# cp examples/nginx/acme2certifier.ini /opt/acme2certifier
+$ cp examples/nginx/acme2certifier.ini /opt/acme2certifier
 ```
 
-16. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
+16. activate python3 module in uWSGI config file
 
 ```bash
-[root@srv ~]# cp examples/nginx/uwsgi.service /etc/systemd/system/
-[root@srv ~]# systemctl enable uwsgi.service
+$ echo "plugins = python3" >> examples/nginx/acme2certifier.ini
 ```
 
-17. start uWSGI as service
+17. Create a Systemd Unit File for uWSGI or use the one stored in excample/nginx directory
 
 ```bash
-[root@srv ~]# systemctl start uwsgi
+$ cp examples/nginx/uwsgi.service /etc/systemd/system/
+$ systemctl enable uwsgi.service
 ```
 
-18. configure NGINX as reverse proxy or use example stored in examples/nginx directory and modify it according to your needs
+18. start uWSGI as service
 
 ```bash
-[root@srv ~]# cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+$ systemctl start uwsgi
 ```
 
-19. restart nginx
+19. configure NGINX as reverse proxy or use example stored in examples/nginx directory and modify it according to your needs
 
 ```bash
-[root@srv ~]# systemctl restart nginx
+$ cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+```
+
+20. restart nginx
+
+```bash
+$ systemctl restart nginx
 ```
 
 20. test the server by accessing the directory resource
 
 ```bash
-[root@srv ~]# curl http://<your server name>/directory
-you should get your resource overview now
+$ curl http://<your server name>/directory
 ```
+
+the above command should result in an error as the Selinx configuration needs to be adapted
