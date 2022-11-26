@@ -44,13 +44,13 @@ $ pip install -r /opt/acme2certifier/requirements.txt
 9. activate the wsgi database handler
 
 ```bash
-root@rlh:~# cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+$ cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme_srv/db_handler.py
 ```
 
 10. copy the application file "acme2certifer_wsgi.py" from examples directory
 
 ```bash
-root@rlh:~# cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
+$ cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
 ```
 
 11. set the correct permissions to the acme_srv-subdirectory
