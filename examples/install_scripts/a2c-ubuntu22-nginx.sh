@@ -16,7 +16,6 @@ curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master
 tar xvfz a2c-master.tgz
 cd /tmp/acme2certifier-master
 
-
 # 4 install needed python modules
 echo "## Install missing pythom modules"
 sudo pip3 install -r requirements.txt
