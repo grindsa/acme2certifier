@@ -1,7 +1,13 @@
 
-BRANCH="${1:-master}"
+#!/bin/bash
+# acme2certifier script installing a2c on CentOS with NGINX as webserver
+# usage:
+#   - download acme2certifer and unpack it into a director
+#   - enter the directory
+#   - execute the script with "sh ./examples/install_scripts/a2c-entos9-nginx.sh"
 
-echo "# Install a2c from $BRANCH"
+# BRANCH="${1:-master}"
+# echo "# Install a2c from $BRANCH"
 
 # 1. install neded packages
 echo "## Installing missing packages"
@@ -13,12 +19,12 @@ sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-pl
 # 2. create directory
 sudo mkdir /opt/acme2certifier
 
-echo "## Download software from github"
+# echo "## Download software from github"
 # 3. download archive
-cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$BRANCH -o a2c-$BRANCH.tgz
-tar xvfz a2c-$BRANCH.tgz
-cd /tmp/acme2certifier-$BRANCH
+# cd /tmp
+# curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$BRANCH -o a2c-$BRANCH.tgz
+# tar xvfz a2c-$BRANCH.tgz
+# cd /tmp/acme2certifier-$BRANCH
 
 # 4 install modules
 echo "## Install missing python modules"
@@ -53,29 +59,16 @@ sudo cp examples/nginx/uwsgi.service /etc/systemd/system/
 sudo systemctl enable uwsgi.service
 sudo systemctl start uwsgi
 
-# 19 - 20 configure nginx
+# 19 - 20 configure nginxinsta
 echo "## Configure and enable nginx services"
 sudo cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 sudo systemctl enable nginx.service
 sudo systemctl restart nginx
 sudo systemctl status nginx.service
 
-#echo "## Test directory ressource which should fail"
-#curl http://127.0.0.1
-#sleep 5
-echo "## Add missing SELinux rules "
-#sudo grep nginx /var/log/audit/audit.log | audit2allow
-#sudo grep nginx /var/log/audit/audit.log | audit2allow -M nginx
-#sudo semodule -i nginx.pp
-#sudo setenforce Enforcing
 
-#curl http://127.0.0.1
-#sleep 5
-#sudo grep nginx /var/log/audit/audit.log | audit2allow
-#sudo grep nginx /var/log/audit/audit.log | audit2allow -M nginx
-#sudo semodule -i nginx.pp
-#sudo setenforce Enforcing
-sudo checkmodule -M -m -o acme2certifier.mod example/nginx/acme2certifier.te
+echo "## Add missing SELinux rules "
+sudo checkmodule -M -m -o acme2certifier.mod examples/nginx/acme2certifier.te
 sudo semodule_package -o acme2certifier.pp -m acme2certifier.mod
 sudo semodule -i acme2certifier.pp
 
