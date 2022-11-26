@@ -1,12 +1,23 @@
 <!-- markdownlint-disable  MD013 MD014 MD029 -->
-<!-- wiki-title Installation on NGINX runnig on CentOS -->
+<!-- wiki-title Installation on NGINX runnig on Alma Linux 9 -->
 # Installation on NGINX runnig on CentOS
 
 I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvement let me know.
 
 Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
 
-1. Install missing packages
+<!-- A [readymade shell script](examples/install_scripts/a2c-centos9-nginx.sh) performing the below tasks will can be found in the `examples/install_scripts` directory. -->
+
+1. download the archive and unpack it into a temporary directory.
+
+```bash
+$ cd /tmp
+$ curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
+$ tar xvfz a2c-master.tgz
+$ cd /tmp/acme2certifier-master
+```
+
+2. Install missing packages
 
 ```bash
 $ sudo yum install -y epel-release
@@ -14,19 +25,10 @@ $ sudo yum update -y
 $ sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-plugin-python3 policycoreutils-python-utils
 ```
 
-2. Setup your project directory
+3. Setup your project directory
 
 ```bash
 $ mkdir /opt/acme2certifier
-```
-
-3. download the archive and unpack it into a temporary directory.
-
-```bash
-$ cd /tmp
-$ curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
-$ tar xvfz a2c-master.tgz
-$ cd /tmp/acme2certifier-master
 ```
 
 4. Install the missing python modules
@@ -115,10 +117,18 @@ $ cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
 $ systemctl restart nginx
 ```
 
+21. adapt SELinux configuration by applying a customized policy allowing nginx to communicate with uwsgi by using Unix sockets
+
+```bash
+$ sudo checkmodule -M -m -o acme2certifier.mod examples/nginx/acme2certifier.te
+$ sudo semodule_package -o acme2certifier.pp -m acme2certifier.mod
+$ sudo semodule -i acme2certifier.pp
+```
+
 20. test the server by accessing the directory resource
 
 ```bash
 $ curl http://<your server name>/directory
 ```
 
-the above command should result in an error as the Selinx configuration needs to be adapted
+The above command should result in an error as the Selinx configuration needs to be adapted.

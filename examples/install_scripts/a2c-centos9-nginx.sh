@@ -2,12 +2,9 @@
 #!/bin/bash
 # acme2certifier script installing a2c on CentOS with NGINX as webserver
 # usage:
-#   - download acme2certifer and unpack it into a director
+#   - download acme2certifer and unpack it into a directory
 #   - enter the directory
-#   - execute the script with "sh ./examples/install_scripts/a2c-entos9-nginx.sh"
-
-# BRANCH="${1:-master}"
-# echo "# Install a2c from $BRANCH"
+#   - execute this script with "sh ./examples/install_scripts/a2c-centos9-nginx.sh"
 
 # 1. install neded packages
 echo "## Installing missing packages"
