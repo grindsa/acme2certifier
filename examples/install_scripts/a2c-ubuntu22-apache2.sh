@@ -1,4 +1,10 @@
-BRANCH="${1:-master}"
+#!/bin/bash
+# acme2certifier script installing a2c on CentOS with NGINX as webserver
+# usage:
+#   - download acme2certifer and unpack it into a directory
+#   - enter the directory
+#   - execute this script with "sh ./examples/install_scripts/a2c-ubuntu22-apache2.sh"
+
 
 # 1 install needed packages
 sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
@@ -6,11 +12,6 @@ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
 # 2 check if mod wsgi got activated
 apache2ctl -M | grep -i wsgi
 
-# 3 download a2c and unpack it
-cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$BRANCH -o ac2-$BRANCH.tgz
-tar xvfz a2c-$BRANCH.tgz
-cd /tmp/acme2certifier-$BRANCH
 
 # 4 install needed python modules
 sudo pip3 install -r requirements.txt
