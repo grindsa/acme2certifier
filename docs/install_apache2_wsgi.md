@@ -2,7 +2,7 @@
 <!-- wiki-title Installation on apache2 -->
 # Installation on apache2 running on Ubuntu 22.04
 
-<!-- A [readymade shell script](examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the below tasks will can be found in `examples/install_scripts` directory. -->
+A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the below tasks will can be found in `examples/install_scripts` directory.
 
 1. Install apache2 and the corresponding wsgi module
 $ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data

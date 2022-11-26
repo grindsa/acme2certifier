@@ -6,7 +6,7 @@ I barely know NGINX. Main input has been taken from [here](https://hostpresto.co
 
 Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
 
-<!-- A [readymade shell script](examples/install_scripts/a2c-centos9-nginx.sh) performing the below tasks will can be found in the `examples/install_scripts` directory. -->
+A [readymade shell script](../examples/install_scripts/a2c-centos9-nginx.sh) performing the below tasks will can be found in the `examples/install_scripts` directory.
 
 1. download the archive and unpack it into a temporary directory.
 
