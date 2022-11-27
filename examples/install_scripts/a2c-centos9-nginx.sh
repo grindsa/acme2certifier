@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # acme2certifier script installing a2c on CentOS with NGINX as webserver
 # usage:
@@ -16,12 +15,12 @@ sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-pl
 # 2. create directory
 sudo mkdir /opt/acme2certifier
 
-# echo "## Download software from github"
+echo "## Download software from github"
 # 3. download archive
-# cd /tmp
-# curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/$BRANCH -o a2c-$BRANCH.tgz
-# tar xvfz a2c-$BRANCH.tgz
-# cd /tmp/acme2certifier-$BRANCH
+cd /tmp
+curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
+tar xvfz a2c-master.tgz
+cd /tmp/acme2certifier-master
 
 # 4 install modules
 echo "## Install missing python modules"
@@ -63,9 +62,25 @@ sudo systemctl enable nginx.service
 sudo systemctl restart nginx
 sudo systemctl status nginx.service
 
+echo "## Add missing SELinux rules"
 
-echo "## Add missing SELinux rules "
-sudo checkmodule -M -m -o acme2certifier.mod examples/nginx/acme2certifier.te
+cat <<EOT > acme2certifier.te
+module acme2certifier 1.0;
+
+require {
+	type var_run_t;
+	type initrc_t;
+	type httpd_t;
+	class sock_file write;
+	class unix_stream_socket connectto;
+}
+
+#============= httpd_t ==============
+allow httpd_t initrc_t:unix_stream_socket connectto;
+allow httpd_t var_run_t:sock_file write;
+EOT
+
+sudo checkmodule -M -m -o acme2certifier.mod acme2certifier.te
 sudo semodule_package -o acme2certifier.pp -m acme2certifier.mod
 sudo semodule -i acme2certifier.pp
 

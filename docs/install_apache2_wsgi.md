@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 MD014 MD029 -->
-<!-- wiki-title Installation on apache2 -->
+<!-- wiki-title Installation on apache2 running on Ubuntu 22.04 -->
 # Installation on apache2 running on Ubuntu 22.04
 
 A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the below tasks will can be found in `examples/install_scripts` directory.

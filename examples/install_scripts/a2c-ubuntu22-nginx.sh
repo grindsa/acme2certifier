@@ -10,13 +10,7 @@ echo "## Install missing packages"
 sudo apt-get update
 sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl
 
-# 3 download a2c and unpack it
-cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
-tar xvfz a2c-master.tgz
-cd /tmp/acme2certifier-master
-
-# 4 install needed python modules
+# 3 install needed python modules
 echo "## Install missing pythom modules"
 sudo pip3 install -r requirements.txt
 
