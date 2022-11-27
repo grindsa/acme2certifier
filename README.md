@@ -114,8 +114,9 @@ containers.  There are ready made images available at [dockerhub](https://hub.do
 - [acme2certifier in Github container repository](https://github.com/grindsa?tab=packages&ecosystem=container)
 - [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
 - [Instructions to build your own container](examples/Docker/)
-- [Installation as wsgi-script running on apache2](docs/install_apache2_wsgi.md)
-- [Installation as wsgi-script running on NGINX](docs/install_nginx_wsgi.md)
+- [Installation as wsgi-script running on apache2 (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
+- [Installation as wsgi-script running on NGINX (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
+- [Installation as wsgi-script running on NGINX (Alma Linux 9)](docs/install_nginx_wsgi.md)
 
 ## Contributing
 
