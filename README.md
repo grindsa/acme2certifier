@@ -112,11 +112,15 @@ The fastest and most convenient way to install acme2certifier is to use docker
 containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
 
 - [acme2certifier in Github container repository](https://github.com/grindsa?tab=packages&ecosystem=container)
-- [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
+- [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier),
 - [Instructions to build your own container](examples/Docker/)
 - [Installation as wsgi-script running on apache2 (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
 - [Installation as wsgi-script running on NGINX (Alma Linux 9)](docs/install_nginx_wsgi.md)
+
+## Software Bill Of Material
+
+ [SBOMs](https://www.linuxfoundation.org/blog/blog/what-is-an-sbom) for all containers will be automatically created during build process and stored in a [dedicated respository](https://github.com/grindsa/sbom/tree/main/acme2certifier)
 
 ## Contributing
 
