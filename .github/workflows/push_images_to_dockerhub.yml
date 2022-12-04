@@ -60,12 +60,37 @@ jobs:
           docker login ghcr.io -u ${{ secrets.GHCR_USER }} -p ${{ secrets.GHCR_TOKEN }}
           docker push -a ghcr.io/grindsa/acme2certifier
 
-      #- name: "Create images for hub.docker.com"
-      #  run: |
-      #    cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:apache2-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-wsgi -f - . --no-cache
-      #    cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:apache2-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-apache2-django -f - .  --no-cache
-      #    cat examples/Docker/nginx/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:nginx-wsgi -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-wsgi -f - . --no-cache
-      #    cat examples/Docker/nginx/django/Dockerfile | docker build -t grindsa/acme2certifier:nginx-django -t grindsa/acme2certifier:${{ env.TAG_NAME }}-nginx-django -f - .  --no-cache
+      - name: "Install syft"
+        run: |
+          sudo curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: "Retrieve SBOM repo"
+        run: |
+          git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        env:
+          GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+          GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
+      - name: "Generate SBOMs for a2c images "
+        run: |
+          mkdir -p /tmp/sbom/acme2certifier
+          syft grindsa/acme2certifier:apache2-wsgi > /tmp/sbom/acme2certifier/acme2certifier-apache2-wsgi.txt
+          syft grindsa/acme2certifier:apache2-wsgi -o json > /tmp/sbom/acme2certifier/acme2certifier_apache2-wsgi.json
+          syft grindsa/acme2certifier:apache2-django > /tmp/sbom/acme2certifier/acme2certifier-apache2-django.txt
+          syft grindsa/acme2certifier:apache2-django -o json > /tmp/sbom/acme2certifier/acme2certifier_apache2-django.json
+          syft grindsa/acme2certifier:nginx-wsgi > /tmp/sbom/acme2certifier/acme2certifier-nginx-wsgi.txt
+          syft grindsa/acme2certifier:nginx-wsgi -o json > /tmp/sbom/acme2certifier/acme2certifier_nginx-wsgi.json
+          syft grindsa/acme2certifier:nginx-django > /tmp/sbom/acme2certifier/acme2certifier-nginx-django.txt
+          syft grindsa/acme2certifier:nginx-django -o json > /tmp/sbom/acme2certifier/acme2certifier_nginx-django.json
+
+      - name: "Upload Changes"
+        run: |
+          cd /tmp/sbom
+          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.name "SBOM Generator"
+          git add acme2certifier/
+          git commit -a -m "SBOM update"
+          git push
 
       - name: "delete images from local repository"
         run: |
