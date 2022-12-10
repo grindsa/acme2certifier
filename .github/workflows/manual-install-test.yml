@@ -1,4 +1,4 @@
-name: Manual Installation test
+name: Manuall Installation test
 
 on:
   push:
@@ -9,6 +9,129 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
+  apache2_wsgi:
+    name: "apache2_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: Branch name
+      run: echo running on branch ${GITHUB_REF##*/}
+
+    - name: "Run install script"
+      run: |
+        sudo mkdir -p data
+        chmod a+rx examples/install_scripts/a2c-ubuntu22-apache2.sh
+        examples/install_scripts/a2c-ubuntu22-apache2.sh ${GITHUB_REF##*/}
+
+    - name: "Local modification to get a2c running"
+      run: |
+        sudo apt-get install -y socat
+        sudo sed -i "s/Listen 80/Listen 8080/g" /etc/apache2/ports.conf
+        sudo sed -i "s/*:80/*:8080/g" /etc/apache2/sites-available/acme2certifier.conf
+        sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo sed -i "s/volume\/acme_ca/\/var\/www\/acme2certifier\/volume\/acme_ca/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo service apache2 restart
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: curl -f http://127.0.0.1:8080/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp /var/log/apache2 ${{ github.workspace }}/artifact/data/
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: apache.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  nginx_wsgi:
+    name: "nginx_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: Branch name
+      run: echo running on branch ${GITHUB_REF##*/}
+
+    - name: "Run install script"
+      run: |
+        sudo mkdir -p data
+        sh examples/install_scripts/a2c-ubuntu22-nginx.sh
+
+    - name: "Local modification to get a2c running"
+      run: |
+        sudo apt-get install -y socat
+        sudo sed -i "s/listen 80/listen 8080/g" /etc/nginx/sites-enabled/acme_srv.conf
+        sudo sed -i "s/listen [::]:80/listen [::]:8080/g" /etc/nginx/sites-enabled/acme_srv.conf
+        sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo sed -i "s/volume\/acme_ca/\/var\/www\/acme2certifier\/volume\/acme_ca/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
+        sudo service nginx restart
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: curl -f http://127.0.0.1:8080/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp /var/log/apache2 ${{ github.workspace }}/artifact/data/
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: nginx.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
   alma_nginx_wsgi:
     name: "alma_nginx_wsgi"
     runs-on: ubuntu-latest
@@ -28,15 +151,41 @@ jobs:
     - name: "[ PREPARE ] environment"
       run: |
         docker network create acme
+        echo "exit 0" >> examples/install_scripts/a2c-centos9-nginx.sh
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme_srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
 
     - name: "[ RUN ] Execute install scipt"
       run: |
-        docker exec acme_srv /tmp/acme2certifier/examples/Docker/almalinux-systemd/script_tester.sh
+        docker exec acme-srv sh /tmp/acme2certifier/examples/Docker/almalinux-systemd/script_tester.sh
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        sudo mkdir acme-sh
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
