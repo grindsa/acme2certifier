@@ -34,6 +34,10 @@ jobs:
         cat examples/Docker/alamalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme_srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
 
+    - name: "[ RUN ] exceute installation"
+      run: |
+        docker exec acme_srv sh /tmp/acme2certifier/examples/Docker/almalinux-systemd/script_tester.sh
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
