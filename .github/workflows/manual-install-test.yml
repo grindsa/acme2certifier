@@ -1,4 +1,4 @@
-name: Manuall Installation test
+name: Manual Installation test
 
 on:
   push:
