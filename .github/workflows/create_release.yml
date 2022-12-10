@@ -1,0 +1,48 @@
+on:
+  push:
+    branches:
+      - "master"
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: "Get current version"
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}  # The repository to scan.
+          releases-only: true  # We know that all relevant tags have a GitHub release for them.
+        id: acme2certifier_ver  # The step ID to refer to later.
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Retrieve Version from version.py
+        run: |
+          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+      - run: echo "APP tag is ${{ env.APP_NAME }}"
+      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+      - name: Create Release
+        id: create_release
+        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          release_name: ${{ env.APP_NAME }} ${{ env.TAG_NAME }}
+          # release_name: hahohe ${{ env.TAG_NAME }}
+          # body_path: body.txt
+          body: |
+            [Changelog](https://github.com/grindsa/acme2certifier/blob/master/CHANGES.md)
+          draft: false
+          prerelease: false
