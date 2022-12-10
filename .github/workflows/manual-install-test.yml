@@ -32,7 +32,7 @@ jobs:
     - name: "[ PREPARE ] Almalinux instance"
       run: |
         cat examples/Docker/alamalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme_srv -v "./":/tmp/acme2certifier almalinux-systemd
+        docker run -d -id --privileged --network acme --name=acme_srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
