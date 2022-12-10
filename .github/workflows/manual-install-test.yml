@@ -1,4 +1,4 @@
-name: Manuall Installation test
+name: Manual Installation test
 
 on:
   push:
@@ -25,10 +25,14 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
+    - name: "[ PREPARE ] environment"
+      run: |
+        docker network create acme
+
     - name: "[ PREPARE ] Almalinux instance"
       run: |
         cat examples/Docker/alamalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-
+        docker run -d -id --privileged --network acme --name=acme_srv -v "./":/tmp/acme2certifier almalinux-systemd
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
