@@ -57,7 +57,7 @@ sudo systemctl start uwsgi
 
 # 19 - 20 configure nginxinsta
 echo "## Configure and enable nginx services"
-sudo cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
+sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/nginx_acme_srv.conf
 sudo systemctl enable nginx.service
 sudo systemctl restart nginx
 sudo systemctl status nginx.service
