@@ -193,3 +193,83 @@ jobs:
       with:
         name: alma_nginx_wsgi.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+  alma_nginx_wsgi_rpm:
+    name: "alma_nginx_wsgi_rpm"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: Branch name
+      run: echo running on branch ${GITHUB_REF##*/}
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "[ PREPARE ] Setup environment"
+      run: |
+        docker network create acme
+        mkdir -p data/acme_ca/certs/
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "[ PREPARE ] Almalinux instance"
+      run: |
+        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        sudo mkdir acme-sh
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: alma_nginx_wsgi_rpm.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

@@ -7,22 +7,21 @@ AutoReqProv: no
 %global         dest_dir        /opt
 %{!?_unitdir: %global _unitdir /usr/lib/systemd/system}
 
-Summary:		library implementing ACME server functionality
-Name:			acme2certifier
+Summary:        library implementing ACME server functionality
+Name:           acme2certifier
 
-%define   		ghowner   		grindsa
+%define         ghowner   		grindsa
 
-Version:		0.23.1
-Release:		1.0
-License:		GPL3; @grindsa@github
-URL:    		https://github.com/grindsa/acme2certifier
-Requires:		nginx
+Version:        __version__
+Release:        1.0
+License:        GPL3; @grindsa@github
+URL:            https://github.com/grindsa/acme2certifier
+Requires:       nginx
 # EPEL repo required
-Requires:		policycoreutils-python-utils
-Requires:		uwsgi-plugin-python3
-Requires:		python3-uwsgidecorators
-Requires:		tar
-# pip **RISK**
+Requires:       policycoreutils-python-utils
+Requires:       uwsgi-plugin-python3
+Requires:       python3-uwsgidecorators
+Requires:       tar
 Requires:       python3-dateutil
 Requires:       python3-pytz
 Requires:       python3-setuptools
@@ -45,17 +44,15 @@ Requires(post): policycoreutils
 
 BuildArch:		noarch
 
-#define     ghsha       1699c09758e56f740437674a8d6ba36443399f24
-%define			mungedurl		refs/tags/%{?ghsha}%{?!ghsha:%{version}}
 
-Source0: 		https://github.com/%{ghowner}/%{?URLbit}%{?!URLbit:%{name}}/archive/%{?mungedurl}.tar.gz
+Source0:        %{name}-%{version}.tar.gz
 
 %description
 acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme_srv/*.py - a bunch of classes implementing ACME server functionality based on rfc8555
-- ca_handler.py - interface towards CA server. The intention of this library is to be 
-  modular that an adaption to other CA servers should be straight forward. As of 
+- ca_handler.py - interface towards CA server. The intention of this library is to be
+  modular that an adaption to other CA servers should be straight forward. As of
   today the following handlers are available:
 
   - Openssl
@@ -69,19 +66,19 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
   - XCA
   - acme2dfn (external; ACME proxy for the German research network's SOAP API)
 
-For more up-to-date information and further documentation, please visit the project's 
+For more up-to-date information and further documentation, please visit the project's
 home page at: https://github.com/grindsa/acme2certifier
 
 Remember to:
-  - enable acme2certifer service 
+  - enable acme2certifer service
 	  sudo systemctl enable acme2certifier.service
 	  sudo systemctl start acme2certifier.service
-  - active acme2certifier in your nginx configuration 
+  - active acme2certifier in your nginx configuration
 	  cp /opt/acme2certifer/examples/nginx/nginx_acme_srv[_ssl].conf /etc/nginx/conf.d
   - enable and start nginx service
 	  sudo systemctl enable nginx.service
 	  sudo systemctl start nginx.service
-	  
+
 %prep
 %autosetup -p1 -n %{name}-%{?ghsha}%{?!ghsha:%{version}} -N
 
@@ -94,12 +91,14 @@ Remember to:
 %{__mkdir_p} \
     %{buildroot}%{_datadir} \
     %{buildroot}%{_unitdir} \
-	%{buildroot}%{dest_dir}
-    
+    %{buildroot}%{dest_dir}/%{name}/examples \
+	%{buildroot}%{_docdir}/%{projname} \
     #\
     #%{buildroot}%{_sysconfdir}/httpd/conf.d \
 
-%{__cp} -a . %{buildroot}%{dest_dir}/%{projname}
+# %{__cp} -a . %{buildroot}%{dest_dir}/%{projname}
+%{__cp} -a acme_srv tools %{buildroot}%{dest_dir}/%{projname}
+%{__cp} -a examples/ca_handler examples/db_handler examples/django examples/eab_handler examples/hooks examples/trigger examples/nginx %{buildroot}%{dest_dir}/%{projname}/examples
 
 %{__chmod} -R go-w %{buildroot}%{dest_dir}/%{projname}
 
@@ -122,7 +121,7 @@ plugins = python3
 ' \
   examples/nginx/acme2certifier.ini > \
   %{buildroot}%{dest_dir}/%{projname}/acme2certifier.ini
-  
+
 ## Configure and enable uWSGI service
 %{__sed} '
 /^User/i\
@@ -140,7 +139,7 @@ WorkingDirectory=%{dest_dir}
 %files
 %defattr(-,root,root,-)
 %license LICENSE
-%doc *.md requirements.txt
+%doc *.md requirements.txt docs/*.md
 %attr(0755,nginx,-)%{dest_dir}/%{projname}/
 %{_unitdir}/acme2certifier.service
 
