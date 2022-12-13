@@ -9,7 +9,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
-- [#99 - Authorization.value max_length too short for SAN entrie](https://github.com/grindsa/acme2certifier/issues/99)
+- [#99 - Authorization.value max_length too short for SAN entries](https://github.com/grindsa/acme2certifier/issues/99)
 
 # Changes in 0.23
 
