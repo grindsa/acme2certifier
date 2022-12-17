@@ -31,24 +31,24 @@ $ cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 $ cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
-5. create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/` or use the example stored in the examples directory
-6. modify the [configuration file](acme_srv.md) according to you needs
-7. configure the CA handler according to your needs. [Example for Insta Certifier](certifier.md)
-8. enable and start the acme2certifier service
+5. Create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/` or use the example stored in the examples directory
+6. Modify the [configuration file](acme_srv.md) according to you needs
+7. Configure the CA handler according to your needs. [Example for Insta Certifier](certifier.md)
+8. Enable and start the acme2certifier service
 
 ```bash
 $ systemctl enable acme2certifier.service
 $ systemctl start acme2certifier.service
 ```
 
-9. enable and start the nginx service
+9. Enable and start the nginx service
 
 ```bash
-systemctl enable nginx.service
-systemctl start nginx.service
+$ systemctl enable nginx.service
+$ systemctl start nginx.service
 ```
 
-10. test the server by accessing the directory resource
+10. Test the server by accessing the directory resource
 
 ```bash
 $ curl http://<your server name>/directory
