@@ -1,0 +1,17 @@
+Source: acme2certifier
+Section: Network
+Priority: optional
+Maintainer: GrindSa <grindelsack@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.0
+Homepage: https://github.com/grindsa/acme2certifier
+#Vcs-Browser: https://salsa.debian.org/debian/acme2certifier
+#Vcs-Git: https://salsa.debian.org/debian/acme2certifier.git
+Rules-Requires-Root: no
+
+Package: acme2certifier
+Architecture: all
+Depends: ${misc:Depends}, tzdata, python3-setuptools, python3-jwcrypto, python3-cryptography, python3-openssl, python3-dnspython, python3-pytzdata, python3-configargparse, python3-dateutil, python3-requests, python3-socks, python3-josepy, python3-acme, python3-impacket, python3-xmltodict, python3-pyasn1, python3-pyasn1-modules, python3-django, python3-mysqldb, python3-pymysql, python3-psycopg2, python3-yaml
+Description: Library implementing ACME server functionality
+ acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet.
+ After installation remember to install either NGINX or apache2!
