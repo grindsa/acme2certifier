@@ -28,18 +28,18 @@ $ sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apa
 $ sudo a2ensite acme2certifier_ssl
 ```
 
-5. create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv/` or use the example stored in the examples directory
-6. modify the [configuration file](acme_srv.md) according to you needs
-7. configure the CA handler according to your needs. [Example for Insta Certifier](certifier.md)
+5. Create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv/` or use the example stored in the examples directory
+6. Modify the [configuration file](acme_srv.md) according to you needs
+7. Configure the CA handler according to your needs. [Example for Insta Certifier](certifier.md)
 
-8. enable and start the apache2 service
+8. Enable and start the apache2 service
 
 ```bash
 $ systemctl enable apache2.service
 $ systemctl start apache2.service
 ```
 
-9. test the server by accessing the directory resource
+9. Test the server by accessing the directory resource
 
 ```bash
 $ curl http://<your server name>/directory
@@ -96,7 +96,7 @@ WantedBy=multi-user.target
 EOT
 ```
 
-6. copy systemd service file
+6. Copy systemd service file
 
 ```bash
 $ sudo mv acme2certifier.service /etc/systemd/system/acme2certifier.service
@@ -116,7 +116,7 @@ $ sudo systemctl start nginx
 $ sudo systemctl enable nginx
 ```
 
-9. test the server by accessing the directory resource
+9. Test the server by accessing the directory resource
 
 ```bash
 $ curl http://<your server name>/directory
