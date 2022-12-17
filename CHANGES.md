@@ -5,6 +5,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.23.2
+
+**Features and Improvements**:
+
+- [rpm](docs/install_rpm.md) and [deb](docs/install_deb.md) packages
+
 # Changes in 0.23.1
 
 **Bugfixes**:
