@@ -109,10 +109,12 @@ django project. Running acme2certifier as django project allows to use other
 database backends than SQLite.
 
 The fastest and most convenient way to install acme2certifier is to use docker
-containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
+containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
 
 - [acme2certifier in Github container repository](https://github.com/grindsa?tab=packages&ecosystem=container)
-- [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier),
+- [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
+- [rpm package installation on Alma Linux 9](docs/install_rpm.md)
+- [deb package installation Ubuntu 22.04](docs/install_deb.md)
 - [Instructions to build your own container](examples/Docker/)
 - [Installation as wsgi-script running on apache2 (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
 - [Installation as wsgi-script running on NGINX (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
