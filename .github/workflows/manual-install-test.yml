@@ -481,7 +481,7 @@ jobs:
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp /var/log/apache2 ${{ github.workspace }}/artifact/data/
+        sudo cp -rp /var/log/nginx ${{ github.workspace }}/artifact/data/
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data
 
     - name: "[ * ] uploading artificates"
