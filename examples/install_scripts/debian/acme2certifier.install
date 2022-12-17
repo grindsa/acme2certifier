@@ -1,0 +1,14 @@
+examples/acme2certifier_wsgi.py /var/www/acme2certifier/
+acme_srv /var/www/acme2certifier/
+examples/acme_srv.cfg /var/www/acme2certifier/acme_srv/
+examples/db_handler /var/www/acme2certifier/examples
+examples/ca_handler /var/www/acme2certifier/examples
+examples/eab_handler /var/www/acme2certifier/examples
+examples/hooks /var/www/acme2certifier/examples
+examples/trigger /var/www/acme2certifier/examples
+examples/django /var/www/acme2certifier/examples
+examples/nginx /var/www/acme2certifier/examples
+examples/apache*.conf /var/www/acme2certifier/examples/apache2
+tools /var/www/acme2certifier/
+examples/db_handler/wsgi*.* /var/www/acme2certifier/acme_srv/
+docs /usr/share/doc/acme2certifier/
