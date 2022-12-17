@@ -6,7 +6,7 @@ yum install -y procps rsyslog
 systemctl start rsyslog.service
 
 yum -y install epel-release
-yum -y localinstall /tmp/acme2certifier/acme2certifier-0.23.1-1.0.noarch.rpm
+yum -y localinstall /tmp/acme2certifier/acme2certifier-*.noarch.rpm
 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 
 yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
