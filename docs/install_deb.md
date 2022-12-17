@@ -35,8 +35,8 @@ $ sudo a2ensite acme2certifier_ssl
 8. enable and start the apache2 service
 
 ```bash
-systemctl enable apache2.service
-systemctl start apache2.service
+$ systemctl enable apache2.service
+$ systemctl start apache2.service
 ```
 
 9. test the server by accessing the directory resource
