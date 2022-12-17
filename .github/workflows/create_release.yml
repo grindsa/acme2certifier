@@ -81,3 +81,33 @@ jobs:
             asset_path: ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
             asset_name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
             asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
+
+      - name: Prepare deb packaging environment
+        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
+        run: |
+          sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
+          rm setup.py
+          cp -R examples/install_scripts/debian ./
+          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
+          cd ../
+          tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+
+      - name: "[ BUILD ] build debian package"
+        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
+        run: |
+          dpkg-buildpackage -uc -us
+          # dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+          cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb "$(pwd)/acme2certifier_${{ env.TAG_NAME }}-1_all.deb"
+          ls -la
+
+      - name: Upload Release deb
+        id: upload-deb
+        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+            asset_name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+            asset_content_type: application/vnd.debian.binary-package

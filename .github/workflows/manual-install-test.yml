@@ -298,13 +298,10 @@ jobs:
         # sudo apt-get -y install debhelper
         rm setup.py
         cp -R examples/install_scripts/debian ./
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
         cd ../
         tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
 
-    # - uses: singingwolfboy/build-dpkg-buster@v1
-    #   id: build
-    #   with:
-    #    args: --unsigned-source --unsigned-changes
 
     - name: "[ BUILD ] build debian package"
       run: |
@@ -391,9 +388,9 @@ jobs:
     - name: "[ PREPARE ] environment to build deb package"
       run: |
         sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        # sudo apt-get -y install debhelper
         rm setup.py
         cp -R examples/install_scripts/debian ./
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
         cd ../
         tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
 
