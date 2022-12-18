@@ -269,11 +269,12 @@ class CAhandler(object):
                 backend=default_backend()
             )
         )
+        self.logger.debug('CAhandler._key_generate() ended.')
         return user_key
 
     def _user_key_load(self):
         """ enroll certificate  """
-        self.logger.debug('CAhandler._user_key_load()')
+        self.logger.debug('CAhandler._user_key_load({0})'.format(self.keyfile))
 
         if os.path.exists(self.keyfile):
             self.logger.debug('CAhandler.enroll() opening user_key')
@@ -283,10 +284,13 @@ class CAhandler(object):
             self.logger.debug('CAhandler.enroll() generate and register key')
             user_key = self._key_generate()
             # dump keyfile to file
-            with open(self.keyfile, "w", encoding='utf8') as keyf:
-                keyf.write(json.dumps(user_key.to_json()))
+            try:
+                with open(self.keyfile, "w", encoding='utf8') as keyf:
+                    keyf.write(json.dumps(user_key.to_json()))
+            except Exception as err:
+                self.logger.error('Error during key dumping: {0}'.format(err))
 
-        self.logger.debug('CAhandler._user_key_load() ended')
+        self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key.to_json())))
         return user_key
 
     def _order_issue(self, acmeclient, user_key, csr_pem):
