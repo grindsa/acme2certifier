@@ -290,7 +290,7 @@ class CAhandler(object):
             except Exception as err:
                 self.logger.error('Error during key dumping: {0}'.format(err))
 
-        self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key.to_json())))
+        self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key)))
         return user_key
 
     def _order_issue(self, acmeclient, user_key, csr_pem):
