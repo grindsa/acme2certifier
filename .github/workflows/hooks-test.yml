@@ -101,6 +101,121 @@ jobs:
         name: hooks.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+  hooks_test_rpm:
+    name: "hooks_test_rpm"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "[ PREPARE ] setup environment for alma installation"
+      run: |
+        docker network create acme
+        sudo mkdir -p data
+        sudo chmod -R 777 data
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir acmme-sh
+        mkdir lego
+
+    - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+      run: |
+        sudo mkdir -p data/acme_ca/certs
+        sudo mkdir -p data/acme_ca/hooks
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo chmod -R 777 data/acme_ca/hooks
+        sudo echo -e "\n\n[Hooks]" >> data/acme_srv.cfg
+        sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/cn_dump_hooks.py" >> data/acme_srv.cfg
+        sudo echo "save_path: /tmp/acme2certifier/acme_ca/hooks" >> data/acme_srv.cfg
+        sudo echo "$HOOKS_CHECKSUM" > data/acme_ca/hooks/checksums.sha256
+      env:
+        HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+
+    - name: "[ PREPARE ] Almalinux instance"
+      run: |
+        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ CHECK ] compare checksums to validate hook file content"
+      working-directory: data/acme_ca/hooks
+      run: |
+        sha256sum -c checksums.sha256
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: hooks-rpm.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
   hooks_exception_handling:
     name: "hooks_exception_handling"
     runs-on: ubuntu-latest
@@ -264,4 +379,185 @@ jobs:
       if: ${{ failure() }}
       with:
         name: hooks_exception_handling.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  hooks_exception_handling_rpm:
+    name: "hooks_exception_handling_rpm"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "[ PREPARE ] setup environment for alma installation"
+      run: |
+        docker network create acme
+        sudo mkdir -p data
+        sudo chmod -R 777 data
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir acmme-sh
+        mkdir lego
+
+    - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+      run: |
+        sudo mkdir -p data/acme_ca/certs
+        sudo mkdir -p data/acme_ca/hooks
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo chmod -R 777 data/acme_ca/hooks
+        sudo echo -e "\n\n[Hooks]" >> data/acme_srv.cfg
+        sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/exception_test_hooks.py" >> data/acme_srv.cfg
+        sudo echo "raise_pre_hook_exception: False" >> data/acme_srv.cfg
+        sudo echo "raise_post_hook_exception: False" >> data/acme_srv.cfg
+        sudo echo "raise_success_hook_exception: False" >> data/acme_srv.cfg
+      env:
+        HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+
+    - name: "[ PREPARE ] Almalinux instance"
+      run: |
+        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ REGISTER] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
+
+    - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
+      run: |
+        sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ FAIL ] acme.sh enrollment fails due to pre-hook exception (default behaviour)"
+      id: prehookfailure
+      continue-on-error: true
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+
+    - name: "[ CHECK ] result - acme.sh enrollment failed due to pre-hook exception "
+      if: steps.prehookfailure.outcome != 'failure'
+      run: |
+        echo "prehookfailure outcome is ${{steps.prehookfailure.outcome }}"
+        exit 1
+
+    - name: "[ PREPARE  ] reconfigure a2c to ignore pre-hook failures "
+      run: |
+        sudo echo "ignore_pre_hook_failure: True" >> data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
+      run: |
+        sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" data/acme_srv.cfg
+        sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ FAIL ] acme.sh enrollment fails due to success-hook exception (default behaviour) "
+      id: successhookfailure
+      continue-on-error: true
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+
+    - name: "[ CHECK ] result - acme.sh enrollment failed due to success-hook exception "
+      if: steps.successhookfailure.outcome != 'failure'
+      run: |
+        echo "successhookfailure outcome is ${{steps.successhookfailure.outcome }}"
+        exit 1
+
+    - name: "[ PREPARE  ] reconfigure a2c to ignore success-hook failures "
+      run: |
+        sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
+      run: |
+        sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" data/acme_srv.cfg
+        sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
+      run: |
+        sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" data/acme_srv.cfg
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ FAIL ] acme.sh enrollment fails due to post-hook exception "
+      id: posthookfailure
+      continue-on-error: true
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+
+    - name: "[ CHECK ] result - acme.sh enrollment failed due to post-hook exception "
+      if: steps.posthookfailure.outcome != 'failure'
+      run: |
+        echo "posthookfailure outcome is ${{steps.posthookfailure.outcome }}"
+        exit 1
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: hooks-rpm.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
