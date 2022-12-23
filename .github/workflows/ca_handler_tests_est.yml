@@ -216,7 +216,7 @@ jobs:
 
     - name: "[ ENROLL ] via est using tls-client-auth"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/ca_bundle.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ ENROLL ] lego"
