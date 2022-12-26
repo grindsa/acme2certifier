@@ -256,3 +256,302 @@ jobs:
       with:
         name: proxy.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+
+  proxy_tests_rpm:
+    name: "proxy_tests_rpm"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: naveenrajm7/rpmbuild@master
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "[ PREPARE ] setup environment for alma installation"
+      run: |
+        docker network create acme
+        sudo mkdir -p data
+        sudo chmod -R 777 data
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp examples/install_scripts/rpm/*.rpm data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "[ PREPARE ] proxy container"
+      run: |
+        docker pull mosajjal/pproxy:latest
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: Retrieve proxy-ip
+      run: |
+        echo PROXY_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proxy) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.PROXY_IP }}"
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo mkdir -p data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/${{ env.PROXY_IP }}:8080\", \"acme-sh.\$\": \"http\:\/\/${{ env.PROXY_IP }}:8080\"}/g" data/acme_srv.cfg
+
+    - name: "[ PREPARE ] Almalinux instance"
+      run: |
+        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "Test if http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh - http challenge validation"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+        docker logs proxy | grep http | grep -- "->"
+        docker stop proxy
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ ENROLL ] acme.sh - alpn challenge validation"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+        docker logs proxy | grep http | grep -- "->"
+        docker stop proxy
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler and proxy usage"
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+    - name: "[ PREPARE  ] reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL] via certifier_ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure &
+        sleep 45
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ REVOKE ] via certifier ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+        docker stop proxy
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] setup msca ca_handler for proxy usage"
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "host: $WES_HOST" >> data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+
+    - name: "[ PREPARE  ] reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL ] via msca ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
+        sleep 45
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+        docker stop proxy
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] setup esthandler using http-basic-auth"
+      run: |
+        sudo mkdir -p data/acme_ca
+        sudo chmod -R 777 data/acme_ca
+        sudo touch $HOME/.rnd
+        sudo openssl ecparam -genkey -name prime256v1 -out data/acme_ca/est_client_key.pem
+        sudo chmod a+rx data/acme_ca/est_client_key.pem
+        sudo openssl req -new -key data/acme_ca/est_client_key.pem -out /tmp/request.p10 -subj '/CN=acme2certifier'
+        sudo curl http://testrfc7030.com/dstcax3.pem --output /tmp/dstcax3.pem
+        sudo curl https://testrfc7030.com:8443/.well-known/est/cacerts -o /tmp/cacerts.p7 --cacert /tmp/dstcax3.pem
+        sudo openssl base64 -d -in /tmp/cacerts.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out data/acme_ca/ca_bundle.pem
+        sudo curl https://testrfc7030.com:8443/.well-known/est/simpleenroll --anyauth -u estuser:estpwd -s -o /tmp/cert.p7 --cacert /tmp/dstcax3.pem --data-binary @/tmp/request.p10 -H "Content-Type: application/pkcs10" --dump-header /tmp/resp.hdr
+        sudo openssl base64 -d -in /tmp/cert.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out data/acme_ca/est_client_cert.pem
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "est_host: https://testrfc7030.com:8443" >> data/acme_srv.cfg
+        sudo echo "est_user: estuser" >> data/acme_srv.cfg
+        sudo echo "est_password: estpwd" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+
+    - name: "[ PREPARE  ] reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL ] via EST using http-basic-auth"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+        docker stop proxy
+        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+
+    - name: "[ PREPARE ] setup using tls-client-auth"
+      run: |
+        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
+        sudo echo "est_client_key: volume/acme_ca/est_client_key.pem" >> data/acme_srv.cfg
+        sudo echo "est_client_cert: volume/acme_ca/est_client_cert.pem" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+
+    - name: "[ PREPARE  ] reconfigure est ca-handler "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL ] via est using tls-client-auth"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+
+    - name: "[ PREPARE ] setup using nclm_ca_handler"
+      run: |
+
+    - name: "[ PREPARE ] prepare acme_srv.cfg with nclm_ca_handler"
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $NCLM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCLM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCLM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCLM_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 30/g" data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"nclm.eu\$\": \"http:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+      env:
+        NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
+        NCLM_API_USER: ${{ secrets.NCLM_API_USER }}
+        NCLM_API_PASSWORD: ${{ secrets.NCLM_API_PASSWORD }}
+        NCLM_TSG_NAME: ${{ secrets.NCLM_TSG_NAME }}
+        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
+        NCLM_CA_ID_LIST: ${{ secrets.NCLM_CA_ID_LIST }}
+
+    - name: "[ PREPARE  ] reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "[ ENROLL ] via nclm_ca_handler"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
+        sleep 45
+
+    - name: "[ CHECK ] proxy logs"
+      run: |
+        docker logs proxy | grep socks5 | grep -- "->"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        docker logs proxy > ${{ github.workspace }}/artifact/proxy.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data proxy.log acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: proxy-rpm.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

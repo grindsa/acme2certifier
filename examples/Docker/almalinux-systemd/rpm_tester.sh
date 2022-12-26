@@ -1,28 +1,41 @@
 #!/bin/bash
 
-echo "install missing packages"
-yum install -y procps rsyslog
+case "$1" in
 
-systemctl start rsyslog.service
+  "restart")
+    echo "update configuration and restart service"
+    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
+    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    systemctl restart acme2certifier.service
+    systemctl restart nginx.service
+    ;;
 
-yum -y install epel-release
-yum -y localinstall /tmp/acme2certifier/*.rpm
-cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
-mkdir -p /opt/acme2certifier/volume/
+  *)
+    echo "install missing packages"
+    yum install -y procps rsyslog
 
-yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-if [ -d /tmp/acme2certifier/acme_ca ]
-  then
-  mkdir -p /opt/acme2certifier/volume/acme_ca/certs
-  cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
-fi
+    systemctl start rsyslog.service
 
-chown -R nginx.nginx /opt/acme2certifier/volume/
-ls -la /opt/acme2certifier/
-ls -la /opt/acme2certifier/volume
+    yum -y install epel-release
+    yum -y localinstall /tmp/acme2certifier/*.rpm
+    cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+    mkdir -p /opt/acme2certifier/volume/
 
-systemctl enable acme2certifier.service
-systemctl start acme2certifier.service
+    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
+    if [ -d /tmp/acme2certifier/acme_ca ]
+      then
+      mkdir -p /opt/acme2certifier/volume/acme_ca/certs
+      cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    fi
 
-systemctl enable nginx.service
-systemctl start nginx.service
+    chown -R nginx.nginx /opt/acme2certifier/volume/
+    ls -la /opt/acme2certifier/
+    ls -la /opt/acme2certifier/volume
+
+    systemctl enable acme2certifier.service
+    systemctl start acme2certifier.service
+
+    systemctl enable nginx.service
+    systemctl start nginx.service
+    ;;
+esac
