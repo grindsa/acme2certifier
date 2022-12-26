@@ -15,7 +15,7 @@ apache2ctl -M | grep -i wsgi
 sudo pip3 install -r requirements.txt
 
 # 5 configure apache2
-sudo cp examples/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo cp examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
 
 # 7 activate a2c
 sudo a2ensite acme2certifier.conf
