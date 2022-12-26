@@ -11,7 +11,7 @@ fi
 if [ -f /var/www/acme2certifier/volume/acme2certifier.pem ]
 then
     echo "found acme2certifier.pem! enable TLS" >> /proc/1/fd/1
-   cp  /var/www/acme2certifier/examples/apache_wsgi_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
+   cp  /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
 fi
 
 # create ca_handler if:
