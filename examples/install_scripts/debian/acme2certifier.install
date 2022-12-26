@@ -8,7 +8,7 @@ examples/hooks /var/www/acme2certifier/examples
 examples/trigger /var/www/acme2certifier/examples
 examples/django /var/www/acme2certifier/examples
 examples/nginx /var/www/acme2certifier/examples
-examples/apache*.conf /var/www/acme2certifier/examples/apache2
+examples/apache2 /var/www/acme2certifier/examples
 tools /var/www/acme2certifier/
 examples/db_handler/wsgi*.* /var/www/acme2certifier/acme_srv/
 docs /usr/share/doc/acme2certifier/
