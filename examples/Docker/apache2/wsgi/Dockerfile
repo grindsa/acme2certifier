@@ -23,13 +23,13 @@ ENV APACHE_LOG_DIR /var/log/apache2
 RUN mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/
 
-COPY examples/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf
+COPY examples/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf
 COPY examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
 COPY examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 COPY examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 COPY examples/hooks/ /var/www/acme2certifier/examples/hooks
 COPY examples/acme_srv.cfg /var/www/acme2certifier/examples/
-COPY examples/apache_wsgi_ssl.conf /var/www/acme2certifier/examples/
+COPY examples/apache2/apache_wsgi_ssl.conf /var/www/acme2certifier/examples/apache2/
 COPY examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 COPY acme_srv/ /var/www/acme2certifier/acme_srv
 COPY tools/ /var/www/acme2certifier/tools

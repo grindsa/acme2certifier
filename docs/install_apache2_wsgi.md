@@ -24,7 +24,7 @@ if the wsgi_module is not enabled please check the internet how to do...
 $ sudo pip3 install -r requirements.txt
 ```
 
-5. copy the file `examples/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to you needs.
+5. copy the file `examples/apache2/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to you needs.
 
 6. in case you would like to activate TLS copy the file `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs. Do not forget to place the key-bundle. This
 
