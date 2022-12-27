@@ -28,8 +28,9 @@ RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install sup
 	cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
 	cp /var/www/acme2certifier/examples/nginx/supervisord.conf /etc && \
 	ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
-	chown -R www-data /var/www/acme2certifier && \
+	chown -R www-data:www-data /var/www/acme2certifier && \
     cp /var/www/acme2certifier/examples/Docker/nginx/django/docker-entrypoint.sh /docker-entrypoint.sh && \
+    sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
 	sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
