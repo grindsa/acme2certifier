@@ -41,12 +41,14 @@ jobs:
     - name: "[ PREPARE ] Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
+        sudo mv ../../.dockerignore ../../.dockerignore.acme
         docker-compose -f soap_srv.yml up -d
         docker-compose -f soap_srv.yml logs
 
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo mv ../../.dockerignore.acme ../../.dockerignore
         docker-compose up -d
         docker-compose logs
 
