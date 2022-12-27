@@ -26,7 +26,7 @@ RUN pip3 install -r /var/www/acme2certifier/requirements.txt  && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
     rm /var/www/acme2certifier/CHANGES.md /var/www/acme2certifier/README.md /var/www/acme2certifier/SECURITY.md /var/www/acme2certifier/setup.py /var/www/acme2certifier/requirements.txt && \
     cp /var/www/acme2certifier/examples/Docker/apache2/wsgi/docker-entrypoint.sh /docker-entrypoint.sh && \
-    rm -rf /var/www/acme2certifier/examples/Docker /var/www/acme2certifier/examples/apache2 /var/www/acme2certifier/examples/db_handler /var/www/acme2certifier/examples/nginx /var/www/acme2certifier/examples/acme_srv.db.example /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
+    rm -rf /var/www/acme2certifier/examples/Docker /var/www/acme2certifier/examples/django /var/www/acme2certifier/examples/db_handler /var/www/acme2certifier/examples/nginx /var/www/acme2certifier/examples/acme_srv.db.example /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \

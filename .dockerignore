@@ -1,7 +1,5 @@
 docs
 test
-examples/django
-# examples/Docker
 examples/install_scripts
 examples/reports
 examples/soap
