@@ -146,7 +146,7 @@ WorkingDirectory=%{dest_dir}
 %changelog
 
 %post
-cat <<EOT > acme2certifier.te
+cat <<EOT > /tmp/acme2certifier.te
 module acme2certifier 1.0;
 
 require {
@@ -161,7 +161,9 @@ require {
 allow httpd_t initrc_t:unix_stream_socket connectto;
 allow httpd_t var_run_t:sock_file write;
 EOT
-checkmodule -M -m -o acme2certifier.mod acme2certifier.te
-semodule_package -o acme2certifier.pp -m acme2certifier.mod
-semodule -i acme2certifier.pp
-
+checkmodule -M -m -o /tmp/acme2certifier.mod /tmp/acme2certifier.te
+semodule_package -o /tmp/acme2certifier.pp -m /tmp/acme2certifier.mod
+semodule -i /tmp/acme2certifier.pp
+rm /tmp/acme2certifier.pp
+rm /tmp/acme2certifier.mod
+rm /tmp/acme2certifier.te
