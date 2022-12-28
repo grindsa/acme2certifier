@@ -106,7 +106,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: django-mariadb.tar.gz
+        name: apache-django-mariadb.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   apache_django_psql:
@@ -216,7 +216,221 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: django-psql.tar.gz
+        name: apache-django-psql.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  nginx_django_mariadb:
+    name: "nginx_django_mariadb"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] Build environment"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data/mysql
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ PREPARE ] install mariadb"
+      working-directory: examples/Docker/
+      run: |
+        # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
+        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "[ PREPARE ] configure mariadb"
+      working-directory: examples/Docker/
+      run: |
+        docker exec mariadbsrv mysql -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
+        docker exec mariadbsrv mysql -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
+        docker exec mariadbsrv mysql -u root --password=foobar -e"FLUSH PRIVILEGES;"
+
+    - name: "[ PREPARE ] configure acme2certifier"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings_mariadb.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        sudo chmod 777 data/acme_srv.cfg
+        sudo echo "" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] register via http"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+
+    - name: "[ ENROLL ] register via https"
+      run: |
+        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
+
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: nginx-django-mariadb.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  nginx_django_psql:
+    name: "nginx_django_psql"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v2
+
+    - name: "[ PREPARE ] Build environment"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data/mysql
+        sudo mkdir -p data/pgsql
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ PREPARE ] postgres environment"
+      run: |
+        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
+        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
+        sudo chmod 600 examples/Docker/data/pgsql/pgpass
+
+    - name: "[ PREPARE ] install postgres"
+      working-directory: examples/Docker/
+      run: |
+        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
+
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "[ PREPARE ] configure postgres"
+      working-directory: examples/Docker/
+      run: |
+        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+    - name: "[ PREPARE ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "[ PREPARE ] configure acme2certifier"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings_psql.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        sudo chmod 777 data/acme_srv.cfg
+        sudo echo "" >> data/acme_srv.cfg
+        sudo echo "[Directory]" >> data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Test if http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] register via http"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+
+    - name: "[ ENROLL ] register via https"
+      run: |
+        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+
+    - name: "[ ENROLL] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
+
+    - name: "[ REGISTER] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        docker run -v "$(pwd)/examples/Docker/data/pgsql/pgpass":/root/.pgpass --rm --network acme postgres pg_dump -U postgres -h postgresdbsrv acme2certifier > /tmp/acme2certifier.psql
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp /tmp/acme2certifier.psql ${{ github.workspace }}/artifact/data/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: nginx-django-psql.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   django_mig_apache2:
@@ -501,7 +715,6 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
-
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
