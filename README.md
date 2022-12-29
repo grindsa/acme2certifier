@@ -122,7 +122,7 @@ containers.  There are ready made images available at [dockerhub](https://hub.do
 
 ## Software Bill Of Material
 
- [SBOMs](https://www.linuxfoundation.org/blog/blog/what-is-an-sbom) for all containers will be automatically created during build process and stored in [my SBOM repository](https://github.com/grindsa/sbom/tree/main/acme2certifier)
+ [SBOMs](https://www.linuxfoundation.org/blog/blog/what-is-an-sbom) for all containers will be automatically created during build process and stored in [my SBOM repository](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier)
 
 ## Contributing
 
