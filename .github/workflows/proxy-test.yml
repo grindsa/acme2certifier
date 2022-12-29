@@ -293,8 +293,16 @@ jobs:
         sudo mkdir -p data
         sudo chmod -R 777 data
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/install_scripts/rpm/*.rpm data
+        # sudo cp examples/install_scripts/rpm/*.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/*ntlm*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "[ PREPARE ] proxy container"
       run: |
