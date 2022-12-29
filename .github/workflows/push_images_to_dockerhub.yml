@@ -78,7 +78,7 @@ jobs:
           syft grindsa/acme2certifier:apache2-wsgi -o json > /tmp/sbom/sbom/acme2certifier/acme2certifier_apache2-wsgi_sbom.json
           syft grindsa/acme2certifier:apache2-django > /tmp/sbom/sbom/acme2certifier/acme2certifier-apache2-django_sbom.txt
           syft grindsa/acme2certifier:apache2-django -o json > /tmp/sbom/sbom/acme2certifier/acme2certifier_apache2-django_sbom.json
-          syft grindsa/acme2certifier:nginx-wsgi > /tmp/sbom/acme2certifier/sbom/acme2certifier-nginx-wsgi_sbom.txt
+          syft grindsa/acme2certifier:nginx-wsgi > /tmp/sbom/sbom/acme2certifier/acme2certifier-nginx-wsgi_sbom.txt
           syft grindsa/acme2certifier:nginx-wsgi -o json > /tmp/sbom/sbom/acme2certifier/acme2certifier_nginx-wsgi_sbom.json
           syft grindsa/acme2certifier:nginx-django > /tmp/sbom/sbom/acme2certifier/acme2certifier-nginx-django_sbom.txt
           syft grindsa/acme2certifier:nginx-django -o json > /tmp/sbom/sbom/acme2certifier/acme2certifier_nginx-django_sbom.json
