@@ -15,7 +15,7 @@ When using the handler please be aware of the following limitations:
 1. Microsoft Certification Authority Web Enrollment Service must be enabled and configured - of course :-)
 2. You need to have a set of credentials with permissions to access the service and enrollment templates
 3. Authentication method (basic or ntlm) to the service must be configured correctly.
-4. (optional): In case you are installing from RPM and plan to use ntlm as authentication scheme you need two additonal python modules [python3-request-ntlm](https://pypi.org/project/requests_ntlm/) and [python3-ntlm-auth](https://pypi.org/project/ntlm-auth/) which are neither part of Standard nor the EPEL repo. If you have no clue from where to get these packaages feel free to use one ones being part of [the a2c github repository](../examples/install_scripts/rpm/)
+4. (optional): In case you are installing from RPM and plan to use ntlm as authentication scheme you need two additonal python modules [python3-request-ntlm](https://pypi.org/project/requests_ntlm/) and [python3-ntlm-auth](https://pypi.org/project/ntlm-auth/) which are neither part of Standard nor the EPEL repo. If you have no clue from where to get these packaages feel free to use one ones being part of [the a2c github repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs)
 
 It is helpful to verify the service access before starting the configuration of acme2certifier
 
