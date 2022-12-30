@@ -49,7 +49,11 @@ jobs:
         if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\//\/opt\//g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.name "rpm update"
+          git add examples/nginx
+          git commit -a -m "rpm update"
 
       - name: build RPM package
         id: rpm_build
