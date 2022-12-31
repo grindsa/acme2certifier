@@ -17,7 +17,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] create network"
       run: |
@@ -266,7 +266,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Retrieve Version from version.py
       run: |

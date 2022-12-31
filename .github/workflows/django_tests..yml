@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build environment"
       working-directory: examples/Docker/
@@ -116,7 +116,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build environment"
       working-directory: examples/Docker/
@@ -226,7 +226,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build environment"
       working-directory: examples/Docker/
@@ -328,7 +328,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build environment"
       working-directory: examples/Docker/
@@ -440,7 +440,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] prepare environment"
       working-directory: examples/Docker/
@@ -590,7 +590,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] prepare environment"
       working-directory: examples/Docker/
@@ -741,7 +741,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Retrieve Version from version.py
       run: |
@@ -866,7 +866,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Retrieve Version from version.py
       run: |
@@ -1008,7 +1008,7 @@ jobs:
       fail-fast: false
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Retrieve Version from version.py
       run: |
