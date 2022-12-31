@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.24
+
+**Features and Improvements**:
+
+- minimize number of layers in docker images
+- Workflows are using checkout@v3 actions
+- default nginx ssl config file in rpm package corrected
+- delete seclinux configuration files after rpm installation
+- delete obsolete files from repo
+- rpm package tests during regression
+- [sbom generation](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier) as part of [docker image create worflow](.github/workflows/push_images_to_dockerhub.yml)
+- rpm and deb package generatation as part of [create release workflow](.github/workflows/create_release.yml)
+- nginx django test workflows
+
 # Changes in 0.23.2
 
 **Features and Improvements**:
