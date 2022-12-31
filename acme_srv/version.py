@@ -4,4 +4,4 @@
 # 2) we can import it in setup.py for the same reason
 # 3) we can import it into your module module
 __version__ = '0.24'
-__dbversion__ = '0.24'
+__dbversion__ = '0.23.2'
