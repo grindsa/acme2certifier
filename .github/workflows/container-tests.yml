@@ -13,7 +13,7 @@ jobs:
     name: "Docker compose - apache2 wsgi"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
@@ -79,7 +79,7 @@ jobs:
     name: "Docker compose - nginx wsgi"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
@@ -151,7 +151,7 @@ jobs:
     name: "Docker compose - apache2 django"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
@@ -222,7 +222,7 @@ jobs:
     name: "Docker compose - nginx django"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
@@ -247,7 +247,7 @@ jobs:
     - name: "[ PREPARE ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 10s        
+        time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "Test if https://acme-srv/directory is accessable"

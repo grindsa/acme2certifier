@@ -19,7 +19,7 @@ jobs:
         keylength: [rsa2048, rsa4096, ec256]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
@@ -100,7 +100,7 @@ jobs:
         keylength: [rsa2048, rsa4096, ec256]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
@@ -188,7 +188,7 @@ jobs:
         keylength: [rsa2048, rsa4096, ec256]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build docker-compose (nginx_django)"
       working-directory: examples/Docker/
@@ -275,7 +275,7 @@ jobs:
         keylength: [rsa2048, rsa4096, ec256]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] Build docker-compose (nginx_django)"
       working-directory: examples/Docker/

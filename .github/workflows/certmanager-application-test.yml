@@ -17,7 +17,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -171,7 +171,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -325,7 +325,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] change dns"
       run: |
@@ -499,7 +499,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -653,7 +653,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: "[ PREPARE ] get runner ip"
       run: |
