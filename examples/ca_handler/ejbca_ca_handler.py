@@ -31,6 +31,25 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _cert_status_check(self, issuer_dn, cert_serial):
+        """ check certificate status """
+        self.logger.debug('CAhandler._cert_status_check({0}: {1})'.format(issuer_dn, cert_serial))
+
+        # define path
+        path = "/ejbca/ejbca-rest-api/v1/certificate/{0}/{1}/revocationstatus".format(encode_url(self.logger, issuer_dn), cert_serial)
+
+        if self.api_host:
+            try:
+                certstatus_response = self.session.get(self.api_host + path, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
+            except Exception as err_:
+                self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
+                certstatus_response = {'status': 'nok', 'error': str(err_)}
+        else:
+            self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
+            certstatus_response = {}
+
+        return certstatus_response
+
     def _config_server_load(self, config_dic):
         """ load server information """
         self.logger.debug('CAhandler._config_auth_load()')
@@ -196,25 +215,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
-
-    def _cert_status_check(self, issuer_dn, cert_serial):
-        """ check certificate status """
-        self.logger.debug('CAhandler._cert_status_check({0}: {1})'.format(issuer_dn, cert_serial))
-
-        # define path
-        path = "/ejbca/ejbca-rest-api/v1/certificate/{0}/{1}/revocationstatus".format(encode_url(self.logger, issuer_dn), cert_serial)
-
-        if self.api_host:
-            try:
-                certstatus_response = self.session.get(self.api_host + path, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
-            except Exception as err_:
-                self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
-                certstatus_response = {'status': 'nok', 'error': str(err_)}
-        else:
-            self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
-            certstatus_response = {}
-
-        return certstatus_response
 
     def revoke(self, cert, rev_reason='UNSPECIFIED', rev_date=None):
         """ revoke certificate """
