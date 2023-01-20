@@ -277,14 +277,14 @@ def cert_extensions_get(logger, certificate, recode=True):
     return extension_list
 
 
-def cert_serial_get(logger, certificate, hex=False):
+def cert_serial_get(logger, certificate, hexformat=False):
     """ get serial number form certificate """
     logger.debug('cert_serial_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
 
-    if hex:
-        serial_number =  '{0:x}'.format(int(cert.get_serial_number()))
+    if hexformat:
+        serial_number = '{0:x}'.format(int(cert.get_serial_number()))
     else:
         serial_number = cert.get_serial_number()
 

@@ -224,7 +224,7 @@ class CAhandler(object):
         detail = None
 
         # get cert serial number and issuerdn
-        cert_serial = cert_serial_get(self.logger, cert, hex=True)
+        cert_serial = cert_serial_get(self.logger, cert, hexformat=True)
         issuer_dn = cert_issuer_get(self.logger, cert)
 
         # check status
