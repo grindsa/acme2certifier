@@ -21,10 +21,7 @@ import ssl
 import logging
 import hashlib
 import socks
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+from urllib.parse import urlparse, quote
 from urllib3.util import connection
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
@@ -185,7 +182,7 @@ def hooks_load(logger, config_dic):
 
 
 def cert_dates_get(logger, certificate):
-    """ get serial number form certificate """
+    """ get date number form certificate """
     logger.debug('cert_dates_get()')
     issue_date = 0
     expiration_date = 0
@@ -206,6 +203,19 @@ def cert_der2pem(pem_file):
     """ convert certificate der to pem """
     certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, pem_file)
     return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, certobj)
+
+
+def cert_issuer_get(logger, certificate):
+    """ get serial number form certificate """
+    logger.debug('cert_issuer_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+
+    subject = cert.get_issuer()
+
+    result = ",".join("{0:s}={1:s}".format(name.decode(), value.decode()) for name, value in subject.get_components())
+    logger.debug('CAhandler.cert_issuer_get() ended with: {0}'.format(result))
+    return result
 
 
 def cert_pem2der(pem_file):
@@ -267,13 +277,19 @@ def cert_extensions_get(logger, certificate, recode=True):
     return extension_list
 
 
-def cert_serial_get(logger, certificate):
+def cert_serial_get(logger, certificate, hex=False):
     """ get serial number form certificate """
     logger.debug('cert_serial_get()')
     pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
     cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    logger.debug('cert_serial_get() ended with: {0}'.format(cert.get_serial_number()))
-    return cert.get_serial_number()
+
+    if hex:
+        serial_number =  '{0:x}'.format(int(cert.get_serial_number()))
+    else:
+        serial_number = cert.get_serial_number()
+
+    logger.debug('cert_serial_get() ended with: {0}'.format(serial_number))
+    return serial_number
 
 
 def convert_byte_to_string(value):
@@ -501,6 +517,11 @@ def parse_url(logger, url):
     }
     return url_dic
 
+def encode_url(logger, input_string):
+    """ urlencoding """
+    logger.debug('encode_url({0})'.format(input_string))
+
+    return quote(input_string)
 
 def _logger_nonce_modify(data_dic):
     """ remove nonce from log entry """
