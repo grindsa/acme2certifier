@@ -15,3 +15,4 @@ impacket
 xmltodict
 pyasn1
 pyasn1_modules
+requests_pkcs12
