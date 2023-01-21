@@ -29,10 +29,10 @@ Requires:       python3-jwcrypto
 Requires:       python3-cryptography
 Requires:       python3-pyOpenSSL
 Requires:       python3-dns
-# Requires:       python-certsrv
 Requires:       python3-configargparse
 Requires:       python3-dateutil
 Requires:       python3-requests
+Requires:       python3-requests-pkcs12
 Requires:       python3-pysocks
 Requires:       python3-josepy
 Requires:       python3-acme
