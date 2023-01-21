@@ -517,11 +517,13 @@ def parse_url(logger, url):
     }
     return url_dic
 
+
 def encode_url(logger, input_string):
     """ urlencoding """
     logger.debug('encode_url({0})'.format(input_string))
 
     return quote(input_string)
+
 
 def _logger_nonce_modify(data_dic):
     """ remove nonce from log entry """
