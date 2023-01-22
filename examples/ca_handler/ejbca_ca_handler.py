@@ -157,7 +157,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._status_get() ended')
         return api_response
 
-
     def _sign(self, csr):
         """ submit CSR for signing """
         self.logger.debug('CAhandler._sign()')
