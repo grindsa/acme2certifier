@@ -14,7 +14,7 @@ sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
 class TestACMEHandler(unittest.TestCase):
-    """ test class for cgi_handler """
+    """ test class for generica cmp_handler """
     def setUp(self):
         """ setup unittest """
         import logging

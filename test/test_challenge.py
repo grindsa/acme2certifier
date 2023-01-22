@@ -16,7 +16,7 @@ class FakeDBStore(object):
     pass
 
 class TestACMEHandler(unittest.TestCase):
-    """ test class for ACMEHandler """
+    """ test class for challenges class """
     acme = None
     def setUp(self):
         """ setup unittest """

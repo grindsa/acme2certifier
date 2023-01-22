@@ -12,7 +12,7 @@ sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
 class TestACMEHandler(unittest.TestCase):
-    """ test class for cgi_handler """
+    """ test class for certifier_ca_handler """
 
     def setUp(self):
         """ setup unittest """
