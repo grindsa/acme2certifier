@@ -129,13 +129,13 @@ class CAhandler(object):
         return api_response
 
     def _api_put(self, url):
-        """ generic wrapper for an API post call """
-        self.logger.debug('_api_post({0})'.format(url))
+        """ generic wrapper for an API put call """
+        self.logger.debug('_api_put({0})'.format(url))
 
         try:
             api_response = self.session.put(url, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_put() returned error: {0}'.format(err_))
             api_response = str(err_)
 
         return api_response
@@ -154,8 +154,9 @@ class CAhandler(object):
             self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
             api_response = {}
 
-        self.logger.debug('CAhandler._status_get() ended with: {0}'.format(api_response['status']))
+        self.logger.debug('CAhandler._status_get() ended')
         return api_response
+
 
     def _sign(self, csr):
         """ submit CSR for signing """
@@ -170,7 +171,12 @@ class CAhandler(object):
             "include_chain": True,
         }
 
-        sign_response = self._api_post(self.api_host + "/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll", data_dic)
+        if self.api_host:
+            sign_response = self._api_post(self.api_host + "/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll", data_dic)
+        else:
+            self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
+            sign_response = {}
+
         return sign_response
 
     def enroll(self, csr):
@@ -184,7 +190,7 @@ class CAhandler(object):
 
         status_dic = self._status_get()
 
-        if status_dic['status'].lower() == 'ok':
+        if 'status' in status_dic and status_dic['status'].lower() == 'ok':
 
             # prepare the CSR to be signed
             csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
@@ -195,11 +201,16 @@ class CAhandler(object):
                 cert_bundle = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
                 for ca_cert in sign_response['certificate_chain']:
                     cert_bundle = '{0}{1}'.format(cert_bundle, convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert))))
+            else:
+                error = 'Malformed response'
+                self.logger.error('CAhandler.enroll(): Malformed Rest response')
 
+        else:
             if 'error' in status_dic:
                 error = status_dic['error']
             else:
                 error = 'Unknown error'
+                self.logger.error('CAhandler.enroll(): Unknown error')
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)

@@ -18,7 +18,7 @@ class FakeDBStore(object):
     pass
 
 class TestACMEHandler(unittest.TestCase):
-    """ test class for cgi_handler """
+    """ test class for generic_acme_handler """
     def setUp(self):
         """ setup unittest """
         models_mock = MagicMock()
