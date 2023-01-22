@@ -2,9 +2,7 @@
 <!-- wiki-title Installation on NGINX runnig on Alma Linux 9 -->
 # Installation on NGINX runnig on CentOS
 
-I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvements let me know.
-
-Setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
+The setup is done in a way that uWSGI will serve acme2certifier while NGINX will act as reverse proxy to provide better connection handling.
 
 A [readymade shell script](../examples/install_scripts/a2c-centos9-nginx.sh) performing the below tasks will can be found in the `examples/install_scripts` directory.
 
