@@ -43,10 +43,10 @@ jobs:
       run: |
         docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/ejbca:/tmp/data  -v $(pwd)/Docker/data:/tmp/store --name "ejbca" -h ejbca primekey/ejbca-ce
 
-    - name: "Sleep for 150s"
+    - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 150s
+        time: 180s
 
     - name: "Get randmonly generated Superadmin password for ejbca instance"
       run: |
@@ -204,10 +204,10 @@ jobs:
       run: |
         docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca primekey/ejbca-ce
 
-    - name: "Sleep for 150s"
+    - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 150s
+        time: 180s
 
     - name: "Get randmonly generated Superadmin password for ejbca instance"
       run: |
