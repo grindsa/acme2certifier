@@ -48,13 +48,6 @@ jobs:
       with:
         time: 180s
 
-    - name: "Get randmonly generated Superadmin password for ejbca instance"
-      run: |
-        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
-
-    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
-
     - name: "Configure ejbca"
       run: |
         docker exec -i ejbca bin/ejbca.sh ca getcacert --caname ManagementCA -f /tmp/store/ca_bundle.pem
@@ -80,6 +73,13 @@ jobs:
       uses: juliangruber/sleep-action@v1
       with:
         time: 10s
+
+    - name: "Get randmonly generated Superadmin password for ejbca instance"
+      run: |
+        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
+
+    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
+    - run: echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
 
     - name: "Fetch superadmin certificate and key"
       working-directory: examples/Docker/
@@ -160,9 +160,10 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data acme-sh certbot lego
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz ejbca.log a2c.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
@@ -209,13 +210,6 @@ jobs:
       with:
         time: 180s
 
-    - name: "Get randmonly generated Superadmin password for ejbca instance"
-      run: |
-        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
-
-    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > data/passphrase.txt
-
     - name: "Configure ejbca"
       run: |
         docker exec -i ejbca bin/ejbca.sh ca getcacert --caname ManagementCA -f /tmp/store/acme_ca/ca_bundle.pem
@@ -241,6 +235,13 @@ jobs:
       uses: juliangruber/sleep-action@v1
       with:
         time: 10s
+
+    - name: "Get randmonly generated Superadmin password for ejbca instance"
+      run: |
+        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
+
+    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
+    - run: echo  ${{ env.SAEC }} > data/passphrase.txt
 
     - name: "Fetch superadmin certificate and key"
       run: |
@@ -336,10 +337,11 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data ejbca.log acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
