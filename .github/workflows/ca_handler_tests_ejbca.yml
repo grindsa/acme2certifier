@@ -43,10 +43,10 @@ jobs:
       run: |
         docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce:7.10.0.2
 
-    - name: "Sleep for 150s"
+    - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 150s
+        time: 180s
 
     - name: "Configure ejbca"
       run: |
@@ -205,10 +205,10 @@ jobs:
       run: |
         docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce:7.10.0.2
 
-    - name: "Sleep for 150s"
+    - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 150s
+        time: 180s
 
     - name: "Configure ejbca"
       run: |
