@@ -26,7 +26,7 @@ jobs:
       working-directory: examples/Docker/
       run: |
         mkdir -p data
-        sudo chmod 777 data
+        sudo chmod -R 777 data
         docker network create acme
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
       env:
