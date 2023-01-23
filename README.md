@@ -23,14 +23,15 @@ on [rfc8555](https://tools.ietf.org/html/rfc8555)
 - ca_handler.py - interface towards CA server. The intention of this library
 is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
 should be straight forward. As of today the following handlers are available:
-  - [Openssl](docs/openssl.md)
   - [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)
   - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
-  - [Generic EST protocol handler](docs/est.md)
-  - [Generic CMPv2 protocol handler](docs/cmp.md)
+  - [EJBCA](docs/ejbca.md)
   - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
   - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md)
   - [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md)
+  - [Generic EST protocol handler](docs/est.md)
+  - [Generic CMPv2 protocol handler](docs/cmp.md)
+  - [Openssl](docs/openssl.md)
   - [XCA](docs/xca.md)
   - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
 
