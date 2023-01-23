@@ -41,12 +41,12 @@ jobs:
     - name: "Instanciate ejbca server"
       working-directory: examples/
       run: |
-        docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/ejbca:/tmp/data  -v $(pwd)/Docker/data:/tmp/store --name "ejbca" -h ejbca primekey/ejbca-ce
+        docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce:7.10.0.2
 
-    - name: "Sleep for 300s"
+    - name: "Sleep for 150s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 300s
+        time: 150s
 
     - name: "Configure ejbca"
       run: |
@@ -203,12 +203,12 @@ jobs:
 
     - name: "Instanciate ejbca server"
       run: |
-        docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca primekey/ejbca-ce
+        docker run -id --rm -p 80:8080 -p 443:8443 -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce:7.10.0.2
 
-    - name: "Sleep for 300s"
+    - name: "Sleep for 150s"
       uses: juliangruber/sleep-action@v1
       with:
-        time: 300s
+        time: 150s
 
     - name: "Configure ejbca"
       run: |
@@ -347,5 +347,5 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: certifier_ca_handler_rpm.tar.gz
+        name: ejb_rpm.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
