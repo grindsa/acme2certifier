@@ -453,7 +453,7 @@
    <string>availablecas</string>
    <object class="java.util.ArrayList">
     <void method="add">
-     <int>-1165158710</int>
+     <int>-1</int>
     </void>
    </object>
   </void>
@@ -655,14 +655,14 @@
     <void method="put">
      <object class="java.lang.Enum" method="valueOf">
       <class>org.cesecore.certificates.ca.ApprovalRequestType</class>
-      <string>KEYRECOVER</string>
+      <string>ADDEDITENDENTITY</string>
      </object>
      <int>-1</int>
     </void>
     <void method="put">
      <object class="java.lang.Enum" method="valueOf">
       <class>org.cesecore.certificates.ca.ApprovalRequestType</class>
-      <string>ADDEDITENDENTITY</string>
+      <string>KEYRECOVER</string>
      </object>
      <int>-1</int>
     </void>
