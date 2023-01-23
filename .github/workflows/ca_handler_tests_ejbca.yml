@@ -26,7 +26,7 @@ jobs:
       working-directory: examples/Docker/
       run: |
         mkdir -p data/acme_ca
-        sudo chmod -R 777 data
+        sudo chmod -R 777 data/acme_ca
         docker network create acme
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
       env:
@@ -39,14 +39,20 @@ jobs:
         mkdir acme-sh
 
     - name: "Instanciate ejbca server"
-      working-directory: examples/
       run: |
-        docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
+        docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/examples/Docker/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
 
     - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
         time: 180s
+
+    - name: "Get randmonly generated Superadmin password for ejbca instance"
+      run: |
+        echo SAEC=$(docker logs ejbca | grep /opt/keyfactor/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
+
+    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
+    - run: echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
 
     - name: "Configure ejbca"
       run: |
@@ -65,7 +71,6 @@ jobs:
       run: |
         docker exec -i ejbca bin/ejbca.sh ca init acmesubca "CN=acmesubca" soft foo123 4096 RSA -v 365 --policy 2.5.29.32.0 -s SHA256WithRSA --signedby $CAID
         docker exec -i ejbca bin/ejbca.sh ca importprofiles -d /tmp/data/
-
       env:
         CAID: ${{ env.CAID }}
 
@@ -73,13 +78,6 @@ jobs:
       uses: juliangruber/sleep-action@v1
       with:
         time: 10s
-
-    - name: "Get randmonly generated Superadmin password for ejbca instance"
-      run: |
-        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
-
-    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
 
     - name: "Fetch superadmin certificate and key"
       working-directory: examples/Docker/
@@ -89,8 +87,8 @@ jobs:
     - name: "Test superadmin  certificate and key"
       working-directory: examples/Docker/
       run: |
-        curl -v  https://127.0.0.1/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/superadmin.p12:$SAEC --insecure
-        curl -v  https://ejbca/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/superadmin.p12:$SAEC --cacert data/ca_bundle.pem
+        curl https://127.0.0.1/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/superadmin.p12:$SAEC --insecure
+        curl https://ejbca/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/superadmin.p12:$SAEC --cacert data/acme_ca/ca_bundle.pem
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -112,7 +110,7 @@ jobs:
         sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_file: volume/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
@@ -140,7 +138,6 @@ jobs:
     - name: "[ REGISTER] certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -210,6 +207,13 @@ jobs:
       with:
         time: 180s
 
+    - name: "Get randmonly generated Superadmin password for ejbca instance"
+      run: |
+        echo SAEC=$(docker logs ejbca | grep /opt/keyfactor/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
+
+    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
+    - run: echo  ${{ env.SAEC }} > data/passphrase.txt
+
     - name: "Configure ejbca"
       run: |
         docker exec -i ejbca bin/ejbca.sh ca getcacert --caname ManagementCA -f /tmp/store/acme_ca/ca_bundle.pem
@@ -236,21 +240,14 @@ jobs:
       with:
         time: 10s
 
-    - name: "Get randmonly generated Superadmin password for ejbca instance"
-      run: |
-        echo SAEC=$(docker logs ejbca | grep /opt/primekey/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
-
-    - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > data/passphrase.txt
-
     - name: "Fetch superadmin certificate and key"
       run: |
         curl --data-urlencode "user=superadmin" --data-urlencode "password=${{ env.SAEC }}" --data-urlencode  "hidemenu=false" --data-urlencode "tokenKeySpec=RSA_2048" --data-urlencode "certprofile=ENDUSER" -H "Content-Type: application/x-www-form-urlencoded" -X POST https://127.0.0.1/ejbca/certreq --insecure -o data/acme_ca/superadmin.p12 --insecure
 
     - name: "Test superadmin  certificate and key"
       run: |
-        curl -v  https://127.0.0.1/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/acme_ca/superadmin.p12:$SAEC --insecure
-        curl -v  https://ejbca/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/acme_ca/superadmin.p12:$SAEC --cacert data/acme_ca/ca_bundle.pem
+        curl https://127.0.0.1/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/acme_ca/superadmin.p12:$SAEC --insecure
+        curl https://ejbca/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert data/acme_ca/superadmin.p12:$SAEC --cacert data/acme_ca/ca_bundle.pem
       env:
         SAEC: ${{ env.SAEC }}
 
