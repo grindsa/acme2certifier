@@ -475,10 +475,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_sign.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response', lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {}", lcm.output)
         self.assertTrue(mock_recode.called)
         self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
+        self.assertFalse(mock_decode.called)
+        self.assertFalse(mock_d2p.called)
+        self.assertFalse(mock_b2s.called)
 
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
@@ -493,10 +496,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_sign.return_value = {'certificate': 'certificate'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response', lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'certificate': 'certificate'}", lcm.output)
         self.assertTrue(mock_recode.called)
         self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
+        self.assertFalse(mock_decode.called)
+        self.assertFalse(mock_d2p.called)
+        self.assertFalse(mock_b2s.called)
 
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
@@ -511,10 +517,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_sign.return_value = {'certificate_chain': 'certificate_chain'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response', lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'certificate_chain': 'certificate_chain'}", lcm.output)
         self.assertTrue(mock_recode.called)
         self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
+        self.assertFalse(mock_decode.called)
+        self.assertFalse(mock_d2p.called)
+        self.assertFalse(mock_b2s.called)
 
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
