@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ ca handler for Insta Certifier via REST-API class """
 from __future__ import print_function

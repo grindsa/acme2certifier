@@ -1,4 +1,3 @@
-#!/usr/bin/python3E0401
 # -*- coding: utf-8 -*-
 """ ca handler for  Microsoft Webenrollment service (certsrv) """
 from __future__ import print_function

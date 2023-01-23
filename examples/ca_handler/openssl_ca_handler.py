@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ handler for an openssl ca """
 from __future__ import print_function

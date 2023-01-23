@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
