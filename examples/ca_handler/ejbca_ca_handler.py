@@ -202,7 +202,7 @@ class CAhandler(object):
                     cert_bundle = '{0}{1}'.format(cert_bundle, convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert))))
             else:
                 error = 'Malformed response'
-                self.logger.error('CAhandler.enroll(): Malformed Rest response')
+                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
 
         else:
             if 'error' in status_dic:
