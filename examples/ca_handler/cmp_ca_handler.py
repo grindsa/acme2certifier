@@ -1,6 +1,5 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" ca handler for  generic cmpv2 """
+""" ca handler for generic cmpv2 ca handler """
 from __future__ import print_function
 import os
 import shutil

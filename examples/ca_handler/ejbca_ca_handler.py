@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" ejbca rest handler """
+""" ejbca rest ca handler """
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
