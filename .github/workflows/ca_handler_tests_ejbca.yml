@@ -25,7 +25,7 @@ jobs:
     - name: "Prepare Environment"
       working-directory: examples/Docker/
       run: |
-        mkdir -p data
+        mkdir -p data/acme_ca
         sudo chmod -R 777 data
         docker network create acme
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
@@ -43,7 +43,6 @@ jobs:
       run: |
         docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
 
-
     - name: "Sleep for 180s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -51,7 +50,7 @@ jobs:
 
     - name: "Configure ejbca"
       run: |
-        docker exec -i ejbca bin/ejbca.sh ca getcacert --caname ManagementCA -f /tmp/store/ca_bundle.pem
+        docker exec -i ejbca bin/ejbca.sh ca getcacert --caname ManagementCA -f /tmp/store/acme_ca/ca_bundle.pem
         docker exec -i ejbca bin/ejbca.sh config protocols enable --name "REST Certificate Management"
         docker exec -i ejbca bin/ejbca.sh config protocols enable --name "REST Certificate Management V2"
         docker exec -i ejbca bin/ejbca.sh ca init acmeca "CN=acmeca" soft foo123 4096 RSA -v 365 --policy 2.5.29.32.0 -s SHA256WithRSA
