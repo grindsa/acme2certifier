@@ -2,8 +2,6 @@
 <!-- wiki-title RPM installation on Alma Linux 9 -->
 # RPM installation on AlmaLinux/Redhat EL/CentOS Stream 9
 
-I barely know NGINX. Main input has been taken from [here](https://hostpresto.com/community/tutorials/how-to-serve-python-apps-using-uwsgi-and-nginx-on-centos-7/). If you see room for improvements let me know.
-
 1. Download the latest [RPM package](https://github.com/grindsa/acme2certifier/releases).
 
 2. Install "Extra Packages for Enterprise Linux (EPEL)"
