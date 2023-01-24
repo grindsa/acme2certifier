@@ -51,8 +51,6 @@ The handler must be configured via `acme_srv`.
 | allowed_domainlist | list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] | no | [] |
 | directory_path | path to directory ressource on ca server | no | '/directory' |
 
-- copy the ca_handler into the `acme_srv` directory or add a handler_file parameter into (`acme_srv.cfg`
-
 - modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters.
 
 ```cfg

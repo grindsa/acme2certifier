@@ -16,12 +16,6 @@ root@rlh:~# openssl req -x509 -new -extensions v3_ca -newkey rsa:4096 -keyout ca
 
 ## Configuration
 
-- copy the ca_handler into the acme directory
-
-```bash
-root@rlh:~# cp example/ca_handlers/openssl_ca_handler.py acme_srv/ca_handler.py
-```
-
 - create a directory to store the (ca) certificate(s), key and CRL(s)
 
 ```bash
@@ -40,6 +34,7 @@ root@rlh:~# mv ca-cert.pem acme_srv/ca/
 
 ```config
 [CAhandler]
+handler_file: examples/ca_handler/openssl_ca_handler.py
 issuing_ca_key: acme_srv/ca/ca-key.pem
 issuing_ca_key_passphrase: Test1234
 issuing_ca_cert: acme_srv/ca/ca-cert.pem
