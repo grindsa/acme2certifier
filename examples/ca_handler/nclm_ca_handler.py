@@ -80,7 +80,7 @@ class CAhandler(object):
         """ get ca_id """
         self.logger.debug('CAhandler._ca_id_get()')
         ca_id = None
-        if 'items' in ca_list['ca']:
+        if 'ca' in ca_list and 'items' in ca_list['ca']:
             for ca_ in ca_list['ca']['items']:
                 # compare name or description field against config value
                 if ('displayName' in ca_ and ca_['displayName'] == self.ca_name):

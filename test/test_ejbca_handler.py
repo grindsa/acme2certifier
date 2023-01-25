@@ -350,7 +350,6 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
-
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._config_load')
     def test_030__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
