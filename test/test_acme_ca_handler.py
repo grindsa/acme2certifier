@@ -396,6 +396,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_key.called)
         self.assertTrue(mock_json.called)
 
+    @patch('json.dumps')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._key_generate')
+    @patch("builtins.open", mock_open(read_data='csv_dump'), create=True)
+    @patch('os.path.exists')
+    def test_031__user_key_load(self, mock_file, mock_key, mock_json):
+        """ test user_key_load for an existing file """
+        mock_file.return_value = False
+        mock_key.to_json.return_value = {'foo': 'generate_key'}
+        mock_json.side_effect = Exception('ex_dump')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertTrue(self.cahandler._user_key_load())
+        self.assertIn('ERROR:test_a2c:Error during key dumping: ex_dump', lcm.output)
+        self.assertTrue(mock_key.called)
+        self.assertTrue(mock_json.called)
+
+
     @patch('acme.messages')
     def test_031__account_register(self, mock_messages):
         """ test account register existing account - no replacement """

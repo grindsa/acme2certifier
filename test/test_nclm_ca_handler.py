@@ -1684,6 +1684,90 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._lastrequests_get())
         self.assertIn('ERROR:test_a2c:CAhandler._lastrequests_get() returned error: foo', lcm.output)
 
+    def test_140__ca_id_get(self):
+        """ test _ca_id_get() """
+        ca_list = {}
+        self.assertFalse(self.cahandler._ca_id_get(ca_list))
+
+    def test_141__ca_id_get(self):
+        """ test _ca_id_get() """
+        ca_list = {'ca': {'foo': 'bar'}}
+        self.assertFalse(self.cahandler._ca_id_get(ca_list))
+
+    def test_142__ca_id_get(self):
+        """ test _ca_id_get() """
+        ca_list = {'ca': {'items': 'bar'}}
+        self.assertFalse(self.cahandler._ca_id_get(ca_list))
+
+    def test_143__ca_id_get(self):
+        """ test _ca_id_get() """
+        ca_list = {'ca': {'items': [{'foo': 'bar'}]}}
+        self.assertFalse(self.cahandler._ca_id_get(ca_list))
+
+    def test_144__ca_id_get(self):
+        """ test _ca_id_get() """
+        self.cahandler.ca_name = 'ca_name'
+        ca_list = {'ca': {'items': [{'displayName': 'ca_name', 'policyLinkId': 'id'}]}}
+        self.assertEqual('id', self.cahandler._ca_id_get(ca_list))
+
+    def test_145__ca_id_get(self):
+        """ test _ca_id_get() """
+        self.cahandler.ca_name = 'ca_name'
+        ca_list = {'ca': {'items': [{'displayName': 'ca_name', 'foo': 'id'}]}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._ca_id_get(ca_list))
+        self.assertIn('ERROR:test_a2c:ca_id.lookup() policyLinkId field is missing  ...', lcm.output)
+
+    def test_146__ca_id_get(self):
+        """ test _ca_id_get() """
+        self.cahandler.ca_name = 'ca_name1'
+        ca_list = {'ca': {'items': [{'displayName': 'ca_name', 'policyLinkId': 'id'}]}}
+        self.assertFalse(self.cahandler._ca_id_get(ca_list))
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_get')
+    @patch('requests.get')
+    def test_147__ca_policylink_id_lookup(self, mock_req, mock_caid):
+        """ test _ca_policylink_id_lookup() """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.tsg_info_dic = {'id': 'id'}
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'ca': ['foo', 'bar', 'foo', 'bar']}
+        mock_req.return_value = mockresponse
+        mock_caid.return_value = 10
+        self.assertEqual(10, self.cahandler._ca_policylink_id_lookup())
+        self.assertTrue(mock_caid.called)
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_get')
+    @patch('requests.get')
+    def test_148__ca_policylink_id_lookup(self, mock_req, mock_caid):
+        """ test _ca_policylink_id_lookup() """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.tsg_info_dic = {'id': 'id'}
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'ca': ['foo', 'bar', 'foo', 'bar']}
+        mock_req.return_value = mockresponse
+        mock_caid.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._ca_policylink_id_lookup())
+        self.assertIn('ERROR:test_a2c:CAhandler_ca_policylink_id_lookup(): no policylink id found for None', lcm.output)
+        self.assertTrue(mock_caid.called)
+
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_id_get')
+    @patch('requests.get')
+    def test_149__ca_policylink_id_lookup(self, mock_req, mock_caid):
+        """ test _ca_policylink_id_lookup() """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.tsg_info_dic = {'id': 'id'}
+        mockresponse = Mock()
+        mockresponse.json = lambda: {'foo': ['foo', 'bar', 'foo', 'bar']}
+        mock_req.return_value = mockresponse
+        mock_caid.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._ca_policylink_id_lookup())
+        self.assertIn('ERROR:test_a2c:CAhandler_ca_policylink_id_lookup(): no policylink id found for None', lcm.output)
+        self.assertIn('ERROR:test_a2c:ca_id.lookup() no CAs found in response ...', lcm.output)
+        self.assertFalse(mock_caid.called)
+
 if __name__ == '__main__':
 
     if os.path.exists('acme_test.db'):

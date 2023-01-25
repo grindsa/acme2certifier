@@ -534,6 +534,20 @@ class TestACMEHandler(unittest.TestCase):
         mock_request.return_value ='foo'
         self.assertEqual('foo', self.cahandler.request_create())
 
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
+    def test_038__enter(self, mock_cfgload):
+        """ CAhandler._enter() with config load """
+        self.cahandler.host = 'host'
+        self.cahandler.__enter__()
+        self.assertFalse(mock_cfgload.called)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
+    def test_039__enter(self, mock_cfgload):
+        """ CAhandler._enter() with config load """
+        self.cahandler.host = None
+        self.cahandler.__enter__()
+        self.assertTrue(mock_cfgload.called)
+
 if __name__ == '__main__':
 
     unittest.main()
