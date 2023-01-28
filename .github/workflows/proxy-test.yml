@@ -105,7 +105,8 @@ jobs:
     - name: "[ ENROLL ] via certifier ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REVOKE ] via certifier ca_handler"
       run: |
@@ -396,7 +397,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure &
         sleep 45
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REVOKE ] via certifier ca_handler"
