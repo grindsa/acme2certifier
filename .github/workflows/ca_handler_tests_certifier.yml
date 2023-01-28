@@ -1,4 +1,4 @@
-name: CA handler tests - Certifier
+name: CA handler Tests - Certifier
 
 on:
   push:
