@@ -65,7 +65,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh - http challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -77,7 +77,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh - alpn challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -105,7 +105,7 @@ jobs:
     - name: "[ ENROLL ] via certifier ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REVOKE ] via certifier ca_handler"
       run: |
@@ -138,7 +138,7 @@ jobs:
     - name: "[ ENROLL ] via msca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -201,7 +201,7 @@ jobs:
     - name: "[ ENROLL ] via est using tls-client-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -229,7 +229,7 @@ jobs:
     - name: "[ ENROLL ] via nclm ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -346,7 +346,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh - http challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -358,7 +358,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh - alpn challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |
@@ -397,7 +397,7 @@ jobs:
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure &
         sleep 45
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REVOKE ] via certifier ca_handler"
       run: |
@@ -439,7 +439,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
         sleep 45
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ CHECK ] proxy logs"
       run: |

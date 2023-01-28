@@ -73,7 +73,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -187,7 +187,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -268,7 +268,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
       run: |
@@ -299,7 +299,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
       run: |
@@ -331,7 +331,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
       run: |
@@ -344,7 +344,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
       run: |
@@ -460,7 +460,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
       run: |
@@ -487,7 +487,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
       run: |
@@ -515,7 +515,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
       run: |
@@ -526,7 +526,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
       run: |

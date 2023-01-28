@@ -44,7 +44,7 @@ jobs:
     - name: "[ TEST ] enroll from le-sim"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-le-sim --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE ] setup acme_ca_handler"
       run: |
@@ -63,7 +63,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force &
         sleep 30
-        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile acme-sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
@@ -172,7 +172,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure &
         sleep 30
-        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
