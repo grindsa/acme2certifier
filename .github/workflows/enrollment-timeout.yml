@@ -48,8 +48,8 @@ jobs:
 
     - name: "[ ENROLL ] acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "[ VERIFY ] Check timeout"
       working-directory: examples/Docker/
@@ -59,7 +59,7 @@ jobs:
 
     - name: "[ ENROLL ] acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
     - name: "[ VERIFY ] Check certificate reusage"
       working-directory: examples/Docker/
