@@ -102,7 +102,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REGISTER] certbot"
       run: |
@@ -194,7 +194,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REGISTER] certbot"
       run: |
@@ -346,7 +346,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REGISTER] certbot"
       run: |
@@ -476,7 +476,7 @@ jobs:
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ REGISTER] certbot"
       run: |

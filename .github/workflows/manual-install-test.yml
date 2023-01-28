@@ -55,7 +55,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -116,7 +116,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -177,7 +177,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -256,7 +256,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -351,7 +351,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -475,7 +475,7 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
