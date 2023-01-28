@@ -35,6 +35,7 @@ metadata:
   name: ingress-routes
   annotations:
     cert-manager.io/cluster-issuer: "acme2certifier"
+    # acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
   tls:
     - hosts:

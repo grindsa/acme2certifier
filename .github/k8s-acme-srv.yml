@@ -13,6 +13,10 @@ metadata:
     app: a2c
 spec:
   hostname: acme-srv
+  dnsPolicy: "None"
+  dnsConfig:
+    nameservers:
+      - DNSMASQ_IP
   containers:
     - name: acme2certifier
       image: grindsa/acme2certifier:devel
