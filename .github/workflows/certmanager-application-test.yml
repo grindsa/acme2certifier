@@ -12,8 +12,6 @@ jobs:
   certmgr_http01_apwsgi:
     name: "apache2 wsgi - certmgr http01 challenge tests"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
 
     - name: "checkout GIT"
@@ -65,19 +63,18 @@ jobs:
 
     - name: "[ PREPARE ] change and test dns"
       run: |
-        sudo systemctl disable systemd-resolved
-        sudo systemctl stop systemd-resolved
-        sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver ${{ env.DNSMASQ_IP }}" > /etc/resolv.conf
-        sudo cat /etc/resolv.conf
-        host www.heise.de
-        host www.bar.local
+        sudo cp .github/k8s-acme-srv.yml data/
+        sudo chmod 777 data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/${{ env.DNSMASQ_IP }}/g" data/k8s-acme-srv.yml
+        cat data/k8s-acme-srv.yml
+        host www.bar.local ${{ env.DNSMASQ_IP }}
+
     - name: "[ PREPARE ] install cert-manager charts"
       run: |
         sudo microk8s.kubectl create namespace cert-manager
         sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
         sudo microk8s.helm3 repo update
-        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
@@ -98,7 +95,7 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
     - name: "[ DEPLOY ] deploy a2c pod"
       run: |
-        sudo microk8s.kubectl apply -f .github/k8s-acme-srv.yml
+        sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
@@ -120,6 +117,7 @@ jobs:
         sudo chmod -R 777 data/k8s-cert-mgr-http-01.yml
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-http-01.yml
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
+
     - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -150,12 +148,14 @@ jobs:
         sudo microk8s.kubectl describe certificate
         sudo microk8s.kubectl describe certificates | grep -i "The certificate has been successfully issued"
     - name: "[ * ] collecting test logs"
+
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
@@ -163,11 +163,10 @@ jobs:
         name: cert-manager-http-apwsgi.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+
   certmgr_http01_apdjango:
     name: "apache2 django - certmgr http01 challenge tests"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
 
     - name: "checkout GIT"
@@ -219,19 +218,18 @@ jobs:
 
     - name: "[ PREPARE ] change and test dns"
       run: |
-        sudo systemctl disable systemd-resolved
-        sudo systemctl stop systemd-resolved
-        sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver ${{ env.DNSMASQ_IP }}" > /etc/resolv.conf
-        sudo cat /etc/resolv.conf
-        host www.heise.de
-        host www.bar.local
+        sudo cp .github/k8s-acme-srv.yml data/
+        sudo chmod 777 data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/${{ env.DNSMASQ_IP }}/g" data/k8s-acme-srv.yml
+        cat data/k8s-acme-srv.yml
+        host www.bar.local ${{ env.DNSMASQ_IP }}
+
     - name: "[ PREPARE ] install cert-manager charts"
       run: |
         sudo microk8s.kubectl create namespace cert-manager
         sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
         sudo microk8s.helm3 repo update
-        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
@@ -240,7 +238,7 @@ jobs:
         cat examples/Docker/apache2/django/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
         docker save grindsa/acme2certifier > a2c.tar
         sudo microk8s ctr image import a2c.tar
-        sudo microk8s ctr images ls | grep -i grindsa
+
     - name: "[ PREPARE ] Create a2c configuration"
       run: |
         sudo mkdir -p data
@@ -250,10 +248,12 @@ jobs:
         sudo cp .github/django_settings.py data/settings.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
+
     - name: "[ DEPLOY ] deploy a2c pod"
       run: |
-        sudo microk8s.kubectl apply -f .github/k8s-acme-srv.yml
+        sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
+
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -274,6 +274,7 @@ jobs:
         sudo chmod -R 777 data/k8s-cert-mgr-http-01.yml
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-http-01.yml
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
+
     - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -303,6 +304,7 @@ jobs:
         sudo microk8s.kubectl describe challenge
         sudo microk8s.kubectl describe certificate
         sudo microk8s.kubectl describe certificates | grep -i "The certificate has been successfully issued"
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -310,192 +312,17 @@ jobs:
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: cert-manager-http-apwsgi.tar.gz
+        name: cert-manager-http-apdjango.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
-  certmgr_dns01_apwsgi:
-    name: "apache2 wsgi - certmgr dns01 challenge tests"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-
-    - name: "checkout GIT"
-      uses: actions/checkout@v3
-
-    - name: "[ PREPARE ] change dns"
-      run: |
-        sudo systemctl disable systemd-resolved
-        sudo systemctl stop systemd-resolved
-        sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
-        sudo cat /etc/resolv.conf
-    - name: "[ PREPARE ] install microk8s"
-      run: |
-        sudo snap install microk8s --classic
-        sudo microk8s status --wait-ready
-        sudo microk8s enable helm3
-    - name: "[ PREPARE ] install cert-manager charts"
-      run: |
-        sudo microk8s.kubectl create namespace cert-manager
-        sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
-        sudo microk8s.helm3 repo update
-        sudo microk8s.helm3 install \
-          cert-manager jetstack/cert-manager \
-          --namespace cert-manager \
-          --set installCRDs=true
-        echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
-    - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
-
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
-      run: |
-        cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
-        # docker pull grindsa/acme2certifier:devel
-        docker save grindsa/acme2certifier > a2c.tar
-        sudo microk8s ctr image import a2c.tar
-        sudo microk8s ctr images ls | grep -i grindsa
-    - name: "[ PREPARE ] Create a2c configuration"
-      run: |
-        sudo mkdir -p data
-        sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
-        sudo mkdir -p data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-    - name: "[ DEPLOY ] deploy a2c pod"
-      run: |
-        sudo microk8s.kubectl apply -f .github/k8s-acme-srv.yml
-        sudo microk8s.kubectl get pods -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 10s
-
-    - name: "[ CHECK ] check status a2c pod and grab ip of a2c pod"
-      run: |
-        sudo microk8s.kubectl get pods -n cert-manager-acme
-        sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier
-        sudo microk8s.kubectl get pods -n cert-manager-acme | grep -i Running
-        sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5
-        echo ACME_IP=$(sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5) >> $GITHUB_ENV
-    - run: echo "a2c pod IP is ${{ env.ACME_IP }}"
-
-    - name: "[ DEPLOY ] deploy cert-manager"
-      run: |
-        sudo cp .github/k8s-cert-mgr-dns-01.yml data
-        sudo chmod -R 777 data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/CF_TOKEN/${{ secrets.CF_TOKEN }}/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/MY_EMAIL/${{ secrets.EMAIL }}/g" data/k8s-cert-mgr-dns-01.yml
-    - name: "[ DEPLOY ] deploy cert-manager and trigger enrollment"
-      run: |
-        sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
-    - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 20s
-
-    - name: "[ CHECK ] check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 30s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ]  check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ] check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ] check challenge and certificate"
-      run: |
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme
-        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme | grep -i "The certificate has been successfully issued"
-    - name: "[ PREPARE ] reconfigure YAML to wildcard domain"
-      run: |
-        sudo microk8s.kubectl delete -f data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/commonName: k8.acme.dynamop.de/commonName: '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/- k8.acme.dynamop.de/- '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
-    - name: "[ DEPLOY ] deploy cert-manager and trigger enrollment"
-      run: |
-        sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
-    - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 20s
-
-    - name: "[ CHECK ] check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 30s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ]  check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ] check issuer and challenge"
-      run: |
-        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-    - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v1
-      with:
-        time: 60s
-
-    - name: "[ CHECK ] check challenge and certificate"
-      run: |
-        sudo microk8s.kubectl describe challenge -n cert-manager-acme
-        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme
-        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme | grep -i "The certificate has been successfully issued"
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
-      if: ${{ failure() }}
-      with:
-        name: cert-manager-dns-apwsgi.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
-
 
   certmgr_http01_nginxwsgi:
     name: "nginx wsgi - certmgr http01 challenge tests"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
 
     - name: "checkout GIT"
@@ -531,6 +358,7 @@ jobs:
     - name: "[ PREPARE ] deploy dnsmasq pod"
       run: |
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
+
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -547,19 +375,18 @@ jobs:
 
     - name: "[ PREPARE ] change and test dns"
       run: |
-        sudo systemctl disable systemd-resolved
-        sudo systemctl stop systemd-resolved
-        sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver ${{ env.DNSMASQ_IP }}" > /etc/resolv.conf
-        sudo cat /etc/resolv.conf
-        host www.heise.de
-        host www.bar.local
+        sudo cp .github/k8s-acme-srv.yml data/
+        sudo chmod 777 data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/${{ env.DNSMASQ_IP }}/g" data/k8s-acme-srv.yml
+        cat data/k8s-acme-srv.yml
+        host www.bar.local ${{ env.DNSMASQ_IP }}
+
     - name: "[ PREPARE ] install cert-manager charts"
       run: |
         sudo microk8s.kubectl create namespace cert-manager
         sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
         sudo microk8s.helm3 repo update
-        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
@@ -580,7 +407,7 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
     - name: "[ DEPLOY ] deploy a2c pod"
       run: |
-        sudo microk8s.kubectl apply -f .github/k8s-acme-srv.yml
+        sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
@@ -648,8 +475,6 @@ jobs:
   certmgr_http01_nginxdjango:
     name: "nginx wsgi - certmgr http01 challenge tests"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
 
     - name: "checkout GIT"
@@ -667,6 +492,7 @@ jobs:
         sudo microk8s status --wait-ready
         sudo microk8s enable helm3
         sudo microk8s enable ingress
+
     - name: "[ PREPARE ] install dnsmasq"
       run: |
         sudo mkdir -p data
@@ -682,9 +508,11 @@ jobs:
         docker save gigantuar/dnsmasq -o dnsmasq.tar
         sudo microk8s ctr image import dnsmasq.tar
         sudo microk8s ctr images ls | grep -i gigantuar
+
     - name: "[ PREPARE ] deploy dnsmasq pod"
       run: |
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
+
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -701,19 +529,18 @@ jobs:
 
     - name: "[ PREPARE ] change and test dns"
       run: |
-        sudo systemctl disable systemd-resolved
-        sudo systemctl stop systemd-resolved
-        sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver ${{ env.DNSMASQ_IP }}" > /etc/resolv.conf
-        sudo cat /etc/resolv.conf
-        host www.heise.de
-        host www.bar.local
+        sudo cp .github/k8s-acme-srv.yml data/
+        sudo chmod 777 data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/${{ env.DNSMASQ_IP }}/g" data/k8s-acme-srv.yml
+        cat data/k8s-acme-srv.yml
+        host www.bar.local ${{ env.DNSMASQ_IP }}
+
     - name: "[ PREPARE ] install cert-manager charts"
       run: |
         sudo microk8s.kubectl create namespace cert-manager
         sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
         sudo microk8s.helm3 repo update
-        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+        sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
@@ -724,6 +551,7 @@ jobs:
         docker save grindsa/acme2certifier > a2c.tar
         sudo microk8s ctr image import a2c.tar
         sudo microk8s ctr images ls | grep -i grindsa
+
     - name: "[ PREPARE ] Create a2c configuration"
       run: |
         sudo mkdir -p data
@@ -733,10 +561,12 @@ jobs:
         sudo cp .github/django_settings.py data/settings.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
+
     - name: "[ DEPLOY ] deploy a2c pod"
       run: |
-        sudo microk8s.kubectl apply -f .github/k8s-acme-srv.yml
+        sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
+
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -757,6 +587,7 @@ jobs:
         sudo chmod -R 777 data/k8s-cert-mgr-http-01.yml
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-http-01.yml
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
+
     - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -766,6 +597,7 @@ jobs:
       run: |
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
+
     - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -786,6 +618,7 @@ jobs:
         sudo microk8s.kubectl describe challenge
         sudo microk8s.kubectl describe certificate
         sudo microk8s.kubectl describe certificates | grep -i "The certificate has been successfully issued"
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -793,9 +626,203 @@ jobs:
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: cert-manager-http-nginxwsgi.tar.gz
+        name: cert-manager-http-nginxdjango.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+  certmgr_dns01_apwsgi:
+    name: "apache2 wsgi - certmgr dns01 challenge tests"
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] change dns"
+      run: |
+        sudo mkdir -p data
+        sudo systemctl disable systemd-resolved
+        sudo systemctl stop systemd-resolved
+        sudo chmod -R 777 /etc/resolv.conf
+        sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
+        sudo cat /etc/resolv.conf
+        sudo cp .github/k8s-acme-srv.yml data/
+        sudo chmod 777 data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/8.8.8.8/g" data/k8s-acme-srv.yml
+        cat data/k8s-acme-srv.yml
+
+    - name: "[ PREPARE ] install microk8s"
+      run: |
+        sudo snap install microk8s --classic
+        sudo microk8s status --wait-ready
+        sudo microk8s enable helm3
+
+    - name: "[ PREPARE ] install cert-manager charts"
+      run: |
+        sudo microk8s.kubectl create namespace cert-manager
+        sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
+        sudo microk8s.helm3 repo update
+        sudo microk8s.helm3 install \
+          cert-manager jetstack/cert-manager \
+          --namespace cert-manager \
+          --set installCRDs=true
+        echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
+    - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      run: |
+        cat examples/Docker/apache2/wsgi/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
+        # docker pull grindsa/acme2certifier:devel
+        docker save grindsa/acme2certifier > a2c.tar
+        sudo microk8s ctr image import a2c.tar
+        sudo microk8s ctr images ls | grep -i grindsa
+
+    - name: "[ PREPARE ] Create a2c configuration"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
+        sudo mkdir -p data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+
+    - name: "[ DEPLOY ] deploy a2c pod"
+      run: |
+        sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
+        sudo microk8s.kubectl get pods -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "[ CHECK ] check status a2c pod and grab ip of a2c pod"
+      run: |
+        sudo microk8s.kubectl get pods -n cert-manager-acme
+        sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier
+        sudo microk8s.kubectl get pods -n cert-manager-acme | grep -i Running
+        sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5
+        echo ACME_IP=$(sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5) >> $GITHUB_ENV
+    - run: echo "a2c pod IP is ${{ env.ACME_IP }}"
+
+    - name: "[ DEPLOY ] deploy cert-manager"
+      run: |
+        sudo cp .github/k8s-cert-mgr-dns-01.yml data
+        sudo chmod -R 777 data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/CF_TOKEN/${{ secrets.CF_TOKEN }}/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/MY_EMAIL/${{ secrets.EMAIL }}/g" data/k8s-cert-mgr-dns-01.yml
+
+    - name: "[ DEPLOY ] deploy cert-manager and trigger enrollment"
+      run: |
+        sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
+
+    - name: "[ WAIT ] Sleep for 20s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 20s
+
+    - name: "[ CHECK ] check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 30s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ]  check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 60s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ] check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 60s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ] check challenge and certificate"
+      run: |
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme
+        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme | grep -i "The certificate has been successfully issued"
+
+    - name: "[ PREPARE ] reconfigure YAML to wildcard domain"
+      run: |
+        sudo microk8s.kubectl delete -f data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/commonName: k8.acme.dynamop.de/commonName: '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/- k8.acme.dynamop.de/- '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
+
+    - name: "[ DEPLOY ] deploy cert-manager and trigger enrollment"
+      run: |
+        sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
+
+    - name: "[ WAIT ] Sleep for 20s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 20s
+
+    - name: "[ CHECK ] check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+    - name: "[ WAIT ] Sleep for 30s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ]  check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 60s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ] check issuer and challenge"
+      run: |
+        sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+
+    - name: "[ WAIT ] Sleep for 60s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 60s
+
+    - name: "[ CHECK ] check challenge and certificate"
+      run: |
+        sudo microk8s.kubectl describe challenge -n cert-manager-acme
+        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme
+        sudo microk8s.kubectl describe certificates acme-cert -n cert-manager-acme | grep -i "The certificate has been successfully issued"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: cert-manager-dns-apwsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
