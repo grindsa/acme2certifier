@@ -435,6 +435,84 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_create.called)
 
+    def test_037__cert_identifier_get(self):
+        """ test _cert_identifier_get() """
+        self.assertFalse(self.cahandler._cert_identifier_get(None))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_038__cert_identifier_get(self, mock_post):
+        """ test _cert_identifier_get() """
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {}}
+        self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_039__cert_identifier_get(self, mock_post):
+        """ test _cert_identifier_get() """
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {'state': 'success'}}
+        self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_040__cert_identifier_get(self, mock_post):
+        """ test _cert_identifier_get() """
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {'state': 'success', 'data': {'cert_identifier': 'cert_identifier'}}}
+        self.assertEqual('cert_identifier', self.cahandler._cert_identifier_get('certcn'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_041__cert_identifier_get(self, mock_post):
+        """ test _cert_identifier_get() """
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {'state': 'success', 'data': {'foo': 'bar'}}}
+        self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_042__revoke(self, mock_post):
+        """ test _revoke() """
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Incomplete configuration'), self.cahandler._revoke('cert_identifier', 'rev_reason'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_043__revoke(self, mock_post):
+        """ test _revoke() """
+        self.cahandler.host = 'host'
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {'state': 'failure'}}
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Revocation failed'), self.cahandler._revoke('cert_identifier', 'rev_reason'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_044__revoke(self, mock_post):
+        """ test _revoke() """
+        self.cahandler.host = 'host'
+        self.cahandler.endpoint_name = 'endpoint_name'
+        mock_post.return_value = {'result': {'state': 'success'}}
+        self.assertEqual((200, None, None), self.cahandler._revoke('cert_identifier', 'rev_reason'))
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._revoke')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get')
+    @patch('examples.ca_handler.openxpki_ca_handler.cert_cn_get')
+    def test_045_revoke(self, mock_cn, mock_certid, mock_revoke):
+        """  test revoke """
+        mock_cn.return_value = 'cn'
+        mock_certid.return_value = None
+        self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Unknown status'), self.cahandler.revoke('cert', 'reason', 'date'))
+        self.assertTrue(mock_cn.called)
+        self.assertTrue(mock_certid.called)
+        self.assertFalse(mock_revoke.called)
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._revoke')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get')
+    @patch('examples.ca_handler.openxpki_ca_handler.cert_cn_get')
+    def test_046_revoke(self, mock_cn, mock_certid, mock_revoke):
+        """  test revoke """
+        mock_cn.return_value = 'cn'
+        mock_certid.return_value = 'cert_identifier'
+        mock_revoke.return_value = ('code', 'error', 'detail')
+        self.assertEqual(('code', 'error', 'detail'), self.cahandler.revoke('cert', 'reason', 'date'))
+        self.assertTrue(mock_cn.called)
+        self.assertTrue(mock_certid.called)
+        self.assertTrue(mock_revoke.called)
+
 if __name__ == '__main__':
 
     unittest.main()
