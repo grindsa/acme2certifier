@@ -2,7 +2,7 @@
 """ ejbca rest ca handler """
 import requests
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_serial_get, cert_issuer_get
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get
 
 
 class CAhandler(object):
@@ -42,6 +42,22 @@ class CAhandler(object):
             self.logger.error('CAhandler._cert_bundle_create() returned malformed response: {0}'.format(response))
 
         return (error, cert_bundle, cert_raw)
+
+    def _cert_identifier_get(self, cert_cn):
+        """ get cert_identifier """
+        self.logger.debug('CAhandler._cert_identifier_get({0})'.format(cert_cn))
+
+        cert_identifier = None
+        if cert_cn:
+            data_dic = {'method': 'SearchCertificate', 'common_name': cert_cn}
+            search_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+
+            if 'result' in search_response and 'state' in search_response['result'] and search_response['result']['state'].upper() == 'SUCCESS':
+                if 'data' in search_response['result'] and 'cert_identifier' in search_response['result']['data']:
+                    cert_identifier = search_response['result']['data']['cert_identifier']
+
+        self.logger.debug('CAhandler._cert_identifier_get() ended with: {0}'.format(cert_identifier))
+        return cert_identifier
 
     def _config_server_load(self, config_dic):
         """ load server information """
@@ -132,9 +148,8 @@ class CAhandler(object):
                 'profile': self.cert_profile_name
             }
             if self.client_cert:
-
                 sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
-
+                print(sign_response)
                 if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
                     (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
                 else:
@@ -162,19 +177,47 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='UNSPECIFIED', rev_date=None):
+    def _revoke(self, cert_identifier, rev_reason):
+        """ exceute revokation via rpc call """
+        self.logger.debug('CAhandler._revoke()')
+        code = None
+        message = None
+        detail = None
+
+        if self.host:
+
+            data_dic = {'method': 'RevokeCertificate', 'cert_identifier': cert_identifier, 'reason_code': rev_reason}
+            revocation_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+
+            if 'result' in revocation_response and 'state' in revocation_response['result'] and revocation_response['result']['state'].upper() == 'SUCCESS':
+                code = 200
+            else:
+                code = 400
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = 'Revocation failed'
+                self.logger.error('CAhandler._revoke() failed with: {0}'.format(revocation_response))
+
+        else:
+            code = 400
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'Incomplete configuration'
+
+        self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
+        return (code, message, detail)
+
+    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         code = None
         message = None
         detail = None
 
-        # get cert serial number and issuerdn
-        cert_serial = cert_serial_get(self.logger, cert, hexformat=True)
-        _issuer_dn = cert_issuer_get(self.logger, cert)
+        # get certifcate identifier based on common name search
+        cert_cn = cert_cn_get(self.logger, cert)
+        cert_identifier = self._cert_identifier_get(cert_cn)
 
-        if 'revoked' in cert_serial:
-            pass
+        if cert_identifier:
+            (code, message, detail) = self._revoke(cert_identifier, rev_reason)
         else:
             code = 400
             message = 'urn:ietf:params:acme:error:serverInternal'
