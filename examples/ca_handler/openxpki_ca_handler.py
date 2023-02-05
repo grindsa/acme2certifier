@@ -114,6 +114,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
         self.logger.debug('CAhandler._config_load() ended')
 
+
     def _rpc_post(self, path, data_dic):
         """ enrollment via post request to openxpki RPC interface """
         self.logger.debug('CAhandler._rpc_post()')
@@ -126,56 +127,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._rpc_post() ended.')
         return response
-
-    def enroll(self, csr):
-        """ enroll certificate  """
-        self.logger.debug('CAhandler.enroll()')
-
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        poll_indentifier = None
-
-        if self.host:
-
-            # prepare the CSR to be signed
-            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-
-            data_dic = {
-                'method': 'RequestCertificate',
-                'comment': 'acme2certifier',
-                'pkcs10': csr,
-                'profile': self.cert_profile_name
-            }
-            if self.client_cert:
-                sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
-                print(sign_response)
-                if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
-                    (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
-                else:
-                    error = 'Malformed response'
-                    self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
-            else:
-                self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
-                error = 'Configuration incomplete'
-        else:
-            self.logger.error('CAhandler.enroll(): Configuration incomplete. Host variable is missing...')
-            error = 'Configuration incomplete'
-
-        self.logger.debug('Certificate.enroll() ended')
-        return (error, cert_bundle, cert_raw, poll_indentifier)
-
-    def poll(self, _cert_name, poll_identifier, _csr):
-        """ poll status of pending CSR and download certificates """
-        self.logger.debug('CAhandler.poll()')
-
-        error = 'Method not implemented.'
-        cert_bundle = None
-        cert_raw = None
-        rejected = False
-
-        self.logger.debug('CAhandler.poll() ended')
-        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def _revoke(self, cert_identifier, rev_reason):
         """ exceute revokation via rpc call """
@@ -204,6 +155,55 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
         return (code, message, detail)
+
+    def enroll(self, csr):
+        """ enroll certificate  """
+        self.logger.debug('CAhandler.enroll()')
+
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_indentifier = None
+
+        if self.host:
+
+            # prepare the CSR to be signed
+            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+
+            data_dic = {
+                'method': 'RequestCertificate',
+                'comment': 'acme2certifier',
+                'pkcs10': csr,
+                'profile': self.cert_profile_name
+            }
+            if self.client_cert:
+                sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+                if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
+                    (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
+                else:
+                    error = 'Malformed response'
+                    self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+            else:
+                self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
+                error = 'Configuration incomplete'
+        else:
+            self.logger.error('CAhandler.enroll(): Configuration incomplete. Host variable is missing...')
+            error = 'Configuration incomplete'
+
+        self.logger.debug('Certificate.enroll() ended')
+        return (error, cert_bundle, cert_raw, poll_indentifier)
+
+    def poll(self, _cert_name, poll_identifier, _csr):
+        """ poll status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
+
+        error = 'Method not implemented.'
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+
+        self.logger.debug('CAhandler.poll() ended')
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert, rev_reason='unspecified', rev_date=None):
         """ revoke certificate """
