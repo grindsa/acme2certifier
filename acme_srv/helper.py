@@ -199,6 +199,23 @@ def cert_dates_get(logger, certificate):
     return (issue_date, expiration_date)
 
 
+def cert_cn_get(logger, cert):
+    """ get cn from certificate  """
+    logger.debug('CAhandler.cert_cn_get()')
+    pem_file = build_pem_file(logger, None, b64_url_recode(logger, cert), True, False)
+    req = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    subject = req.get_subject()
+    components = dict(subject.get_components())
+    result = None
+    if 'CN' in components:
+        result = components['CN']
+    elif b'CN' in components:
+        result = convert_byte_to_string(components[b'CN'])
+
+    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
+    return result
+
+
 def cert_der2pem(pem_file):
     """ convert certificate der to pem """
     certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, pem_file)
