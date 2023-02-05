@@ -47,23 +47,24 @@ class CAhandler(object):
         """ load server information """
         self.logger.debug('CAhandler._config_auth_load()')
 
-        if 'CAhandler' in config_dic and 'host' in config_dic['CAhandler']:
-            self.host = config_dic['CAhandler']['host']
+        if 'CAhandler' in config_dic:
+            if 'host' in config_dic['CAhandler']:
+                self.host = config_dic['CAhandler']['host']
 
-        if 'CAhandler' in config_dic and 'endpoint_name' in config_dic['CAhandler']:
-            self.endpoint_name = config_dic['CAhandler']['endpoint_name']
+            if 'endpoint_name' in config_dic['CAhandler']:
+                self.endpoint_name = config_dic['CAhandler']['endpoint_name']
 
-        if 'CAhandler' in config_dic and 'request_timeout' in config_dic['CAhandler']:
-            self.request_timeout = config_dic['CAhandler']['request_timeout']
+            if 'request_timeout' in config_dic['CAhandler']:
+                self.request_timeout = config_dic['CAhandler']['request_timeout']
 
-        if 'CAhandler' in config_dic and 'ca_bundle' in config_dic['CAhandler']:
-            try:
-                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-            except Exception:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+            if 'ca_bundle' in config_dic['CAhandler']:
+                try:
+                    self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+                except Exception:
+                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
-        if 'CAhandler' in config_dic and 'cert_profile_name' in config_dic['CAhandler']:
-            self.cert_profile_name = config_dic['CAhandler']['cert_profile_name']
+            if 'cert_profile_name' in config_dic['CAhandler']:
+                self.cert_profile_name = config_dic['CAhandler']['cert_profile_name']
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
@@ -75,7 +76,7 @@ class CAhandler(object):
             self.client_cert = []
             self.client_cert.append(config_dic['CAhandler']['client_cert'])
             self.client_cert.append(config_dic['CAhandler']['client_key'])
-        elif 'client_cert' in config_dic['CAhandler'] or 'client_key' in config_dic['CAhandler']:
+        else:
             self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert or "client_key" parameter is missing in config file')
 
         self.logger.debug('CAhandler._config_clientauth_load() ended')
@@ -99,15 +100,15 @@ class CAhandler(object):
 
     def _rpc_post(self, path, data_dic):
         """ enrollment via post request to openxpki RPC interface """
-        self.logger.debug('CAhandler.enroll()')
+        self.logger.debug('CAhandler._rpc_post()')
         try:
             # enroll via rpc
             response = requests.post(self.host + path, data=data_dic, cert=self.client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler.enroll() returned an error: {0}'.format(err_))
+            self.logger.error('CAhandler._rpc_post() returned an error: {0}'.format(err_))
             response = {}
 
-        self.logger.debug('CAhandler.enroll() ended.')
+        self.logger.debug('CAhandler._rpc_post() ended.')
         return response
 
     def enroll(self, csr):
@@ -139,6 +140,12 @@ class CAhandler(object):
                 else:
                     error = 'Malformed response'
                     self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+            else:
+                self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
+                error = 'Configuration incomplete'
+        else:
+            self.logger.error('CAhandler.enroll(): Configuration incomplete. Host variable is missing...')
+            error = 'Configuration incomplete'
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)
