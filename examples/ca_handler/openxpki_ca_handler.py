@@ -36,7 +36,7 @@ class CAhandler(object):
         if 'data' in response and 'certificate' in response['data'] and 'chain' in response['data']:
             # create base65 encoded der file
             cert_raw = b64_encode(self.logger, cert_pem2der(response['data']['certificate']))
-            cert_bundle = '{0}{1}'.format(response['data']['certificate'], response['data']['chain'])
+            cert_bundle = '{0}\n{1}'.format(response['data']['certificate'], response['data']['chain'])
         else:
             error = 'Malformed response'
             self.logger.error('CAhandler._cert_bundle_create() returned malformed response: {0}'.format(response))
@@ -121,6 +121,7 @@ class CAhandler(object):
         try:
             # enroll via rpc
             response = requests.post(self.host + path, data=data_dic, cert=self.client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+
         except Exception as err_:
             self.logger.error('CAhandler._rpc_post() returned an error: {0}'.format(err_))
             response = {}
