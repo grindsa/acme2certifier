@@ -26,6 +26,7 @@ should be straight forward. As of today the following handlers are available:
   - [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)
   - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
   - [EJBCA](docs/ejbca.md)
+  - [OpenXPKI](docs/openxpki.md)
   - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
   - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md)
   - [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md)
