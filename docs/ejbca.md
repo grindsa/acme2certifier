@@ -2,7 +2,7 @@
 <!-- wiki-title CA handler for EJBCA -->
 # Connecting to Keyfactor's EJBCA
 
-This handler can be enroll certificates from the [Open Source version of Keyfactor's EJBCA](https://www.ejbca.org) as ACME support is only available in the Enterprise version.
+This handler can be used to enroll certificates from the [Open Source version of Keyfactor's EJBCA](https://www.ejbca.org) as ACME support is only available in the Enterprise version.
 
 ## Prerequisites
 
@@ -58,3 +58,5 @@ The response to this call will show a dictionary containing status und version n
   "revision":"EJBCA 7.11.0 Community (8d14e27cda0b32eba35a1fd1423f8e6a31d1ed8e)"
 }
 ```
+
+Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.MD)
