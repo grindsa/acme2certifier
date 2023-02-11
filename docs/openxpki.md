@@ -67,4 +67,4 @@ polling_timeout: <seconds>
 - polling_timeout - timeout in seconds for enrollment operations (default 0 - polling disabled)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 
-Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.MD)
+Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.md)

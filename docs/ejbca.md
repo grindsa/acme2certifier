@@ -59,4 +59,4 @@ The response to this call will show a dictionary containing status und version n
 }
 ```
 
-Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.MD)
+Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.md)
