@@ -16,7 +16,7 @@ This handler can be used to enroll certificates from the [Open Source version of
 
 ## Configuration
 
-- modify the server configuration (`/acme_srv/acme_srv.cfg`) and add the following parameters
+- modify the server configuration (`acme_srv.cfg`) and add the following parameters
 
 ```config
 [CAhandler]
@@ -35,7 +35,7 @@ request_timeout: <seconds>
 - api_host - URL of the EJBCA-Rest service
 - cert_file - certicate and key in pkcs#12 format to authenticate towards EJBCA-Rest service
 - cert_passphrase - phassphrase to access the pkcs#12 container
-- ca_bundle - optional - ca certificate cahin in pem format needed to validate the ejbca-server certificate - can be True/False or a filename (default: True)
+- ca_bundle - optional - ca certificate chain in pem format needed to validate the ejbca-server certificate - can be True/False or a filename (default: True)
 - user - PKI username
 - enrollment_code - enrollment code
 - cert_profile_name - name of the certificate profile
@@ -43,13 +43,13 @@ request_timeout: <seconds>
 - ca_name - name of the CA used to enroll certificates
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 
-You can test the connection by running the following curl command against your ca server.
+You can test the connection by running the following curl command against your EJBCA server.
 
 ```bash
 root@rlh:~#  curl https://<api-host>/ejbca/ejbca-rest-api/v1/certificate/status --cert-type P12 --cert <cert_file>:<cert_passphrase> --cacert <ca_bundle>
 ```
 
-The response to this call will show a dictionary containing status und version number of the EJBCA server.
+The response to this call will show a dictionary containing status und version number of the server.
 
 ```json
 {
@@ -59,4 +59,4 @@ The response to this call will show a dictionary containing status und version n
 }
 ```
 
-Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found inthe [disclaimer section of our README file](../README.md)
+Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
