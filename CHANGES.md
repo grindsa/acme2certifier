@@ -5,11 +5,23 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.25
+
+**Features and Improvements**:
+
+- CA handler for [EJBCA](https://www.ejbca.org/)
+- CA handler for [OpenXPKI](https://www.openxpki.org/)
+
+**Bugfixes**:
+
+- adding missing python modules to RPM spec file
+- add revocation operations to CA handler regression test suite
+
 # Changes in 0.24
 
 **Features and Improvements**:
 
-- minimize number of layers in docker images
+- reduce number of layers in docker images
 - Workflows are using checkout@v3 actions
 - default nginx ssl config file in rpm package corrected
 - delete seclinux configuration files after rpm installation
