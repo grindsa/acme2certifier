@@ -207,7 +207,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
         return (code, message, detail)
 
-
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -249,7 +248,6 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         rejected = False
-
 
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
