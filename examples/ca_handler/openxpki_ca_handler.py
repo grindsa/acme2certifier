@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """ ejbca rest ca handler """
+import math
+import time
 import requests
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get
@@ -17,6 +19,7 @@ class CAhandler(object):
         self.cert_profile_name = None
         self.client_cert = None
         self.endpoint_name = None
+        self.polling_timeout = 0
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -76,11 +79,19 @@ class CAhandler(object):
             if 'ca_bundle' in config_dic['CAhandler']:
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-                except Exception:
+                except Exception as err:
+                    self.logger.debug('CAhandler._config_server_load(): failed to load ca_bundle option: {0}'.format(err))
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
             if 'cert_profile_name' in config_dic['CAhandler']:
                 self.cert_profile_name = config_dic['CAhandler']['cert_profile_name']
+
+            if 'polling_timeout' in config_dic['CAhandler']:
+                try:
+                    self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+                except Exception as err:
+                    self.logger.debug('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
+                    self.polling_timeout = 0
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
@@ -157,6 +168,46 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
         return (code, message, detail)
 
+    def _enroll(self, data_dic):
+        """ enroll operation  """
+        self.logger.debug('CAhandler._enroll()')
+
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_indentifier = None
+        poll_cnt = math.ceil(self.polling_timeout / 10) + 1
+        break_loop = False
+
+        cnt = 1
+        while cnt <= poll_cnt:
+            cnt += 1
+
+            sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+            if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
+                # successful enrollment
+                (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
+                poll_indentifier = sign_response['result']['data']['transaction_id']
+                break_loop = True
+            elif 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'PENDING':
+                # request to be approved by operator
+                poll_indentifier = sign_response['result']['data']['transaction_id']
+                self.logger.info('CAhandler.enroll(): Request pending. Transaction_id: {0} Workflow_id: {1}'.format(poll_indentifier, sign_response['result']['id']))
+            else:
+                # ernoll failed
+                error = 'Malformed response'
+                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+                break_loop = True
+
+            if break_loop:
+                break
+
+            # sleep
+            time.sleep(10)
+
+        self.logger.debug('CAhandler._enroll() ended')
+        return (error, cert_bundle, cert_raw, poll_indentifier)
+
     def enroll(self, csr):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -178,12 +229,8 @@ class CAhandler(object):
                 'profile': self.cert_profile_name
             }
             if self.client_cert:
-                sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
-                if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
-                    (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
-                else:
-                    error = 'Malformed response'
-                    self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+                # enroll via RPC
+                (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(data_dic)
             else:
                 self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
                 error = 'Configuration incomplete'
@@ -202,6 +249,7 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         rejected = False
+
 
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)

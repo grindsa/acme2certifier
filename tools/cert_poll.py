@@ -2,7 +2,9 @@
 """ database updater """
 # pylint: disable=E0401, C0413
 import sys
-sys.path.insert(0, '..')
+import os.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)))
 from acme_srv.db_handler import initialize  # nopep8
 initialize()
 from acme_srv.helper import logger_setup  # nopep8
