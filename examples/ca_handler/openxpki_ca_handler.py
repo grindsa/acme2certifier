@@ -143,7 +143,7 @@ class CAhandler(object):
             if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
                 # successful enrollment
                 (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
-                poll_indentifier = sign_response['result']['data']['transaction_id']
+                poll_indentifier = sign_response['result']['data']['cert_identifier']
                 break_loop = True
             elif 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'PENDING':
                 # request to be approved by operator

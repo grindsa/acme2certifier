@@ -389,10 +389,10 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
     def test_035__enroll(self, mock_post, mock_create):
         """ test _enroll() """
-        mock_post.return_value = {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'transaction_id': 'transaction_id'}}}
+        mock_post.return_value = {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'cert_identifier': 'cert_identifier'}}}
         self.cahandler.endpoint_name = 'endpoint_name'
         mock_create.return_value = ('error', 'cert_bundle', 'cert_raw')
-        self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'cert_identifier'), self.cahandler._enroll({'foo': 'bar'}))
         self.assertTrue(mock_create.called)
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
@@ -411,13 +411,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
     def test_037__enroll(self, mock_post, mock_create, mock_sleep):
         """ test _enroll() """
-        mock_post.side_effect = [{'result': {'id': 'id', 'state': 'pending', 'data': {'transaction_id': 'transaction_id'}}}, {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'transaction_id': 'transaction_id'}}}]
+        mock_post.side_effect = [{'result': {'id': 'id', 'state': 'pending', 'data': {'transaction_id': 'transaction_id'}}}, {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'cert_identifier': 'cert_identifier'}}}]
         self.cahandler.endpoint_name = 'endpoint_name'
         self.cahandler.polling_timeout = 60
         mock_sleep.return_value = Mock()
         mock_create.return_value = ('error', 'cert_bundle', 'cert_raw')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+            self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'cert_identifier'), self.cahandler._enroll({'foo': 'bar'}))
         self.assertIn('INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id', lcm.output)
         self.assertTrue(mock_create.called)
 
