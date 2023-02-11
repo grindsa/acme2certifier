@@ -61,7 +61,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cert_bundle_create() """
         response_dic = {'data': {'certificate': 'certificate', 'chain': 'chain'}}
         mock_enc.return_value = 'mock_enc'
-        self.assertEqual((None, 'certificatechain', 'mock_enc'), self.cahandler._cert_bundle_create(response_dic))
+        self.assertEqual((None, 'certificate\nchain', 'mock_enc'), self.cahandler._cert_bundle_create(response_dic))
         self.assertTrue(mock_enc.called)
         self.assertTrue(mock_p2d.called)
 
@@ -319,11 +319,10 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._rpc_post('url', 'data'))
         self.assertIn('ERROR:test_a2c:CAhandler._rpc_post() returned an error: exc_api_post', lcm.output)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
     @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_031_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
+    def test_031_enroll(self, mock_recode, mock_pem, mock_enroll):
         """ test ernoll """
         csr = 'csr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -331,14 +330,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Configuration incomplete. Host variable is missing...', lcm.output)
         self.assertFalse(mock_recode.called)
         self.assertFalse(mock_pem.called)
-        self.assertFalse(mock_post.called)
-        self.assertFalse(mock_create.called)
+        self.assertFalse(mock_enroll.called)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
     @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_032_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
+    def test_032_enroll(self, mock_recode, mock_pem, mock_enroll):
         """ test ernoll """
         csr = 'csr'
         self.cahandler.host = 'host'
@@ -349,90 +346,79 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...', lcm.output)
         self.assertTrue(mock_recode.called)
         self.assertTrue(mock_pem.called)
-        self.assertFalse(mock_post.called)
-        self.assertFalse(mock_create.called)
+        self.assertFalse(mock_enroll.called)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
-    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
     @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_033_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
+    def test_033_enroll(self, mock_recode, mock_pem, mock_enroll):
         """ test ernoll """
         csr = 'csr'
         self.cahandler.host = 'host'
         self.cahandler.endpoint_name = 'endpoint_name'
         self.cahandler.client_cert = 'client_cert'
-        mock_recode.return_value = 'mock_recode'
-        mock_pem.return_value = 'mock_pem'
-        mock_post.return_value = 'mock_post'
+        mock_enroll.return_value = ('error', 'cert_bundle', 'cert_raw', 'poll_indentifier')
+        self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'poll_indentifier'), self.cahandler.enroll(csr))
+        self.assertTrue(mock_recode.called)
+        self.assertTrue(mock_pem.called)
+        self.assertTrue(mock_enroll.called)
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_033__enroll(self, mock_post, mock_create):
+        """ test _enroll() """
+        mock_post.return_value = {'foo': 'bar'}
+        self.cahandler.endpoint_name = 'endpoint_name'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll(csr))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: mock_post', lcm.output)
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
-        self.assertTrue(mock_post.called)
+            self.assertEqual(('Malformed response', None, None, None), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'foo': 'bar'}", lcm.output)
         self.assertFalse(mock_create.called)
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
-    @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
-    @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_034_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
-        """ test ernoll """
-        csr = 'csr'
-        self.cahandler.host = 'host'
+    def test_034__enroll(self, mock_post, mock_create):
+        """ test _enroll() """
+        mock_post.return_value = {'result': {'id': 'id', 'state': 'pending', 'data': {'transaction_id': 'transaction_id'}}}
         self.cahandler.endpoint_name = 'endpoint_name'
-        self.cahandler.client_cert = 'client_cert'
-        mock_recode.return_value = 'mock_recode'
-        mock_pem.return_value = 'mock_pem'
-        mock_post.return_value = {'result': {'foo': 'bar'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll(csr))
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'result': {'foo': 'bar'}}", lcm.output)
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
-        self.assertTrue(mock_post.called)
+            self.assertEqual((None, None, None, 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertIn('INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id', lcm.output)
         self.assertFalse(mock_create.called)
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
-    @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
-    @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_035_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
-        """ test ernoll """
-        csr = 'csr'
-        self.cahandler.host = 'host'
+    def test_035__enroll(self, mock_post, mock_create):
+        """ test _enroll() """
+        mock_post.return_value = {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'transaction_id': 'transaction_id'}}}
         self.cahandler.endpoint_name = 'endpoint_name'
-        self.cahandler.client_cert = 'client_cert'
-        mock_recode.return_value = 'mock_recode'
-        mock_pem.return_value = 'mock_pem'
-        mock_post.return_value = {'result': {'state': 'bar'}}
+        mock_create.return_value = ('error', 'cert_bundle', 'cert_raw')
+        self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertTrue(mock_create.called)
+
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
+    @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
+    def test_036__enroll(self, mock_post, mock_create):
+        """ test _enroll() """
+        mock_post.side_effect = [{'result': {'id': 'id', 'state': 'pending', 'data': {'transaction_id': 'transaction_id'}}}, {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'transaction_id': 'transaction_id'}}}]
+        self.cahandler.endpoint_name = 'endpoint_name'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Malformed response', None, None, None), self.cahandler.enroll(csr))
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'result': {'state': 'bar'}}", lcm.output)
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
-        self.assertTrue(mock_post.called)
+            self.assertEqual((None, None, None, 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertIn('INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id', lcm.output)
         self.assertFalse(mock_create.called)
 
+    @patch('time.sleep')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
-    @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
-    @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
-    def test_036_enroll(self, mock_recode, mock_pem, mock_post, mock_create):
-        """ test ernoll """
-        csr = 'csr'
-        self.cahandler.host = 'host'
+    def test_037__enroll(self, mock_post, mock_create, mock_sleep):
+        """ test _enroll() """
+        mock_post.side_effect = [{'result': {'id': 'id', 'state': 'pending', 'data': {'transaction_id': 'transaction_id'}}}, {'result': {'id': 'id', 'state': 'SUCCESS', 'data': {'transaction_id': 'transaction_id'}}}]
         self.cahandler.endpoint_name = 'endpoint_name'
-        self.cahandler.client_cert = 'client_cert'
-        mock_recode.return_value = 'mock_recode'
-        mock_pem.return_value = 'mock_pem'
-        mock_post.return_value = {'result': {'state': 'success'}}
-        mock_create.return_value = ('error', 'bundle', 'raw')
-        self.assertEqual(('error', 'bundle', 'raw', None), self.cahandler.enroll(csr))
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
-        self.assertTrue(mock_post.called)
+        self.cahandler.polling_timeout = 60
+        mock_sleep.return_value = Mock()
+        mock_create.return_value = ('error', 'cert_bundle', 'cert_raw')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'transaction_id'), self.cahandler._enroll({'foo': 'bar'}))
+        self.assertIn('INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id', lcm.output)
         self.assertTrue(mock_create.called)
 
     def test_037__cert_identifier_get(self):
