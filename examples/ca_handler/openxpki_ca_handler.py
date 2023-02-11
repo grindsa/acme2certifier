@@ -4,7 +4,7 @@ import math
 import time
 import requests
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get
 
 
 class CAhandler(object):
@@ -20,6 +20,8 @@ class CAhandler(object):
         self.client_cert = None
         self.endpoint_name = None
         self.polling_timeout = 0
+        self.rpc_path = '/rpc/'
+        self.err_msg_dic = error_dic_get(self.logger)
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -53,7 +55,7 @@ class CAhandler(object):
         cert_identifier = None
         if cert_cn:
             data_dic = {'method': 'SearchCertificate', 'common_name': cert_cn}
-            search_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+            search_response = self._rpc_post(self.rpc_path + self.endpoint_name, data_dic)
 
             if 'result' in search_response and 'state' in search_response['result'] and search_response['result']['state'].upper() == 'SUCCESS':
                 if 'data' in search_response['result'] and 'cert_identifier' in search_response['result']['data']:
@@ -76,6 +78,16 @@ class CAhandler(object):
             if 'request_timeout' in config_dic['CAhandler']:
                 self.request_timeout = config_dic['CAhandler']['request_timeout']
 
+            if 'rpc_path' in config_dic['CAhandler']:
+                self.rpc_path = config_dic['CAhandler']['rpc_path']
+
+        self.logger.debug('CAhandler._config_server_load() ended')
+
+    def _config_ca_load(self, config_dic):
+        """ load ca information """
+        self.logger.debug('CAhandler._config_ca_load()')
+        if 'CAhandler' in config_dic:
+
             if 'ca_bundle' in config_dic['CAhandler']:
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
@@ -92,8 +104,6 @@ class CAhandler(object):
                 except Exception as err:
                     self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
                     self.polling_timeout = 0
-
-        self.logger.debug('CAhandler._config_server_load() ended')
 
     def _config_clientauth_load(self, config_dic):
         """ check if we need to use clientauth """
@@ -117,6 +127,7 @@ class CAhandler(object):
         # load configuration
         self._config_server_load(config_dic)
         self._config_clientauth_load(config_dic)
+        self._config_ca_load(config_dic)
 
         # check configuration for completeness
         variable_dic = self.__dict__
@@ -139,7 +150,7 @@ class CAhandler(object):
         cnt = 1
         while cnt <= poll_cnt:
             cnt += 1
-            sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+            sign_response = self._rpc_post(self.rpc_path + self.endpoint_name, data_dic)
             if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
                 # successful enrollment
                 (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
@@ -189,19 +200,19 @@ class CAhandler(object):
         if self.host:
 
             data_dic = {'method': 'RevokeCertificate', 'cert_identifier': cert_identifier, 'reason_code': rev_reason}
-            revocation_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+            revocation_response = self._rpc_post(self.rpc_path + self.endpoint_name, data_dic)
 
             if 'result' in revocation_response and 'state' in revocation_response['result'] and revocation_response['result']['state'].upper() == 'SUCCESS':
                 code = 200
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:serverInternal'
+                message = self.err_msg_dic['serverinternal']
                 detail = 'Revocation failed'
                 self.logger.error('CAhandler._revoke() failed with: {0}'.format(revocation_response))
 
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = self.err_msg_dic['serverinternal']
             detail = 'Incomplete configuration'
 
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
@@ -267,7 +278,7 @@ class CAhandler(object):
             (code, message, detail) = self._revoke(cert_identifier, rev_reason)
         else:
             code = 400
-            message = 'urn:ietf:params:acme:error:serverInternal'
+            message = self.err_msg_dic['serverinternal']
             detail = 'Unknown status'
 
         self.logger.debug('Certificate.revoke() ended')

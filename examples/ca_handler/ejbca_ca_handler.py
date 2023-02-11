@@ -45,7 +45,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
                 certstatus_response = {'status': 'nok', 'error': str(err_)}
         else:
-            self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
+            self.logger.error('CAhandler._status_get(): api_host option is misisng in configuration')
             certstatus_response = {}
 
         return certstatus_response
@@ -151,7 +151,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
                 api_response = {'status': 'nok', 'error': str(err_)}
         else:
-            self.logger.error('CAhandler._status_get(): api_host is misisng in configuration')
+            self.logger.error('CAhandler._status_get(): api_host parameter is misisng in configuration')
             api_response = {}
 
         self.logger.debug('CAhandler._status_get() ended')

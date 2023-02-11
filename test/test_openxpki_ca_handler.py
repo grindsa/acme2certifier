@@ -104,9 +104,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_server_load(config_dic)
         self.assertFalse(self.cahandler.host)
         self.assertEqual(5, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.endpoint_name)
-        self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual('/rpc/', self.cahandler.rpc_path)
 
     def test_010__config_server_load(self):
         """ test _config_server_load() """
@@ -114,9 +113,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_server_load(config_dic)
         self.assertFalse(self.cahandler.host)
         self.assertEqual(5, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.endpoint_name)
-        self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual('/rpc/', self.cahandler.rpc_path)
 
     def test_011__config_server_load(self):
         """ test _config_server_load() """
@@ -124,9 +122,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_server_load(config_dic)
         self.assertFalse(self.cahandler.host)
         self.assertEqual(5, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertEqual('endpoint_name', self.cahandler.endpoint_name)
-        self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual('/rpc/', self.cahandler.rpc_path)
 
     def test_012__config_server_load(self):
         """ test _config_server_load() """
@@ -134,19 +131,25 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_server_load(config_dic)
         self.assertEqual('host', self.cahandler.host)
         self.assertEqual(5, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.endpoint_name)
-        self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual('/rpc/', self.cahandler.rpc_path)
 
     def test_013__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'cert_profile_name': 'cert_profile_name'}}
+        config_dic = {'CAhandler': {'rpc_path': 'rpc_path'}}
         self.cahandler._config_server_load(config_dic)
         self.assertFalse(self.cahandler.host)
         self.assertEqual(5, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.endpoint_name)
+        self.assertEqual('rpc_path', self.cahandler.rpc_path)
+
+    def test_013__config_ca_loadd(self):
+        """ test _config_server_load() """
+        config_dic = {'CAhandler': {'cert_profile_name': 'cert_profile_name'}}
+        self.cahandler._config_ca_load(config_dic)
+        self.assertTrue(self.cahandler.ca_bundle)
         self.assertEqual('cert_profile_name', self.cahandler.cert_profile_name)
+        self.assertEqual(0, self.cahandler.polling_timeout)
 
     def test_014__config_server_load(self):
         """ test _config_server_load() """
@@ -154,60 +157,49 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_server_load(config_dic)
         self.assertFalse(self.cahandler.host)
         self.assertEqual(10, self.cahandler.request_timeout)
-        self.assertTrue(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.endpoint_name)
-        self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual('/rpc/', self.cahandler.rpc_path)
 
-    def test_015__config_server_load(self):
+    def test_015__config_ca_load(self):
         """ test _config_server_load() """
         config_dic = {'CAhandler': {'ca_bundle': False}}
-        self.cahandler._config_server_load(config_dic)
-        self.assertFalse(self.cahandler.host)
-        self.assertEqual(5, self.cahandler.request_timeout)
+        self.cahandler._config_ca_load(config_dic)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.endpoint_name)
         self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual(0, self.cahandler.polling_timeout)
 
-    def test_016__config_server_load(self):
+    def test_016__config_ca_load(self):
         """ test _config_server_load() """
         config_dic = {'CAhandler': {'ca_bundle': ''}}
-        self.cahandler._config_server_load(config_dic)
-        self.assertFalse(self.cahandler.host)
-        self.assertEqual(5, self.cahandler.request_timeout)
+        self.cahandler._config_ca_load(config_dic)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.endpoint_name)
         self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual(0, self.cahandler.polling_timeout)
 
-    def test_017__config_server_load(self):
+    def test_017__config_ca_load(self):
         """ test _config_server_load() """
         config_dic = {'CAhandler': {'ca_bundle': 'ca_bundle'}}
-        self.cahandler._config_server_load(config_dic)
-        self.assertFalse(self.cahandler.host)
-        self.assertEqual(5, self.cahandler.request_timeout)
+        self.cahandler._config_ca_load(config_dic)
         self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.endpoint_name)
         self.assertFalse(self.cahandler.cert_profile_name)
+        self.assertEqual(0, self.cahandler.polling_timeout)
 
-    def test_018__config_server_load(self):
+    def test_018__config_ca_load(self):
         """ test _config_server_load() """
         config_dic = {'CAhandler': {'polling_timeout': 10}}
-        self.cahandler._config_server_load(config_dic)
-        self.assertFalse(self.cahandler.host)
+        self.cahandler._config_ca_load(config_dic)
         self.assertEqual(10, self.cahandler.polling_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.endpoint_name)
         self.assertFalse(self.cahandler.cert_profile_name)
 
-    def test_019__config_server_load(self):
+    def test_019__config_ca_load(self):
         """ test _config_server_load() """
         config_dic = {'CAhandler': {'polling_timeout': 'polling_timeout'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_server_load(config_dic)
+            self.cahandler._config_ca_load(config_dic)
         self.assertIn("ERROR:test_a2c:CAhandler._config_server_load(): failed to load polling_timeout option: invalid literal for int() with base 10: 'polling_timeout'", lcm.output)
-        self.assertFalse(self.cahandler.host)
         self.assertEqual(0, self.cahandler.polling_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
-        self.assertFalse(self.cahandler.endpoint_name)
         self.assertFalse(self.cahandler.cert_profile_name)
 
     def test_020__config_clientauth_load(self):
