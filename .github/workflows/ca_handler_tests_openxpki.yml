@@ -157,6 +157,7 @@ jobs:
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> examples/Docker/data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -391,6 +392,7 @@ jobs:
         sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> data/acme_srv.cfg
+        sudo echo "polling_timeout: 60" >> data/acme_srv.cfg
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
