@@ -374,7 +374,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session.get.return_value  = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._cert_status_check('issuer_dn', 'cert_serial')
-        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host is misisng in configuration', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host option is misisng in configuration', lcm.output)
 
     def test_033__cert_status_check(self):
         """ test _cert_status_check exception """
@@ -403,7 +403,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session.get.return_value  = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._status_get()
-        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host is misisng in configuration', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host parameter is misisng in configuration', lcm.output)
 
     def test_036__status_get(self):
         """ test _cert_status_check exception """
