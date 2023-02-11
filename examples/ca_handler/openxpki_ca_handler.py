@@ -90,7 +90,7 @@ class CAhandler(object):
                 try:
                     self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
                 except Exception as err:
-                    self.logger.debug('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
+                    self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
                     self.polling_timeout = 0
 
         self.logger.debug('CAhandler._config_server_load() ended')
