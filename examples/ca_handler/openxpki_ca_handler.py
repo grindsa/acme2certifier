@@ -125,6 +125,45 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
         self.logger.debug('CAhandler._config_load() ended')
 
+    def _enroll(self, data_dic):
+        """ enroll operation  """
+        self.logger.debug('CAhandler._enroll()')
+
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_indentifier = None
+        poll_cnt = math.ceil(self.polling_timeout / 10) + 1
+        break_loop = False
+
+        cnt = 1
+        while cnt <= poll_cnt:
+            cnt += 1
+            sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
+            if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
+                # successful enrollment
+                (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
+                poll_indentifier = sign_response['result']['data']['transaction_id']
+                break_loop = True
+            elif 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'PENDING':
+                # request to be approved by operator
+                poll_indentifier = sign_response['result']['data']['transaction_id']
+                self.logger.info('CAhandler.enroll(): Request pending. Transaction_id: {0} Workflow_id: {1}'.format(poll_indentifier, sign_response['result']['id']))
+            else:
+                # ernoll failed
+                error = 'Malformed response'
+                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+                break_loop = True
+
+            if break_loop:
+                break
+
+            if cnt < poll_cnt:
+                # sleep
+                time.sleep(10)
+
+        self.logger.debug('CAhandler._enroll() ended')
+        return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def _rpc_post(self, path, data_dic):
         """ enrollment via post request to openxpki RPC interface """
@@ -168,45 +207,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
         return (code, message, detail)
 
-    def _enroll(self, data_dic):
-        """ enroll operation  """
-        self.logger.debug('CAhandler._enroll()')
-
-        cert_bundle = None
-        error = None
-        cert_raw = None
-        poll_indentifier = None
-        poll_cnt = math.ceil(self.polling_timeout / 10) + 1
-        break_loop = False
-
-        cnt = 1
-        while cnt <= poll_cnt:
-            cnt += 1
-
-            sign_response = self._rpc_post('/rpc/' + self.endpoint_name, data_dic)
-            if 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'SUCCESS':
-                # successful enrollment
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(sign_response['result'])
-                poll_indentifier = sign_response['result']['data']['transaction_id']
-                break_loop = True
-            elif 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'PENDING':
-                # request to be approved by operator
-                poll_indentifier = sign_response['result']['data']['transaction_id']
-                self.logger.info('CAhandler.enroll(): Request pending. Transaction_id: {0} Workflow_id: {1}'.format(poll_indentifier, sign_response['result']['id']))
-            else:
-                # ernoll failed
-                error = 'Malformed response'
-                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
-                break_loop = True
-
-            if break_loop:
-                break
-
-            # sleep
-            time.sleep(10)
-
-        self.logger.debug('CAhandler._enroll() ended')
-        return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def enroll(self, csr):
         """ enroll certificate  """
