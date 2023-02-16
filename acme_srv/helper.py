@@ -698,6 +698,8 @@ def _fqdn_resolve(req, host):
     """ resolve hostname """
     for rrtype in ['A', 'AAAA']:
         try:
+            result = None
+            invalid = True
             answers = req.resolve(host, rrtype)
             for rdata in answers:
                 result = str(rdata)
@@ -978,10 +980,11 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     context = ssl.create_default_context()  # NOSONAR
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # NOSONAR
+    context.options |= ssl.PROTOCOL_TLS_CLIENT
     # reject insecure ssl version
-    context.options |= ssl.OP_NO_SSLv3
-    context.options |= ssl.OP_NO_TLSv1
-    context.options |= ssl.OP_NO_TLSv1_1
+    # context.options |= ssl.OP_NO_SSLv3
+    # context.options |= ssl.OP_NO_TLSv1
+    # context.options |= ssl.OP_NO_TLSv1_1
 
     if proxy_server:
         (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
