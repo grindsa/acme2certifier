@@ -5,6 +5,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.25.1
+
+**Bugfixes**:
+
+- replace obsoleted `dns.resolver.query()` with `dns.resolver.resolve()`
+
 # Changes in 0.25
 
 **Features and Improvements**:
