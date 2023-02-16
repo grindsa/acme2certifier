@@ -956,64 +956,64 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     @patch('dns.resolver.Resolver')
     def test_125_helper_fqdn_resolve(self, mock_resolve):
         """ successful dns-query returning covering github """
-        mock_resolve.return_value.query.return_value = ['foo']
+        mock_resolve.return_value.resolve.return_value = ['foo']
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local', dnssrv='10.0.0.1'))
 
 
     @patch('dns.resolver.Resolver')
     def test_126_helper_fqdn_resolve(self, mock_resolve):
         """ successful dns-query returning covering github """
-        mock_resolve.return_value.query.return_value = ['foo']
+        mock_resolve.return_value.resolve.return_value = ['foo']
         self.assertEqual((None, False), self.fqdn_resolve('foo'))
 
     @patch('dns.resolver.Resolver')
     def test_127_helper_fqdn_resolve(self, mock_resolve):
         """ successful dns-query returning one value """
-        mock_resolve.return_value.query.return_value = ['foo']
+        mock_resolve.return_value.resolve.return_value = ['foo']
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
 
     @patch('dns.resolver.Resolver')
     def test_128_helper_fqdn_resolve(self, mock_resolve):
         """ successful dns-query returning two values """
-        mock_resolve.return_value.query.return_value = ['bar', 'foo']
+        mock_resolve.return_value.resolve.return_value = ['bar', 'foo']
         self.assertEqual(('bar', False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NXDOMAIN))
+    @patch('dns.resolver.Resolver.resolve', side_effect=Mock(side_effect=dns.resolver.NXDOMAIN))
     def test_129_helper_fqdn_resolve(self, mock_resolve):
         """ catch NXDOMAIN """
         self.assertEqual((None, True), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NoAnswer))
+    @patch('dns.resolver.Resolver.resolve', side_effect=Mock(side_effect=dns.resolver.NoAnswer))
     def test_130_helper_fqdn_resolve(self, mock_resolve):
         """ catch NoAnswer """
         self.assertEqual((None, True), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=dns.resolver.NoNameservers))
+    @patch('dns.resolver.Resolver.resolve', side_effect=Mock(side_effect=dns.resolver.NoNameservers))
     def test_131_helper_fqdn_resolve(self, mock_resolve):
         """ catch other dns related execption """
         self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=Mock(side_effect=Exception('foo')))
+    @patch('dns.resolver.Resolver.resolve', side_effect=Mock(side_effect=Exception('foo')))
     def test_132_helper_fqdn_resolve(self, mock_resolve):
         """ catch other execption """
         self.assertEqual((None, False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NXDOMAIN), ['foo']])
+    @patch('dns.resolver.Resolver.resolve', side_effect=[Mock(side_effect=dns.resolver.NXDOMAIN), ['foo']])
     def test_133_helper_fqdn_resolve(self, mock_resolve):
         """ catch NXDOMAIN on v4 and fine in v6 """
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NoAnswer), ['foo']])
+    @patch('dns.resolver.Resolver.resolve', side_effect=[Mock(side_effect=dns.resolver.NoAnswer), ['foo']])
     def test_134_helper_fqdn_resolve(self, mock_resolve):
         """ catch NoAnswer on v4 and fine in v6 """
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=dns.resolver.NoNameservers), ['foo']])
+    @patch('dns.resolver.Resolver.resolve', side_effect=[Mock(side_effect=dns.resolver.NoNameservers), ['foo']])
     def test_135_helper_fqdn_resolve(self, mock_resolve):
         """ catch other dns related execption on v4 and fine in v6 """
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
 
-    @patch('dns.resolver.Resolver.query', side_effect=[Mock(side_effect=Exception('foo')), ['foo']])
+    @patch('dns.resolver.Resolver.resolve', side_effect=[Mock(side_effect=Exception('foo')), ['foo']])
     def test_136_helper_fqdn_resolve(self, mock_resolve):
         """ catch other execption when resolving v4 but fine in v6"""
         self.assertEqual(('foo', False), self.fqdn_resolve('foo.bar.local'))
@@ -1351,7 +1351,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertIn('ERROR:test_a2c:servercert_get() failed with: exc_warp_sock', lcm.output)
 
     @patch('dns.resolver.Resolver')
-    @patch('dns.resolver.query')
+    @patch('dns.resolver.resolve')
     def test_183_txt_get(self, mock_resolve, mock_res):
         """ successful dns-query returning one txt record """
         resp_obj = Mock()
@@ -1360,7 +1360,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertEqual(['foo'], self.txt_get(self.logger, 'foo', '10.0.0.1'))
         self.assertTrue(mock_res.called)
 
-    @patch('dns.resolver.query')
+    @patch('dns.resolver.resolve')
     def test_184_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         resp_obj = Mock()
@@ -1368,7 +1368,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_resolve.return_value = [resp_obj]
         self.assertEqual(['foo'], self.txt_get(self.logger, 'foo'))
 
-    @patch('dns.resolver.query')
+    @patch('dns.resolver.resolve')
     def test_185_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         resp_obj1 = Mock()
@@ -1378,7 +1378,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_resolve.return_value = [resp_obj1, resp_obj2]
         self.assertEqual(['foo1', 'foo2'], self.txt_get(self.logger, 'foo'))
 
-    @patch('dns.resolver.query')
+    @patch('dns.resolver.resolve')
     def test_186_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         mock_resolve.side_effect = Exception('mock_resolve')
