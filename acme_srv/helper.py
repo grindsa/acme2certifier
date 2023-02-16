@@ -698,7 +698,7 @@ def _fqdn_resolve(req, host):
     """ resolve hostname """
     for rrtype in ['A', 'AAAA']:
         try:
-            answers = req.query(host, rrtype)
+            answers = req.resolve(host, rrtype)
             for rdata in answers:
                 result = str(rdata)
                 invalid = False
@@ -880,7 +880,7 @@ def txt_get(logger, fqdn, dns_srv=None):
         dns.resolver.default_resolver.nameservers = dns_srv
     txt_record_list = []
     try:
-        response = dns.resolver.query(fqdn, 'TXT')
+        response = dns.resolver.resolve(fqdn, 'TXT')
         for rrecord in response:
             txt_record_list.append(rrecord.strings[0])
     except Exception as err_:
