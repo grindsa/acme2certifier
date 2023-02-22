@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ ejbca rest ca handler """
+import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
@@ -21,6 +22,7 @@ class CAhandler(object):
         self.session = None
         self.username = None
         self.enrollment_code = None
+        self.cert_passphrase = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -65,21 +67,74 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
-    def _config_auth_load(self, config_dic):
-        """ load authentication information """
-        self.logger.debug('CAhandler._config_auth_load()')
+    def _config_authuser_load(self, config_dic):
+        self.logger.debug('CAhandler._config_authuser_load()')
+        if 'username_variable' in config_dic['CAhandler'] or 'username' in config_dic['CAhandler']:
+            if 'username_variable' in config_dic['CAhandler']:
+                try:
+                    self.username = os.environ[config_dic['CAhandler']['username_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_authuser_load() could not load username_variable:{0}'.format(err))
 
-        if 'CAhandler' in config_dic and 'username' in config_dic['CAhandler']:
-            self.username = config_dic['CAhandler']['username']
+            if 'username' in config_dic['CAhandler']:
+                if self.username:
+                    self.logger.info('CAhandler._config_load() overwrite username')
+                self.username = config_dic['CAhandler']['username']
+        else:
+            self.logger.error('CAhandler._config_authuser_load() configuration incomplete: "username" parameter is missing in config file')
 
-        if 'CAhandler' in config_dic and 'enrollment_code' in config_dic['CAhandler']:
-            self.enrollment_code = config_dic['CAhandler']['enrollment_code']
+        self.logger.debug('CAhandler._config_auth_load() ended')
 
-        if 'CAhandler' in config_dic and 'cert_file' in config_dic['CAhandler'] and 'cert_passphrase' in config_dic['CAhandler']:
+    def _config_enrollmentcode_load(self, config_dic):
+        self.logger.debug('CAhandler._config_enrollmentcode_load()')
+        if 'enrollment_code_variable' in config_dic['CAhandler'] or 'enrollment_code' in config_dic['CAhandler']:
+            if 'enrollment_code_variable' in config_dic['CAhandler']:
+                try:
+                    self.enrollment_code = os.environ[config_dic['CAhandler']['enrollment_code_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_authuser_load() could not load enrollment_code_variable:{0}'.format(err))
+
+            if 'enrollment_code' in config_dic['CAhandler']:
+                if self.enrollment_code:
+                    self.logger.info('CAhandler._config_load() overwrite enrollment_code')
+                self.enrollment_code = config_dic['CAhandler']['enrollment_code']
+        else:
+            self.logger.error('CAhandler._config_authuser_load() configuration incomplete: "enrollment_code" parameter is missing in config file')
+
+        self.logger.debug('CAhandler._config_enrollmentcode_load() ended')
+
+    def _config_session_load(self, config_dic):
+        self.logger.debug('CAhandler._config_session_load()')
+
+        if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
+            if 'cert_passphrase_variable' in config_dic['CAhandler']:
+                try:
+                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:{0}'.format(err))
+
+            if 'cert_passphrase' in config_dic['CAhandler']:
+                if self.cert_passphrase:
+                    self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
+                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+
+        if config_dic and 'cert_file' in config_dic['CAhandler'] and self.cert_passphrase:
             with requests.Session() as self.session:
                 self.session.mount(self.api_host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['cert_file'], pkcs12_password=config_dic['CAhandler']['cert_passphrase']))
         else:
             self.logger.error('CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.')
+
+        self.logger.debug('CAhandler._config_session_load() ended')
+
+    def _config_auth_load(self, config_dic):
+        """ load authentication information """
+        self.logger.debug('CAhandler._config_authuser_load()')
+
+        if 'CAhandler' in config_dic:
+            # load user
+            self._config_authuser_load(config_dic)
+            self._config_enrollmentcode_load(config_dic)
+            self._config_session_load(config_dic)
 
         self.logger.debug('CAhandler._config_auth_load() ended')
 
