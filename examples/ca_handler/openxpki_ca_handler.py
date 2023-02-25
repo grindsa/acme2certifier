@@ -111,17 +111,21 @@ class CAhandler(object):
 
     def _config_passphrase_load(self, config_dic):
         """ load passphrase """
+        self.logger.debug('CAhandler._config_passphrase_load()')
         if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
             if 'cert_passphrase_variable' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from environment variable')
                 try:
                     self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
                 except Exception as err:
                     self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:{0}'.format(err))
 
             if 'cert_passphrase' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
                 if self.cert_passphrase:
                     self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
                 self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+        self.logger.debug('CAhandler._config_passphrase_load() ended')
 
     def _config_session_load(self, config_dic):
         """ load session """
@@ -139,6 +143,7 @@ class CAhandler(object):
                     self.session.mount(self.host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
                 else:
                     self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
+        self.logger.debug('CAhandler._config_session_load() ended')
 
     def _config_load(self):
         """" load config from file """
