@@ -5,12 +5,10 @@
 import sys
 import os
 import unittest
-from unittest.mock import patch, Mock, MagicMock, mock_open
+from unittest.mock import patch, Mock, MagicMock
 import requests
-import requests_mock
-import base64
+import requests_pkcs12
 from OpenSSL import crypto
-import datetime
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -18,6 +16,8 @@ sys.path.insert(1, '..')
 class FakeDBStore(object):
     """ face DBStore class needed for mocking """
     # pylint: disable=W0107, R0903
+    def mount():
+        return True
     pass
 
 class TestACMEHandler(unittest.TestCase):
@@ -162,18 +162,47 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertEqual(('est_client_cert', 'est_client_key'), self.cahandler.session.cert)
 
-    #@patch('cryptography.hazmat.primitives.serialization.pkcs12.load_key_and_certificates')
-    #@patch("builtins.open", mock_open(read_data='_fakeroot-cert-1'), create=True)
-    #def test_010_config_clientauth_load(self, mock_pkcs12):
-    #    """ test _config_load - client certificate configured but no key """
-    #    config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase', 'est_client_cert': 'est_client_cert'}}
-    #    cert = MagicMock()
-    #    cert.not_valid_after = datetime.datetime.today()
-    #    mock_pkcs12.return_value = ('key', cert, 'ca_cert')
-    #    self.cahandler.session = MagicMock()
-    #    self.cahandler._config_clientauth_load(config_dic)
-    #    self.assertTrue(self.cahandler.est_client_cert)
-    #    self.assertEqual(20, self.cahandler.request_timeout)
+    @patch('examples.ca_handler.est_ca_handler.CAhandler._cert_passphrase_load')
+    @patch('examples.ca_handler.est_ca_handler.Pkcs12Adapter')
+    def test_012_config_clientauth_load(self, mock_pkcs12, mock_load):
+        """ test _config_load - client certificate configured but no key """
+        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase', 'est_client_cert': 'est_client_cert'}}
+        self.cahandler.session = Mock()
+        self.cahandler._config_clientauth_load(config_dic)
+        self.assertTrue(self.cahandler.est_client_cert)
+        self.assertTrue(mock_pkcs12.called)
+        self.assertTrue(mock_load.called)
+
+    def test_012_cert_passphrase_load(self):
+        """ _cert_passphrase_load()"""
+        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase'}}
+        self.cahandler._cert_passphrase_load(config_dic)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+
+    @patch.dict('os.environ', {'cert_passphrase_variable': 'cert_passphrase_variable'})
+    def test_013_cert_passphrase_load(self):
+        """ _cert_passphrase_load()"""
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_variable'}}
+        self.cahandler._cert_passphrase_load(config_dic)
+        self.assertEqual('cert_passphrase_variable', self.cahandler.cert_passphrase)
+
+    @patch.dict('os.environ', {'cert_passphrase_variable': 'cert_passphrase_variable'})
+    def test_014_cert_passphrase_load(self):
+        """ _cert_passphrase_load()"""
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_variable', 'cert_passphrase': 'cert_passphrase'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._cert_passphrase_load(config_dic)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase', lcm.output)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+
+    @patch.dict('os.environ', {'foo': 'bar'})
+    def test_015_cert_passphrase_load(self):
+        """ _cert_passphrase_load()"""
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_variable'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._cert_passphrase_load(config_dic)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load cert_passphrase_variable:'cert_passphrase_variable'", lcm.output)
+        self.assertFalse(self.cahandler.cert_passphrase)
 
     def test_012_config_userauth_load(self):
         """ test _config_userauth_load() """

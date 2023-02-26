@@ -52,6 +52,7 @@ class CAhandler(object):
         self.logger = logger
         self.est_host = None
         self.est_client_cert = False
+        self.cert_passphrase = False
         self.est_user = None
         self.est_password = None
         self.ca_bundle = True
@@ -128,6 +129,20 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_host_load() ended')
 
+    def _cert_passphrase_load(self, config_dic):
+        """ load cert passphrase """
+        self.logger.debug('CAhandler._cert_passphrase_load()')
+        if 'cert_passphrase_variable' in config_dic['CAhandler']:
+            try:
+                self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:{0}'.format(err))
+        if 'cert_passphrase' in config_dic['CAhandler']:
+            if self.cert_passphrase:
+                self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
+            self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+        self.logger.debug('CAhandler._cert_passphrase_load() ended')
+
     def _config_clientauth_load(self, config_dic):
         """ check if we need to use clientauth """
         self.logger.debug('CAhandler._config_clientauth_load()')
@@ -138,10 +153,11 @@ class CAhandler(object):
                 self.logger.debug('CAhandler._config_clientauth_load(): load pem')
                 self.est_client_cert = config_dic['CAhandler']['est_client_cert']
                 self.session.cert = (config_dic['CAhandler']['est_client_cert'], config_dic['CAhandler']['est_client_key'])
-            elif 'cert_passphrase' in config_dic['CAhandler']:
+            elif 'cert_passphrase' in config_dic['CAhandler'] or 'cert_passphrase_variable' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_clientauth_load(): load pkcs12')
                 self.est_client_cert = config_dic['CAhandler']['est_client_cert']
-                self.session.mount(self.est_host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['est_client_cert'], pkcs12_password=config_dic['CAhandler']['cert_passphrase']))
+                self._cert_passphrase_load(config_dic)
+                self.session.mount(self.est_host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['est_client_cert'], pkcs12_password=self.cert_passphrase))
             else:
                 self.logger.error('ERROR:test_a2c:CAhandler._config_load() clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file')
 
