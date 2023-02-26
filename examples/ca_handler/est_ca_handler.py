@@ -77,7 +77,7 @@ class CAhandler(object):
                 if self.est_client_cert:
                     self.logger.debug('CAhandler._cacerts_get() by using client-certs')
                     # client auth
-                    response = self.session.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+                    response = self.session.get(self.est_host + '/cacerts', verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 else:
                     self.logger.debug('CAhandler._cacerts_get() by using userid/password')
                     response = self.session.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
