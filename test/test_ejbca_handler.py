@@ -392,7 +392,9 @@ class TestACMEHandler(unittest.TestCase):
     def test_036_config_session_load(self):
         """ test _config_load - load template with user variable """
         config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}}
-        self.cahandler._config_session_load(config_dic)
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_session_load(config_dic)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase', lcm.output)
         self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
 
     @patch.dict('os.environ', {'foo': 'bar'})
@@ -400,9 +402,31 @@ class TestACMEHandler(unittest.TestCase):
         """ test _config_load - load template with user variable """
         config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
         self.cahandler._config_session_load(config_dic)
-        # with self.assertLogs('test_a2c', level='INFO') as lcm:
         self.assertFalse(self.cahandler.cert_passphrase)
-        # self.assertIn("foo", lcm.output)
+
+    @patch('requests.Session')
+    @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
+    def test_038_config_session_load(self, mock_pkcs12, mock_session):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}}
+        mock_session.return_value.__enter__.return_value = Mock()
+        self.cahandler._config_session_load(config_dic)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+        self.assertTrue(mock_pkcs12.called)
+        self.assertTrue(mock_session.called)
+
+    @patch('requests.Session')
+    @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
+    def test_039_config_session_load(self, mock_pkcs12, mock_session):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase'}}
+        mock_session.return_value.__enter__.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_session_load(config_dic)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.', lcm.output)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+        self.assertFalse(mock_pkcs12.called)
+        self.assertFalse(mock_session.called)
 
     def test_026__api_post(self):
         """ test _api_post successful run """
