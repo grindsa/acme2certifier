@@ -964,9 +964,25 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.challenge_add('value', 'mtype', data_dic)
         self.assertFalse(self.dbstore.challenges_search('challenge.name', 'challenge'))
 
+    def test_104_db_update_orders(self):
+        """ test dbupdate - not alter certificates table """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'identifiers', 'varchar']])
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.dbstore._db_update_orders()
+        self.assertIn('INFO:test_a2c:alter order table - change identifier field type to TEXT', lcm.output)
+
+    def test_105_db_update_authorization(self):
+        """ test dbupdate - not alter certificates table """
+        self.dbstore.cursor = Mock()
+        self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'value', 'varchar']])
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.dbstore._db_update_authorization()
+        self.assertIn('INFO:test_a2c:alter authorization table - change value field type to TEXT', lcm.output)
+
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_104_db_update(self, mock_open, mock_close):
+    def test_106_db_update(self, mock_open, mock_close):
         """ test dbupdate - not alter certificates table """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'poll_identifier'], [2, 'issue_uts'], [2, 'expire_uts']])
@@ -981,7 +997,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_105_db_update(self, mock_open, mock_close):
+    def test_107_db_update(self, mock_open, mock_close):
         """ test dbupdate - not alter challenge table """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'validated']])
@@ -997,7 +1013,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_106_db_update(self, mock_open, mock_close):
+    def test_108_db_update(self, mock_open, mock_close):
         """ test dbupdate - not alter account table """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'eab_kid']])
@@ -1013,7 +1029,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_107_db_update(self, mock_open, mock_close):
+    def test_109_db_update(self, mock_open, mock_close):
         """ test dbupdate - status update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
@@ -1032,7 +1048,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_108_db_update(self, mock_open, mock_close):
+    def test_110_db_update(self, mock_open, mock_close):
         """ test dbupdate - housekeeping update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
@@ -1053,7 +1069,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_109_db_update(self, mock_open, mock_close):
+    def test_111_db_update(self, mock_open, mock_close):
         """ test dbupdate -  update """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchall = Mock(return_value=[[2, 'foo']])
@@ -1072,7 +1088,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:create cahandler table', lcm.output)
         self.assertIn('INFO:test_a2c:create cliaccount table', lcm.output)
 
-    def test_110_order_update(self):
+    def test_112_order_update(self):
         """ test DBstore.order_add() method for a new entry """
         data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
         self.dbstore.account_add(data_dic)
@@ -1083,7 +1099,7 @@ class TestACMEHandler(unittest.TestCase):
         result = {'expires': 25, 'notbefore': 0, 'notafter': 0, 'identifiers': 'identifiers', 'status': 'valid'}
         self.assertEqual(result, self.dbstore.order_lookup('name', 'name'))
 
-    def test_111_order_update(self):
+    def test_113_order_update(self):
         """ test DBstore.order_add() method for a new entry """
         data_dic = {'alg' : 'alg1', 'jwk' : '{"key11": "val11", "key12": "val12"}', 'contact' : 'contact1', 'name' : 'name1'}
         self.dbstore.account_add(data_dic)
@@ -1097,7 +1113,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_create')
     @patch('examples.db_handler.wsgi_handler.load_config')
-    def test_112__init__(self, mock_cfg, mock_create):
+    def test_114__init__(self, mock_cfg, mock_create):
         """ test init no dbfile specifiction """
         self.dbstore.db_name = None
         mock_create.return_value = True
@@ -1107,7 +1123,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_create')
     @patch('examples.db_handler.wsgi_handler.load_config')
-    def test_113__init__(self, mock_cfg, mock_create):
+    def test_115__init__(self, mock_cfg, mock_create):
         """ test init no dbfile specifiction """
         self.dbstore.db_name = None
         mock_create.return_value = True
@@ -1118,7 +1134,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_create')
     @patch('examples.db_handler.wsgi_handler.load_config')
-    def test_114__init__(self, mock_cfg, mock_create):
+    def test_116__init__(self, mock_cfg, mock_create):
         """ test init DBhandler but no dbfile specifiction """
         self.dbstore.db_name = None
         mock_create.return_value = True
@@ -1129,7 +1145,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_create')
     @patch('examples.db_handler.wsgi_handler.load_config')
-    def test_115__init__(self, mock_cfg, mock_create):
+    def test_117__init__(self, mock_cfg, mock_create):
         """ test init DBhandler but no dbfile specifiction """
         self.dbstore.db_name = None
         mock_create.return_value = True
@@ -1138,28 +1154,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cfg.called)
         self.assertIn('foo.db', self.dbstore.db_name)
 
-    def test_116_cahandler_add(self):
+    def test_118_cahandler_add(self):
         """ test DBstore.cahandler_add() method for a new entry  """
         data_dic = {'name' : 'name1', 'value1' : 'value1'}
         self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
         data_dic = {'name' : 'name2', 'value1' : 'value1', 'value2' : 'value2'}
         self.assertEqual(2, self.dbstore.cahandler_add(data_dic))
 
-    def test_117_cahandler_add(self):
+    def test_119_cahandler_add(self):
         """ test DBstore.cahandler_add() method for an existing entry  """
         data_dic = {'name' : 'name1', 'value1' : 'value1'}
         self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
         data_dic = {'name' : 'name1', 'value1' : 'value1', 'value2' : 'value2'}
         self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
 
-    def test_118_cahandler_lookup(self):
+    def test_120_cahandler_lookup(self):
         """ test DBstore.cahandler_lookup() method  """
         data_dic = {'name' : 'name1', 'value1' : 'value1'}
         self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
         result = {'name': 'name1', 'value1': 'value1', 'value2': ''}
         self.assertEqual(result, self.dbstore.cahandler_lookup('name', 'name1', ('name', 'value1', 'value2')))
 
-    def test_119_cahandler_search(self):
+    def test_121_cahandler_search(self):
         """ test DBstore.cahandler_lookup() method  """
         data_dic = {'name' : 'name1', 'value1' : 'value1'}
         self.assertEqual(1, self.dbstore.cahandler_add(data_dic))
@@ -1168,7 +1184,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_120_cahandler_search(self, mock_open, mock_close):
+    def test_122_cahandler_search(self, mock_open, mock_close):
         """ test DBstore.cahandler_lookup() triggers exception  """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchone =Exception('foo')
@@ -1179,27 +1195,27 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.dbstore._cahandler_search('name', 'name1'))
         self.assertIn("ERROR:test_a2c:DBStore._cahandler_search(column:name, pattern:name1) failed with err: 'Exception' object is not callable", lcm.output)
 
-    def test_121_hkparameter_add(self):
+    def test_123_hkparameter_add(self):
         """ test DBstore.hkparameter_add() method for a new entry  """
         data_dic = {'name': 'name1', 'value' : 'value1'}
         self.assertEqual(('name1', True), self.dbstore.hkparameter_add(data_dic))
         data_dic = {'name': 'name2', 'value' : 'value2'}
         self.assertEqual(('name2', True), self.dbstore.hkparameter_add(data_dic))
 
-    def test_122_hkparameter_add(self):
+    def test_124_hkparameter_add(self):
         """ test DBstore.hkparameter_add() method for an existing entry  """
         data_dic = {'name': 'name1', 'value' : 'value1'}
         self.assertEqual(('name1', True), self.dbstore.hkparameter_add(data_dic))
         data_dic = {'name': 'name1', 'value' : 'value2'}
         self.assertEqual(('name1', False), self.dbstore.hkparameter_add(data_dic))
 
-    def test_123_hkparameter_get(self):
+    def test_125_hkparameter_get(self):
         """ test DBstore.hkparameter_add() method for a new entry  """
         data_dic = {'name' : 'name1', 'value' : 'value1'}
         self.assertEqual(('name1', True), self.dbstore.hkparameter_add(data_dic))
         self.assertEqual('value1', self.dbstore.hkparameter_get('name1'))
 
-    def test_124_cliaccount_add(self):
+    def test_126_cliaccount_add(self):
         """ test DBstore.cliaccount_add() method for an new entry"""
         data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
@@ -1211,7 +1227,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(set(result1.items()).issubset( set(cli_account_list[0].items())))
         self.assertTrue(set(result2.items()).issubset( set(cli_account_list[1].items())))
 
-    def test_125_cliaccount_add(self):
+    def test_127_cliaccount_add(self):
         """ test DBstore.cliaccount_add() update jwk """
         data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
@@ -1221,7 +1237,7 @@ class TestACMEHandler(unittest.TestCase):
         cli_account_list = self.dbstore.cliaccountlist_get()
         self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
 
-    def test_126_cliaccount_add(self):
+    def test_128_cliaccount_add(self):
         """ test DBstore.cliaccount_add() update contact """
         data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
@@ -1231,14 +1247,14 @@ class TestACMEHandler(unittest.TestCase):
         cli_account_list = self.dbstore.cliaccountlist_get()
         self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
 
-    def test_127_cliaccount_delete(self):
+    def test_129_cliaccount_delete(self):
         """ test DBstore.cliaccount_delete() sucessful """
         data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
         self.dbstore.cliaccount_delete({'name': 'name1'})
         self.assertFalse(self.dbstore.cliaccountlist_get())
 
-    def test_128_cliaccount_delete(self):
+    def test_130_cliaccount_delete(self):
         """ test DBstore.cliaccount_delete() sucessful """
         data_dic = {'name' : 'name1', 'jwk' : 'jwk1', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
@@ -1249,31 +1265,31 @@ class TestACMEHandler(unittest.TestCase):
         result = {'id': 1, 'name': 'name1', 'jwk': 'jwk1', 'contact': 'contact1', 'cliadmin': 1, 'reportadmin': 1, 'certificateadmin': 1}
         self.assertTrue(set(result.items()).issubset( set(cli_account_list[0].items())))
 
-    def test_129_cli_jwk_load(self):
+    def test_131_cli_jwk_load(self):
         """ test cli_jwk_load for an existing entry """
         data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
         self.assertEqual({"foo": "bar"}, self.dbstore.cli_jwk_load('name1'))
 
-    def test_130_cli_jwk_load(self):
+    def test_132_cli_jwk_load(self):
         """ test cli_jwk_load for a not existing entry """
         data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
         self.assertFalse(self.dbstore.cli_jwk_load('name2'))
 
-    def test_131_cli_permissions_get(self):
+    def test_133_cli_permissions_get(self):
         """ test cli_jwk_load for an existing entry """
         data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
         self.assertEqual({'cliadmin': 1, 'reportadmin': 1, 'certificateadmin': 1}, self.dbstore.cli_permissions_get('name1'))
 
-    def test_132_cli_permissions_get(self):
+    def test_134_cli_permissions_get(self):
         """ test cli_jwk_load for a not existing entry """
         data_dic = {'name' : 'name1', 'jwk' : '{"foo": "bar"}', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
         self.assertFalse(self.dbstore.cli_permissions_get('name2'))
 
-    def test_133__cliaccount_search(self):
+    def test_135__cliaccount_search(self):
         """ test cliaccount_search exception """
         data_dic = {'name' : 'name1', 'jwk' : 'jwk', 'contact' : 'contact1', 'cliadmin': True, 'certificateadmin': True, 'reportadmin': True}
         self.assertEqual(1, self.dbstore.cliaccount_add(data_dic))
@@ -1283,7 +1299,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_134__cliaccount_search(self, mock_open, mock_close):
+    def test_136__cliaccount_search(self, mock_open, mock_close):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchone =Exception('foo')
         mock_open.return_value = Mock()
