@@ -59,8 +59,10 @@ polling_timeout: <seconds>
 ```
 
 - host - URL of the OpenXPKI-server
-- cert_file - certicate in PEM format used authenticate towards OpenXPKI
-- key_file - key file in PEM format used to authenticate towards OpenXPKI
+- cert_file - certicate in PEM format used authenticate towards OpenXPKI - can be in either pem or pkcs12 format
+- _either_: key_file - key file in PEM format used to authenticate towards OpenXPKI
+- _or_: cert_passphrase - phassphrase to access the pkcs#12 container
+- _or_: cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the OpenXPKI-server certificate - can be True/False or a filename (default: True)
 - cert_profile_name - name of the certificate profile
 - polling_timeout - timeout in seconds for enrollment operations (default 0 - polling disabled)

@@ -28,7 +28,7 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
-        from tools.a2c_cli import CommandLineInterface, KeyOperations, MessageOperations, is_url, csv_dump, generate_random_string, file_dump, file_load
+        from tools.a2c_cli import CommandLineInterface, KeyOperations, MessageOperations, is_url, csv_dump, generate_random_string, file_dump, file_load, logger_setup
         self.a2ccli = CommandLineInterface()
         self.keyops = KeyOperations(logger=self.logger)
         self.msgops = MessageOperations(logger=self.logger)
@@ -37,6 +37,7 @@ class TestACMEHandler(unittest.TestCase):
         self.file_dump = file_dump
         self.generate_random_string = generate_random_string
         self.file_load = file_load
+        self.logger_setup = logger_setup
 
     def test_001_always_pass(self):
         """ test successful tos check """
@@ -384,6 +385,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_jwk.called)
         self.assertTrue(mock_fd.called)
 
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_038_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations server missing"""
+        command = 'key foo foo'
+        self.a2ccli._key_operations(command)
+        self.assertFalse(mock_gen.called)
+        self.assertFalse(mock_load.called)
+        self.assertTrue(mock_print.called)
+        self.assertEqual('server missing', self.a2ccli.status)
+
+    @patch('tools.a2c_cli.CommandLineInterface._cli_print')
+    @patch('tools.a2c_cli.KeyOperations.generate')
+    @patch('tools.a2c_cli.KeyOperations.load')
+    def test_039_key_operations(self, mock_load, mock_gen, mock_print):
+        """ test key operations server configured """
+        command = 'key bar foo'
+        self.a2ccli.server = 'server'
+        self.a2ccli._key_operations(command)
+        self.assertFalse(mock_gen.called)
+        self.assertFalse(mock_load.called)
+        self.assertTrue(mock_print.called)
+        self.assertEqual('Configured', self.a2ccli.status)
+
+
     @patch('json.dumps')
     @patch('jwcrypto.jwk.JWK.generate')
     @patch('tools.a2c_cli.file_dump')
@@ -717,6 +744,14 @@ class TestACMEHandler(unittest.TestCase):
             self.a2ccli.start()
         self.assertEqual(cm.exception.code, 0)
         self.assertRaises(SystemExit)
+
+    def test_162_logger_setup(self):
+        """ logger setup """
+        self.assertTrue(self.logger_setup(False))
+
+    def test_163_logger_setup(self):
+        """ logger setup """
+        self.assertTrue(self.logger_setup(True))
 
 
 if __name__ == '__main__':

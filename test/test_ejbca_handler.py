@@ -308,6 +308,126 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "ca_name" is missing in configuration file.', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "username" is missing in configuration file.', lcm.output)
 
+    @patch.dict('os.environ', {'username_var': 'user_var'})
+    def test_026_config_authuser_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'username_variable': 'username_var'}}
+        self.cahandler._config_authuser_load(config_dic)
+        self.assertEqual('user_var', self.cahandler.username)
+
+    @patch.dict('os.environ', {'username_var': 'user_var'})
+    def test_027_config_authuser_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'username_variable': 'does_not_exist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_authuser_load(config_dic)
+        self.assertFalse(self.cahandler.username)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load username_variable:'does_not_exist'", lcm.output)
+
+    @patch.dict('os.environ', {'username_var': 'user_var'})
+    def test_028_config_authuser_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'username_variable': 'username_var', 'username': 'username'}}
+        self.cahandler._config_authuser_load(config_dic)
+        self.assertEqual('username', self.cahandler.username)
+
+    @patch.dict('os.environ', {'foo': 'bar'})
+    def test_029_config_authuser_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
+        self.cahandler._config_authuser_load(config_dic)
+        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.assertFalse(self.cahandler.username)
+        # self.assertIn("foo", lcm.output)
+
+    @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
+    def test_030_config_enrollmentcode_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'enrollment_code_variable': 'enrollment_code_var'}}
+        self.cahandler._config_enrollmentcode_load(config_dic)
+        self.assertEqual('user_var', self.cahandler.enrollment_code)
+
+    @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
+    def test_031_config_enrollmentcode_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'enrollment_code_variable': 'does_not_exist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_enrollmentcode_load(config_dic)
+        self.assertFalse(self.cahandler.enrollment_code)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load enrollment_code_variable:'does_not_exist'", lcm.output)
+
+    @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
+    def test_032_config_enrollmentcode_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'enrollment_code_variable': 'enrollment_code_var', 'enrollment_code': 'enrollment_code'}}
+        self.cahandler._config_enrollmentcode_load(config_dic)
+        self.assertEqual('enrollment_code', self.cahandler.enrollment_code)
+
+    @patch.dict('os.environ', {'foo': 'bar'})
+    def test_033_config_enrollmentcode_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
+        self.cahandler._config_enrollmentcode_load(config_dic)
+        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.assertFalse(self.cahandler.enrollment_code)
+        # self.assertIn("foo", lcm.output)
+
+    @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
+    def test_034_config_session_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var'}}
+        self.cahandler._config_session_load(config_dic)
+        self.assertEqual('user_var', self.cahandler.cert_passphrase)
+
+    @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
+    def test_035_config_session_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'does_not_exist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_session_load(config_dic)
+        self.assertFalse(self.cahandler.cert_passphrase)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load cert_passphrase_variable:'does_not_exist'", lcm.output)
+
+    @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
+    def test_036_config_session_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_session_load(config_dic)
+        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase', lcm.output)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+
+    @patch.dict('os.environ', {'foo': 'bar'})
+    def test_037_config_session_load(self):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
+        self.cahandler._config_session_load(config_dic)
+        self.assertFalse(self.cahandler.cert_passphrase)
+
+    @patch('requests.Session')
+    @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
+    def test_038_config_session_load(self, mock_pkcs12, mock_session):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}}
+        mock_session.return_value.__enter__.return_value = Mock()
+        self.cahandler._config_session_load(config_dic)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+        self.assertTrue(mock_pkcs12.called)
+        self.assertTrue(mock_session.called)
+
+    @patch('requests.Session')
+    @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
+    def test_039_config_session_load(self, mock_pkcs12, mock_session):
+        """ test _config_load - load template with user variable """
+        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase'}}
+        mock_session.return_value.__enter__.return_value = Mock()
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_session_load(config_dic)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.', lcm.output)
+        self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
+        self.assertFalse(mock_pkcs12.called)
+        self.assertFalse(mock_session.called)
+
     def test_026__api_post(self):
         """ test _api_post successful run """
         mockresponse2 = Mock()
