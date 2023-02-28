@@ -6,7 +6,7 @@ from __future__ import print_function
 import json
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
-from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, load_config
+from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, load_config, string_sanitize
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
@@ -104,8 +104,9 @@ class Authorization(object):
         """ return authzs information """
         self.logger.debug('Authorization._authz_info()')
 
-        authz_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), '')
+        authz_name = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), ''))
         self.logger.debug('Authorization._authz_info({0})'.format(authz_name))
+
         expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
         authz_info_dic = {}
