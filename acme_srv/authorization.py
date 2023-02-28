@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Order class """
-# pylint: disable=C0209
+# pylint: disable=C0209, R0913
 from __future__ import print_function
 import json
 from acme_srv.db_handler import DBstore

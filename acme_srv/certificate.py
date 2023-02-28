@@ -4,7 +4,7 @@
 """ certificate class """
 from __future__ import print_function
 import json
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -782,7 +782,7 @@ class Certificate(object):
 
     def new_get(self, url):
         """ get request """
-        certificate_name = url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), '')
+        certificate_name = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), ''))
         self.logger.debug('Certificate.new_get({0})'.format(certificate_name))
         # fetch certificate dictionary from DB
         certificate_dic = self._info(certificate_name, ['name', 'csr', 'cert', 'order__name', 'order__status_id'])
