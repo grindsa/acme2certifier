@@ -1,7 +1,6 @@
-#!/usr/bin/python
+# pylint: disable=c0209, c0302, e0401, r0913
 # -*- coding: utf-8 -*-
 """ helper functions for acme2certifier """
-# pylint: disable=c0209, e0401, r0913
 from __future__ import print_function
 import re
 import base64
@@ -20,9 +19,9 @@ import socket
 import ssl
 import logging
 import hashlib
-import socks
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
+import socks
 from jwcrypto import jwk, jws
 from dateutil.parser import parse
 import pytz
@@ -700,10 +699,10 @@ def string_sanitize(logger, unsafe_str):
     allowed_range = set(range(32, 127))
     safe_str = ''
     for char in unsafe_str:
-        cp = ord(char)
-        if cp in allowed_range:
+        cp_ = ord(char)
+        if cp_ in allowed_range:
             safe_str += char
-        elif cp == 9:
+        elif cp_ == 9:
             safe_str += ' ' * 4
     return re.sub(r'\s+', ' ', safe_str)
 
@@ -838,7 +837,7 @@ def url_get_with_own_dns(logger, url, verify=True):
     connection._orig_create_connection = connection.create_connection
     connection.create_connection = patched_create_connection
     try:
-        req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT})
+        req = requests.get(url, verify=verify, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, timeout=20)
         result = req.text
     except Exception as err_:
         result = None

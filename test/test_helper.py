@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -91,6 +91,7 @@ class TestACMEHandler(unittest.TestCase):
         self.validate_csr = validate_csr
         self.sha256_hash = sha256_hash
         self.sha256_hash_hex = sha256_hash_hex
+        self.string_sanitize = string_sanitize
         self.proxystring_convert = proxystring_convert
         self.handle_exception = handle_exception
 
@@ -1736,6 +1737,36 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual('foo.example.com', self.cert_cn_get(self.logger, cert))
+
+    def test_237_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'foo'
+        self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_238_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'foo\n;'
+        self.assertEqual('foo;', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_239_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'fooö'
+        self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_240_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'fooö'
+        self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_241_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'foo    '
+        self.assertEqual('foo ', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_242_logger_challenges_modify(self):
+        """ test string_sanitize() """
+        unsafe_string = 'foo\u0009'
+        self.assertEqual('foo ', self.string_sanitize(self.logger, unsafe_string))
 
 if __name__ == '__main__':
     unittest.main()
