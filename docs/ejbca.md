@@ -35,9 +35,12 @@ request_timeout: <seconds>
 - api_host - URL of the EJBCA-Rest service
 - cert_file - certicate and key in pkcs#12 format to authenticate towards EJBCA-Rest service
 - cert_passphrase - phassphrase to access the pkcs#12 container
+- cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the ejbca-server certificate - can be True/False or a filename (default: True)
-- user - PKI username
+- username - PKI username
+- username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
 - enrollment_code - enrollment code
+- enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates

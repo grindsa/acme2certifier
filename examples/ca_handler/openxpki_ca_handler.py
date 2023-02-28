@@ -2,7 +2,9 @@
 """ ejbca rest ca handler """
 import math
 import time
+import os
 import requests
+from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get
 
@@ -16,8 +18,10 @@ class CAhandler(object):
         self.ca_bundle = True
         self.proxy = None
         self.request_timeout = 5
+        self.session = None
         self.cert_profile_name = None
         self.client_cert = None
+        self.cert_passphrase = None
         self.endpoint_name = None
         self.polling_timeout = 0
         self.rpc_path = '/rpc/'
@@ -105,18 +109,41 @@ class CAhandler(object):
                     self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
                     self.polling_timeout = 0
 
-    def _config_clientauth_load(self, config_dic):
-        """ check if we need to use clientauth """
-        self.logger.debug('CAhandler._config_clientauth_load()')
+    def _config_passphrase_load(self, config_dic):
+        """ load passphrase """
+        self.logger.debug('CAhandler._config_passphrase_load()')
+        if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
+            if 'cert_passphrase_variable' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from environment variable')
+                try:
+                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:{0}'.format(err))
 
-        if 'client_cert' in config_dic['CAhandler'] and 'client_key' in config_dic['CAhandler']:
-            self.client_cert = []
-            self.client_cert.append(config_dic['CAhandler']['client_cert'])
-            self.client_cert.append(config_dic['CAhandler']['client_key'])
-        else:
-            self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert or "client_key" parameter is missing in config file')
+            if 'cert_passphrase' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
+                if self.cert_passphrase:
+                    self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
+                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+        self.logger.debug('CAhandler._config_passphrase_load() ended')
 
-        self.logger.debug('CAhandler._config_clientauth_load() ended')
+    def _config_session_load(self, config_dic):
+        """ load session """
+        self.logger.debug('CAhandler._config_session_load()')
+
+        with requests.Session() as self.session:
+            # client auth via pem files
+            if 'client_cert' in config_dic['CAhandler'] and 'client_key' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_session_load() cert and key in pem format')
+                self.session.cert = (config_dic['CAhandler']['client_cert'], config_dic['CAhandler']['client_key'])
+
+            else:
+                self._config_passphrase_load(config_dic)
+                if 'client_cert' in config_dic['CAhandler'] and self.cert_passphrase:
+                    self.session.mount(self.host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
+                else:
+                    self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
+        self.logger.debug('CAhandler._config_session_load() ended')
 
     def _config_load(self):
         """" load config from file """
@@ -126,12 +153,12 @@ class CAhandler(object):
 
         # load configuration
         self._config_server_load(config_dic)
-        self._config_clientauth_load(config_dic)
         self._config_ca_load(config_dic)
+        self._config_session_load(config_dic)
 
         # check configuration for completeness
         variable_dic = self.__dict__
-        for ele in ['host', 'cert_profile_name', 'client_cert', 'endpoint_name']:
+        for ele in ['host', 'cert_profile_name', 'endpoint_name']:
             if not variable_dic[ele]:
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
         self.logger.debug('CAhandler._config_load() ended')
@@ -181,7 +208,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._rpc_post()')
         try:
             # enroll via rpc
-            response = requests.post(self.host + path, data=data_dic, cert=self.client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            response = self.session.post(self.host + path, data=data_dic, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
 
         except Exception as err_:
             self.logger.error('CAhandler._rpc_post() returned an error: {0}'.format(err_))
@@ -238,7 +265,7 @@ class CAhandler(object):
                 'pkcs10': csr,
                 'profile': self.cert_profile_name
             }
-            if self.client_cert:
+            if self.session:
                 # enroll via RPC
                 (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(data_dic)
             else:

@@ -6,6 +6,7 @@ import textwrap
 import json
 import requests
 from requests.auth import HTTPBasicAuth
+from requests_pkcs12 import Pkcs12Adapter
 from OpenSSL import crypto
 from OpenSSL.crypto import _lib, _ffi, X509
 # pylint: disable=C0209, E0401
@@ -51,11 +52,13 @@ class CAhandler(object):
         self.logger = logger
         self.est_host = None
         self.est_client_cert = False
+        self.cert_passphrase = False
         self.est_user = None
         self.est_password = None
         self.ca_bundle = True
         self.proxy = None
         self.request_timeout = 20
+        self.session = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -75,10 +78,10 @@ class CAhandler(object):
                 if self.est_client_cert:
                     self.logger.debug('CAhandler._cacerts_get() by using client-certs')
                     # client auth
-                    response = requests.get(self.est_host + '/cacerts', cert=self.est_client_cert, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+                    response = self.session.get(self.est_host + '/cacerts', verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 else:
                     self.logger.debug('CAhandler._cacerts_get() by using userid/password')
-                    response = requests.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+                    response = self.session.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except Exception as err_:
                 self.logger.error('CAhandler._cacerts_get() returned an error: {0}'.format(err_))
@@ -126,16 +129,37 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_host_load() ended')
 
+    def _cert_passphrase_load(self, config_dic):
+        """ load cert passphrase """
+        self.logger.debug('CAhandler._cert_passphrase_load()')
+        if 'cert_passphrase_variable' in config_dic['CAhandler']:
+            try:
+                self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:{0}'.format(err))
+        if 'cert_passphrase' in config_dic['CAhandler']:
+            if self.cert_passphrase:
+                self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
+            self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+        self.logger.debug('CAhandler._cert_passphrase_load() ended')
+
     def _config_clientauth_load(self, config_dic):
         """ check if we need to use clientauth """
         self.logger.debug('CAhandler._config_clientauth_load()')
 
-        if 'est_client_cert' in config_dic['CAhandler'] and 'est_client_key' in config_dic['CAhandler']:
-            self.est_client_cert = []
-            self.est_client_cert.append(config_dic['CAhandler']['est_client_cert'])
-            self.est_client_cert.append(config_dic['CAhandler']['est_client_key'])
-        elif 'est_client_cert' in config_dic['CAhandler'] or 'est_client_key' in config_dic['CAhandler']:
-            self.logger.error('CAhandler._config_load() configuration incomplete: either "est_client_cert or "est_client_key" parameter is missing in config file')
+        # client auth via pem files
+        if 'est_client_cert' in config_dic['CAhandler']:
+            if 'est_client_key' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_clientauth_load(): load pem')
+                self.est_client_cert = config_dic['CAhandler']['est_client_cert']
+                self.session.cert = (config_dic['CAhandler']['est_client_cert'], config_dic['CAhandler']['est_client_key'])
+            elif 'cert_passphrase' in config_dic['CAhandler'] or 'cert_passphrase_variable' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_clientauth_load(): load pkcs12')
+                self.est_client_cert = config_dic['CAhandler']['est_client_cert']
+                self._cert_passphrase_load(config_dic)
+                self.session.mount(self.est_host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['est_client_cert'], pkcs12_password=self.cert_passphrase))
+            else:
+                self.logger.error('ERROR:test_a2c:CAhandler._config_load() clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file')
 
         self.logger.debug('CAhandler._config_clientauth_load() ended')
 
@@ -168,6 +192,7 @@ class CAhandler(object):
             if self.est_password:
                 self.logger.info('CAhandler._config_load() overwrite est_password')
             self.est_password = config_dic['CAhandler']['est_password']
+
         if (self.est_user and not self.est_password) or (self.est_password and not self.est_user):
             self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
 
@@ -188,6 +213,7 @@ class CAhandler(object):
             try:
                 self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
             except Exception:
+                self.logger.error('CAhandler._config_load() could not load request_timeout:{0}'.format(config_dic['CAhandler']['request_timeout']))
                 self.request_timeout = 20
 
         self.logger.debug('CAhandler._config_load() ended')
@@ -217,21 +243,22 @@ class CAhandler(object):
 
         if 'CAhandler' in config_dic:
 
-            # load host information
-            self._config_host_load(config_dic)
-            # load clientauth
-            self._config_clientauth_load(config_dic)
-            # load user
-            self._config_userauth_load(config_dic)
-            # load password
-            self._config_password_load(config_dic)
-            # load paramters
-            self._config_parameters_load(config_dic)
-            # check if we have one authentication scheme
-            if not self.est_client_cert and not self.est_user:
-                self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured')
-            elif self.est_client_cert and self.est_user:
-                self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together')
+            with requests.Session() as self.session:
+                # load host information
+                self._config_host_load(config_dic)
+                # load clientauth
+                self._config_clientauth_load(config_dic)
+                # load user
+                self._config_userauth_load(config_dic)
+                # load password
+                self._config_password_load(config_dic)
+                # load paramters
+                self._config_parameters_load(config_dic)
+                # check if we have one authentication scheme
+                if not self.est_client_cert and not self.est_user:
+                    self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured.')
+                elif self.est_client_cert and self.est_user:
+                    self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together.')
 
         # load proxy information
         self._config_proxy_load(config_dic)
@@ -274,9 +301,9 @@ class CAhandler(object):
             headers = {'Content-Type': 'application/pkcs10'}
             if self.est_client_cert:
                 # client auth
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, cert=self.est_client_cert, headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+                response = self.session.post(self.est_host + '/simpleenroll', data=csr, headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
             else:
-                response = requests.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+                response = self.session.post(self.est_host + '/simpleenroll', data=csr, auth=HTTPBasicAuth(self.est_user, self.est_password), headers=headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
             # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except Exception as err_:
@@ -301,11 +328,7 @@ class CAhandler(object):
             (error, ca_pem) = self._cacerts_get()
             if not error:
                 if ca_pem:
-                    if self.est_user or self.est_client_cert:
-                        (error, cert_raw) = self._simpleenroll(csr)
-                    else:
-                        error = 'Authentication information missing'
-                        self.logger.error('CAhandler.enroll(): Authentication information missing.')
+                    (error, cert_raw) = self._simpleenroll(csr)
                     # build certificate bundle
                     (error, cert_bundle, cert_raw) = self._cert_bundle_create(error, ca_pem, cert_raw)
                 else:

@@ -5,6 +5,17 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.26
+
+**Features and Improvements**:
+
+- support ClientAuthentication in `openxpki_ca_handler.py` and `est_ca_handler.py` by using pkcs12 files
+- provide pkcs12 passphrases for `ejbca_ca_handler.py`, `openxpki_ca_handler.py` and `est_ca_handler.py` as environment variables
+
+**Bugfixes**:
+
+- #104 - conffile support in debian package to avoid overriding configuration files
+
 # Changes in 0.25.1
 
 **Bugfixes**:

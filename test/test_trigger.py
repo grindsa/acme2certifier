@@ -349,5 +349,28 @@ class TestACMEHandler(unittest.TestCase):
             self.trigger._config_load()
         self.assertTrue(self.trigger.tnauthlist_support)
 
+    @patch('acme_srv.trigger.ca_handler_load')
+    @patch('acme_srv.trigger.load_config')
+    def test_030_config_load(self, mock_load_cfg, mock_cahandler_load):
+        """ test _config_load() """
+        parser = configparser.ConfigParser()
+        parser['Foo'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        mock_cahandler_load.return_value = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.trigger._config_load()
+        self.assertIn("CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler failed with err: 'str' object has no attribute 'CAhandler'", lcm.output)
+
+    @patch('acme_srv.trigger.ca_handler_load')
+    @patch('acme_srv.trigger.load_config')
+    def test_030_config_load(self, mock_load_cfg, mock_cahandler_load):
+        """ test _config_load() """
+        parser = configparser.ConfigParser()
+        parser['Foo'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
+        self.trigger._config_load()
+        self.assertTrue(self.trigger.cahandler)
+
+
 if __name__ == '__main__':
     unittest.main()

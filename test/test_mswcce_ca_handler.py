@@ -526,23 +526,41 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\nfile_load', 'b2s_replacement', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_rcr.called)
 
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
+    @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
+    @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
+    def test_037_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
+        """ test enrollment - certificate and bundling successful replacement test """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mock_rcr.return_value = Mock(return_value='raw_data')
+        mock_file.return_value = None
+        mock_s2b.return_value = 's2b'
+        mock_b2s.return_value = '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n'
+        self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n', 'b2s_replacement', None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_rcr.called)
+
     @patch('examples.ca_handler.mswcce_ca_handler.Request')
     @patch('examples.ca_handler.mswcce_ca_handler.Target')
-    def test_037_request_create(self, mock_target, mock_request):
+    def test_038_request_create(self, mock_target, mock_request):
         """ test request create """
         mock_target.return_value = True
         mock_request.return_value ='foo'
         self.assertEqual('foo', self.cahandler.request_create())
 
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
-    def test_038__enter(self, mock_cfgload):
+    def test_039__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.host = 'host'
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
-    def test_039__enter(self, mock_cfgload):
+    def test_040__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.host = None
         self.cahandler.__enter__()
