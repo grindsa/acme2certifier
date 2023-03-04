@@ -48,7 +48,7 @@ class Directory(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.url_prefix = config_dic['Directory']['url_prefix']
 
-        self.logger.debug('CAhandler._config_load() ended')
+        self.logger.debug('Directory._config_load() ended')
 
     def directory_get(self):
         """ return response to ACME directory call """
