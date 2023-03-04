@@ -23,7 +23,7 @@ class Hooks:
     def _config_load(self):
         """" load config from file """
         # pylint: disable=R0912, R0915
-        self.logger.debug('CAhandler._config_load()')
+        self.logger.debug('_config_load()')
         config_dic = load_config(self.logger, 'Hooks')
         if 'Hooks' in config_dic and 'save_path' in config_dic['Hooks']:
             self.save_path = config_dic['Hooks']['save_path']
