@@ -6,7 +6,8 @@ import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get, cert_serial_get, b64_url_recode
+from acme_srv.db_handler import DBstore
 
 
 class CAhandler(object):
@@ -52,19 +53,15 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _cert_identifier_get(self, cert_cn):
+    def _cert_identifier_get(self, cert_raw):
         """ get cert_identifier """
-        self.logger.debug('CAhandler._cert_identifier_get({0})'.format(cert_cn))
+        self.logger.debug('CAhandler._cert_identifier_get()')
 
         cert_identifier = None
-        if cert_cn:
-            data_dic = {'method': 'SearchCertificate', 'common_name': cert_cn}
-            search_response = self._rpc_post(self.rpc_path + self.endpoint_name, data_dic)
-
-            if 'result' in search_response and 'state' in search_response['result'] and search_response['result']['state'].upper() == 'SUCCESS':
-                if 'data' in search_response['result'] and 'cert_identifier' in search_response['result']['data']:
-                    cert_identifier = search_response['result']['data']['cert_identifier']
-
+        dbstore = DBstore(False, self.logger)
+        result = dbstore.certificate_lookup('cert_raw', cert_raw, vlist=('name', 'poll_identifier'))
+        if 'poll_identifier' in result and result['poll_identifier']:
+            cert_identifier = result['poll_identifier']
         self.logger.debug('CAhandler._cert_identifier_get() ended with: {0}'.format(cert_identifier))
         return cert_identifier
 
@@ -200,7 +197,7 @@ class CAhandler(object):
                 # sleep
                 time.sleep(10)
 
-        self.logger.debug('CAhandler._enroll() ended')
+        self.logger.debug('CAhandler._enroll() ended: Poll_identifier: {0}'.format(poll_indentifier))
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def _rpc_post(self, path, data_dic):
@@ -299,7 +296,9 @@ class CAhandler(object):
 
         # get certifcate identifier based on common name search
         cert_cn = cert_cn_get(self.logger, cert)
-        cert_identifier = self._cert_identifier_get(cert_cn)
+        # cert_identifier = self._cert_identifier_get(cert_cn)
+        cert_raw = b64_url_recode(self.logger, cert)
+        cert_identifier = self._cert_identifier_get(cert_raw)
 
         if cert_identifier:
             (code, message, detail) = self._revoke(cert_identifier, rev_reason)
