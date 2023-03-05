@@ -624,7 +624,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
 
     def test_072_certificate_add(self):
@@ -658,7 +658,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.dbstore.certificate_add(data_dic)
         self.assertEqual({'cert': u'cert', 'order': u'name1', 'order__name': u'name1', 'name': u'certname1', 'csr': u'csr1'}, self.dbstore.certificate_lookup('name', 'certname1'))
 
@@ -674,7 +674,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.dbstore.certificate_add(data_dic)
         self.assertEqual({'name': u'certname1', 'order__account__name': u'name1'}, self.dbstore.certificate_lookup('name', 'certname1', ('name', 'order__account__name')))
 
@@ -686,7 +686,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.dbstore.certificate_add(data_dic)
         self.assertFalse(self.dbstore.certificate_lookup('name', 'certname', ('name', 'order__account__name')))
 
@@ -698,7 +698,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.dbstore.certificate_add(data_dic)
         self.assertEqual('name1', self.dbstore.certificate_account_check('name1', 'cert_raw'))
 
@@ -875,10 +875,10 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
         vlist = ['id', 'name', 'cert_raw', 'csr', 'poll_identifier', 'created_at', 'issue_uts', 'expire_uts', 'order__id', 'order__name', 'order__status__name', 'order__notbefore', 'order__notafter', 'order__expires', 'order__identifiers', 'order__account__name', 'order__account__contact', 'order__account__created_at', 'order__account__jwk', 'order__account__alg', 'order__account__eab_kid']
-        certlist = {'id': 1, 'name': 'certname1', 'cert_raw': 'cert_raw', 'csr': 'csr1', 'poll_identifier': None, 'issue_uts': 0, 'expire_uts': 0, 'order__id': 1, 'order__name': 'name', 'order__status__name': 1, 'order__notbefore': '', 'order__notafter': '', 'order__expires': 25, 'order__identifiers': 'identifiers', 'order__account__name': 'name1', 'order__account__contact': 'contact1', 'order__account__jwk': '{"key11": "val11", "key12": "val12"}', 'order__account__alg': 'alg1', 'order__account__eab_kid': ''}
+        certlist = {'id': 1, 'name': 'certname1', 'cert_raw': 'cert_raw', 'csr': 'csr1', 'poll_identifier': 'poll_identifier', 'issue_uts': 0, 'expire_uts': 0, 'order__id': 1, 'order__name': 'name', 'order__status__name': 1, 'order__notbefore': '', 'order__notafter': '', 'order__expires': 25, 'order__identifiers': 'identifiers', 'order__account__name': 'name1', 'order__account__contact': 'contact1', 'order__account__jwk': '{"key11": "val11", "key12": "val12"}', 'order__account__alg': 'alg1', 'order__account__eab_kid': ''}
         (result_vlist, result_certifcate_list) = self.dbstore.certificatelist_get()
         self.assertEqual(vlist, result_vlist)
         self.assertTrue(set(certlist.items()).issubset( set(result_certifcate_list[0].items())))

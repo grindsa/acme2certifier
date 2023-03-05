@@ -154,7 +154,7 @@ class DBstore(object):
                 data_dic['expire_uts'] = 0
             if 'issue_uts' not in data_dic:
                 data_dic['issue_uts'] = 0
-            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts WHERE name = :name''', data_dic)
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
         self._db_close()
         rid = dict_from_row(exists)['id']
 
@@ -182,7 +182,7 @@ class DBstore(object):
         self.cursor.execute(pre_statement, [string])
         result = self.cursor.fetchone()
         self._db_close()
-        self.logger.debug('DBStore._certificate_search() ended')
+        self.logger.debug('DBStore._certificate_search() ended with: {0}'.format(bool(result)))
         return result
 
     def _challenge_search(self, column, string):
@@ -848,6 +848,8 @@ class DBstore(object):
         exists = self._certificate_search('name', data_dic['name'])
 
         if bool(exists):
+            if 'poll_identifier' not in data_dic:
+                data_dic['poll_identifier'] = exists['poll_identifier']
             rid = self._certificate_update(data_dic, exists)
         else:
             rid = self._certificate_insert(data_dic)

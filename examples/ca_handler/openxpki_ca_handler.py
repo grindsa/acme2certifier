@@ -6,7 +6,7 @@ import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get, cert_serial_get, b64_url_recode
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get
 from acme_srv.db_handler import DBstore
 
 
@@ -295,7 +295,7 @@ class CAhandler(object):
         detail = None
 
         # get certifcate identifier based on common name search
-        cert_cn = cert_cn_get(self.logger, cert)
+        # cert_cn = cert_cn_get(self.logger, cert)
         # cert_identifier = self._cert_identifier_get(cert_cn)
         cert_raw = b64_url_recode(self.logger, cert)
         cert_identifier = self._cert_identifier_get(cert_raw)
