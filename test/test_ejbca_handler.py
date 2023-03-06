@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" unittests for acme2certifier """
+""" unittests for ejbca rest handler """
 # pylint: disable= C0415, W0212
 import unittest
 import sys

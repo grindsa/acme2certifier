@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-""" ejbca rest ca handler """
+""" openxpki rpc ca handler """
 import math
 import time
 import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, cert_cn_get, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get
 from acme_srv.db_handler import DBstore
 
 
@@ -27,6 +27,7 @@ class CAhandler(object):
         self.polling_timeout = 0
         self.rpc_path = '/rpc/'
         self.err_msg_dic = error_dic_get(self.logger)
+        self.dbstore = DBstore(False, self.logger)
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -58,11 +59,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_identifier_get()')
 
         cert_identifier = None
-        dbstore = DBstore(False, self.logger)
-        result = dbstore.certificate_lookup('cert_raw', cert_raw, vlist=('name', 'poll_identifier'))
-        print(result)
+        result = self.dbstore.certificate_lookup('cert_raw', cert_raw, vlist=('name', 'poll_identifier'))
         if 'poll_identifier' in result and result['poll_identifier']:
             cert_identifier = result['poll_identifier']
+
         self.logger.debug('CAhandler._cert_identifier_get() ended with: {0}'.format(cert_identifier))
         return cert_identifier
 

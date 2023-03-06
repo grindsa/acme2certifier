@@ -137,6 +137,7 @@ acme_srv/django_handler.py
 acme_srv/a2c_response.py
 acme_srv/ca/*
 acme_srv/xca/*
+acme_srv/openxpki/*
 acme_srv/acme/*
 acme_srv/ejbca/*
 acme_srv/cn_dump/*
