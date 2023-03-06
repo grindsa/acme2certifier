@@ -468,8 +468,8 @@ class TestACMEHandler(unittest.TestCase):
     def test_046__cert_identifier_get(self, mock_certlookup):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'foo' : 'bar'}
-        self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
+        mock_certlookup.return_value = {'poll_identifier' : 'cert_identifier'}
+        self.assertEqual('cert_identifier', self.cahandler._cert_identifier_get('certcn'))
 
     @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
     def test_047__cert_identifier_get(self, mock_certlookup):
@@ -489,8 +489,8 @@ class TestACMEHandler(unittest.TestCase):
     def test_049__cert_identifier_get(self, mock_certlookup):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'poll_identifier' : 'cert_identifier'}
-        self.assertEqual('cert_identifier', self.cahandler._cert_identifier_get('certcn'))
+        mock_certlookup.return_value = {'foo' : 'bar'}
+        self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
 
     @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
     def test_050__cert_identifier_get(self, mock_certlookup):
@@ -522,26 +522,20 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._revoke')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get')
-    @patch('examples.ca_handler.openxpki_ca_handler.cert_cn_get')
-    def test_054_revoke(self, mock_cn, mock_certid, mock_revoke):
+    def test_054_revoke(self, mock_certid, mock_revoke):
         """  test revoke """
-        mock_cn.return_value = 'cn'
         mock_certid.return_value = None
         self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Unknown status'), self.cahandler.revoke('cert', 'reason', 'date'))
-        self.assertTrue(mock_cn.called)
         self.assertTrue(mock_certid.called)
         self.assertFalse(mock_revoke.called)
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._revoke')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get')
-    @patch('examples.ca_handler.openxpki_ca_handler.cert_cn_get')
-    def test_055_revoke(self, mock_cn, mock_certid, mock_revoke):
+    def test_055_revoke(self, mock_certid, mock_revoke):
         """  test revoke """
-        mock_cn.return_value = 'cn'
         mock_certid.return_value = 'cert_identifier'
         mock_revoke.return_value = ('code', 'error', 'detail')
         self.assertEqual(('code', 'error', 'detail'), self.cahandler.revoke('cert', 'reason', 'date'))
-        self.assertTrue(mock_cn.called)
         self.assertTrue(mock_certid.called)
         self.assertTrue(mock_revoke.called)
 
