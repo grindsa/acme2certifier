@@ -60,6 +60,7 @@ class CAhandler(object):
         cert_identifier = None
         dbstore = DBstore(False, self.logger)
         result = dbstore.certificate_lookup('cert_raw', cert_raw, vlist=('name', 'poll_identifier'))
+        print(result)
         if 'poll_identifier' in result and result['poll_identifier']:
             cert_identifier = result['poll_identifier']
         self.logger.debug('CAhandler._cert_identifier_get() ended with: {0}'.format(cert_identifier))
