@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" unittests for openssl_ca_handler """
+""" unittests for openxpki_ca_handler """
 # pylint: disable=C0415, R0904, W0212
 import sys
 import os
@@ -13,11 +13,20 @@ from OpenSSL import crypto
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
+class FakeDBStore(object):
+    """ face DBStore class needed for mocking """
+    # pylint: disable=W0107, R0903
+    pass
+
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
 
     def setUp(self):
         """ setup unittest """
+        models_mock = MagicMock()
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {'acme_srv.db_handler': models_mock}
+        patch.dict('sys.modules', modules).start()
         import logging
         from examples.ca_handler.openxpki_ca_handler import CAhandler
         logging.basicConfig(level=logging.CRITICAL)
@@ -464,39 +473,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id', lcm.output)
         self.assertTrue(mock_create.called)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
-    def test_046__cert_identifier_get(self, mock_certlookup):
+    def test_046__cert_identifier_get(self):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'poll_identifier' : 'cert_identifier'}
+        self.cahandler.dbstore.certificate_lookup.return_value = {'poll_identifier' : 'cert_identifier'}
         self.assertEqual('cert_identifier', self.cahandler._cert_identifier_get('certcn'))
 
-    @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
-    def test_047__cert_identifier_get(self, mock_certlookup):
+    def test_047__cert_identifier_get(self):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'poll_identifier' : ''}
+        self.cahandler.dbstore.certificate_lookup.return_value = {'poll_identifier' : ''}
         self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
 
-    @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
-    def test_048__cert_identifier_get(self, mock_certlookup):
+    def test_048__cert_identifier_get(self):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'poll_identifier' : None}
+        self.cahandler.dbstore.certificate_lookup.return_value = {'poll_identifier' : None}
         self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
 
-    @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
-    def test_049__cert_identifier_get(self, mock_certlookup):
+    def test_049__cert_identifier_get(self):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'foo' : 'bar'}
+        self.cahandler.dbstore.certificate_lookup.return_value = {'foo' : 'bar'}
         self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
 
-    @patch('examples.ca_handler.openxpki_ca_handler.DBstore.certificate_lookup')
-    def test_050__cert_identifier_get(self, mock_certlookup):
+    def test_050__cert_identifier_get(self):
         """ test _cert_identifier_get() """
         self.cahandler.endpoint_name = 'endpoint_name'
-        mock_certlookup.return_value = {'poll_identifier' : ''}
+        self.cahandler.dbstore.certificate_lookup.return_value = {'poll_identifier' : ''}
         self.assertFalse(self.cahandler._cert_identifier_get('certcn'))
 
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post')
