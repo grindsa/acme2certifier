@@ -27,6 +27,9 @@ from dateutil.parser import parse
 import pytz
 import dns.resolver
 import OpenSSL
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
@@ -185,11 +188,11 @@ def cert_dates_get(logger, certificate):
     logger.debug('cert_dates_get()')
     issue_date = 0
     expiration_date = 0
+
     try:
-        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-        cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-        issue_date = date_to_uts_utc(cert.get_notBefore(), _tformat='%Y%m%dT%H%M%SZ')
-        expiration_date = date_to_uts_utc(cert.get_notAfter(), _tformat='%Y%m%dT%H%M%SZ')
+        cert = cert_load(logger, certificate, recode=True)
+        issue_date = date_to_uts_utc(cert.not_valid_before, _tformat='%Y-%m-%d %H:%M:%S')
+        expiration_date = date_to_uts_utc(cert.not_valid_after, _tformat='%Y-%m-%d %H:%M:%S')
     except Exception:
         issue_date = 0
         expiration_date = 0
@@ -198,46 +201,44 @@ def cert_dates_get(logger, certificate):
     return (issue_date, expiration_date)
 
 
-def cert_cn_get(logger, cert):
+def cert_cn_get(logger, certificate):
     """ get cn from certificate  """
     logger.debug('CAhandler.cert_cn_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, cert), True, False)
-    req = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    subject = req.get_subject()
-    components = dict(subject.get_components())
-    result = None
-    if 'CN' in components:
-        result = components['CN']
-    elif b'CN' in components:
-        result = convert_byte_to_string(components[b'CN'])
 
+    cert = cert_load(logger, certificate, recode=True)
+    # get subject and look for common name
+    subject = cert.subject
+    result = None
+    for attr in subject:
+        if attr.oid == x509.NameOID.COMMON_NAME:
+            result = attr.value
+            break
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
 
 
-def cert_der2pem(pem_file):
+def cert_der2pem(der_cert):
     """ convert certificate der to pem """
-    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_ASN1, pem_file)
-    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, certobj)
+    cert = x509.load_der_x509_certificate(der_cert)
+    pem_cert = cert.public_bytes(serialization.Encoding.PEM)
+    return pem_cert
 
 
 def cert_issuer_get(logger, certificate):
     """ get serial number form certificate """
     logger.debug('cert_issuer_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
 
-    subject = cert.get_issuer()
-
-    result = ",".join("{0:s}={1:s}".format(name.decode(), value.decode()) for name, value in subject.get_components())
+    cert = cert_load(logger, certificate, recode=True)
+    result = cert.issuer.rfc4514_string()
     logger.debug('CAhandler.cert_issuer_get() ended with: {0}'.format(result))
     return result
 
 
-def cert_pem2der(pem_file):
+def cert_pem2der(pem_cert):
     """ convert certificate pem to der """
-    certobj = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, certobj)
+    cert = x509.load_pem_x509_certificate(pem_cert.encode(), default_backend())
+    der_cert = cert.public_bytes(serialization.Encoding.DER)
+    return der_cert
 
 
 def cert_pubkey_get(logger, cert):
@@ -293,17 +294,26 @@ def cert_extensions_get(logger, certificate, recode=True):
     return extension_list
 
 
+def cert_load(logger, certificate, recode):
+    """ load certificate object from pem _Format """
+    logger.debug('cert_load()')
+    if recode:
+        pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
+    else:
+        pem_data = convert_string_to_byte(certificate)
+    cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+
+    return cert
+
+
 def cert_serial_get(logger, certificate, hexformat=False):
     """ get serial number form certificate """
     logger.debug('cert_serial_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-
+    cert = cert_load(logger, certificate, recode=True)
     if hexformat:
-        serial_number = '{0:x}'.format(int(cert.get_serial_number()))
+        serial_number = '{0:x}'.format(cert.serial_number)
     else:
-        serial_number = cert.get_serial_number()
-
+        serial_number = cert.serial_number
     logger.debug('cert_serial_get() ended with: {0}'.format(serial_number))
     return serial_number
 
