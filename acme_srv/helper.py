@@ -241,38 +241,36 @@ def cert_pem2der(pem_cert):
     return der_cert
 
 
-def cert_pubkey_get(logger, cert):
+def cert_pubkey_get(logger, certificate):
     """ get public key from certificate  """
     logger.debug('CAhandler.cert_pubkey_get()')
-    req = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
-    pubkey = req.get_pubkey()
-    pubkey_str = convert_byte_to_string(OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey))
+    cert = cert_load(logger, certificate, recode=False)
+    public_key = cert.public_key()
+    pubkey_str = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
     logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
     return convert_byte_to_string(pubkey_str)
 
 
 def cert_san_get(logger, certificate, recode=True):
     """ get subject alternate names from certificate """
-    logger.debug('cert_san_get()')
-    if recode:
-        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    else:
-        pem_file = certificate
+    logger.debug('cert_san_get({0})'.format(recode))
 
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    san = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        if 'subjectAltName' in str(ext.get_short_name()):
-            # pylint: disable=c2801
-            san_list = ext.__str__().split(',')
-            for san_name in san_list:
-                san_name = san_name.rstrip()
-                san_name = san_name.lstrip()
-                san.append(san_name)
+    cert = cert_load(logger, certificate, recode=recode)
+    sans = []
+    try:
+        ext = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
+        sans_list = ext.value.get_values_for_type(x509.DNSName)
+        for san in sans_list:
+            sans.append('DNS:{0}'.format(san))
+
+    except Exception as err:
+        logger.error('cert_san_get(): Error: {0}'.format(err))
+
     logger.debug('cert_san_get() ended')
-    return san
+    return sans
 
 
 def cert_extensions_get(logger, certificate, recode=True):
@@ -296,7 +294,7 @@ def cert_extensions_get(logger, certificate, recode=True):
 
 def cert_load(logger, certificate, recode):
     """ load certificate object from pem _Format """
-    logger.debug('cert_load()')
+    logger.debug('cert_load({0})'.format(recode))
     if recode:
         pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
     else:
