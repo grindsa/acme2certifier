@@ -183,6 +183,18 @@ def hooks_load(logger, config_dic):
     return hooks_module
 
 
+def cert_load(logger, certificate, recode):
+    """ load certificate object from pem _Format """
+    logger.debug('cert_load({0})'.format(recode))
+    if recode:
+        pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
+    else:
+        pem_data = convert_string_to_byte(certificate)
+    cert = x509.load_pem_x509_certificate(pem_data, default_backend())
+
+    return cert
+
+
 def cert_dates_get(logger, certificate):
     """ get date number form certificate """
     logger.debug('cert_dates_get()')
@@ -213,7 +225,7 @@ def cert_cn_get(logger, certificate):
         if attr.oid == x509.NameOID.COMMON_NAME:
             result = attr.value
             break
-    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
+    logger.debug('CAhandler.cert_cn_get() ended with: {0}'.format(result))
     return result
 
 
@@ -276,32 +288,15 @@ def cert_san_get(logger, certificate, recode=True):
 def cert_extensions_get(logger, certificate, recode=True):
     """ get extenstions from certificate certificate """
     logger.debug('cert_extensions_get()')
-    if recode:
-        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    else:
-        pem_file = certificate
 
-    cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+    cert = cert_load(logger, certificate, recode=recode)
+
     extension_list = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
+    for extension in cert.extensions:
+        extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
     logger.debug('cert_extensions_get() ended with: {0}'.format(extension_list))
     return extension_list
-
-
-def cert_load(logger, certificate, recode):
-    """ load certificate object from pem _Format """
-    logger.debug('cert_load({0})'.format(recode))
-    if recode:
-        pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
-    else:
-        pem_data = convert_string_to_byte(certificate)
-    cert = x509.load_pem_x509_certificate(pem_data, default_backend())
-
-    return cert
 
 
 def cert_serial_get(logger, certificate, hexformat=False):
@@ -336,19 +331,26 @@ def convert_string_to_byte(value):
     return result
 
 
+def csr_load(logger, csr):
+    """ load certificate object from pem _Format """
+    logger.debug('cert_load({0})')
+    pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, csr), True, True))
+    csr_data = x509.load_pem_x509_csr(pem_data)
+
+    return csr_data
+
+
 def csr_cn_get(logger, csr):
     """ get cn from certificate request """
     logger.debug('CAhandler.csr_cn_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    subject = req.get_subject()
-    components = dict(subject.get_components())
-    result = None
-    if 'CN' in components:
-        result = components['CN']
-    elif b'CN' in components:
-        result = convert_byte_to_string(components[b'CN'])
+    csr_pem = csr_load(logger, csr)
 
+    subject = csr_pem.subject
+    result = None
+    for attr in subject:
+        if attr.oid == x509.NameOID.COMMON_NAME:
+            result = attr.value
+            break
     logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
     return result
 
@@ -356,12 +358,12 @@ def csr_cn_get(logger, csr):
 def csr_dn_get(logger, csr):
     """ get subject from certificate request in openssl notation """
     logger.debug('CAhandler.csr_dn_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    subject = req.get_subject()
-    subject_str = "".join("/{0:s}={1:s}".format(name.decode(), value.decode()) for name, value in subject.get_components())
-    logger.debug('CAhandler.csr_dn_get() ended with: {0}'.format(subject_str))
-    return subject_str
+
+    csr_pem = csr_load(logger, csr)
+    subject = csr_pem.subject.rfc4514_string()
+
+    logger.debug('CAhandler.csr_dn_get() ended with: {0}'.format(subject))
+    return subject
 
 
 def csr_pubkey_get(logger, csr):
