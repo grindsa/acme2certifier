@@ -26,7 +26,6 @@ from jwcrypto import jwk, jws
 from dateutil.parser import parse
 import pytz
 import dns.resolver
-import OpenSSL
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -343,9 +342,9 @@ def csr_load(logger, csr):
 def csr_cn_get(logger, csr):
     """ get cn from certificate request """
     logger.debug('CAhandler.csr_cn_get()')
-    csr_pem = csr_load(logger, csr)
+    csr_obj = csr_load(logger, csr)
 
-    subject = csr_pem.subject
+    subject = csr_obj.subject
     result = None
     for attr in subject:
         if attr.oid == x509.NameOID.COMMON_NAME:
@@ -359,8 +358,8 @@ def csr_dn_get(logger, csr):
     """ get subject from certificate request in openssl notation """
     logger.debug('CAhandler.csr_dn_get()')
 
-    csr_pem = csr_load(logger, csr)
-    subject = csr_pem.subject.rfc4514_string()
+    csr_obj = csr_load(logger, csr)
+    subject = csr_obj.subject.rfc4514_string()
 
     logger.debug('CAhandler.csr_dn_get() ended with: {0}'.format(subject))
     return subject
@@ -369,43 +368,46 @@ def csr_dn_get(logger, csr):
 def csr_pubkey_get(logger, csr):
     """ get public key from certificate request """
     logger.debug('CAhandler.csr_pubkey_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-    pubkey = req.get_pubkey()
-    pubkey_str = convert_byte_to_string(OpenSSL.crypto.dump_publickey(OpenSSL.crypto.FILETYPE_PEM, pubkey))
-    logger.debug('CAhandler.csr_pubkey_get() ended with: {0}'.format(pubkey_str))
-    return pubkey_str
+    csr_obj = csr_load(logger, csr)
+    public_key = csr_obj.public_key()
+    pubkey_str = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
+    return convert_byte_to_string(pubkey_str)
 
 
 def csr_san_get(logger, csr):
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get()')
-    san = []
+    sans = []
     if csr:
-        pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-        req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
-        for ext in req.get_extensions():
-            if 'subjectAltName' in str(ext.get_short_name()):
-                # pylint: disable=c2801
-                san_list = ext.__str__().split(',')
-                for san_name in san_list:
-                    san_name = san_name.rstrip()
-                    san_name = san_name.lstrip()
-                    san.append(san_name)
-    logger.debug('cert_san_get() ended with: {0}'.format(str(san)))
-    return san
+
+        csr_obj = csr_load(logger, csr)
+        sans = []
+        try:
+            ext = csr_obj.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
+            sans_list = ext.value.get_values_for_type(x509.DNSName)
+            for san in sans_list:
+                sans.append('DNS:{0}'.format(san))
+
+        except Exception as err:
+            logger.error('csr_san_get(): Error: {0}'.format(err))
+
+    logger.debug('csr_san_get() ended with: {0}'.format(str(sans)))
+    return sans
 
 
 def csr_extensions_get(logger, csr):
     """ get extensions from certificate """
     logger.debug('csr_extensions_get()')
-    pem_file = build_pem_file(logger, None, b64_url_recode(logger, csr), True, True)
-    req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem_file)
+
+    csr_obj = csr_load(logger, csr)
 
     extension_list = []
-    for ext in req.get_extensions():
-        # decoding based on python version
-        extension_list.append(base64.b64encode(ext.get_data()).decode())
+    for extension in csr_obj.extensions:
+        extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
     logger.debug('csr_extensions_get() ended with: {0}'.format(extension_list))
     return extension_list
