@@ -562,9 +562,15 @@ class CAhandler(object):
         # add keyUsage if it does not exist in CSR
         ku_is_in = False
         for ext in req.get_extensions():
-            if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
-                ku_is_in = True
+            try:
+                if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
+                    self.logger.debug('CAhandler._cert_extension_add() found keyUsage extension')
+                    ku_is_in = True
+            except Exception as err:
+                self.logger.error(' CAhandler._cert_extension_add() failed to load extension shortname: {0}'.format(err))
+
         if not ku_is_in:
+            self.logger.debug('CAhandler._cert_extension_add() adding default keyUsage extension')
             default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
 
         # remove duplicate extensions

@@ -66,7 +66,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: ${{ failure() }}
       with:
-        name: lego_key-${{ matrix.keylength }}.tar.gz
+        name: tnauth.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -139,16 +139,15 @@ jobs:
         cd /tmp/acme_sh
         /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
 
-
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp /tmp/acme_sh/ ${{ github.workspace }}/artifact/acme_sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme_sh
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v2
