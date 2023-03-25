@@ -1,7 +1,7 @@
 setuptools
 jwcrypto
 cryptography
-pyOpenssl
+pyOpenssl==23.0.0
 dnspython
 certsrv[ntlm]
 pytz
