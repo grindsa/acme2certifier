@@ -8,7 +8,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from requests_pkcs12 import Pkcs12Adapter
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates
+from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check
@@ -236,8 +236,14 @@ class CAhandler(object):
 
     def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
         """ convert pkcs7 to pem """
+        self.logger.debug('CAhandler._pkcs7_to_pem()')
 
-        pkcs7_obj = load_pem_pkcs7_certificates(convert_string_to_byte(pkcs7_content))
+        try:
+            pkcs7_obj = load_pem_pkcs7_certificates(convert_string_to_byte(pkcs7_content))
+        except Exception:
+            self.logger.debug('CAhandler._pkcs7_to_pem(): load pem failed. Try der...')
+            pkcs7_obj = load_der_pkcs7_certificates(pkcs7_content)
+
         cert_pem_list = []
         for cert in pkcs7_obj:
             cert_pem_list.append(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)))
