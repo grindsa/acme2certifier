@@ -1,4 +1,4 @@
-name: EST CAhandler tests
+name: CA handler tests - EST handler
 
 on:
   push:
