@@ -6,7 +6,7 @@ ENV APACHE_RUN_GROUP www-data
 ENV APACHE_LOG_DIR /var/log/apache2
 
 RUN apt-get update  && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends tzdata && \
     apt-get install --no-install-recommends -y \
     python3-pip \
     apache2 \
