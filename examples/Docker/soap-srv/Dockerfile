@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 LABEL maintainer="grindelsack@gmail.com"
 
 RUN apt-get update
-RUN DEBIAN_FRONTEND="noninteractive" apt-get --no-install-recommends tzdata
+RUN DEBIAN_FRONTEND="noninteractive" apt-get --no-install-recommends -y tzdata
 RUN apt-get install --no-install-recommends -y \
     python3-pip \
     curl \
