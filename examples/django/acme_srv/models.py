@@ -96,7 +96,7 @@ class Certificate(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    csr = models.TextField(blank=True, null =False)
+    csr = models.TextField(blank=True, null=False)
     cert = models.TextField(blank=True, null=True)
     cert_raw = models.TextField(blank=True, null=True)
     error = models.TextField(blank=True, null=True)
