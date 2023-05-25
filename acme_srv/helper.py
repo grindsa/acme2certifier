@@ -1007,7 +1007,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     try:
         sock.connect((hostname, port))
         with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
-            logger.debug('servercert_get() configure proxy: {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
+            logger.debug('servercert_get(): {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:
