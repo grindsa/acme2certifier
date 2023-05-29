@@ -456,7 +456,7 @@ def dkeys_lower(tree):
 
 def fqdn_in_san_check(logger, san_list, fqdn):
     """ check if fqdn is in a list of sans """
-    logger.debug('fqdn_in_san_check()')
+    logger.debug('fqdn_in_san_check([%s], %s)', san_list, fqdn)
 
     result = False
     if fqdn and san_list:
@@ -1016,6 +1016,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
         logger.error('servercert_get() failed with: {0}'.format(err_))
         pem_cert = None
 
+    logger.debug('servercert_get() ended with {0}'.format(pem_cert))
     return pem_cert
 
 
