@@ -994,6 +994,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # NOSONAR
     context.options |= ssl.PROTOCOL_TLS_CLIENT
+    context.set_alpn_protocols(["acme-tls/1"])
     # reject insecure ssl version
     # context.options |= ssl.OP_NO_SSLv3
     # context.options |= ssl.OP_NO_TLSv1
@@ -1016,7 +1017,10 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
         logger.error('servercert_get() failed with: {0}'.format(err_))
         pem_cert = None
 
-    logger.debug('servercert_get() ended with {0}'.format(pem_cert))
+    if pem_cert:
+        logger.debug('servercert_get() ended with: {0}'.format(b64_encode(logger, convert_string_to_byte(pem_cert))))
+    else:
+        logger.debug('servercert_get() ended with: None')
     return pem_cert
 
 
