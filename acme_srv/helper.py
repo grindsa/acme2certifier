@@ -468,7 +468,7 @@ def dkeys_lower(tree):
 
 def fqdn_in_san_check(logger, san_list, fqdn):
     """ check if fqdn is in a list of sans """
-    logger.debug('fqdn_in_san_check()')
+    logger.debug('fqdn_in_san_check([%s], %s)', san_list, fqdn)
 
     result = False
     if fqdn and san_list:
@@ -1006,6 +1006,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # NOSONAR
     context.options |= ssl.PROTOCOL_TLS_CLIENT
+    context.set_alpn_protocols(["acme-tls/1"])
     # reject insecure ssl version
     # context.options |= ssl.OP_NO_SSLv3
     # context.options |= ssl.OP_NO_TLSv1
@@ -1019,7 +1020,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     try:
         sock.connect((hostname, port))
         with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
-            logger.debug('servercert_get() configure proxy: {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
+            logger.debug('servercert_get(): {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:
@@ -1028,6 +1029,10 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
         logger.error('servercert_get() failed with: {0}'.format(err_))
         pem_cert = None
 
+    if pem_cert:
+        logger.debug('servercert_get() ended with: {0}'.format(b64_encode(logger, convert_string_to_byte(pem_cert))))
+    else:
+        logger.debug('servercert_get() ended with: None')
     return pem_cert
 
 
