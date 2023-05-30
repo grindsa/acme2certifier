@@ -229,10 +229,6 @@ class CAhandler(object):
                 elif self.est_client_cert and self.est_user:
                     self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together.')
 
-                if not self.ca_bundle:
-                    self.logger.warning('CAhandler._config_load(): cert checking disabled turning of hostname check')
-                    self.session.check_hostname = False
-
         # load proxy information
         self._config_proxy_load(config_dic)
 
