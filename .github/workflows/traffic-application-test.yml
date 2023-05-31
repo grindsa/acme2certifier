@@ -1,0 +1,90 @@
+name: Application Tests - traefik
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+
+  traefik_apache2_wsgi:
+    name: "traefik_apache2_wsgi"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "get runner information"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_HOSTNAME=$(hostname -f) >> $GITHUB_ENV
+
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner hostname is ${{ env.RUNNER_HOSTNAME }}"
+
+    - name: "Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "setup and instanciate traefik"
+      run: |
+        mkdir traefik
+        sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
+        sudo sed -i "s/whoami.acme/${{ env.RUNNER_HOSTNAME }}/g" traefik/docker-compose.yml
+        sudo sed -i "s/CHALLENGE_TYPE/${{ matrix.challenge_type }}/g" traefik/docker-compose.yml
+        cd traefik
+        docker-compose up -d
+
+    - name: "Sleep for 30s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 30s
+
+    - name: "check for certificate"
+      working-directory: traefik
+      run: |
+        sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+        openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker logs traefik > traefik/traefik.log
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data traefik
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: traffic-${{ matrix.challenge_type }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
