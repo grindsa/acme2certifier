@@ -4,44 +4,12 @@ from __future__ import print_function
 import os
 import textwrap
 import json
-from OpenSSL import crypto
-from OpenSSL.crypto import _lib, _ffi, X509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=C0209, E0401, E0611
 from examples.ca_handler.certsrv import Certsrv
 # pylint: disable=E0401
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check
-
-
-def _get_certificates(self):
-    """
-    https://github.com/pyca/pyopenssl/pull/367/files#r67300900
-
-    Returns all certificates for the PKCS7 structure, if present. Only
-    objects of type ``signedData`` or ``signedAndEnvelopedData`` can embed
-    certificates.
-
-    :return: The certificates in the PKCS7, or :const:`None` if
-        there are none.
-    :rtype: :class:`tuple` of :class:`X509` or :const:`None`
-    """
-    certs = _ffi.NULL
-    if self.type_is_signed():
-        # pylint: disable=W0212
-        certs = self._pkcs7.d.sign.cert
-    elif self.type_is_signedAndEnveloped():
-        # pylint: disable=W0212
-        certs = self._pkcs7.d.signed_and_enveloped.cert
-
-    pycerts = []
-    for i in range(_lib.sk_X509_num(certs)):
-        pycert = X509.__new__(X509)
-        # pylint: disable=W0212
-        pycert._x509 = _lib.sk_X509_value(certs, i)
-        pycerts.append(pycert)
-
-    if not pycerts:
-        return None
-    return tuple(pycerts)
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte
 
 
 class CAhandler(object):
@@ -187,20 +155,16 @@ class CAhandler(object):
     def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
         """ convert pkcs7 to pem """
         self.logger.debug('CAhandler._pkcs7_to_pem()')
-        for filetype in (crypto.FILETYPE_PEM, crypto.FILETYPE_ASN1):
-            try:
-                pkcs7 = crypto.load_pkcs7_data(filetype, pkcs7_content)
-                break
-            except Exception as err:
-                self.logger.error('CAhandler._pkcs7_to_pem() failed with error: {0}'.format(err))
-                pkcs7 = None
+
+        try:
+            pkcs7_obj = load_pem_pkcs7_certificates(convert_string_to_byte(pkcs7_content))
+        except Exception:
+            self.logger.debug('CAhandler._pkcs7_to_pem(): load pem failed. Try der...')
+            pkcs7_obj = load_der_pkcs7_certificates(pkcs7_content)
 
         cert_pem_list = []
-        if pkcs7:
-            # convert cert pkcs#7 to pem
-            cert_list = _get_certificates(pkcs7)
-            for cert in cert_list:
-                cert_pem_list.append(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)))
+        for cert in pkcs7_obj:
+            cert_pem_list.append(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)))
 
         # define output format
         if outform == 'string':

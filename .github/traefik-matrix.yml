@@ -1,0 +1,37 @@
+version: '3.3'
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: "traefik"
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.a2c.acme.CHALLENGE_TYPE"
+      - "--certificatesresolvers.a2c.acme.caserver=http://acme-srv.acme/directory"
+      - "--certificatesresolvers.a2c.acme.email=grindsa@foo.bar"
+      - "--certificatesresolvers.a2c.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  whoami:
+    image: traefik/whoami
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.acme`)"
+      - "traefik.http.routers.whoami.entrypoints=web,websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=a2c"
+
+networks:
+  default:
+    external:
+      name: acme
