@@ -154,6 +154,9 @@ class CAhandler(object):
         self._config_ca_load(config_dic)
         self._config_session_load(config_dic)
 
+        if 'CAhandler' in config_dic and 'client_cert' in config_dic['CAhandler'] and not self.ca_bundle:
+            self.logger.error('CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle.')
+
         # check configuration for completeness
         variable_dic = self.__dict__
         for ele in ['host', 'cert_profile_name', 'endpoint_name']:
