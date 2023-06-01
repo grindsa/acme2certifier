@@ -29,6 +29,7 @@ jobs:
         sudo chmod -R 777 data
         docker network create acme
         sudo sh -c "echo '$OPENXPKI_IP openxpki' >> /etc/hosts"
+        sudo cat /etc/hosts
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -42,8 +43,6 @@ jobs:
     - name: "Instanciate OpenXPKI server"
       working-directory: /tmp/openxpki
       run: |
-        git clone https://github.com/openxpki/openxpki-docker.git
-        cd openxpki-docker/
         git clone https://github.com/openxpki/openxpki-docker.git
         cd openxpki-docker/
         git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
@@ -97,6 +96,11 @@ jobs:
         sudo chmod a+r data/openxpki/client_key.pem
         sudo chmod a+r data/openxpki/client_crt.pem
         sudo chmod a+r data/openxpki/client_crt.p12
+        curl https://$OPENXPKI_IP:8443/.well-known/est/cacerts --insecure | base64 -d > /tmp/cacert.p7b
+        sudo openssl pkcs7 -print_certs -in /tmp/cacert.p7b -inform der -out data/openxpki/ca_bundle.pem
+        sudo chmod a+rw data/openxpki/ca_bundle.pem
+        sudo openssl s_client -connect $OPENXPKI_IP:8443 2>/dev/null </dev/null |  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >> data/openxpki/ca_bundle.pem
+
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -115,10 +119,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "est_host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_cert: volume/openxpki/client_crt.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_key: volume/openxpki/client_key.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/openxpki/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -155,10 +160,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "est_host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_cert: volume/openxpki/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/openxpki/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -194,10 +200,11 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "client_cert: volume/openxpki/client_crt.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "client_key: volume/openxpki/client_key.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/openxpki/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> examples/Docker/data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> examples/Docker/data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
@@ -257,10 +264,11 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "client_cert: volume/openxpki/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/openxpki/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> examples/Docker/data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> examples/Docker/data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
@@ -413,6 +421,10 @@ jobs:
         sudo chmod a+r data/acme_ca/client_key.pem
         sudo chmod a+r data/acme_ca/client_crt.pem
         sudo chmod a+r data/acme_ca/client_crt.p12
+        curl https://$OPENXPKI_IP:8443/.well-known/est/cacerts --insecure | base64 -d > /tmp/cacert.p7b
+        sudo openssl pkcs7 -print_certs -in /tmp/cacert.p7b -inform der -out data/acme_ca/ca_bundle.pem
+        sudo chmod a+rw data/acme_ca/ca_bundle.pem
+        sudo openssl s_client -connect $OPENXPKI_IP:8443 2>/dev/null </dev/null |  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >> data/acme_ca/ca_bundle.pem
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -446,10 +458,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
+        sudo echo "est_host: https://openxpki:8443" >> data/acme_srv.cfg
+        # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
         sudo echo "est_client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.pem" >> data/acme_srv.cfg
         sudo echo "est_client_key: /opt/acme2certifier/volume/acme_ca/client_key.pem" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -492,10 +505,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
+        sudo echo "est_host: https://openxpki:8443" >> data/acme_srv.cfg
+        # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
         sudo echo "est_client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.p12" >> data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -536,10 +550,11 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
+        sudo echo "host: https://openxpki:8443" >> data/acme_srv.cfg
+        # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
         sudo echo "client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.pem" >> data/acme_srv.cfg
         sudo echo "client_key: /opt/acme2certifier/volume/acme_ca/client_key.pem" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> data/acme_srv.cfg
@@ -600,10 +615,11 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
+        sudo echo "host: https://openxpki:8443" >> data/acme_srv.cfg
+        # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
         sudo echo "client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.p12" >> data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
         sudo echo "cert_profile_name: tls-server" >> data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> data/acme_srv.cfg

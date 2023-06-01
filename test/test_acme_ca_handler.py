@@ -778,6 +778,48 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_newreg.called)
 
 
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._order_issue')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._csr_check')
+    @patch('OpenSSL.crypto.load_certificate')
+    @patch('OpenSSL.crypto.dump_certificate')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_info')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientV2.poll_and_finalize')
+    @patch('acme.client.ClientV2.answer_challenge')
+    @patch('acme.client.ClientV2.new_order')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_050_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk, mock_issue):
+        """ test enroll with bodystatus None (existing account) """
+        mock_key.return_value = 'key'
+        mock_messages = Mock()
+        response = Mock()
+        response.body.status = None
+        response.uri = 'uri'
+        mock_reg.return_value = response
+        mock_norder = Mock()
+        mock_norder.authorizations = ['1', '2']
+        mock_c2o.return_value = mock_norder
+        chall = Mock()
+        mock_ach.return_value = 'auth_response'
+        mock_cinfo.return_value = ('challenge_name', 'challenge_content', chall)
+        resp_pof = Mock()
+        resp_pof.fullchain_pem = 'fullchain'
+        mock_pof.return_value = resp_pof
+        mock_dumpcert.return_value = b'mock_dumpcert'
+        mock_loadcert.return_value = 'mock_loadcert'
+        mock_csrchk.return_value = True
+        mock_issue.return_value = ('error', 'cert', 'raw')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('error', 'cert', 'raw', None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_store.called)
+        self.assertFalse(mock_ach.called)
+        self.assertTrue(mock_reg.called)
+        self.assertTrue(mock_issue.called)
+        self.assertIn('INFO:test_a2c:Existing but not configured ACME account: uri', lcm.output)
+
 
     @patch('acme.messages')
     def test_050__account_lookup(self, mock_messages):

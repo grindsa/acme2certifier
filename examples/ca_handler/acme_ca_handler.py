@@ -437,10 +437,13 @@ class CAhandler(object):
 
                 if regr.body.status == "valid":
                     (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
+                elif not regr.body.status and regr.uri:
+                    # this is an exisitng but not configured account. Throw error but continue enrolling
+                    self.logger.info('Existing but not configured ACME account: {0}'.format(regr.uri))
+                    (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
                 else:
                     self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
                     error = 'Bad ACME account: {0}'.format(regr.body.error)
-
             except Exception as err:
                 self.logger.error('CAhandler.enroll: error: {0}'.format(err))
                 error = str(err)
