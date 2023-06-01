@@ -48,12 +48,13 @@ Release notes and ChangLog can be found at [https://github.com/grindsa/acme2cert
 Following acme-clients are used for regular testing of server functionality
 
 - [acme.sh](https://github.com/Neilpang/acme.sh)
-- [Certbot](https://certbot.eff.org/)
-- [lego](https://github.com/go-acme/lego)
 - [acmeshell](https://github.com/cpu/acmeshell/)
+- [Certbot](https://certbot.eff.org/)
 - [cert-manager](docs/cert-mgr.md)
-- [win-acme](https://www.win-acme.com/)
+- [lego](https://github.com/go-acme/lego)
+- [traefik](https://traefik.io/)
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
+- [win-acme](https://www.win-acme.com/)
 
 Other clients are on my list for later testing. In case you are bored, feel
 free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new)
