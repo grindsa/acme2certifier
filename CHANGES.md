@@ -5,15 +5,21 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-# Changes in 0.xxxx
+# Changes in 0.26
 
 **Features and Improvements**:
 
+- interoperability testing with [traefik](https://traefik.io/)
 - refactor revocation function in openxpki_ca_handler to support revocation operation in certbot
+- support pkcs7 loading in der format
+- obsolete pyopenssl in various helper functions, est_ca_handler and mscertserv_ca_handler
 
 **Bugfixes**:
 
+- sending apln-extension in ClientHello message
 - removed misleading debug messages in `openxpki_ca_handler.py`
+- support existing accounts in `acme_ca_hander.py`
+- address codesmells in dockerfiles
 
 # Changes in 0.26
 
