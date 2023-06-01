@@ -18,7 +18,7 @@ and pick the appropriate release branch.
 
 - sending alpn-extension in ClientHello message during tls-alpn-01 challenge validation
 - removed misleading debug messages in `openxpki_ca_handler.py`
-- support existing accounts in `acme_ca_hander.py`
+- support existing acme-accounts in `acme_ca_hander.py`
 - address codesmells in dockerfiles
 
 # Changes in 0.26
