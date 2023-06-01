@@ -85,7 +85,7 @@ jobs:
         sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/est/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -110,7 +110,7 @@ jobs:
         sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_client_cert: volume/est/est_client_cert.p12" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/est/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -240,7 +240,7 @@ jobs:
         sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
         sudo echo "est_client_key: volume/acme_ca/est_client_key.pem" >> data/acme_srv.cfg
         sudo echo "est_client_cert: volume/acme_ca/est_client_cert.pem" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
 
     - name: "[ PREPARE  ] reconfigure est ca-handler "
       run: |
