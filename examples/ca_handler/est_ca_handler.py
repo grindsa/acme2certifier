@@ -228,6 +228,8 @@ class CAhandler(object):
                     self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured.')
                 elif self.est_client_cert and self.est_user:
                     self.logger.error('CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together.')
+                if self.est_client_cert and not self.ca_bundle:
+                    self.logger.error('CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle.')
 
         # load proxy information
         self._config_proxy_load(config_dic)
