@@ -5,7 +5,7 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-# Changes in 0.26
+# Changes in 0.27
 
 **Features and Improvements**:
 
@@ -16,7 +16,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
-- sending apln-extension in ClientHello message
+- sending alpn-extension in ClientHello message during tls-alpn-01 challenge validation
 - removed misleading debug messages in `openxpki_ca_handler.py`
 - support existing accounts in `acme_ca_hander.py`
 - address codesmells in dockerfiles
