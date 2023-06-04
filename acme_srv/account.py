@@ -36,6 +36,21 @@ class Account(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
+    def _account_tune(self, result, jwk):
+        """ tune result of account_lookup """
+        self.logger.debug('Account._account_tune(}')
+        result['status'] = 'valid'
+        # modify date
+        if 'created_at' in result:
+            result['created_at'] = date_to_datestr(result['created_at'])
+        if 'contact' in result:
+            result['contact'] = json.loads(result['contact'])
+        if 'jwk' in result:
+            result.pop('jwk')
+            result['key'] = jwk
+        self.logger.debug('Account._account_tune(} ended')
+        return result
+
     def _account_lookup(self, jwk):
         """ lookup account """
         self.logger.debug('Account._account_lookup(}')
@@ -43,19 +58,20 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup('jwk', json.dumps(jwk))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Account._onlyreturnexisting(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Account._account_lookup(): {0}'.format(err_))
             result = None
 
         if result:
             code = 200
             message = result['name']
-            detail = None
+            # set status be returned to client
+            detail = self._account_tune(result,  jwk)
         else:
             code = 400
             message = self.err_msg_dic['accountdoesnotexist']
             detail = None
 
-        self.logger.debug('Account._account_lookup() ended with:{0}'.format(code))
+        self.logger.debug('Account._acount_lookup() ended with:{0}'.format(code))
         return (code, message, detail)
 
     def _account_add_check(self, account_name, data_dic):
@@ -693,9 +709,10 @@ class Account(object):
 
     def new(self, content):
         """ generate a new account """
-        self.logger.debug('Account.account_new()')
+        self.logger.debug('Account.new()')
 
         response_dic = {}
+        result = None
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
         if code == 200:
@@ -710,6 +727,8 @@ class Account(object):
                 }
                 if 'contact' in payload:
                     response_dic['data']['contact'] = payload['contact']
+            elif code == 200 and detail and 'status' in detail:
+                response_dic['data'] = detail
 
             response_dic['header'] = {}
             response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
@@ -726,7 +745,7 @@ class Account(object):
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Account.account_new() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
     def parse(self, content):
