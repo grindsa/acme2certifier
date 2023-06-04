@@ -140,6 +140,7 @@ acme_srv/xca/*
 acme_srv/openxpki/*
 acme_srv/acme/*
 acme_srv/ejbca/*
+acme_srv/ssl/*
 acme_srv/cn_dump/*
 acme_srv/fixture
 *.dll
@@ -153,5 +154,6 @@ acme_srv/acme_srv.db.old.*
 # *.cfg
 *.pub
 *.private
+*.key
 settings.json
 coverage.lcov
