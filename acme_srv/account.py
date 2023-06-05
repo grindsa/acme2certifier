@@ -712,7 +712,6 @@ class Account(object):
         self.logger.debug('Account.new()')
 
         response_dic = {}
-        result = None
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
         if code == 200:
