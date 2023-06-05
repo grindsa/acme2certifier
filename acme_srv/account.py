@@ -65,7 +65,8 @@ class Account(object):
             code = 200
             message = result['name']
             # set status be returned to client
-            detail = self._account_tune(result,  jwk)
+            # detail = self._account_tune(result,  jwk)
+            detail = self._parse_query(message)
         else:
             code = 400
             message = self.err_msg_dic['accountdoesnotexist']
