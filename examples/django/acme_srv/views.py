@@ -3,6 +3,7 @@
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
+from django.utils.html import escape
 from acme_srv.a2c_response import JsonResponse
 from acme_srv.authorization import Authorization
 from acme_srv.account import Account
@@ -71,7 +72,7 @@ def pretty_request(request):
 def directory(request):
     """ get directory """
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
-        return JsonResponse(cfg_dir.directory_get())
+        return JsonResponse(escape(cfg_dir.directory_get()))
 
 
 def newaccount(request):
@@ -116,7 +117,7 @@ def newnonce(request):
 def servername_get(request):
     """ get server name """
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
-        return JsonResponse({'server_name': cfg_dir.servername_get()})
+        return JsonResponse({'server_name': escape(cfg_dir.servername_get())})
 
 
 def acct(request):
