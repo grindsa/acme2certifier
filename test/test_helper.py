@@ -730,42 +730,42 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 
     def test_085_helper_get_url(self):
         """ get_url https """
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '443', 'PATH_INFO': 'path_info'}
         self.assertEqual('https://http_host', self.get_url(data_dic, False))
 
     def test_086_helper_get_url(self):
         """ get_url http """
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '80', 'PATH_INFO': 'path_info'}
         self.assertEqual('http://http_host', self.get_url(data_dic, False))
 
     def test_087_helper_get_url(self):
         """ get_url http wsgi.scheme """
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '80', 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
         self.assertEqual('wsgi.url_scheme://http_host', self.get_url(data_dic, False))
 
     def test_088_helper_get_url(self):
         """ get_url https include_path true bot no pathinfo"""
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '443'}
         self.assertEqual('https://http_host', self.get_url(data_dic, True))
 
     def test_089_helper_get_url(self):
         """ get_url https and path info"""
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '443', 'PATH_INFO': 'path_info'}
         self.assertEqual('https://http_hostpath_info', self.get_url(data_dic, True))
 
     def test_090_helper_get_url(self):
         """ get_url wsgi.url and pathinfo """
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '80', 'PATH_INFO': 'path_info', 'wsgi.url_scheme': 'wsgi.url_scheme'}
         self.assertEqual('wsgi.url_scheme://http_hostpath_info', self.get_url(data_dic, True))
 
     def test_091_helper_get_url(self):
         """ get_url http and pathinfo"""
-        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_HOST': 'http_host', 'SERVER_PORT': '80', 'PATH_INFO': 'path_info'}
         self.assertEqual('http://http_hostpath_info', self.get_url(data_dic, True))
 
     def test_092_helper_get_url(self):
         """ get_url without hostinfo """
-        data_dic = {'SERVER_PORT': 80, 'PATH_INFO': 'path_info'}
+        data_dic = {'SERVER_PORT': '80', 'PATH_INFO': 'path_info'}
         self.assertEqual('http://localhost', self.get_url(data_dic, False))
 
     def test_093_helper_get_url(self):
@@ -901,12 +901,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
 
     def test_116_helper_get_url(self):
         """ get_url with xforwarded https """
-        data_dic = {'HTTP_X_FORWARDED_PROTO': 'https', 'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_X_FORWARDED_PROTO': 'https', 'HTTP_HOST': 'http_host', 'SERVER_PORT': '443', 'PATH_INFO': 'path_info'}
         self.assertEqual('https://http_host', self.get_url(data_dic, False))
 
     def test_117_helper_get_url(self):
         """ get_url with xforwarded http """
-        data_dic = {'HTTP_X_FORWARDED_PROTO': 'http', 'HTTP_HOST': 'http_host', 'SERVER_PORT': 443, 'PATH_INFO': 'path_info'}
+        data_dic = {'HTTP_X_FORWARDED_PROTO': 'http', 'HTTP_HOST': 'http_host', 'SERVER_PORT': '443', 'PATH_INFO': 'path_info'}
         self.assertEqual('http://http_host', self.get_url(data_dic, False))
 
     def test_118_helper_validate_email(self):
