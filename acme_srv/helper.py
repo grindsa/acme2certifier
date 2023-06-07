@@ -509,7 +509,7 @@ def get_url(environ, include_path=False):
         proto = html.escape(environ['HTTP_X_FORWARDED_PROTO'])
     elif 'wsgi.url_scheme' in environ:
         proto = html.escape(environ['wsgi.url_scheme'])
-    elif port == 443:
+    elif int(port) == 443:
         proto = 'https'
     else:
         proto = 'http'
