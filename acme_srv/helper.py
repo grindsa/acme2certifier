@@ -30,6 +30,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import requests
+import html
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
 
@@ -495,26 +496,26 @@ def generate_random_string(logger, length):
 def get_url(environ, include_path=False):
     """ get url """
     if 'HTTP_HOST' in environ:
-        server_name = environ['HTTP_HOST']
+        server_name = html.escape(environ['HTTP_HOST'])
     else:
         server_name = 'localhost'
 
     if 'SERVER_PORT' in environ:
-        port = environ['SERVER_PORT']
+        port = html.escape(environ['SERVER_PORT'])
     else:
         port = 80
 
     if 'HTTP_X_FORWARDED_PROTO' in environ:
-        proto = environ['HTTP_X_FORWARDED_PROTO']
+        proto = html.escape(environ['HTTP_X_FORWARDED_PROTO'])
     elif 'wsgi.url_scheme' in environ:
-        proto = environ['wsgi.url_scheme']
+        proto = html.escape(environ['wsgi.url_scheme'])
     elif port == 443:
         proto = 'https'
     else:
         proto = 'http'
 
     if include_path and 'PATH_INFO' in environ:
-        result = '{0}://{1}{2}'.format(proto, server_name, environ['PATH_INFO'])
+        result = '{0}://{1}{2}'.format(proto, server_name, html.escape(environ['PATH_INFO']))
     else:
         result = '{0}://{1}'.format(proto, server_name)
     return result
