@@ -1009,6 +1009,7 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
     context.options |= ssl.PROTOCOL_TLS_CLIENT
     context.set_alpn_protocols(["acme-tls/1"])
     # reject insecure ssl version
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     # context.options |= ssl.OP_NO_SSLv3
     # context.options |= ssl.OP_NO_TLSv1
     # context.options |= ssl.OP_NO_TLSv1_1
