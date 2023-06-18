@@ -451,12 +451,13 @@ class TestACMEHandler(unittest.TestCase):
         payload = {}
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'onlyReturnExisting without payload'), self.account._onlyreturnexisting(protected, payload))
 
-    def test_042_account__onlyreturnexisting(self):
+    @patch('acme_srv.account.Account._account_lookup')
+    def test_042_account__onlyreturnexisting(self, mock_lookup):
         """ test onlyReturnExisting for existing account """
-        self.signature.dbstore.account_lookup.return_value = {'name' : 'foo', 'alg' : 'RS256'}
+        mock_lookup.return_value = ('code', 'message', 'detail')
         protected = {'jwk' : {'n' : 'foo'}}
         payload = {'onlyreturnexisting' : True}
-        self.assertEqual((200, 'foo', {'name': 'foo', 'alg': 'RS256', 'status': 'valid'}), self.account._onlyreturnexisting(protected, payload))
+        self.assertEqual(('code', 'message', 'detail') , self.account._onlyreturnexisting(protected, payload))
 
     def test_043_account__onlyreturnexisting(self):
         """ test onlyReturnExisting for non existing account """
