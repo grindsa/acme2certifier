@@ -203,9 +203,9 @@ class Message(object):
                 response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type'], 'detail': status_dic['detail']}
             else:
                 response_dic['data'] = {'status': status_dic['code'], 'type': status_dic['type']}
-        else:
-            # add nonce to header
-            if add_nonce:
-                response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
+
+        # always add nonce to header
+        if add_nonce:
+            response_dic['header']['Replay-Nonce'] = self.nonce.generate_and_add()
 
         return response_dic
