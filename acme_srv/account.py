@@ -65,7 +65,8 @@ class Account(object):
             code = 200
             message = result['name']
             # set status be returned to client
-            detail = self._account_tune(result, jwk)
+            # detail = self._account_tune(result,  jwk)
+            detail = self._parse_query(message)
         else:
             code = 400
             message = self.err_msg_dic['accountdoesnotexist']
@@ -712,7 +713,6 @@ class Account(object):
         self.logger.debug('Account.new()')
 
         response_dic = {}
-        result = None
         # check message but skip signature check as this is a new account (True)
         (code, message, detail, protected, payload, _account_name) = self.message.check(content, True)
         if code == 200:
