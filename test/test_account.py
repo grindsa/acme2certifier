@@ -117,49 +117,61 @@ class TestACMEHandler(unittest.TestCase):
         string = {'kid' : 'http://tester.local/acct/foo'}
         self.assertFalse(self.account._name_get(string))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_016_account_new(self, mock_mcheck):
+    def test_016_account_new(self, mock_mcheck, mock_nnonce):
         """ Account.new() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, None)
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.account.new(message))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._tos_check')
     @patch('acme_srv.message.Message.check')
-    def test_017_account_new(self, mock_mcheck, mock_tos):
+    def test_017_account_new(self, mock_mcheck, mock_tos, mock_nnonce):
         """ Account.new() failed bcs failed tos check """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', None)
         mock_tos.return_value = (403, 'urn:ietf:params:acme:error:userActionRequired', 'tosfalse')
         message = {'foo' : 'bar'}
         self.account.tos_url = 'foo'
-        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'type': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {}}
+        mock_nnonce.return_value = 'new_nonce'
+        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'type': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._contact_check')
     @patch('acme_srv.account.Account._tos_check')
     @patch('acme_srv.message.Message.check')
-    def test_018_account_new(self, mock_mcheck, mock_tos, mock_contact):
+    def test_018_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_nnonce):
         """ Account.new() failed bcs failed contact check """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', None)
         mock_tos.return_value = (200, None, None)
         mock_contact.return_value = (400, 'urn:ietf:params:acme:error:invalidContact', 'no contacts specified')
+        mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'type': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {}}
+        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'type': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._add')
     @patch('acme_srv.account.Account._contact_check')
     @patch('acme_srv.account.Account._tos_check')
     @patch('acme_srv.message.Message.check')
-    def test_019_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_aad):
+    def test_019_account_new(self, mock_mcheck, mock_tos, mock_contact, mock_aad, mock_nnonce):
         """ Account.new() failed bcs of failed add """
         mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : 'foo@bar.com'}, None)
         mock_tos.return_value = (200, None, None)
         mock_contact.return_value = (200, None, None)
         mock_aad.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'incomplete JSON Web Key')
+        mock_nnonce.return_value = 'new_nonce'
         message = {'foo' : 'bar'}
-        e_result = {'code': 400, 'data': {'detail': 'incomplete JSON Web Key', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}
+        e_result = {'code': 400, 'data': {'detail': 'incomplete JSON Web Key', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._add')
@@ -193,15 +205,19 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
+
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._onlyreturnexisting')
     @patch('acme_srv.message.Message.check')
-    def test_022_account_new(self, mock_mcheck, mock_existing):
+    def test_022_account_new(self, mock_mcheck, mock_existing, mock_nnonce):
         """ Account.new() onlyReturnExisting for a non existing account """
         mock_mcheck.return_value = (200, None, None, 'protected', {"onlyreturnexisting": 'true'}, None)
         mock_existing.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', None)
+        mock_nnonce.return_value = 'new_nonce'
         message = {'foo': 'bar'}
-        e_result = {'code': 400, 'data': {'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {}}
+        e_result = {'code': 400, 'data': {'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._onlyreturnexisting')
@@ -278,35 +294,47 @@ class TestACMEHandler(unittest.TestCase):
         string = {'foo' : 'bar'}
         self.assertFalse(self.account._name_get(string))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_028_account_parse(self, mock_mcheck):
+    def test_028_account_parse(self, mock_mcheck, mock_nnonce):
         """ Account.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.account.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_029_account_parse(self, mock_mcheck):
+    def test_029_account_parse(self, mock_mcheck, mock_nnonce):
         """ test failed account parse for request which does not has a "status" field in payload """
         mock_mcheck.return_value = (200, None, None, 'protected', {"foo" : "bar"}, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'dont know what to do with this request'}}, self.account.parse(message))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'dont know what to do with this request'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_030_account_parse(self, mock_mcheck):
+    def test_030_account_parse(self, mock_mcheck, mock_nnonce):
         """ test failed account parse for reqeust with a "status" field other than "deactivated" """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"}, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'status attribute without sense'}}, self.account.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'status attribute without sense'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._delete')
     @patch('acme_srv.message.Message.check')
-    def test_031_account_parse(self, mock_mcheck, mock_del):
+    def test_031_account_parse(self, mock_mcheck, mock_del, mock_nnonce):
         """ test failed account parse for reqeust with failed deletion """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "deactivated"}, 'account_name')
         mock_del.return_value = (400, 'urn:ietf:params:acme:error:accountDoesNotExist', 'deletion failed')
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': 'deletion failed'}}, self.account.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'detail': 'deletion failed'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._delete')
@@ -318,6 +346,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {'status': 'deactivated'}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.account.Account._key_change')
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -330,7 +359,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         mock_keychange.return_value = (400, 'message', 'detail')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}, 'header': {}}, self.account.parse(message))
+        self.assertEqual({'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.account.Account._key_change')
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -345,14 +375,17 @@ class TestACMEHandler(unittest.TestCase):
         message = '{"foo" : "bar"}'
         self.assertEqual({'code': 200, 'data': {}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._contacts_update')
     @patch('acme_srv.message.Message.check')
-    def test_035_account_parse(self, mock_mcheck, mock_contact_upd):
+    def test_035_account_parse(self, mock_mcheck, mock_contact_upd, mock_nnonce):
         """ test failed account parse for contacts update as contact updated failed """
         mock_mcheck.return_value = (200, None, None, 'protected', {"contact" : "deactivated"}, 'account_name')
         mock_contact_upd.return_value = (400, 'message', 'detail')
+        mock_nnonce.return_value = 'new_nonce'
         message = 'message'
-        self.assertEqual({'code': 400, 'data': {'detail': 'update failed', 'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {}}, self.account.parse(message))
+        self.assertEqual({'code': 400, 'data': {'detail': 'update failed', 'type': 'urn:ietf:params:acme:error:accountDoesNotExist', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.account.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.account.Account._info')
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -748,15 +781,18 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((201, 'randowm_string', None), self.account._add(content, payload, 'foo@example.com'))
         self.assertIn('INFO:test_a2c:add eab_kid: eab_kid to data_dic', lcm.output)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_085_account_new(self, mock_mcheck):
+    def test_085_account_new(self, mock_mcheck, mock_nnonce):
         """ Account.new() tos required"""
         mock_mcheck.return_value = (200, None, None, 'protected', {'contact' : [u'mailto: foo@bar.com']}, None)
+        mock_nnonce.return_value = 'new_nonce'
         self.account.tos_check_disable = False
         self.account.tos_url = 'foo'
         message = {'foo' : 'bar'}
-        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'type': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {}}
+        e_result = {'code': 403, 'data': {'detail': 'Terms of service must be accepted', 'type': 'urn:ietf:params:acme:error:userActionRequired', 'status': 403}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.account.Account._add')
@@ -833,8 +869,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_nnonce.return_value = 'new_nonce'
         mock_eab.return_value = (400, 'message', 'detail')
         message = {'foo' : 'bar'}
-        e_result = {'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}, 'header': {}}
+        e_result = {'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.account.Account._eab_check')
     @patch('acme_srv.account.Account._tos_check')
@@ -854,13 +891,16 @@ class TestACMEHandler(unittest.TestCase):
         e_result = {'code': 200, 'data': {}, 'header': {'Location': 'http://tester.local/acme/acct/1', 'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_092_account_new(self, mock_mcheck):
+    def test_092_account_new(self, mock_mcheck, mock_nnonce):
         """ Account.new() tos check skipped as no tos """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', None)
         message = {'foo' : 'bar'}
-        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'type': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {}}
+        mock_nnonce.return_value = 'new_nonce'
+        e_result = {'code': 400, 'data': {'detail': 'The provided contact URI was invalid: no contacts specified', 'type': 'urn:ietf:params:acme:error:invalidContact', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}
         self.assertEqual(e_result, self.account.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     def test_093_account__lookup(self):
         """ test Account._lookup() if dbstore.account_lookup raises an exception """

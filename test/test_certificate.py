@@ -106,17 +106,23 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {'order__status_id': 5, 'cert': 'foo-bar'}
         self.assertEqual({'code': 200, 'data': 'foo-bar', 'header': {'Content-Type': 'application/pem-certificate-chain'}}, self.certificate.new_get('url'))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_012_certificate_new_post(self, mock_mcheck):
+    def test_012_certificate_new_post(self, mock_mcheck, mock_nnonce):
         """ test Certificate.new_post() message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data':  json.dumps({'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'detail'})}, self.certificate.new_post('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'code': 400, 'header': {'Replay-Nonce': 'new_nonce'}, 'data':  json.dumps({'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'detail'})}, self.certificate.new_post('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_013_certificate_new_post(self, mock_mcheck):
+    def test_013_certificate_new_post(self, mock_mcheck, mock_nnonce):
         """ test Certificate.new_post() message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data': json.dumps({'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'url missing in protected header'})}, self.certificate.new_post('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'code': 400, 'header': {'Replay-Nonce': 'new_nonce'}, 'data': json.dumps({'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'url missing in protected header'})}, self.certificate.new_post('content'))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.message.Message.prepare_response')
     @patch('acme_srv.certificate.Certificate.new_get')
@@ -256,25 +262,34 @@ class TestACMEHandler(unittest.TestCase):
         mock_authz.return_value = True
         self.assertEqual((200, 'revrcheck'), self.certificate._revocation_request_validate('account_name', payload))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_033_certificate_revoke(self, mock_mcheck):
+    def test_033_certificate_revoke(self, mock_mcheck, mock_nnonce):
         """ test Certificate.revoke with failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'message', 'detail': 'detail'}}, self.certificate.revoke('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'message', 'detail': 'detail'}}, self.certificate.revoke('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_034_certificate_revoke(self, mock_mcheck):
+    def test_034_certificate_revoke(self, mock_mcheck, mock_nnonce):
         """ test Certificate.revoke with incorrect payload """
         mock_mcheck.return_value = (200, 'message', 'detail', None, {}, 'account_name')
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'certificate not found'}}, self.certificate.revoke('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'certificate not found'}}, self.certificate.revoke('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.certificate.Certificate._revocation_request_validate')
     @patch('acme_srv.message.Message.check')
-    def test_035_certificate_revoke(self, mock_mcheck, mock_validate):
+    def test_035_certificate_revoke(self, mock_mcheck, mock_validate, mock_nnonce):
         """ test Certificate.revoke with failed request validation """
         mock_mcheck.return_value = (200, None, None, None, {'certificate' : 'certificate'}, 'account_name')
         mock_validate.return_value = (400, 'error')
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'error'}}, self.certificate.revoke('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'error'}}, self.certificate.revoke('content'))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.certificate.Certificate._revocation_request_validate')
