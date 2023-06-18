@@ -85,7 +85,6 @@ jobs:
 
     - name: "[ PREPARE ] try to get up the sslserver"
       run: |
-        # (Get-Content acme_srv/acme_srv.cfg) -replace 'nonce_check_disable: False', 'nonce_check_disable: True' | Set-Content acme_srv/acme_srv.cfg
         Start-Process powershell {python .\manage.py runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
 
     - name: "[ PREPARE ] Sleep for 5s"
