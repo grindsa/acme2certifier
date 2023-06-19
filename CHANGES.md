@@ -5,6 +5,19 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.28
+
+**Features and Improvements**:
+
+- input validation in django deployments
+- return account status when querying the account endpoint or sending a request to `new-account` with empty payload
+- merge codescanning workflows into a single file
+
+**Bugfixes**:
+
+- [#111](https://github.com/grindsa/acme2certifier/issues/111) - Nonce handling in error responses
+- [#112](https://github.com/grindsa/acme2certifier/issues/112) - Keyrollover in Posh-ACME
+
 # Changes in 0.27
 
 **Features and Improvements**:
