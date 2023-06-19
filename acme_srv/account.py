@@ -498,6 +498,20 @@ class Account(object):
         self.logger.debug('Account._key_change() ended with: {0}'.format(code))
         return (code, message, detail)
 
+    def _keys_adjust(self, pub_key, old_key):
+        """ adjust keys to cover corner cases """
+        self.logger.debug('Account._key_compare()')
+        if 'alg' in pub_key:
+            # Posh-Acme does not send 'alg' attribute in old key
+            if 'alg' not in old_key:
+                old_key['alg'] = pub_key['alg']
+            # rewrite alg statement in pubkey for acmeshell
+            if pub_key['alg'].startswith('ES') and old_key['alg'] == 'ECDSA':
+                pub_key['alg'] = 'ECDSA'
+
+        self.logger.debug('Account._keys_adjust()')
+        return(pub_key, old_key)
+
     def _key_compare(self, aname, old_key):
         """ compare key with the one stored in database """
         self.logger.debug('Account._key_compare({0})'.format(aname))
@@ -510,14 +524,8 @@ class Account(object):
             pub_key = None
 
         if old_key and pub_key:
-
-            if 'alg' in pub_key:
-                # Posh-Acme does not send 'alg' attribute in old key
-                if 'alg' not in old_key:
-                    old_key['alg'] = pub_key['alg']
-                # rewrite alg statement in pubkey for acmeshell
-                if pub_key['alg'].startswith('ES') and old_key['alg'] == 'ECDSA':
-                    pub_key['alg'] = 'ECDSA'
+            # modify key format to prepare comparison
+            (pub_key, old_key) = self._keys_adjust(pub_key, old_key)
 
             if old_key == pub_key:
                 code = 200
