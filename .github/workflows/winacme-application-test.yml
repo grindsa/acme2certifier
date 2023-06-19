@@ -106,6 +106,7 @@ jobs:
     - name: "Create account via Posh-ACME"
       run: |
         set-PAServer -DirectoryUrl https://localhost/directory -SkipCertificateCheck
+        $DebugPreference = 'Continue'
         New-PAAccount -Contact 'foo@bar.local'
         $ACC_1 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
         echo ACC1=$ACC_1 >> $env:GITHUB_ENV
@@ -114,6 +115,7 @@ jobs:
 
     - name: "Recreate account via Posh-ACME"
       run: |
+        $DebugPreference = 'Continue'
         Get-PAAccount | Remove-PAAccount -Force
         Get-PAAccount
         New-PAAccount -Contact 'win4@bar.local' -AcceptTOS -OnlyReturnExisting  -KeyFile foo.key
@@ -124,11 +126,13 @@ jobs:
 
     - name: "Rollover account key"
       run: |
+        $DebugPreference = 'Continue'
         Set-PAAccount -KeyRollover
 
     - name: "[ ENROLL ] Enroll Certificate via Posh-ACME"
       # if: $env:ACC_1 == env.ACC_2
       run: |
+        $DebugPreference = 'Continue'
         New-PACertificate ${{ secrets.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
 
     - name: "[ * ] collecting test logs"
