@@ -42,21 +42,27 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.return_value = [{'type' : 'identifier_type', 'value' : 'identifier_value', 'status__name' : 'foo'}]
         self.assertEqual({'status': 'foo', 'expires': '2018-12-02T05:00:00Z', 'identifier': {'type': 'identifier_type', 'value': 'identifier_value'}, 'challenges': [{'key2': 'value2', 'key1': 'value1'}]}, self.authorization._authz_info('http://tester.local/acme/authz/foo'))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_002_authorization_new_post(self, mock_mcheck):
+    def test_002_authorization_new_post(self, mock_mcheck, mock_nnonce):
         """ Authorization.new_post() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.authorization.new_post(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.authorization.Authorization._authz_info')
     @patch('acme_srv.message.Message.check')
-    def test_003_authorization_new_post(self, mock_mcheck, mock_authzinfo):
+    def test_003_authorization_new_post(self, mock_mcheck, mock_authzinfo, mock_nnonce):
         """ Authorization.new_post() failed bcs url is missing in protected """
         mock_mcheck.return_value = (200, None, None, 'protected', 'payload', 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         mock_authzinfo.return_value = {'authz_foo': 'authz_bar'}
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.authorization.new_post(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.authorization.Authorization._authz_info')
@@ -90,7 +96,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_authzinfo.return_value = {}
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'type': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 403, 'data': {'detail': 'authorizations lookup failed', 'type': 'urn:ietf:params:acme:error:unauthorized', 'status': 403}}, self.authorization.new_post(message))
+        self.assertTrue(mock_nnonce.called)
 
     def test_007_authorization_invalidate(self):
         """ test Authorization.invalidate() empty authz list """

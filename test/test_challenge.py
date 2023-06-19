@@ -92,50 +92,65 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.return_value = {'token' : 'token', 'type' : 'http-01', 'status' : 'valid', 'validated': 1543640400}
         self.assertEqual({'status': 'valid', 'token': 'token', 'type': 'http-01', 'validated': '2018-12-01T05:00:00Z'}, self.challenge._info('foo'))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_012_challenge_parse(self, mock_mcheck):
+    def test_012_challenge_parse(self, mock_mcheck, mock_nnonce):
         """ Challenge.parse() failed bcs. message check returns an error """
         mock_mcheck.return_value = (400, 'urn:ietf:params:acme:error:malformed', 'detail', 'protected', 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data':  {'detail': 'detail', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'code': 400, 'header': {'Replay-Nonce': 'new_nonce'}, 'data':  {'detail': 'detail', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_013_challenge_parse(self, mock_mcheck):
+    def test_013_challenge_parse(self, mock_mcheck, mock_nnonce):
         """ Challenge.parse() failed message check returns ok but no url in protected """
         mock_mcheck.return_value = (200, 'urn:ietf:params:acme:error:malformed', 'detail', {'foo' : 'bar'}, 'payload', 'account_name')
-        self.assertEqual({'code': 400, 'header': {}, 'data': {'detail': 'url missing in protected header', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'code': 400, 'header': {'Replay-Nonce': 'new_nonce'}, 'data': {'detail': 'url missing in protected header', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.challenge.parse('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_014_challenge_parse(self, mock_mcheck, mock_cname):
+    def test_014_challenge_parse(self, mock_mcheck, mock_cname, mock_nnonce):
         """ Challenge.parse() message check returns ok with tnauhlist enabled failed tnauth check """
         self.challenge.tnauthlist_support = True
         mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         mock_cname.return_value = None
-        self.assertEqual({'code': 400, 'data' : {'detail': 'could not get challenge', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'could not get challenge', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.challenge.parse('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._info')
     @patch('acme_srv.challenge.Challenge._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_015_challenge_parse(self, mock_mcheck, mock_cname, mock_info):
+    def test_015_challenge_parse(self, mock_mcheck, mock_cname, mock_info, mock_nnonce):
         """ Challenge.parse() message check returns challenge.info() failed """
         self.challenge.tnauthlist_support = True
         mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         mock_cname.return_value = 'foo'
         mock_info.return_value = {}
-        self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'invalid challenge: foo', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.challenge.parse('content'))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
     @patch('acme_srv.challenge.Challenge._info')
     @patch('acme_srv.challenge.Challenge._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_016_challenge_parse(self, mock_mcheck, mock_cname, mock_info, mock_tnauth):
+    def test_016_challenge_parse(self, mock_mcheck, mock_cname, mock_info, mock_tnauth, mock_nnonce):
         """ Challenge.parse() with tnauhlist enabled and failed tnauth check """
         self.challenge.tnauthlist_support = True
         mock_mcheck.return_value = (200, 'message', 'detail', {'url' : 'foo'}, {}, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         mock_cname.return_value = 'foo'
         mock_info.return_value = {'foo': 'bar'}
         mock_tnauth.return_value = (400, 'foo', 'bar')
-        self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'type': 'foo', 'status': 400}, 'header': {}}, self.challenge.parse('content'))
+        self.assertEqual({'code': 400, 'data' : {'detail': 'bar', 'type': 'foo', 'status': 400}, 'header': {'Replay-Nonce': 'new_nonce'}}, self.challenge.parse('content'))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.challenge.Challenge._validate_tnauthlist_payload')
