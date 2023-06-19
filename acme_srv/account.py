@@ -510,7 +510,7 @@ class Account(object):
                 pub_key['alg'] = 'ECDSA'
 
         self.logger.debug('Account._keys_adjust()')
-        return(pub_key, old_key)
+        return (pub_key, old_key)
 
     def _key_compare(self, aname, old_key):
         """ compare key with the one stored in database """
