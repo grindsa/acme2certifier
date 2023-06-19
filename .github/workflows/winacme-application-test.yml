@@ -122,6 +122,10 @@ jobs:
         echo ACC2=$ACC_2 >> $env:GITHUB_ENV
         echo $env:ACC_2
 
+    - name: "Rollover account key"
+      run: |
+        Set-PAAccount -KeyRollover
+
     - name: "[ ENROLL ] Enroll Certificate via Posh-ACME"
       # if: $env:ACC_1 == env.ACC_2
       run: |
