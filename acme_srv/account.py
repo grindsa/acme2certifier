@@ -510,8 +510,12 @@ class Account(object):
             pub_key = None
 
         if old_key and pub_key:
-            # rewrite alg statement in pubkey statement
-            if 'alg' in pub_key and 'alg' in old_key:
+
+            if 'alg' in pub_key:
+                # Posh-Acme does not send 'alg' attribute in old key
+                if 'alg' not in old_key:
+                    old_key['alg'] = pub_key['alg']
+                # rewrite alg statement in pubkey for acmeshell
                 if pub_key['alg'].startswith('ES') and old_key['alg'] == 'ECDSA':
                     pub_key['alg'] = 'ECDSA'
 

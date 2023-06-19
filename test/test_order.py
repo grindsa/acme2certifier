@@ -82,21 +82,27 @@ class TestACMEHandler(unittest.TestCase):
         e_result = (None, 'order', {'identifier1': {'type': 'dns', 'value': 'example1.com'}, 'identifier2': {'type': 'dns', 'value': 'example2.com'}}, '2018-12-02T05:00:00Z')
         self.assertEqual(e_result, self.order._add(message, 1))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_005_order_new(self, mock_mcheck):
+    def test_005_order_new(self, mock_mcheck, mock_nnonce):
         """ Order.new() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.new(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.new(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
     @patch('acme_srv.message.Message.check')
-    def test_006_order_new(self, mock_mcheck, mock_orderadd):
+    def test_006_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
         """ Order.new() failed bcs of db_add failed """
         mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"}, 'account_name')
         mock_orderadd.return_value = ('urn:ietf:params:acme:error:malformed', None, None, None)
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'could not process order'}}, self.order.new(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'could not process order'}}, self.order.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
@@ -325,52 +331,67 @@ class TestACMEHandler(unittest.TestCase):
         """ Order.name_get() https with key/value parameters"""
         self.assertEqual('foo', self.order._name_get('https://tester.local/acme/order/foo?key=value'))
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_035_order_parse(self, mock_mcheck):
+    def test_035_order_parse(self, mock_mcheck, mock_nnonce):
         """ Order.parse() failed bcs. of failed message check """
         mock_mcheck.return_value = (400, 'message', 'detail', None, None, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.message.Message.check')
-    def test_036_order_parse(self, mock_mcheck):
+    def test_036_order_parse(self, mock_mcheck, mock_nnonce):
         """ Order.parse() failed bcs. no url key in protected """
         mock_mcheck.return_value = (200, None, None, {'foo_protected' : 'bar_protected'}, {"foo_payload" : "bar_payload"}, 'account_name')
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        mock_nnonce.return_value = 'new_nonce'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'url is missing in protected', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_037_order_parse(self, mock_mcheck, mock_oname):
+    def test_037_order_parse(self, mock_mcheck, mock_oname, mock_nnonce):
         """ Order.parse() name_get failed """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = None
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'order name is missing', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'order name is missing', 'type': 'urn:ietf:params:acme:error:malformed', 'status': 400}}, self.order.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._lookup')
     @patch('acme_srv.order.Order._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_038_order_parse(self, mock_mcheck, mock_oname, mock_lookup):
+    def test_038_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_nnonce):
         """ Order.parse() failed as order lookup failed """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'foo'
         mock_lookup.return_value = None
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 403, 'data': {'detail': 'order not found', 'type': 'urn:ietf:params:acme:error:orderNotReady', 'status': 403}}, self.order.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 403, 'data': {'detail': 'order not found', 'type': 'urn:ietf:params:acme:error:orderNotReady', 'status': 403}}, self.order.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
     @patch('acme_srv.order.Order._lookup')
     @patch('acme_srv.order.Order._name_get')
     @patch('acme_srv.message.Message.check')
-    def test_039_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process):
+    def test_039_order_parse(self, mock_mcheck, mock_oname, mock_lookup, mock_process, mock_nnonce):
         """ Order.parse() succ, oder process returned non 200 """
         mock_mcheck.return_value = (200, None, None, {'url' : 'bar_url/finalize'}, {"foo_payload" : "bar_payload"}, 'account_name')
         mock_oname.return_value = 'foo'
         mock_lookup.return_value = 'foo'
         mock_process.return_value = (400, 'message', 'detail', None)
+        mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'detail': 'detail', 'type': 'message', 'status': 400}}, self.order.parse(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')

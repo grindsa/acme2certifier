@@ -86,6 +86,7 @@ jobs:
     - name: "[ PREPARE ] try to get up the sslserver"
       run: |
         Start-Process powershell {python .\manage.py runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
+
     - name: "[ PREPARE ] Sleep for 5s"
       uses: juliangruber/sleep-action@v1
       with:
@@ -101,10 +102,38 @@ jobs:
     - name: "[ PREPARE ] Install and configure Posh-ACME"
       run: |
         Install-Module -Name Posh-ACME -Scope CurrentUser -Force
-    - name: "[ ENROLL ] Enroll Certificate via Posh-ACME"
+
+    - name: "Create account via Posh-ACME"
       run: |
         set-PAServer -DirectoryUrl https://localhost/directory -SkipCertificateCheck
-        New-PACertificate ${{ secrets.CF_WINACME1_NAME }} -AcceptTOS -Contact 'foo@bar.local' -Plugin WebSelfHost -PluginArgs @{}  -Force
+        $DebugPreference = 'Continue'
+        New-PAAccount -Contact 'foo@bar.local'
+        $ACC_1 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
+        echo ACC1=$ACC_1 >> $env:GITHUB_ENV
+        Export-PAAccountKEy -OutputFile foo.key
+        echo $env:ACC_1
+
+    - name: "Recreate account via Posh-ACME"
+      run: |
+        $DebugPreference = 'Continue'
+        Get-PAAccount | Remove-PAAccount -Force
+        Get-PAAccount
+        New-PAAccount -Contact 'win4@bar.local' -AcceptTOS -OnlyReturnExisting  -KeyFile foo.key
+        Get-PAAccount -Refresh
+        $ACC_2 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
+        echo ACC2=$ACC_2 >> $env:GITHUB_ENV
+        echo $env:ACC_2
+
+    - name: "Rollover account key"
+      run: |
+        $DebugPreference = 'Continue'
+        Set-PAAccount -KeyRollover
+
+    - name: "[ ENROLL ] Enroll Certificate via Posh-ACME"
+      # if: $env:ACC_1 == env.ACC_2
+      run: |
+        $DebugPreference = 'Continue'
+        New-PACertificate ${{ secrets.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
