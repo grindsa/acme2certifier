@@ -18,7 +18,7 @@ Although a connection was already possible via the [generic EST CA handler](est.
 
 The OpenXPKI configuration needs to be adjusted to interoperate with acme2certifier
 
-- acme2certifier expects a full key chain (including the root certififcate) to be delivered as part of the response of a `RequestCertificate` call.  Tjat means that you need to adjust the `export_certificate` parameter in the endpoint configuration file stored in `config.d/realm.tpl/rpc/`
+- acme2certifier expects a full key chain (including the root certififcate) to be delivered as part of the response of a `RequestCertificate` call.  That means that you need to adjust the `export_certificate` parameter in the endpoint configuration file stored in `config.d/realm.tpl/rpc/`
 
 ```yaml
 policy:
