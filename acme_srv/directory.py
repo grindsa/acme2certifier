@@ -61,6 +61,7 @@ class Directory(object):
             "newOrder": self.server_name + self.url_prefix + '/acme/neworders',
             'revokeCert': self.server_name + self.url_prefix + '/acme/revokecert',
             'keyChange': self.server_name + self.url_prefix + '/acme/key-change',
+            'renewalInfo': self.server_name + self.url_prefix + '/acme/renewal-info',
             'meta': {
                 'home': 'https://github.com/grindsa/acme2certifier',
                 'author': 'grindsa <grindelsack@gmail.com>',
