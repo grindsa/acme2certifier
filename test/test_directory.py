@@ -81,7 +81,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory()  url prefix """
         self.directory.url_prefix = 'url_prefix'
         self.directory.version = '0.1'
-        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_010_directory_directory_get(self):
@@ -91,7 +91,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1.1'
         self.directory.db_check = True
-        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         result = self.directory.directory_get()
         self.assertTrue(output_dic.items() <= result.items())
         self.assertEqual('NOK', result['meta']['db_check'])
@@ -103,7 +103,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1'
         self.directory.db_check = True
-        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         result = self.directory.directory_get()
         self.assertTrue(output_dic.items() <= result.items())
         self.assertEqual('OK', result['meta']['db_check'])
@@ -115,7 +115,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1'
         self.directory.db_check = True
-        output_dic = {'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
+        output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             result = self.directory.directory_get()
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Directory.dbversion_check(): exc_dbversion_get', lcm.output)
