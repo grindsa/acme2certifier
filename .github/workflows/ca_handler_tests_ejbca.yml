@@ -82,7 +82,12 @@ jobs:
     - name: "Fetch superadmin certificate and key"
       working-directory: examples/Docker/
       run: |
-        curl --data-urlencode "user=superadmin" --data-urlencode "password=${{ env.SAEC }}" --data-urlencode  "hidemenu=false" --data-urlencode "tokenKeySpec=RSA_2048" --data-urlencode "certprofile=ENDUSER" -H "Content-Type: application/x-www-form-urlencoded" -X POST https://127.0.0.1/ejbca/certreq --insecure -o data/superadmin.p12 --insecure
+        docker exec -i ejbca bin/ejbca.sh ra setendentitystatus superadmin 10
+        docker exec -i ejbca bin/ejbca.sh ra setclearpwd superadmin $SAEC
+        docker exec -i ejbca bin/ejbca.sh batch
+        docker cp ejbca:/opt/keyfactor/p12/superadmin.p12 data/
+      env:
+        SAEC: ${{ env.SAEC }}
 
     - name: "Test superadmin  certificate and key"
       working-directory: examples/Docker/
@@ -254,7 +259,12 @@ jobs:
 
     - name: "Fetch superadmin certificate and key"
       run: |
-        curl --data-urlencode "user=superadmin" --data-urlencode "password=${{ env.SAEC }}" --data-urlencode  "hidemenu=false" --data-urlencode "tokenKeySpec=RSA_2048" --data-urlencode "certprofile=ENDUSER" -H "Content-Type: application/x-www-form-urlencoded" -X POST https://127.0.0.1/ejbca/certreq --insecure -o data/acme_ca/superadmin.p12 --insecure
+        docker exec -i ejbca bin/ejbca.sh ra setendentitystatus superadmin 10
+        docker exec -i ejbca bin/ejbca.sh ra setclearpwd superadmin $SAEC
+        docker exec -i ejbca bin/ejbca.sh batch
+        docker cp ejbca:/opt/keyfactor/p12/superadmin.p12 data/acme_ca/
+      env:
+        SAEC: ${{ env.SAEC }}
 
     - name: "Test superadmin  certificate and key"
       run: |
