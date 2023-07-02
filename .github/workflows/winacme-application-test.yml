@@ -20,7 +20,8 @@ jobs:
 
     - name: "[ PREPARE ] get RunnerIP"
       run: |
-        $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet 3').IPAddress
+        $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet').IPAddress
+        # $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'vEthernet (nat)').IPAddress
         echo RUNNER_IP=$runner_ip >> $env:GITHUB_ENV
 
     - name: "[ PREPARE ] echo RunnerIP"
