@@ -851,8 +851,6 @@ class DBstore(object):
         exists = self._certificate_search('name', data_dic['name'])
 
         if bool(exists):
-            print(dict(exists))
-            print(data_dic)
             if 'poll_identifier' not in data_dic:
                 data_dic['poll_identifier'] = exists['poll_identifier']
             if 'renewal_info' not in data_dic:
@@ -862,8 +860,6 @@ class DBstore(object):
             rid = self._certificate_insert(data_dic)
 
         self.logger.debug('DBStore.certificate_add() ended with: {0}'.format(rid))
-        print('################### booom ################################')
-        sys.exit(0)
         return rid
 
     def certificate_delete(self, mkey, string):
