@@ -19,6 +19,7 @@ import socket
 import ssl
 import logging
 import hashlib
+import html
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
@@ -28,9 +29,9 @@ import pytz
 import dns.resolver
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.x509 import load_pem_x509_certificate, ocsp
 import requests
-import html
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
 
@@ -1074,3 +1075,54 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
     # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     logging.error("Uncaught exception")
+
+
+def pembundle_to_list(logger, pem_bundle):
+    """ split pem bundle into a list of certificates """
+    logger.debug('pembundle_to_list()')
+    cert_list = []
+    pem_data = ""
+    for line in pem_bundle.splitlines():
+        line = line.strip()
+        if line.startswith("-----BEGIN CERTIFICATE-----"):
+            if pem_data:
+                cert_list.append(pem_data)
+                pem_data = ""
+        pem_data += line + "\n"
+    if pem_data:
+        cert_list.append(pem_data)
+    logger.debug('pembundle_to_list() returned {0} certificates'.format(len(cert_list)))
+    return cert_list
+
+
+def certid_asn1_get(logger, cert_pem, issuer_pem):
+    """ get renewal information from certificate """
+    logger.debug('certid_asn1_get()')
+
+    cert = load_pem_x509_certificate(convert_string_to_byte(cert_pem))
+    issuer = load_pem_x509_certificate(convert_string_to_byte(issuer_pem))
+
+    builder = ocsp.OCSPRequestBuilder()
+    builder = builder.add_certificate(cert, issuer, hashes.SHA256())
+    ocsprequest = builder.build()
+    ocsprequest_hex = ocsprequest.public_bytes(serialization.Encoding.DER).hex()
+
+    # this is ugly but i did not find a better way to do this
+    _header, certid_hex = ocsprequest_hex.split('0420', 1)
+
+    return certid_hex
+
+
+def certid_check(logger, renewal_info, certid_database):
+    """ compare certid with renewal info """
+    logger.debug('certid_check()')
+
+    renewal_info_b64 = b64_url_recode(logger, renewal_info)
+    renewal_info_hex = b64_decode(logger, renewal_info_b64).hex()
+
+    # this is ugly but i did not find a better way to do this
+    _header, certid_renewal = renewal_info_hex.split('0420', 1)
+    result = certid_renewal == certid_database
+
+    logger.debug('certid_check() ended with: {0}'.format(result))
+    return result
