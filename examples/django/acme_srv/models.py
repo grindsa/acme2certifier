@@ -103,6 +103,7 @@ class Certificate(models.Model):
     poll_identifier = models.TextField(null=True, blank=True)
     expire_uts = models.IntegerField(default=0)
     issue_uts = models.IntegerField(default=0)
+    renewal_info = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __unicode__(self):
