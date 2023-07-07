@@ -1082,15 +1082,16 @@ def pembundle_to_list(logger, pem_bundle):
     logger.debug('pembundle_to_list()')
     cert_list = []
     pem_data = ""
-    for line in pem_bundle.splitlines():
-        line = line.strip()
-        if line.startswith("-----BEGIN CERTIFICATE-----"):
-            if pem_data:
-                cert_list.append(pem_data)
-                pem_data = ""
-        pem_data += line + "\n"
-    if pem_data:
-        cert_list.append(pem_data)
+    if '-----BEGIN CERTIFICATE-----' in pem_bundle:
+        for line in pem_bundle.splitlines():
+            line = line.strip()
+            if line.startswith("-----BEGIN CERTIFICATE-----"):
+                if pem_data:
+                    cert_list.append(pem_data)
+                    pem_data = ""
+            pem_data += line + "\n"
+        if pem_data:
+            cert_list.append(pem_data)
     logger.debug('pembundle_to_list() returned {0} certificates'.format(len(cert_list)))
     return cert_list
 

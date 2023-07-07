@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -41,6 +41,8 @@ class TestACMEHandler(unittest.TestCase):
         self.ca_handler_load = ca_handler_load
         self.cert_dates_get = cert_dates_get
         self.cert_extensions_get = cert_extensions_get
+        self.certid_asn1_get = certid_asn1_get
+        self.certid_check = certid_check
         self.cert_pubkey_get = cert_pubkey_get
         self.cert_san_get = cert_san_get
         self.cert_serial_get = cert_serial_get
@@ -79,6 +81,7 @@ class TestACMEHandler(unittest.TestCase):
         self.logger_token_modify = _logger_token_modify
         self.logger_challenges_modify = _logger_challenges_modify
         self.patched_create_connection = patched_create_connection
+        self.pembundle_to_list = pembundle_to_list
         self.print_debug = print_debug
         self.proxy_check = proxy_check
         self.servercert_get = servercert_get
@@ -1779,5 +1782,90 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         unsafe_string = 'foo\u0009'
         self.assertEqual('foo ', self.string_sanitize(self.logger, unsafe_string))
 
+    def test_243_pembundle_to_list(self):
+        """ bundle to list """
+        pembundle_to_list = 'foo'
+        self.assertFalse(self.pembundle_to_list(self.logger, pembundle_to_list))
+
+    def test_244_pembundle_to_list(self):
+        """ bundle to list """
+        pembundle_to_list = '-----BEGIN CERTIFICATE-----foo'
+        self.assertEqual(['-----BEGIN CERTIFICATE-----foo\n'], self.pembundle_to_list(self.logger, pembundle_to_list))
+
+    def test_245_pembundle_to_list(self):
+        """ bundle to list """
+        pembundle_to_list = '-----BEGIN CERTIFICATE-----foo\n-----BEGIN CERTIFICATE-----foo1'
+        self.assertEqual(['-----BEGIN CERTIFICATE-----foo\n', '-----BEGIN CERTIFICATE-----foo1\n'], self.pembundle_to_list(self.logger, pembundle_to_list))
+
+    def test_246_certid_check(self):
+        """ test certid_check """
+        certid = 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'
+        renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
+        self.assertTrue(self.certid_check(self.logger, renewal_info, certid))
+
+    def test_247_certid_check(self):
+        """ test certid_check """
+        certid = 'false'
+        renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
+        self.assertFalse(self.certid_check(self.logger, renewal_info, certid))
+
+    def test_248_certid_asn1_get(self):
+        """ test certid_asn1_get()"""
+
+        cert_pem = '''-----BEGIN CERTIFICATE-----
+MIIDijCCAXKgAwIBAgIILMqF9kDVQUIwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UE
+CxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MDMwNTA5
+NDVaFw0yNDA3MDIwNTA5NDVaMBsxGTAXBgNVBAMTEGxlZ28tMS5iYXIubG9jYWww
+WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQDmn49aWZb/mRghkT3rgpkV45c5PbE
+LFgQSh2qT7AHEmOv+8SNSjAbgysgJDqXMte4nUQOtYeKEZiy8xaD5ymho4GNMIGK
+MB0GA1UdDgQWBBS5fAkcGAyo4okkZxEeGgLqmLo3izAfBgNVHSMEGDAWgBS/3o6O
+BiIiq61DyN3UT6irSEE+1TALBgNVHQ8EBAMCA+gwDAYDVR0TAQH/BAIwADAtBgNV
+HREEJjAkghBsZWdvLTEuYmFyLmxvY2FsghBsZWdvLTIuYmFyLmxvY2FsMA0GCSqG
+SIb3DQEBCwUAA4ICAQAAYE1U/IR6XRbjnRT9jzit/biRJDFGT7JMfD14pUpXU7ax
+IfndaWA8y0UQ0ZyIiLke+chHWQ2CrYT7wUMjSp08ztViWXDg0IifW4Hcyqx/oNT0
+pCaQeRHJOM17ai9oWZEaJMY/r0/1fCTAK7D0zrJxHCQqEXuosm9LJd0fRMamgGZC
+bXN/HrVOGojOLwzE1mMyW261hI5eU7/DD128iyc0mfeCi2R3lL7oXcwN7MtrKUYq
+qpBEfMlrf07zpAGVe/LOB6SLoPCbjYPC368mwdxgGLLz2+nqPTK2V+2yjylt3de5
+LVp6UG3ZxLNN2RjVXCE7Bh1fT585+NzaaXpf4SWyDxu11yHdfXP5Nw5paELjyNhM
+V9lnEJUiLB4scO1p4XWOQDboLXf0RbI0M/0IxqRZzzKxDRXsnIzdQOswxv8Jfnli
+r0yVc/vzYQeKEkKkRwRw2SVTj9v4lU+ryMrqMCpw/z6vRBLKWAg8cmGE2OTtcL91
+QvJeYpp+9g2GJxs+gEja3BlliLf6EUQkI/P/tCUoe3pEJ0XyPgl5m+5SdAS5Ic0U
+qaUvBXcmU56/h8pzSCF2RDoGEpZyHaG84VJLCV857QD2NFlE/S+tUAggbc5l66OE
+u3dZ8B+BJinV++0slP29NFdZ7m6ta0jZJfOaMXYyDwCYvD7FXygHu3fMwc5k3A==
+-----END CERTIFICATE-----'''
+
+        issuer_pem = '''-----BEGIN CERTIFICATE-----
+MIIFTzCCAzegAwIBAgIIAzHyhSyrXfMwDQYJKoZIhvcNAQELBQAwKzEXMBUGA1UE
+CxMOYWNtZTJjZXJ0aWZpZXIxEDAOBgNVBAMTB3Jvb3QtY2EwHhcNMjAwNTI3MTM1
+NDAwWhcNMzAwNTI2MjM1OTAwWjAqMRcwFQYDVQQLEw5hY21lMmNlcnRpZmllcjEP
+MA0GA1UEAxMGc3ViLWNhMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA
+xXHaGZsolXe+PBdUryngHP9VbBC1mehqeTtYI+hqsqGNH7q9a7bSrxMwFuF1kYL8
+jqqxkJdtl0L94xcxJg/ZdMx7Nt0vGI+BaAuTpEpUEHeN4tqS6NhB/m/0LGkAELc/
+qkzmoO4B1FDwEEj/3IXtZcupqG80oDt7jWSGXdtF7NTjzcumznMeRXidCdhxRxT/
+/WrsChaytXo0xWZ56oeNwd6x6Dr8/39PBOWtj4fldyDcg+Q+alci2tx9pxmu2bCV
+XcB9ftCLKhDk2WEHE88bgKSp7fV2RCmq9po+Tx8JJ7qecLunUsK/F0XN4kpoQLm9
+hcymqchnMSncSiyin1dQHGHWgXDtBDdq6A2Z6rx26Qk5H9HTYvcNSe1YwFEDoGLB
+ZQjbCPWiaqoaH4agBQTclPvrrSCRaVmhUSO+pBtSXDkmN4t3MDZxfgRkp8ixwkB1
+5Y5f0LTpCyAJsdQDw8+Ea0aDqO30eskh4CErnm9+Fejd9Ew2cwpdwfBXzVSbYilM
+GueQihZHvJmVRxAwU69aO2Qs8B0tQ60CfWKVlmWPiakrvYYlPp0FBsM61G6LZEN8
+hH2CKnS8hHv5IWEXZvp0Pk8V3P5h6bWN0Tl+x/V1Prt7Wp8NoiPETE8XyDDxe6dm
+KxztWBH/mTsJyMGb6ZiUoXdPU9TFUKqHxTRLHaxfsPsCAwEAAaN4MHYwEgYDVR0T
+AQH/BAgwBgEB/wIBATAdBgNVHQ4EFgQUv96OjgYiIqutQ8jd1E+oq0hBPtUwDgYD
+VR0PAQH/BAQDAgGGMBEGCWCGSAGG+EIBAQQEAwIABzAeBglghkgBhvhCAQ0EERYP
+eGNhIGNlcnRpZmljYXRlMA0GCSqGSIb3DQEBCwUAA4ICAQBbHLEVyg4f9uEujroc
+31UVyDRLMdPgEPLjOenSBCBmH0N81whDmxNI/7JAAB6J14WMX8OLF0HkZnb7G77W
+vDhy1aFvQFbXHBz3/zUO9Mw9J4L2XEW6ond3Nsh1m2oXeBde3R3ANxuIzHqZDlP9
+6YrRcHjnf4+1/5AKDJAvJD+gFb5YnYUKH2iSvHUvG17xcZx98Rf2eo8LealG4JqH
+Jh4sKRy0VjDQD7jXSCbweTHEb8wz+6OfNGrIo+BhTFP5vPcwE4nlJwYBoaOJ5cVa
+7gdQJ7WkLSxvwHxuxzvSVK73u3jl3I9SqTrbMLG/jeJyV0P8EvdljOaGnCtQVRwC
+zM4ptXUvKhKOHy7/nyTF/Bc35ZwwL/2xWvNK1+NibgE/6CFxupwWpdmxQbVVuoQ3
+2tUil9ty0yC6m5GKE8+t1lrZuxyA+b/TBnYNO5xo8UEMbkpxaNYSwmw+f/loxXP/
+M7sIBcLvy2ugHEBxwd9o/kLXeXT2DaRvxPjp4yk8MpJRpNmz3aB5HJwaUnaRLVo5
+Z3XWWXmjMGZ6/m0AAoDbDz/pXtOoJZT8BJdD1DuDdszVsQnLVn4B/LtIXL6FbXsF
+zfv6ERP9a5gpKUZ+4NjgrnlGtdccNZpwyWF0IXcvaq3b8hXIRO4hMjzHeHfzJN4t
+jX1vlY35Ofonc4+6dRVamBiF9A==
+-----END CERTIFICATE-----'''
+        result = 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'
+        self.assertEqual(result, self.certid_asn1_get(self.logger, cert_pem, issuer_pem))
 if __name__ == '__main__':
     unittest.main()
