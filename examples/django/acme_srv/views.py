@@ -302,13 +302,14 @@ def trigger(request):
     else:
         return ERR_RESPONSE_POST
 
+
 def renewalinfo(request):
     """ renewal info """
     if request.method in ('POST', 'GET'):
         with Renewalinfo(DEBUG, get_url(request.META), LOGGER) as renewalinfo_:
-            #if request.method == 'POST':
-            #    response_dic = certificate.new_post(request.body)
-            #else:
+            # if request.method == 'POST':
+            #     response_dic = certificate.new_post(request.body)
+            # else:
             #    response_dic = certificate.new_get(request.build_absolute_uri())
             response_dic = {}
             # create the response
@@ -327,6 +328,7 @@ def renewalinfo(request):
 
     else:
         return ERR_RESPONSE_POST
+
 
 def housekeeping(request):
     """ ca trigger"""
