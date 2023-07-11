@@ -307,14 +307,14 @@ def renewalinfo(request):
     """ renewal info """
     if request.method in ('POST', 'GET'):
         with Renewalinfo(DEBUG, get_url(request.META), LOGGER) as renewalinfo_:
-            # if request.method == 'POST':
-            #     response_dic = certificate.new_post(request.body)
-            # else:
-            #    response_dic = certificate.new_get(request.build_absolute_uri())
-            response_dic = {}
+            if request.method == 'POST':
+                response_dic = renewalinfo_.update(request.body)
+            else:
+                response_dic = renewalinfo_.get(request.build_absolute_uri())
+
             # create the response
             if response_dic['code'] == 200:
-                response = HttpResponse(response_dic['data'])
+                response = JsonResponse(response_dic['data'])
                 # generate additional header elements
                 for element in response_dic['header']:
                     response[element] = response_dic['header'][element]
@@ -323,6 +323,7 @@ def renewalinfo(request):
 
             # logging
             logger_info(LOGGER, request.META['REMOTE_ADDR'], request.META['PATH_INFO'], response_dic)
+
             # send response
             return response
 
