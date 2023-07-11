@@ -1114,6 +1114,20 @@ def certid_asn1_get(logger, cert_pem, issuer_pem):
     return certid_hex
 
 
+def certid_hex_get(logger, renewal_info):
+    """ get certid in hex from renewal_info field """
+    logger.debug('certid_hex_get()')
+
+    renewal_info_b64 = b64_url_recode(logger, renewal_info)
+    renewal_info_hex = b64_decode(logger, renewal_info_b64).hex()
+
+    # this is ugly but i did not find a better way to do this
+    _header, certid_renewal = renewal_info_hex.split('0420', 1)
+
+    logger.debug('certid_hex_get() endet with {0}'.format(certid_renewal))
+    return certid_renewal
+
+
 def certid_check(logger, renewal_info, certid_database):
     """ compare certid with renewal info """
     logger.debug('certid_check()')
