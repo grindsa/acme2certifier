@@ -314,10 +314,13 @@ def renewalinfo(request):
 
             # create the response
             if response_dic['code'] == 200:
-                response = JsonResponse(response_dic['data'])
-                # generate additional header elements
-                for element in response_dic['header']:
-                    response[element] = response_dic['header'][element]
+                if request.method == 'GET':
+                    response = JsonResponse(response_dic['data'])
+                    # generate additional header elements
+                    for element in response_dic['header']:
+                        response[element] = response_dic['header'][element]
+                else:
+                    response = HttpResponse(status=response_dic['code'])
             else:
                 response = HttpResponse(status=response_dic['code'])
 

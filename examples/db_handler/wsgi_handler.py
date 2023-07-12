@@ -154,7 +154,9 @@ class DBstore(object):
                 data_dic['expire_uts'] = 0
             if 'issue_uts' not in data_dic:
                 data_dic['issue_uts'] = 0
-            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier WHERE name = :name''', data_dic)
+            if 'replaced' not in data_dic:
+                data_dic['replaced'] = exists['replaced']
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier, replaced = :replaced WHERE name = :name''', data_dic)
         self._db_close()
         rid = dict_from_row(exists)['id']
 
@@ -859,6 +861,12 @@ class DBstore(object):
                 data_dic['poll_identifier'] = exists['poll_identifier']
             if 'renewal_info' not in data_dic:
                 data_dic['renewal_info'] = exists['renewal_info']
+
+            #if 'replaced' in data_dic and data_dic['replaced']:
+            #    data_dic['replaced'] = 1
+            #else:
+            #    data_dic['replaced'] = exists['replaced']
+
             rid = self._certificate_update(data_dic, exists)
         else:
             rid = self._certificate_insert(data_dic)

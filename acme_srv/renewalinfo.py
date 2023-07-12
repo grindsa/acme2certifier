@@ -4,6 +4,7 @@
 # pylint: disable=c0209
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
+from acme_srv.message import Message
 from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get
 
 
@@ -16,6 +17,7 @@ class Renewalinfo(object):
         self.server_name = srv_name
         self.path_dic = {'renewalinfo': '/acme/renewal-info/'}
         self.dbstore = DBstore(self.debug, self.logger)
+        self.message = Message(self.debug, self.server_name, self.logger)
         self.renewaltreshold_pctg = 85
         self.retry_after = 86400
         self.err_msg_dic = error_dic_get(self.logger)
@@ -32,7 +34,7 @@ class Renewalinfo(object):
         self.logger.debug('Renewalinfo._lookup()')
 
         try:
-            result_dic = self.dbstore.certificate_lookup('renewal_info', certid_hex, ('cert_raw', 'expire_uts', 'issue_uts', 'created_at', 'id'))
+            result_dic = self.dbstore.certificate_lookup('renewal_info', certid_hex, ('id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'created_at'))
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Renewalinfo._lookup(): {0}'.format(err_))
             result_dic = None
@@ -51,7 +53,8 @@ class Renewalinfo(object):
             start_uts = int((cert_dic['expire_uts'] - cert_dic['issue_uts']) * self.renewaltreshold_pctg / 100) + cert_dic['issue_uts']
 
             # for debugging trigger immedeate rewwal
-            # start_uts = int(cert_dic['expire_uts'] * self.renewaltreshold_pctg/100)
+            # start_uts = int(cert_dic['expire_uts'] * self.renewaltreshold_pctg / 100)
+
             renewalinfo_dic = {
                 'suggestedWindow': {
                     'start': uts_to_date_utc(start_uts),
@@ -87,7 +90,37 @@ class Renewalinfo(object):
             response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after)}
 
         else:
-            response_dic['code'] = 400
+            response_dic['code'] = 404
             response_dic['data'] = self.err_msg_dic['malformed']
+
+        return response_dic
+
+    def update(self, content):
+        """ update renewalinfo request """
+        self.logger.debug('Renewalinfo.update({0})')
+
+        response_dic = {'data': {}}
+        # check message
+        (code, _message, _detail, _protected, payload, _account_name) = self.message.check(content)
+
+        response_dic = {}
+        if code == 200 and 'certid' in payload and 'replaced' in payload:
+
+            certid_hex = certid_hex_get(self.logger, payload['certid'])
+
+            cert_dic = self._lookup(certid_hex)
+
+            if cert_dic and payload['replaced']:
+                cert_dic['replaced'] = True
+                cert_id = self.dbstore.certificate_add(cert_dic)
+
+                if cert_id:
+                    response_dic['code'] = 200
+                else:
+                    response_dic['code'] = 400
+            else:
+                response_dic['code'] = 400
+        else:
+            response_dic['code'] = 400
 
         return response_dic
