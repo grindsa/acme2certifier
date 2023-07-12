@@ -282,7 +282,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
         ''')
         self.cursor.execute('''
             CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -375,6 +375,10 @@ class DBstore(object):
         if 'renewal_info' not in certificate_column_list:
             self.logger.info('alter certificate table - add renewal_info')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN renewal_info text''')
+        if 'replaced' not in certificate_column_list:
+            self.logger.info('alter certificate table - add replaced')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN replaced boolean DEFAULT 0''')
+
 
     def _db_update_challenge(self):
         """ alter challenge table """
