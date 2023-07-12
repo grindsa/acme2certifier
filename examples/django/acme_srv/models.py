@@ -104,7 +104,9 @@ class Certificate(models.Model):
     expire_uts = models.IntegerField(default=0)
     issue_uts = models.IntegerField(default=0)
     renewal_info = models.TextField(null=True, blank=True)
+    replaced = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+
 
     def __unicode__(self):
         return self.name
