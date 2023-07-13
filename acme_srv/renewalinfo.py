@@ -5,7 +5,7 @@
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get
+from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config
 
 
 class Renewalinfo(object):
@@ -19,15 +19,35 @@ class Renewalinfo(object):
         self.dbstore = DBstore(self.debug, self.logger)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.renewaltreshold_pctg = 85
-        self.retry_after = 86400
+        self.retry_after_timeout = 86400
         self.err_msg_dic = error_dic_get(self.logger)
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
+        self._config_load()
+        print(self.renewaltreshold_pctg)
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('Certificate._config_load()')
+        config_dic = load_config()
+
+        if 'Renewalinfo' in config_dic:
+            if 'renewaltreshold_pctg' in config_dic['Renewalinfo']:
+                try:
+                    self.renewaltreshold_pctg = float(config_dic['Renewalinfo']['renewaltreshold_pctg'])
+                except Exception as err_:
+                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: {0}'.format(err_))
+
+            if 'retry_after_timeout' in config_dic['Renewalinfo']:
+                try:
+                    self.retry_after_timeout = int(config_dic['Renewalinfo']['retry_after_timeout'])
+                except Exception as err_:
+                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: {0}'.format(err_))
 
     def _lookup(self, certid_hex):
         """ lookup expiry dates based on renewal info """
@@ -87,7 +107,7 @@ class Renewalinfo(object):
             response_dic['data'] = rewalinfo_dic
             response_dic['header'] = {}
             # order status is processing - ratelimiting
-            response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after)}
+            response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
 
         else:
             response_dic['code'] = 404
