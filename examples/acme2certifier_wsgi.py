@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=E0401, R1705, C0209, E5110
+# pylint: disable=E0401, R1705, C0209
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -16,6 +16,7 @@ from acme_srv.directory import Directory
 from acme_srv.housekeeping import Housekeeping
 from acme_srv.nonce import Nonce
 from acme_srv.order import Order
+from acme_srv.renewalinfo import Renewalinfo
 from acme_srv.trigger import Trigger
 from acme_srv.helper import get_url, load_config, logger_setup, logger_info, config_check
 from acme_srv.version import __dbversion__, __version__
@@ -298,6 +299,41 @@ def order(environ, start_response):
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
 
 
+def renewalinfo(environ, start_response):
+    """ renewalinfo handler """
+    with Renewalinfo(DEBUG, get_url(environ), LOGGER) as renewalinfo_:
+        if environ['REQUEST_METHOD'] == 'POST':
+            request_body = get_request_body(environ)
+            response_dic = renewalinfo_.update(request_body)
+            # create header
+            headers = create_header(response_dic, False)
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            return []
+
+        elif environ['REQUEST_METHOD'] == 'GET':
+
+            response_dic = renewalinfo_.get(get_url(environ, True))
+            # create header
+            headers = create_header(response_dic)
+            # create the response
+            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
+            # send response
+            if 'data' in response_dic:
+                return [json.dumps(response_dic['data']).encode('utf-8')]
+            else:
+                return []
+
+        else:
+            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
+            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
+
+
 def revokecert(environ, start_response):
     """ revocation_handler """
     if environ['REQUEST_METHOD'] == 'POST':
@@ -338,8 +374,6 @@ def trigger(environ, start_response):
                 return [json.dumps(response_dic['data']).encode('utf-8')]
             else:
                 return []
-            # start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/json')])
-            # return [json.dumps({'status':200, 'message':HTTP_CODE_DIC[200], 'detail': 'OK'}).encode('utf-8')]
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
@@ -363,8 +397,6 @@ def housekeeping(environ, start_response):
                 return [json.dumps(response_dic['data']).encode('utf-8')]
             else:
                 return []
-            # start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'application/json')])
-            # return [json.dumps({'status':200, 'message':HTTP_CODE_DIC[200], 'detail': 'OK'}).encode('utf-8')]
     else:
         start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', 'application/json')])
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')]
@@ -388,6 +420,7 @@ URLS = [
     (r'^acme/newnonce$', newnonce),
     (r'^acme/neworders$', neworders),
     (r'^acme/order', order),
+    (r'^acme/renewal-info', renewalinfo),
     (r'^acme/revokecert', revokecert),
     (r'^directory?$', directory),
     (r'^housekeeping', housekeeping),
