@@ -807,7 +807,7 @@ def error_dic_get(logger):
     return error_dic
 
 
-def patched_create_connection(address, *args, **kwargs):
+def patched_create_connection(address, *args, **kwargs):  # pragma: no cover
     """ Wrap urllib3's create_connection to resolve the name elsewhere"""
     # load dns-servers from config file
     dns_server_list = dns_server_list_load()
@@ -1067,7 +1067,7 @@ def validate_email(logger, contact_list):
     return result
 
 
-def handle_exception(exc_type, exc_value, exc_traceback):
+def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
     """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)

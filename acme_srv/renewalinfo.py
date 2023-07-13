@@ -5,7 +5,7 @@
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config
+from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now
 
 
 class Renewalinfo(object):
@@ -25,11 +25,11 @@ class Renewalinfo(object):
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
         self._config_load()
-        print(self.renewaltreshold_pctg)
         return self
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
+
 
     def _config_load(self):
         """" load config from file """
@@ -69,6 +69,10 @@ class Renewalinfo(object):
         cert_dic = self._lookup(certid_hex)
 
         if 'expire_uts' in cert_dic and cert_dic['expire_uts']:
+
+            # we may need to set issue_uts to cover some cornercases
+            if 'issue_uts' not in cert_dic or not cert_dic['issue_uts']:
+                cert_dic['issue_uts'] = uts_now()
 
             start_uts = int((cert_dic['expire_uts'] - cert_dic['issue_uts']) * self.renewaltreshold_pctg / 100) + cert_dic['issue_uts']
 
