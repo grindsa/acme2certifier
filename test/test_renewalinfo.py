@@ -39,6 +39,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_002_config_load(self, mock_load_cfg):
@@ -50,6 +51,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_003_config_load(self, mock_load_cfg):
@@ -61,6 +63,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(90, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_004_config_load(self, mock_load_cfg):
@@ -72,6 +75,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(90, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_005_config_load(self, mock_load_cfg):
@@ -85,6 +89,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn("ERROR:test_a2c:acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: could not convert string to float: 'aa'", lcm.output)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_006_config_load(self, mock_load_cfg):
@@ -96,6 +101,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(90, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_007_config_load(self, mock_load_cfg):
@@ -107,6 +113,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_load_cfg.called)
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(90, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.load_config')
     def test_008_config_load(self, mock_load_cfg):
@@ -120,19 +127,44 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn("ERROR:test_a2c:acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: invalid literal for int() with base 10: 'aa'", lcm.output)
+        self.assertFalse(self.renewalinfo.renewal_force)
+
+    @patch('acme_srv.renewalinfo.load_config')
+    def test_009_config_load(self, mock_load_cfg):
+        """ test _config_load  """
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
+        parser['Renewalinfo'] = {'renewal_force': True}
+        self.renewalinfo._config_load()
+        self.assertTrue(mock_load_cfg.called)
+        self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
+        self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertTrue(self.renewalinfo.renewal_force)
+
+    @patch('acme_srv.renewalinfo.load_config')
+    def test_010_config_load(self, mock_load_cfg):
+        """ test _config_load  """
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
+        parser['Renewalinfo'] = {'renewal_force': False}
+        self.renewalinfo._config_load()
+        self.assertTrue(mock_load_cfg.called)
+        self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
+        self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
+        self.assertFalse(self.renewalinfo.renewal_force)
 
     @patch('acme_srv.renewalinfo.Renewalinfo._config_load')
-    def test_009_config_enter(self, mock_load_cfg):
+    def test_011_config_enter(self, mock_load_cfg):
         """ test __enter __"""
         self.renewalinfo.__enter__()
         self.assertTrue(mock_load_cfg.called)
 
-    def test_010_lookup(self):
+    def test_012_lookup(self):
         """ test _lookup() """
         self.renewalinfo.dbstore.certificate_lookup.return_value = {'foo': 'bar'}
         self.assertEqual({'foo': 'bar'}, self.renewalinfo._lookup('foo1'))
 
-    def test_011_lookup(self):
+    def test_013_lookup(self):
         """ test _lookup() """
         self.renewalinfo.dbstore.certificate_lookup.side_effect = Exception('cert_lookup')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -140,42 +172,52 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._lookup(): cert_lookup', lcm.output)
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    def test_012_renewalinfo_get(self, mock_lookup):
+    def test_014_renewalinfo_get(self, mock_lookup):
         """ test _renewalinfo_get() """
         mock_lookup.return_value = {}
         self.assertFalse(self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    def test_013_renewalinfo_get(self, mock_lookup):
+    def test_015_renewalinfo_get(self, mock_lookup):
         """ test _renewalinfo_get() """
         mock_lookup.return_value = {'foo': 'bar'}
         self.assertFalse(self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    def test_014_renewalinfo_get(self, mock_lookup):
+    def test_016_renewalinfo_get(self, mock_lookup):
         """ test _renewalinfo_get() """
         mock_lookup.return_value = {'expire_uts': 0}
         self.assertFalse(self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    def test_015_renewalinfo_get(self, mock_lookup):
+    def test_017_renewalinfo_get(self, mock_lookup):
         """ test _renewalinfo_get() """
         mock_lookup.return_value = {'expire_uts': 1000, 'issue_uts': 100}
         self.assertEqual({'suggestedWindow': {'start': '1970-01-01T00:14:25Z', 'end': '1970-01-01T00:16:40Z'}}, self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
 
     @patch('acme_srv.renewalinfo.uts_now')
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    def test_016_renewalinfo_get(self, mock_lookup, mock_uts):
+    def test_018_renewalinfo_get(self, mock_lookup, mock_uts):
         """ test _renewalinfo_get() """
         mock_uts.return_value = 100
         mock_lookup.return_value = {'expire_uts': 1000}
         self.assertEqual({'suggestedWindow': {'start': '1970-01-01T00:14:25Z', 'end': '1970-01-01T00:16:40Z'}}, self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
         self.assertTrue(mock_uts.called)
 
+    @patch('acme_srv.renewalinfo.uts_now')
+    @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
+    def test_019_renewalinfo_get(self, mock_lookup, mock_uts):
+        """ test _renewalinfo_get() """
+        mock_uts.return_value = 86400000
+        mock_lookup.return_value = {'expire_uts': 1000, 'issue_uts': 200}
+        self.renewalinfo.renewal_force = True
+        self.assertEqual({'suggestedWindow': {'start': '1971-09-29T00:00:00Z', 'end': '1972-09-28T00:00:00Z'}}, self.renewalinfo._renewalinfo_get('1a2b3c4d5e6f'))
+        self.assertTrue(mock_uts.called)
+
     @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.renewalinfo.string_sanitize')
-    def test_017_get(self, mock_sanitize, mock_hexget, mock_renget):
+    def test_020_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = {'foo': 'bar'}
         mock_hexget.return_value = ('300b0609608648016503040201', 'bar')
@@ -186,7 +228,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.renewalinfo.string_sanitize')
-    def test_018_get(self, mock_sanitize, mock_hexget, mock_renget):
+    def test_021_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = None
         mock_hexget.return_value = ('300b0609608648016503040201', 'bar')
@@ -197,7 +239,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.renewalinfo.string_sanitize')
-    def test_019_get(self, mock_sanitize, mock_hexget, mock_renget):
+    def test_022_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = None
         mock_hexget.return_value = ('wronghashalgo', 'bar')
@@ -206,13 +248,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_hexget.called)
 
     @patch('acme_srv.message.Message.check')
-    def test_020_update(self, mock_mcheck):
+    def test_023_update(self, mock_mcheck):
         """ test update() """
         mock_mcheck.return_value = (400, 'message', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
 
     @patch('acme_srv.message.Message.check')
-    def test_021_update(self, mock_mcheck):
+    def test_024_update(self, mock_mcheck):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid'}, 'account_name')
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
@@ -220,7 +262,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.message.Message.check')
-    def test_022_update(self, mock_mcheck, mock_hex, mock_lookup):
+    def test_025_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
         mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
@@ -230,7 +272,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.message.Message.check')
-    def test_023_update(self, mock_mcheck, mock_hex, mock_lookup):
+    def test_026_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': False}, 'account_name')
         mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
@@ -240,7 +282,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.message.Message.check')
-    def test_024_update(self, mock_mcheck, mock_hex, mock_lookup):
+    def test_027_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
         mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
@@ -251,7 +293,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.message.Message.check')
-    def test_025_update(self, mock_mcheck, mock_hex, mock_lookup):
+    def test_028_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
         mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
