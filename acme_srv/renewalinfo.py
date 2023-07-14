@@ -80,7 +80,6 @@ class Renewalinfo(object):
             # for debugging trigger immedeate rewwal
             if self.renewal_force:
                 self.logger.debug('Renewalinfo.get() - foce renewal')
-                # start_uts = int(cert_dic['expire_uts'] * self.renewaltreshold_pctg / 100)
                 cert_dic['expire_uts'] = uts_now() + 86400
                 start_uts = int(cert_dic['expire_uts'] - (365 * 86400))
             else:
