@@ -381,7 +381,6 @@ class DBstore(object):
             self.logger.info('alter certificate table - add replaced')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN replaced boolean DEFAULT 0''')
 
-
     def _db_update_challenge(self):
         """ alter challenge table """
         self.logger.debug('DBStore._db_update_certificate()')
@@ -862,9 +861,9 @@ class DBstore(object):
             if 'renewal_info' not in data_dic:
                 data_dic['renewal_info'] = exists['renewal_info']
 
-            #if 'replaced' in data_dic and data_dic['replaced']:
+            # if 'replaced' in data_dic and data_dic['replaced']:
             #    data_dic['replaced'] = 1
-            #else:
+            # else:
             #    data_dic['replaced'] = exists['replaced']
 
             rid = self._certificate_update(data_dic, exists)
