@@ -30,7 +30,6 @@ class Renewalinfo(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-
     def _config_load(self):
         """" load config from file """
         self.logger.debug('Certificate._config_load()')
