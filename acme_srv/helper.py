@@ -1122,10 +1122,11 @@ def certid_hex_get(logger, renewal_info):
     renewal_info_hex = b64_decode(logger, renewal_info_b64).hex()
 
     # this is ugly but i did not find a better way to do this
-    _header, certid_renewal = renewal_info_hex.split('0420', 1)
+    mda, certid_renewal = renewal_info_hex.split('0420', 1)
+    mda = mda[4:]
 
     logger.debug('certid_hex_get() endet with {0}'.format(certid_renewal))
-    return certid_renewal
+    return mda, certid_renewal
 
 
 def certid_check(logger, renewal_info, certid_database):
