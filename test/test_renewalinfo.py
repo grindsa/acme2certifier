@@ -178,6 +178,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_017_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = {'foo': 'bar'}
+        mock_hexget.return_value = ('300b0609608648016503040201', 'bar')
         self.assertEqual({'code': 200, 'data': {'foo': 'bar'}, 'header': {'Retry-After': '86400'}}, self. renewalinfo.get('url'))
         self.assertTrue(mock_sanitize.called)
         self.assertTrue(mock_hexget.called)
@@ -188,18 +189,30 @@ class TestACMEHandler(unittest.TestCase):
     def test_018_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = None
+        mock_hexget.return_value = ('300b0609608648016503040201', 'bar')
         self.assertEqual({'code': 404, 'data': 'urn:ietf:params:acme:error:malformed'}, self. renewalinfo.get('url'))
         self.assertTrue(mock_sanitize.called)
         self.assertTrue(mock_hexget.called)
 
+    @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
+    @patch('acme_srv.renewalinfo.certid_hex_get')
+    @patch('acme_srv.renewalinfo.string_sanitize')
+    def test_019_get(self, mock_sanitize, mock_hexget, mock_renget):
+        """ test get() """
+        mock_renget.return_value = None
+        mock_hexget.return_value = ('wronghashalgo', 'bar')
+        self.assertEqual({'code': 400, 'data': 'urn:ietf:params:acme:error:malformed'}, self. renewalinfo.get('url'))
+        self.assertTrue(mock_sanitize.called)
+        self.assertTrue(mock_hexget.called)
+
     @patch('acme_srv.message.Message.check')
-    def test_019_update(self, mock_mcheck):
+    def test_020_update(self, mock_mcheck):
         """ test update() """
         mock_mcheck.return_value = (400, 'message', 'detail', 'protected', 'payload', 'account_name')
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
 
     @patch('acme_srv.message.Message.check')
-    def test_020_update(self, mock_mcheck):
+    def test_021_update(self, mock_mcheck):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid'}, 'account_name')
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
@@ -207,21 +220,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
     @patch('acme_srv.renewalinfo.certid_hex_get')
     @patch('acme_srv.message.Message.check')
-    def test_021_update(self, mock_mcheck, mock_hex, mock_lookup):
-        """ test update() """
-        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
-        mock_hex.return_value = 'certhex'
-        mock_lookup.return_value = None
-        self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
-
-    @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
-    @patch('acme_srv.renewalinfo.certid_hex_get')
-    @patch('acme_srv.message.Message.check')
     def test_022_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
-        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': False}, 'account_name')
-        mock_hex.return_value = 'certhex'
-        mock_lookup.return_value = {'foo': 'bar'}
+        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
+        mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
+        mock_lookup.return_value = None
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
@@ -229,10 +232,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.message.Message.check')
     def test_023_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
-        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
-        mock_hex.return_value = 'certhex'
+        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': False}, 'account_name')
+        mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
         mock_lookup.return_value = {'foo': 'bar'}
-        self.renewalinfo.dbstore.certificate_add.return_value = None
         self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
 
     @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
@@ -241,7 +243,18 @@ class TestACMEHandler(unittest.TestCase):
     def test_024_update(self, mock_mcheck, mock_hex, mock_lookup):
         """ test update() """
         mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
-        mock_hex.return_value = 'certhex'
+        mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
+        mock_lookup.return_value = {'foo': 'bar'}
+        self.renewalinfo.dbstore.certificate_add.return_value = None
+        self.assertEqual({'code': 400}, self.renewalinfo.update('content'))
+
+    @patch('acme_srv.renewalinfo.Renewalinfo._lookup')
+    @patch('acme_srv.renewalinfo.certid_hex_get')
+    @patch('acme_srv.message.Message.check')
+    def test_025_update(self, mock_mcheck, mock_hex, mock_lookup):
+        """ test update() """
+        mock_mcheck.return_value = (200, 'message', 'detail', 'protected', {'certid': 'certid', 'replaced': True}, 'account_name')
+        mock_hex.return_value = ('300b0609608648016503040201', 'certhex')
         mock_lookup.return_value = {'foo': 'bar'}
         self.renewalinfo.dbstore.certificate_add.return_value = 1
         self.assertEqual({'code': 200}, self.renewalinfo.update('content'))

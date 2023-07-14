@@ -106,22 +106,24 @@ class Renewalinfo(object):
         renewalinfo_string = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo']), ''))
 
         # get certid in hex
-        certid_hex = certid_hex_get(self.logger, renewalinfo_string)
-
-        # get renewal window datas
-        rewalinfo_dic = self._renewalinfo_get(certid_hex)
+        (mda, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
 
         response_dic = {}
-        if rewalinfo_dic:
-            response_dic['code'] = 200
-            # filter certificate and decode it
-            response_dic['data'] = rewalinfo_dic
-            response_dic['header'] = {}
-            # order status is processing - ratelimiting
-            response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
-
+        if mda == '300b0609608648016503040201':
+            # get renewal window datas
+            rewalinfo_dic = self._renewalinfo_get(certid_hex)
+            if rewalinfo_dic:
+                response_dic['code'] = 200
+                # filter certificate and decode it
+                response_dic['data'] = rewalinfo_dic
+                response_dic['header'] = {}
+                # order status is processing - ratelimiting
+                response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
+            else:
+                response_dic['code'] = 404
+                response_dic['data'] = self.err_msg_dic['malformed']
         else:
-            response_dic['code'] = 404
+            response_dic['code'] = 400
             response_dic['data'] = self.err_msg_dic['malformed']
 
         return response_dic
@@ -137,7 +139,7 @@ class Renewalinfo(object):
         response_dic = {}
         if code == 200 and 'certid' in payload and 'replaced' in payload:
 
-            certid_hex = certid_hex_get(self.logger, payload['certid'])
+            (_mda, certid_hex) = certid_hex_get(self.logger, payload['certid'])
 
             cert_dic = self._lookup(certid_hex)
 
