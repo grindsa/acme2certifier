@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Nonce class """
 # pylint: disable=c0209
@@ -20,6 +19,7 @@ class Renewalinfo(object):
         self.message = Message(self.debug, self.server_name, self.logger)
         self.renewaltreshold_pctg = 85
         self.retry_after_timeout = 86400
+        self.renewal_force = False
         self.err_msg_dic = error_dic_get(self.logger)
 
     def __enter__(self):
@@ -37,6 +37,9 @@ class Renewalinfo(object):
         config_dic = load_config()
 
         if 'Renewalinfo' in config_dic:
+
+            self.renewal_force = config_dic.getboolean('Renewalinfo', 'renewal_force', fallback=False)
+
             if 'renewaltreshold_pctg' in config_dic['Renewalinfo']:
                 try:
                     self.renewaltreshold_pctg = float(config_dic['Renewalinfo']['renewaltreshold_pctg'])
@@ -74,10 +77,14 @@ class Renewalinfo(object):
             if 'issue_uts' not in cert_dic or not cert_dic['issue_uts']:
                 cert_dic['issue_uts'] = uts_now()
 
-            start_uts = int((cert_dic['expire_uts'] - cert_dic['issue_uts']) * self.renewaltreshold_pctg / 100) + cert_dic['issue_uts']
-
             # for debugging trigger immedeate rewwal
-            # start_uts = int(cert_dic['expire_uts'] * self.renewaltreshold_pctg / 100)
+            if self.renewal_force:
+                self.logger.debug('Renewalinfo.get() - foce renewal')
+                # start_uts = int(cert_dic['expire_uts'] * self.renewaltreshold_pctg / 100)
+                cert_dic['expire_uts'] = uts_now() + 86400
+                start_uts = int(cert_dic['expire_uts'] - (365 * 86400))
+            else:
+                start_uts = int((cert_dic['expire_uts'] - cert_dic['issue_uts']) * self.renewaltreshold_pctg / 100) + cert_dic['issue_uts']
 
             renewalinfo_dic = {
                 'suggestedWindow': {
