@@ -1,0 +1,288 @@
+name: Ari Tests
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+
+  ari_apache2_wsgi:
+    name: "ari_apache2_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "[ ENROLL ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ RENEW ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
+        grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: ari_apache2_wsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ari_apache2_django:
+    name: "ari_apache2_django"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler and django config"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "[ ENROLL ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ RENEW ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
+        grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: ari_apache2_django.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ari_nginx_wsgi:
+    name: "ari_nginx_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] Build docker-compose (nginx_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "[ ENROLL ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ RENEW ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
+        grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: ari_nginx_wsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ari_nginx_django:
+    name: "lego_nginx_django"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] Build docker-compose (nginx_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup openssl ca_handler and django config"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "[ ENROLL ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ RENEW ] HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
+        grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: ari_nginx_django.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

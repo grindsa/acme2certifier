@@ -15,5 +15,6 @@ urlpatterns = [
     url(r'^neworders$', views.neworders, name='neworders'),
     url(r'^order', views.order, name='order'),
     url(r'^revokecert', views.revokecert, name='revokecert'),
+    url(r'^renewal-info', views.renewalinfo, name='renewalinfo'),
     url(r'^servername_get$', views.servername_get, name='servername_get'),
 ]

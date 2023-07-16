@@ -34,7 +34,7 @@ should be straight forward. As of today the following handlers are available:
   - [Generic CMPv2 protocol handler](docs/cmp.md)
   - [Openssl](docs/openssl.md)
   - [XCA](docs/xca.md)
-  - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
+  - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)
 
 For more up-to-date information and further documentation, please visit the
 project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
@@ -65,34 +65,14 @@ if something does not work as expected.
 I am not a professional developer. Keep this in mind while laughing about my
 code and don’t forget to send patches.
 
-## Project status
+## Features
 
-As of today acme2certifier supports the below ACME functions:
-
-- "directory" resource [(Section 7.1.1)](https://tools.ietf.org/html/rfc8555#section-7.1.1)
-- "newNonce" resource  [(Section 7.2)](https://tools.ietf.org/html/rfc8555#section-7.2)
-- "newAccount" resource [(Section 7.3)](https://tools.ietf.org/html/rfc8555#section-7.3)
-  - Finding an Account URL Given a Key [(Section 7.3.1)](https://tools.ietf.org/html/rfc8555#section-7.3.1)
-  - Account update [(Section 7.3.2)](https://tools.ietf.org/html/rfc8555#section-7.3.2)
-  - [Exernal Account Binding](docs/eab.md) [(Section 7.3.4)](https://tools.ietf.org/html/rfc8555#section-7.3.4)
-  - Key Rollover [(Section 7.3.5)](https://tools.ietf.org/html/rfc8555#section-7.3.5)
-  - Account Deactivation [(Section 7.3.6)](https://tools.ietf.org/html/rfc8555#section-7.3.6)
-- "new-order" resource [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
-- "order finalization" [(Section 7.4)](https://tools.ietf.org/html/rfc8555#section-7.4)
-- "certificate download" [(Section 7.4.2)](https://tools.ietf.org/html/rfc8555#section-7.4.2)
-- "authz" resource [(Section 7.5)](https://tools.ietf.org/html/rfc8555#section-7.5)
-- "challenge" resource [(Section 7.5.1)](https://tools.ietf.org/html/rfc8555#section-7.5.1)
-- "certificate revocation" [(Section 7.6)](https://tools.ietf.org/html/rfc8555#section-7.6)
-
-Starting from version 0.4 acme2certifer includes experimental support for
-[TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-08)
-and [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05) challenges.
-Check [tnauthlist.md](docs/tnauthlist.md) for further information.
-
-Starting from version 0.8 acme2certifier supports [certificate polling](docs/poll.md)
-and [call backs](docs/trigger.md) from CA servers. These calls are not standardized
-but important to use acme2certifier together with classical enterprise CA
-servers,
+- ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant server implementation including
+  - Support [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html): TLS Application‑Layer Protocol Negotiation (ALPN) Challenge Extension
+  - Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+  - Support [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-08): [TNAuthList profile](docs/tnauthlist.md) of ACME Authority Token
+  - Support [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05) ACME Challenges Using an Authority Token
+  - [Certificate polling](docs/poll.md) and [Call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA
 
 Following challenge types are supported:
 
@@ -101,9 +81,7 @@ Following challenge types are supported:
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05)
 
-Additional functionality will be added over time. If you are badly missing a
-certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new)
-to let me know.
+Additional functionality will be added over time. If you are badly missing a certain feature please raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) to let me know.
 
 ## Installation
 
