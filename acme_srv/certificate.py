@@ -4,7 +4,7 @@
 """ certificate class """
 from __future__ import print_function
 import json
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -283,6 +283,17 @@ class Certificate(object):
             self.logger.info('Certificate._enroll_and_store(): reuse existing certificate')
 
         return (error, certificate, certificate_raw, poll_identifier)
+
+    def _renewal_info_get(self, certificate):
+        """ get renewal info """
+        self.logger.error('Certificate._renewal_info_get()')
+
+        certificate_list = pembundle_to_list(self.logger, certificate)
+
+        renewal_info_hex = certid_asn1_get(self.logger, certificate_list[0], certificate_list[1])
+
+        self.logger.debug('Certificate.certid_asn1_get() ended with {0}'.format(renewal_info_hex))
+        return renewal_info_hex
 
     def _store(self, certificate, certificate_raw, poll_identifier, certificate_name, order_name, csr):
 
@@ -626,7 +637,10 @@ class Certificate(object):
     def _store_cert(self, certificate_name, certificate, raw, issue_uts=0, expire_uts=0, poll_identifier=None):
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert({0})'.format(certificate_name))
-        data_dic = {'cert': certificate, 'name': certificate_name, 'cert_raw': raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts, 'poll_identifier': poll_identifier}
+
+        renewal_info_hex = self._renewal_info_get(certificate)
+
+        data_dic = {'cert': certificate, 'name': certificate_name, 'cert_raw': raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts, 'poll_identifier': poll_identifier, 'renewal_info': renewal_info_hex}
         try:
             cert_id = self.dbstore.certificate_add(data_dic)
         except Exception as err_:
