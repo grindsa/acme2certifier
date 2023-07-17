@@ -1085,7 +1085,7 @@ def pembundle_to_list(logger, pem_bundle):
     if '-----BEGIN CERTIFICATE-----' in pem_bundle:
         for line in pem_bundle.splitlines():
             line = line.strip()
-            if line.startswith("-----BEGIN CERTIFICATE-----") and pem_data
+            if line.startswith("-----BEGIN CERTIFICATE-----") and pem_data:
                 cert_list.append(pem_data)
                 pem_data = ""
             pem_data += line + "\n"
