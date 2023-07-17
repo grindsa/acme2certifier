@@ -861,11 +861,6 @@ class DBstore(object):
             if 'renewal_info' not in data_dic:
                 data_dic['renewal_info'] = exists['renewal_info']
 
-            # if 'replaced' in data_dic and data_dic['replaced']:
-            #    data_dic['replaced'] = 1
-            # else:
-            #    data_dic['replaced'] = exists['replaced']
-
             rid = self._certificate_update(data_dic, exists)
         else:
             rid = self._certificate_insert(data_dic)
