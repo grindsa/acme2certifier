@@ -114,7 +114,6 @@ class Renewalinfo(object):
                 response_dic['code'] = 200
                 # filter certificate and decode it
                 response_dic['data'] = rewalinfo_dic
-                response_dic['header'] = {}
                 # order status is processing - ratelimiting
                 response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
             else:
@@ -130,7 +129,6 @@ class Renewalinfo(object):
         """ update renewalinfo request """
         self.logger.debug('Renewalinfo.update({0})')
 
-        response_dic = {'data': {}}
         # check message
         (code, _message, _detail, _protected, payload, _account_name) = self.message.check(content)
 
