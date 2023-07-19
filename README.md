@@ -71,8 +71,8 @@ code and don’t forget to send patches.
 - ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant server implementation including
   - Support [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html): TLS Application‑Layer Protocol Negotiation (ALPN) Challenge Extension
   - Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
-  - Support [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-08): [TNAuthList profile](docs/tnauthlist.md) of ACME Authority Token
-  - Support [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05) ACME Challenges Using an Authority Token
+  - Support [TNAuthList identifiers](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-tnauthlist-13): [TNAuthList profile](docs/tnauthlist.md) of ACME Authority Token
+  - Support [tkauth-01](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09) ACME Challenges Using an Authority Token
   - [Certificate polling](docs/poll.md) and [Call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA
 
 Following challenge types are supported:
