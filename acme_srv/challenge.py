@@ -72,13 +72,13 @@ class Challenge(object):
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
         for _ele in range(0, 5):
             if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
             elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
             elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+                (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
             elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type']. challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
             else:
                 self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                 result = False
@@ -361,7 +361,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
 
-    def _validate_alpn_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
+    def _validate_alpn_challenge(self, challenge_name, id_type, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
@@ -393,7 +393,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_dns_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
+    def _validate_dns_challenge(self, challenge_name, _type, fqdn, token, jwk_thumbprint):
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
@@ -420,19 +420,24 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
         return (result, False)
 
-    def _validate_http_challenge(self, challenge_name, fqdn, token, jwk_thumbprint):
+    def _validate_http_challenge(self, challenge_name, id_type, id_value, token, jwk_thumbprint):
         """ validate http challenge """
-        self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
-        # resolve name
-        (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
-        self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+        self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
+
+        if id_type == 'dns':
+            # resolve name
+            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+        elif id_type == 'ip':
+            invalid = False
+
         if not invalid:
             # check if we need to set a proxy
             if self.proxy_server_list:
-                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
+                proxy_server = proxy_check(self.logger, id_value, self.proxy_server_list)
             else:
                 proxy_server = None
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(fqdn, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False, timeout=self.challenge_validation_timeout)
+            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(id_value, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False, timeout=self.challenge_validation_timeout)
             if req:
                 response_got = req.splitlines()[0]
                 response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
@@ -502,9 +507,9 @@ class Challenge(object):
         self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
         return fqdn
 
-    def challengeset_get(self, authz_name, _auth_status, token, tnauth, value=None):
+    def challengeset_get(self, authz_name, _auth_status, token, tnauth, id_type='dns', id_value=None):
         """ get the challengeset for an authorization """
-        self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, value))
+        self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, id_value))
         # check database if there are exsting challenges for a particular authorization
         challenge_list = self._challengelist_search('authorization__name', authz_name)
 
@@ -521,7 +526,7 @@ class Challenge(object):
         else:
             # new challenges to be created
             self.logger.debug('Challenges not found. Create a new set.')
-            challenge_list = self.new_set(authz_name, token, tnauth, value)
+            challenge_list = self.new_set(authz_name, token, tnauth, id_type, id_value)
 
         return challenge_list
 
@@ -534,12 +539,18 @@ class Challenge(object):
         response_dic['data'] = self._info(challenge_name)
         return response_dic
 
-    def new_set(self, authz_name, token, tnauth=False, value=None):
+    def new_set(self, authz_name, token, tnauth=False, id_type='dns', value=None):
         """ net challenge set """
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, value))
         challenge_list = []
         if not tnauth:
-            for challenge_type in ['http-01', 'dns-01', 'tls-alpn-01']:
+            challenge_type_list = ['http-01', 'dns-01', 'tls-alpn-01']
+            # remove dns challnge for ip-addresses
+            if id_type == 'ip':
+                self.logger.debug('Challenge.new_set(): skip dns-01 challenge()')
+                challenge_type_list.pop(1)
+
+            for challenge_type in challenge_type_list:
                 challenge_json = self._new(authz_name, challenge_type, token, value)
                 if challenge_json:
                     challenge_list.append(challenge_json)

@@ -152,7 +152,7 @@ class Order(object):
         """ check validity of identifers in order """
         self.logger.debug('Order._identifiers_check({0})'.format(identifiers_list))
         error = None
-        allowed_identifers = ['dns']
+        allowed_identifers = ['dns', 'ip']
 
         # add tnauthlist to list of supported identfiers if configured to do so
         if self.tnauthlist_support:
