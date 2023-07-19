@@ -278,7 +278,9 @@ def cert_san_get(logger, certificate, recode=True):
         sans_list = ext.value.get_values_for_type(x509.DNSName)
         for san in sans_list:
             sans.append('DNS:{0}'.format(san))
-
+        sans_list = ext.value.get_values_for_type(x509.IPAddress)
+        for san in sans_list:
+            sans.append('IP:{0}'.format(san))
     except Exception as err:
         logger.error('cert_san_get(): Error: {0}'.format(err))
 
