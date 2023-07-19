@@ -361,13 +361,18 @@ class Challenge(object):
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
 
-    def _validate_alpn_challenge(self, challenge_name, id_type, fqdn, token, jwk_thumbprint):
+    def _validate_alpn_challenge(self, challenge_name, id_type, id_value, token, jwk_thumbprint):
         """ validate dns challenge """
-        self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
+        self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
 
-        # resolve name
-        (response, invalid) = fqdn_resolve(fqdn, self.dns_server_list)
-        self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+        if id_type == 'dns':
+            # resolve name
+            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+        elif id_type == 'ip':
+            invalid = False
+        else:
+            invalid = True
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
         # which is base64 encoded '0420' has been taken from acme_srv.sh sources
@@ -378,12 +383,12 @@ class Challenge(object):
         if not invalid:
             # check if we need to set a proxy
             if self.proxy_server_list:
-                proxy_server = proxy_check(self.logger, fqdn, self.proxy_server_list)
+                proxy_server = proxy_check(self.logger, id_value, self.proxy_server_list)
             else:
                 proxy_server = None
-            cert = servercert_get(self.logger, fqdn, 443, proxy_server)
+            cert = servercert_get(self.logger, id_value, 443, proxy_server)
             if cert:
-                result = self._extensions_validate(cert, extension_value, fqdn)
+                result = self._extensions_validate(cert, extension_value, id_value)
             else:
                 self.logger.debug('no cert returned...')
                 result = False
@@ -430,6 +435,8 @@ class Challenge(object):
             self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         elif id_type == 'ip':
             invalid = False
+        else:
+            invalid = True
 
         if not invalid:
             # check if we need to set a proxy
