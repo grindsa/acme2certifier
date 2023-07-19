@@ -390,9 +390,13 @@ def csr_san_get(logger, csr):
         sans = []
         try:
             ext = csr_obj.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
+
             sans_list = ext.value.get_values_for_type(x509.DNSName)
             for san in sans_list:
                 sans.append('DNS:{0}'.format(san))
+            sans_list = ext.value.get_values_for_type(x509.IPAddress)
+            for san in sans_list:
+                sans.append('IP:{0}'.format(san))
 
         except Exception as err:
             logger.error('csr_san_get(): Error: {0}'.format(err))
