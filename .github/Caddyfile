@@ -1,0 +1,11 @@
+{
+	email grindsa@foo.local
+	acme_ca https://acme-srv.acme/acme/directory
+	acme_ca_root /tmp/acme2certifier_cabundle.pem
+	debug
+}
+
+caddy.acme {
+	root * /usr/share/caddy
+	file_server browse
+}
