@@ -260,7 +260,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Chalölenge.validate_http_challenge() with a wrong challenge """
         mock_url.return_value = 'foo'
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.url_get')
@@ -268,7 +268,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Chalölenge.validate_http_challenge() with a correct challenge """
         mock_url.return_value = 'token.jwk_thumbprint'
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.proxy_check')
     @patch('acme_srv.challenge.fqdn_resolve')
@@ -279,7 +279,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.proxy_server_list = 'proxy_server_list'
         mock_proxy.return_value = 'proxy'
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.url_get')
@@ -287,7 +287,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Chalölenge.validate_http_challenge() without response """
         mock_url.return_value = None
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.url_get')
@@ -295,7 +295,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Challenge.validate_http_challenge() failed with NX-domain error """
         mock_url.return_value = None
         mock_resolve.return_value = (None, True)
-        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.url_get')
@@ -303,7 +303,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Chalölenge.validate_http_challenge() failed with NX-domain error - non existing case but to be tested"""
         mock_url.return_value = 'foo'
         mock_resolve.return_value = ('foo', True)
-        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, True), self.challenge._validate_http_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.sha256_hash')
@@ -315,7 +315,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.sha256_hash')
@@ -327,7 +327,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', False)
-        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.sha256_hash')
@@ -339,7 +339,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_code.return_value = 'bar'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = (None, True)
-        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_dns_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_resolve')
     @patch('acme_srv.challenge.sha256_hash')
@@ -351,7 +351,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_code.return_value = 'foo'
         mock_hash.return_value = 'hash'
         mock_resolve.return_value = ('foo', True)
-        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_dns_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     def test_037_challenge__validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
@@ -373,7 +373,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_040_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tls-alpn challenge - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -384,7 +384,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_041_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tls-alpn challenge - - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -395,7 +395,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_042_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tls-alpn challenge - - for loop returns data during 6th iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (False, False), (False, False), (False, False), (False, False), (False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -406,7 +406,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_043_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tls-alpn challenge """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tls-alpn-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -417,7 +417,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_044_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed http challenge - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -427,7 +427,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_045_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed http challenge - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -437,7 +437,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_046_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -447,7 +447,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_047_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'http-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -457,7 +457,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_048_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed dns challenge  - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -467,7 +467,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_049_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed dns challenge  - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -477,7 +477,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_050_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -487,7 +487,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_051_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ http challenge  - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'dns-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, False), (True, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -497,7 +497,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_052_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support not configured """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         mock_chall.side_effect = [(False, 'foo')]
         mock_jwk.return_value = 'jwk_thumbprint'
@@ -510,7 +510,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_053_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support True - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
         mock_chall.side_effect = [(False, 'foo')]
@@ -522,7 +522,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_054_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with failed tkauth challenge tnauthlist_support True - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
         mock_chall.side_effect = [(False, False), (False, 'foo')]
@@ -534,7 +534,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_055_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist_support unset """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = False
         mock_chall.side_effect = [(True, 'foo')]
@@ -546,7 +546,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_056_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist support set - for loop returns data during 1st iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
         mock_chall.side_effect = [(True, 'foo')]
@@ -557,7 +557,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme_srv.challenge.jwk_thumbprint_get')
     def test_057_challenge__check(self, mock_jwk, mock_chall):
         """ challenge check with with succ tkauth challenge and tnauthlist support set - for loop returns data during 2nd iteration """
-        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
+        self.challenge.dbstore.challenge_lookup.return_value = {'authorization__type' : 'authorization__type', 'authorization__value' : 'authorization__value', 'type' : 'tkauth-01', 'token' : 'token', 'authorization__order__account__name' : 'authorization__order__account__name'}
         self.challenge.dbstore.jwk_load.return_value = 'pub_key'
         self.challenge.tnauthlist_support = True
         mock_chall.side_effect = [(False, False), (True, 'foo')]
@@ -679,7 +679,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_074_challenge__validate_alpn_challenge(self, mock_resolve):
         """ test validate_alpn_challenge fqdn_resolve returned Invalid """
         mock_resolve.return_value = (None, True)
-        self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.servercert_get')
     @patch('acme_srv.challenge.fqdn_resolve')
@@ -687,7 +687,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test validate_alpn_challenge no certificate returned """
         mock_resolve.return_value = ('foo', False)
         mock_srv.return_value = None
-        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.proxy_check')
     @patch('acme_srv.challenge.servercert_get')
@@ -698,7 +698,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_srv.return_value = None
         self.challenge.proxy_server_list = 'proxy_list'
         mock_proxy.return_value = 'proxy'
-        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.fqdn_in_san_check')
     @patch('acme_srv.challenge.cert_san_get')
@@ -710,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_sanget.return_value = ['foo', 'bar']
         mock_sanchk.return_value = False
         mock_srv.return_value = 'cert'
-        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.cert_extensions_get')
     @patch('acme_srv.challenge.b64_encode')
@@ -726,7 +726,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_srv.return_value = 'cert'
         mock_encode.return_value = 'foo'
         mock_ext.return_value = ['foobar', 'bar', 'foo1']
-        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((False, False), self.challenge._validate_alpn_challenge('cert_name', 'dns','fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.cert_extensions_get')
     @patch('acme_srv.challenge.b64_encode')
@@ -742,7 +742,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_srv.return_value = 'cert'
         mock_encode.return_value = 'foo'
         mock_ext.return_value = ['foobar', 'bar', 'foo']
-        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'dns', 'fqdn', 'token', 'jwk_thumbprint'))
 
     @patch('acme_srv.challenge.Challenge._validate')
     def test_080__existing_challenge_validate(self, mock_validate):

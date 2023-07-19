@@ -78,7 +78,7 @@ class Challenge(object):
             elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
                 (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
             elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type']. challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
             else:
                 self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
                 result = False
