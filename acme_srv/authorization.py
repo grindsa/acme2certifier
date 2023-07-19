@@ -67,15 +67,20 @@ class Authorization(object):
         with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
             # get challenge data (either existing or new ones)
             if 'identifier' in authz_info_dic:
+                if 'type' in authz_info_dic['identifier']:
+                    id_type = authz_info_dic['identifier']['type']
+                else:
+                    id_type = None
                 if 'value' in authz_info_dic['identifier']:
                     id_value = authz_info_dic['identifier']['value']
                 else:
                     id_value = None
             else:
+                id_type = None
                 id_value = None
 
             self.logger.debug('Authorization._challengeset_get() ended')
-            return challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_value)
+            return challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_type, id_value)
 
     def _authz_info_dic_update(self, authz_info_dic, auth_info):
         """ enrich authinfo dic with information """
