@@ -1,0 +1,339 @@
+name: Application Tests - Caddy
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  caddy_apache2_wsgi:
+    name: "caddy_apache2_wsgi"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ports: ['-p 80:80 -p 443:443', '-p 443:443']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+
+    - name: "Create caddy folder and copy configuratation files"
+      run: |
+        mkdir caddy
+        cp .github/Caddyfile caddy/
+        cp .github/acme2certifier_cabundle.pem caddy
+
+    - name: "Enroll certificate with Caddy"
+      run: |
+        docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Check for logs indicating successful enrollment"
+      run: |
+        docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
+        docker logs caddy 2>&1 | grep "certificate obtained successfully"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp caddy/ ${{ github.workspace }}/artifact/caddy/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log caddy.log data caddy
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: caddy_apache2_wsgi-${{ github.run_id }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+
+  caddy_apache2_django:
+    name: "caddy_apache2_django"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ports: ['-p 80:80 -p 443:443', '-p 443:443']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "Build docker-compose (apache2_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+
+    - name: "Create caddy folder and copy configuratation files"
+      run: |
+        mkdir caddy
+        cp .github/Caddyfile caddy/
+        cp .github/acme2certifier_cabundle.pem caddy
+
+    - name: "Enroll certificate with Caddy"
+      run: |
+        docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Check for logs indicating successful enrollment"
+      run: |
+        docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
+        docker logs caddy 2>&1 | grep "certificate obtained successfully"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp caddy/ ${{ github.workspace }}/artifact/caddy/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log caddy.log data caddy
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: caddy_apache2_django-${{ github.run_id }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+
+  caddy_nginx_wsgi:
+    name: "caddy_nginx_wsgi"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ports: ['-p 80:80 -p 443:443', '-p 443:443']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "Build docker-compose (nginx_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+
+    - name: "Create caddy folder and copy configuratation files"
+      run: |
+        mkdir caddy
+        cp .github/Caddyfile caddy/
+        cp .github/acme2certifier_cabundle.pem caddy
+
+    - name: " enroll certificate with Caddy"
+      run: |
+        docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Check for logs indicating successful enrollment"
+      run: |
+        docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
+        docker logs caddy 2>&1 | grep "certificate obtained successfully"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp caddy/ ${{ github.workspace }}/artifact/caddy/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log caddy.log data caddy
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: caddy_nginx_wsgi-${{ github.run_id }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  caddy_nginx_django:
+    name: "caddy_nginx_django"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ports: ['-p 80:80 -p 443:443', '-p 443:443']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "Build docker-compose (nginx_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Create caddy folder and copy configuratation files"
+      run: |
+        mkdir caddy
+        cp .github/Caddyfile caddy/
+        cp .github/acme2certifier_cabundle.pem caddy
+
+    - name: "Enroll certificate with Caddy"
+      run: |
+        docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 10s
+
+    - name: "Check for logs indicating successful enrollment"
+      run: |
+        docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
+        docker logs caddy 2>&1 | grep "certificate obtained successfully"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp caddy/ ${{ github.workspace }}/artifact/caddy/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log caddy.log data caddy
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v2
+      if: ${{ failure() }}
+      with:
+        name: caddy_nginx_django-${{ github.run_id }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

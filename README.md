@@ -49,6 +49,7 @@ Following acme-clients are used for regular testing of server functionality
 
 - [acme.sh](https://github.com/Neilpang/acme.sh)
 - [acmeshell](https://github.com/cpu/acmeshell/)
+- [Caddy](https://caddyserver.com/docs/automatic-https)
 - [Certbot](https://certbot.eff.org/)
 - [cert-manager](docs/cert-mgr.md)
 - [lego](https://github.com/go-acme/lego)
