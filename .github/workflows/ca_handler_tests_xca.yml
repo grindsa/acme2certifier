@@ -109,7 +109,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: xca.tar.gz
@@ -241,7 +241,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: openssl-rpm.tar.gz

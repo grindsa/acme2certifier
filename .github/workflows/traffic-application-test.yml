@@ -82,7 +82,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data traefik
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: traffic-${{ matrix.challenge_type }}.tar.gz

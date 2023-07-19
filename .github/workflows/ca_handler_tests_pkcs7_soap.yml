@@ -120,7 +120,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: pkcs7soap-int.tar.gz
@@ -241,7 +241,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: pkcs7soap-ext.tar.gz

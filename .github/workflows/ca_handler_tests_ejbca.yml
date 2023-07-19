@@ -180,7 +180,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz ejbca.log a2c.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: ejbca.tar.gz
@@ -375,7 +375,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data ejbca.log acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: ejb_rpm.tar.gz

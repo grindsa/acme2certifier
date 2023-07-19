@@ -157,7 +157,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: cert-manager-http-apwsgi.tar.gz
@@ -314,7 +314,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: cert-manager-http-apdjango.tar.gz
@@ -466,7 +466,7 @@ jobs:
         sudo microk8s.kubectl logs acme2certifier -n cert-manager-acme > ${{ github.workspace }}/artifact/acme2certifier.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: cert-manager-http-nginxwsgi.tar.gz
@@ -628,7 +628,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: cert-manager-http-nginxdjango.tar.gz
@@ -820,7 +820,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme2certifier.log data
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: cert-manager-dns-apwsgi.tar.gz

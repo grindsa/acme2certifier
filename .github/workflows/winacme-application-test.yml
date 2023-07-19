@@ -144,7 +144,7 @@ jobs:
         cp acme_srv\acme_srv.cfg ${{ github.workspace }}\artifact\upload
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
         name: win-acme.tar.gz
