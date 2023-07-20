@@ -25,11 +25,11 @@ from acme_srv.version import __dbversion__, __version__
 CONFIG = load_config()
 try:
     DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
-except Exception:
+except Exception:  # pragma: no cover
     DEBUG = False
 
 
-def handle_exception(exc_type, exc_value, exc_traceback):
+def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
     """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -448,7 +448,7 @@ def application(environ, start_response):
     return not_found(environ, start_response)
 
 
-def get_handler_cls():
+def get_handler_cls():  # pragma: no cover
     """ my handler to disable name resolution """
     cls = WSGIRequestHandler
 
@@ -463,13 +463,10 @@ def get_handler_cls():
 
 if __name__ == '__main__':
 
-    LOGGER.info('starting acme2certifier version %s', __version__)
+    LOGGER.info('starting acme2certifier version %s', __version__)  # pragma: no cover
 
     # check configuration for parameters masked in ""
-    config_check(LOGGER, CONFIG)
+    config_check(LOGGER, CONFIG)  # pragma: no cover
 
-    SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
-    SRV.serve_forever()
-
-# start_response('403 {0}'.format(HTTP_CODE_DIC[403]), [('Content-Type', 'application/json')])
-# return [json.dumps({'status':403, 'message':HTTP_CODE_DIC[403], 'detail': 'we are not there yet'})]
+    SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())  # pragma: no cover
+    SRV.serve_forever()  # pragma: no cover
