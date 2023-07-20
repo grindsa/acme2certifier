@@ -2280,5 +2280,14 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.certlist_search('type', 'value')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search', lcm.output)
 
+    @patch('acme_srv.certificate.certid_asn1_get')
+    @patch('acme_srv.certificate.pembundle_to_list')
+    def test_200_renewal_info_get(self, mock_p2l, mock_certid):
+        """ _renewal_info_get() """
+        mock_certid.return_value = 'certid'
+        self.assertEqual('certid', self.certificate._renewal_info_get('cert'))
+        self.assertTrue(mock_p2l.called)
+
+
 if __name__ == '__main__':
     unittest.main()
