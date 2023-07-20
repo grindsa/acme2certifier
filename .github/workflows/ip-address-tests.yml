@@ -1,4 +1,4 @@
-name: certificates for IP addresses
+name: Certificates for IP addresses tests
 
 on:
   push:
