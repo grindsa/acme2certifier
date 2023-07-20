@@ -1,0 +1,306 @@
+name: certificates for IP addresses
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  ip_apache2_wsgi:
+    name: "ip_apache2_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 5s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "Enroll HTTP-01 single domain and ip address "
+      run: |
+        docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d $RUNNER_IP --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ip_apache2_wsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ip_apache2_django:
+    name: "ip_apache2_django"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Build docker-compose (apache2_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 5s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "Enroll HTTP-01 single domain and ip address "
+      run: |
+        docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d $RUNNER_IP --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ip_apache2_django.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ip_nginx_wsgi:
+    name: "ip_nginx_wsgi"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Build docker-compose (nginx_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 5s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "Enroll HTTP-01 single domain and ip address "
+      run: |
+        docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d $RUNNER_IP --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ip_nginx_wsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  ip_nginx_django:
+    name: "ip_nginx_django"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Build docker-compose (nginx_django)"
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/django/g" .env
+        sed -i "s/apache2/nginx/g" .env
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v1
+      with:
+        time: 5s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "Enroll HTTP-01 single domain and ip address "
+      run: |
+        docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme -d $RUNNER_IP --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ip_nginx_django.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/

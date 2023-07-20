@@ -380,7 +380,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_040_challenge__validate_tkauth_challenge(self):
         """ test Chalölenge.validate_tkauth_challenge() """
-        self.assertEqual((True, False), self.challenge._validate_tkauth_challenge('cert_name', 'fqdn', 'token', 'jwk_thumbprint', 'payload'))
+        self.assertEqual((True, False), self.challenge._validate_tkauth_challenge('cert_name', 'type', 'fqdn', 'token', 'jwk_thumbprint', 'payload'))
 
     def test_041_challenge__check(self):
         """ challenge check with incorrect challenge-dictionary """
