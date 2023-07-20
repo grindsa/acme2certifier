@@ -328,6 +328,29 @@ class TestACMEHandler(unittest.TestCase):
         result = {'code': 200, 'data': 'foo', 'header': {}}
         self.assertEqual(result, self.authorization.new_get('url'))
 
+    @patch('acme_srv.challenge.generate_random_string')
+    def test_030_challengeset_get(self, mock_name):
+        """ test _challengeset_get() """
+        authz_info_dic = {'status': 'status'}
+        mock_name.return_value = 'randowm_string'
+        result = [{'type': 'http-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'dns-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'tls-alpn-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}]
+        self.assertEqual(result, self.authorization._challengeset_get(authz_info_dic, 'name',  'token', False, None))
+
+    @patch('acme_srv.challenge.generate_random_string')
+    def test_031_challengeset_get(self, mock_name):
+        """ test _challengeset_get() """
+        authz_info_dic = {'status': 'status', 'identifier': {'type': 'type'}}
+        mock_name.return_value = 'randowm_string'
+        result = [{'type': 'http-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'dns-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'tls-alpn-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}]
+        self.assertEqual(result, self.authorization._challengeset_get(authz_info_dic, 'name',  'token', False, None))
+
+    @patch('acme_srv.challenge.generate_random_string')
+    def test_032_challengeset_get(self, mock_name):
+        """ test _challengeset_get() """
+        authz_info_dic = {'status': 'status', 'identifier': {'value': 'value'}}
+        mock_name.return_value = 'randowm_string'
+        result = [{'type': 'http-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'dns-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}, {'type': 'tls-alpn-01', 'url': 'http://tester.local/acme/chall/randowm_string', 'token': 'token', 'status': 'pending'}]
+        self.assertEqual(result, self.authorization._challengeset_get(authz_info_dic, 'name',  'token', False, None))
 
 
 if __name__ == '__main__':
