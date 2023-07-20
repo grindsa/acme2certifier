@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Challenge class """
-# pylint: disable=C0209
+# pylint: disable=C0209, r0913
 from __future__ import print_function
 import json
 from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get
@@ -464,7 +464,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_http_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_tkauth_challenge(self, challenge_name, tnauthlist, _token, _jwk_thumbprint, payload):
+    def _validate_tkauth_challenge(self, challenge_name, _type, tnauthlist, _token, _jwk_thumbprint, payload):
         """ validate tkauth challenge """
         self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1}:{2})'.format(challenge_name, tnauthlist, payload))
 

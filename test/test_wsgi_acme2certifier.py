@@ -25,7 +25,7 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """ setup unittest """
         import logging
-        from examples.acme2certifier_wsgi import create_header, get_request_body, acct, acmechallenge_serve, authz, handle_exception, newaccount, directory, cert, chall, neworders, newnonce, order, revokecert, trigger, not_found, application, get_handler_cls, housekeeping
+        from examples.acme2certifier_wsgi import create_header, get_request_body, acct, acmechallenge_serve, authz, handle_exception, newaccount, directory, cert, chall, neworders, newnonce, order, revokecert, trigger, not_found, application, get_handler_cls, housekeeping, renewalinfo
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger('test_a2c')
         self.acct = acct
@@ -47,6 +47,7 @@ class TestACMEHandler(unittest.TestCase):
         self.not_found = not_found
         self.application = application
         self.get_handler_cls = get_handler_cls
+        self.renewalinfo = renewalinfo
 
     def tearDown(self):
         """ teardown """
@@ -513,7 +514,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('examples.acme2certifier_wsgi.get_url')
     @patch('acme_srv.trigger.Trigger.parse')
-    def test_044_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    def test_045_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """ trigger POST request """
         environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -528,7 +529,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('examples.acme2certifier_wsgi.get_url')
     @patch('acme_srv.trigger.Trigger.parse')
-    def test_045_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    def test_046_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """ trigger POST request """
         environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -543,7 +544,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('examples.acme2certifier_wsgi.get_url')
     @patch('acme_srv.trigger.Trigger.parse')
-    def test_046_trigger(self, mock_post, mock_url, mock_header, mock_body):
+    def test_047_trigger(self, mock_post, mock_url, mock_header, mock_body):
         """ trigger unknown request type """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -554,12 +555,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_header.called)
         self.assertFalse(mock_body.called)
 
-    def test_046_notfound(self):
+    def test_048_notfound(self):
         """ notfound """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         self.assertEqual([b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'], self.not_found(environ, Mock()))
 
-    def test_047_application(self):
+    def test_049_application(self):
         """ test application function valid pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
@@ -573,14 +574,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
         self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
-    def test_048_application(self):
+    def test_050_application(self):
         """ test application function wrong pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'unk'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
         self.assertEqual([b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'], self.application(environ, Mock()))
 
     @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': 'url_prefix'}})
-    def test_049_application(self):
+    def test_051_application(self):
         """ test application function wrong pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'url_prefix/directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
@@ -595,7 +596,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
     @patch('examples.acme2certifier_wsgi.CONFIG', {'CAhandler': {'acme_url': 'acme_url'}})
-    def test_050_application(self):
+    def test_052_application(self):
         """ test application function wrong pathinfo """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
@@ -609,7 +610,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
         self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
 
-    def test_051_get_handler_cls(self):
+    def test_053_get_handler_cls(self):
         """ test get_handler_cls() """
         self.assertTrue('foo', self.get_handler_cls())
 
@@ -617,7 +618,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.get_request_body')
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('acme_srv.housekeeping.Housekeeping.parse')
-    def test_051_housekeeping(self, mock_post, mock_header, mock_body):
+    def test_054_housekeeping(self, mock_post, mock_header, mock_body):
         """ housekeeping POST request """
         environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -630,7 +631,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.get_request_body')
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('acme_srv.housekeeping.Housekeeping.parse')
-    def test_052_housekeeping(self, mock_post, mock_header, mock_body):
+    def test_055_housekeeping(self, mock_post, mock_header, mock_body):
         """ housekeeping POST request """
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -643,7 +644,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.acme2certifier_wsgi.get_request_body')
     @patch('examples.acme2certifier_wsgi.create_header')
     @patch('acme_srv.housekeeping.Housekeeping.parse')
-    def test_053_housekeeping(self, mock_post, mock_header, mock_body):
+    def test_056_housekeeping(self, mock_post, mock_header, mock_body):
         """ housekeeping POST request without data """
         environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         mock_header.return_value = {'header': 'foo'}
@@ -653,6 +654,73 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('examples.acme2certifier_wsgi.get_url')
+    @patch('acme_srv.renewalinfo.Renewalinfo.update')
+    @patch('acme_srv.renewalinfo.Renewalinfo.get')
+    def test_057_renewalinfo(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+        """ renewalinfo unknown request method """
+        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        # mock_post.return_value = {'code': 200, 'data': 'data'}
+        self.assertEqual([b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'], self.renewalinfo(environ, Mock()))
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertFalse(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('examples.acme2certifier_wsgi.get_url')
+    @patch('acme_srv.renewalinfo.Renewalinfo.update')
+    @patch('acme_srv.renewalinfo.Renewalinfo.get')
+    def test_058_renewalinfo(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+        """ renewalinfo GET request """
+        environ = {'REQUEST_METHOD': 'GET', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_get.return_value = {'code': 200, 'data': 'data'}
+        self.assertEqual([b'"data"'], self.renewalinfo(environ, Mock()))
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('examples.acme2certifier_wsgi.get_url')
+    @patch('acme_srv.renewalinfo.Renewalinfo.update')
+    @patch('acme_srv.renewalinfo.Renewalinfo.get')
+    def test_059_renewalinfo(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+        """ renewalinfo GET request """
+        environ = {'REQUEST_METHOD': 'GET', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_get.return_value = {'code': 200}
+        self.assertFalse(self.renewalinfo(environ, Mock()))
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_header.called)
+        self.assertFalse(mock_body.called)
+
+    @patch('examples.acme2certifier_wsgi.get_request_body')
+    @patch('examples.acme2certifier_wsgi.create_header')
+    @patch('examples.acme2certifier_wsgi.get_url')
+    @patch('acme_srv.renewalinfo.Renewalinfo.update')
+    @patch('acme_srv.renewalinfo.Renewalinfo.get')
+    def test_060_renewalinfot(self, mock_get, mock_post, mock_url, mock_header, mock_body):
+        """ renewalinfo POST request """
+        environ = {'REQUEST_METHOD': 'POST', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
+        mock_header.return_value = {'header': 'foo'}
+        mock_post.return_value = {'code': 200, 'data': 'data'}
+        self.assertEqual([], self.renewalinfo(environ, Mock()))
+        self.assertFalse(mock_get.called)
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_url.called)
+        self.assertTrue(mock_header.called)
+        self.assertTrue(mock_body.called)
 
 if __name__ == '__main__':
 
