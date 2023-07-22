@@ -1370,23 +1370,40 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_cert.return_value = 'foo'
         self.assertEqual('foo', self.servercert_get(self.logger, 'hostname'))
 
+    @patch('acme_srv.helper.ipv6_chk')
     @patch('acme_srv.helper.proxystring_convert')
     @patch('ssl.DER_cert_to_PEM_cert')
     @patch('ssl.SSLContext.wrap_socket')
+    @patch('socket.socket')
     @patch('socks.socksocket')
-    def test_183_servercert_get(self, mock_sock, mock_context, mock_cert, mock_convert):
+    def test_183_servercert_get(self, mock_sock, mock_ssock, mock_context, mock_cert, mock_convert, mock_ipchk):
+        """ test servercert get ippv6 """
+        mock_convert.return_value = ('proxy_proto', 'proxy_addr', 'proxy_port')
+        mock_ipchk.return_value = True
+        mock_context = Mock()
+        mock_cert.return_value = 'foo'
+        self.assertEqual('foo', self.servercert_get(self.logger, 'hostname'))
+        self.assertTrue(mock_ssock.called)
+        self.assertFalse(mock_sock.called)
+
+    @patch('acme_srv.helper.proxystring_convert')
+    @patch('ssl.DER_cert_to_PEM_cert')
+    @patch('ssl.SSLContext.wrap_socket')
+    @patch('socket.socket')
+    @patch('socks.socksocket')
+    def test_184_servercert_get(self, mock_sock, mock_ssock, mock_context, mock_cert, mock_convert):
         """ test servercert get with proxy """
         mock_convert.return_value = ('proxy_proto', 'proxy_addr', 'proxy_port')
-        mock_sock = Mock()
         mock_context = Mock()
         mock_cert.return_value = 'foo'
         self.assertEqual('foo', self.servercert_get(self.logger, 'hostname', 443, 'proxy'))
         self.assertTrue(mock_convert.called)
+        self.assertFalse(mock_ssock.called)
 
     @patch('ssl.DER_cert_to_PEM_cert')
     @patch('ssl.SSLContext.wrap_socket')
     @patch('socks.socksocket')
-    def test_184_servercert_get(self, mock_sock, mock_context, mock_cert):
+    def test_185_servercert_get(self, mock_sock, mock_context, mock_cert):
         """ test servercert exception """
         mock_sock = Mock()
         mock_context.side_effect = Exception('exc_warp_sock')
@@ -1398,7 +1415,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('dns.resolver.Resolver')
     @patch('dns.resolver.resolve')
-    def test_185_txt_get(self, mock_resolve, mock_res):
+    def test_186_txt_get(self, mock_resolve, mock_res):
         """ successful dns-query returning one txt record """
         resp_obj = Mock()
         resp_obj.strings = ['foo', 'bar']
@@ -1407,7 +1424,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertTrue(mock_res.called)
 
     @patch('dns.resolver.resolve')
-    def test_186_txt_get(self, mock_resolve):
+    def test_187_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         resp_obj = Mock()
         resp_obj.strings = ['foo', 'bar']
@@ -1415,7 +1432,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertEqual(['foo'], self.txt_get(self.logger, 'foo'))
 
     @patch('dns.resolver.resolve')
-    def test_187_txt_get(self, mock_resolve):
+    def test_188_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         resp_obj1 = Mock()
         resp_obj1.strings = ['foo1', 'bar1']
@@ -1425,136 +1442,136 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertEqual(['foo1', 'foo2'], self.txt_get(self.logger, 'foo'))
 
     @patch('dns.resolver.resolve')
-    def test_188_txt_get(self, mock_resolve):
+    def test_189_txt_get(self, mock_resolve):
         """ successful dns-query returning one txt record """
         mock_resolve.side_effect = Exception('mock_resolve')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.txt_get(self.logger, 'foo'))
         self.assertIn('ERROR:test_a2c:txt_get() error: mock_resolve', lcm.output)
 
-    def test_189_proxystring_convert(self):
+    def test_190_proxystring_convert(self):
         """ convert proxy_string http """
         self.assertEqual((3, 'proxy', 8080), self.proxystring_convert(self.logger, 'http://proxy:8080'))
 
-    def test_190_proxystring_convert(self):
+    def test_191_proxystring_convert(self):
         """ convert proxy_string socks4 """
         self.assertEqual((1, 'proxy', 8080), self.proxystring_convert(self.logger, 'socks4://proxy:8080'))
 
-    def test_191_proxystring_convert(self):
+    def test_192_proxystring_convert(self):
         """ convert proxy_string socks5 """
         self.assertEqual((2, 'proxy', 8080), self.proxystring_convert(self.logger, 'socks5://proxy:8080'))
 
-    def test_192_proxystring_convert(self):
+    def test_193_proxystring_convert(self):
         """ convert proxy_string unknown protocol """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, 'proxy', 8080), self.proxystring_convert(self.logger, 'unk://proxy:8080'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy protocol: unk', lcm.output)
 
-    def test_193_proxystring_convert(self):
+    def test_194_proxystring_convert(self):
         """ convert proxy_string unknown protocol """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((3, 'proxy', None), self.proxystring_convert(self.logger, 'http://proxy:ftp'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): unknown proxy port: ftp', lcm.output)
 
-    def test_194_proxystring_convert(self):
+    def test_195_proxystring_convert(self):
         """ convert proxy_string porxy sting without protocol """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, None, None), self.proxystring_convert(self.logger, 'proxy'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): error splitting proxy_server string: proxy',  lcm.output)
         self.assertIn('ERROR:test_a2c:proxystring_convert(): proxy_proto (None), proxy_addr (None) or proxy_port (None) missing', lcm.output)
 
-    def test_195_proxystring_convert(self):
+    def test_196_proxystring_convert(self):
         """ convert proxy_string porxy sting without port """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, None, None), self.proxystring_convert(self.logger, 'http://proxy'))
         self.assertIn('ERROR:test_a2c:proxystring_convert(): error splitting proxy into host/port: proxy', lcm.output)
         self.assertIn('ERROR:test_a2c:proxystring_convert(): proxy_proto (http), proxy_addr (None) or proxy_port (None) missing', lcm.output)
 
-    def test_196_proxy_check(self):
+    def test_197_proxy_check(self):
         """ check proxy for empty list  """
         fqdn = 'foo.bar.local'
         proxy_list = {}
         self.assertFalse(self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_197_proxy_check(self):
+    def test_198_proxy_check(self):
         """ check proxy - no match """
         fqdn = 'foo.bar.local'
         proxy_list = {'foo1.bar.local': 'proxy_match'}
         self.assertFalse(self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_198_proxy_check(self):
+    def test_199_proxy_check(self):
         """ check proxy - single entry """
         fqdn = 'foo.bar.local'
         proxy_list = {'foo.bar.local': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_199_proxy_check(self):
+    def test_200_proxy_check(self):
         """ check proxy  - multiple entry """
         fqdn = 'foo.bar.local'
         proxy_list = {'bar.bar.local': 'proxy_nomatch', 'foo.bar.local': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_200_proxy_check(self):
+    def test_201_proxy_check(self):
         """ check proxy  -  multiple entrie domain match"""
         fqdn = 'foo.bar.local'
         proxy_list = {'bar.bar.local': 'proxy_nomatch', 'bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_201_proxy_check(self):
+    def test_202_proxy_check(self):
         """ check proxy for empty list  multiple entrie domain match"""
         fqdn = 'foo.bar.local'
         proxy_list = {'bar.local$': 'proxy_nomatch', 'foo.bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_202_proxy_check(self):
+    def test_203_proxy_check(self):
         """ check proxy - multiple entrie domain match"""
         fqdn = 'foo.bar.local'
         proxy_list = {'bar.local$': 'proxy_match', 'foo1.bar.local$': 'proxy_nomatch'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_203_proxy_check(self):
+    def test_204_proxy_check(self):
         """ check proxy - wildcard """
         fqdn = 'foo.bar.local'
         proxy_list = {'foo1.bar.local$': 'proxy_nomatch', '*.bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_204_proxy_check(self):
+    def test_205_proxy_check(self):
         """ check proxy - wildcard """
         fqdn = 'foo.bar.local'
         proxy_list = {'.local$': 'proxy_nomatch', '*.bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_205_proxy_check(self):
+    def test_206_proxy_check(self):
         """ check proxy - wildcard """
         fqdn = 'local'
         proxy_list = {'local$': 'proxy_match', '*.bar.local$': 'proxy_no_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_206_proxy_check(self):
+    def test_207_proxy_check(self):
         """ check proxy - wildcard """
         fqdn = 'foo.bar.local'
         proxy_list = {'*': 'wildcard', 'notlocal$': 'proxy_no_match', '*.notbar.local$': 'proxy_no_match'}
         self.assertEqual('wildcard', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_207_handle_exception(self):
+    def test_208_handle_exception(self):
         """ test exception handler """
         exc_type = FakeDBStore
         exc_value = Mock()
         exc_traceback = Mock()
         self.handle_exception(exc_type, exc_value, exc_traceback)
 
-    def test_208_proxy_check(self):
+    def test_209_proxy_check(self):
         """ check proxy - wildcard """
         fqdn = 'foo.bar.local'
         proxy_list = {'*.bar.local$': 'proxy_match'}
         self.assertEqual('proxy_match', self.proxy_check(self.logger, fqdn, proxy_list))
 
-    def test_209_ca_handler_load(self):
+    def test_210_ca_handler_load(self):
         """ test ca_handler_load """
         config_dic = {'foo': 'bar'}
         self.assertFalse(self.ca_handler_load(self.logger, config_dic))
 
-    def test_210_ca_handler_load(self):
+    def test_211_ca_handler_load(self):
         """ test ca_handler_load """
         config_dic = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1562,7 +1579,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
 
     @patch('importlib.import_module')
-    def test_211_ca_handler_load(self, mock_imp):
+    def test_212_ca_handler_load(self, mock_imp):
         """ test ca_handler_load """
         config_dic = {'CAhandler': {'foo': 'bar'}}
         mock_imp.side_effect = Exception('exc_mock_imp')
@@ -1571,14 +1588,14 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
     @patch('importlib.import_module')
-    def test_212_ca_handler_load(self, mock_imp):
+    def test_213_ca_handler_load(self, mock_imp):
         """ test ca_handler_load """
         config_dic = {'CAhandler': {'foo': 'bar'}}
         mock_imp.return_value = 'foo'
         self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
 
     @patch('importlib.util')
-    def test_213_ca_handler_load(self, mock_util):
+    def test_214_ca_handler_load(self, mock_util):
         """ test ca_handler_load """
         config_dic = {'CAhandler': {'handler_file': 'foo'}}
         mock_util.module_from_spec = Mock(return_value='foo')
@@ -1586,7 +1603,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('importlib.import_module')
     @patch('importlib.util')
-    def test_214_ca_handler_load(self, mock_util, mock_imp):
+    def test_215_ca_handler_load(self, mock_util, mock_imp):
         """ test ca_handler_load """
         config_dic = {'CAhandler': {'handler_file': 'foo'}}
         mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
@@ -1597,7 +1614,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('importlib.import_module')
     @patch('importlib.util')
-    def test_215_ca_handler_load(self, mock_util, mock_imp):
+    def test_216_ca_handler_load(self, mock_util, mock_imp):
         """ test ca_handler_load """
         config_dic = {'CAhandler': {'handler_file': 'foo'}}
         mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
@@ -1606,7 +1623,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
-    def test_216_eab_handler_load(self):
+    def test_217_eab_handler_load(self):
         """ test eab_handler_load """
         config_dic = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1614,7 +1631,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertIn('ERROR:test_a2c:Helper.eab_handler_load(): EABhandler configuration missing in config file', lcm.output)
 
     @patch('importlib.import_module')
-    def test_217_eab_handler_load(self, mock_imp):
+    def test_218_eab_handler_load(self, mock_imp):
         """ test eab_handler_load """
         config_dic = {'EABhandler': {'foo': 'bar'}}
         mock_imp.side_effect = Exception('exc_mock_imp')
@@ -1623,14 +1640,14 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
 
     @patch('importlib.import_module')
-    def test_218_eab_handler_load(self, mock_imp):
+    def test_219_eab_handler_load(self, mock_imp):
         """ test eab_handler_load """
         config_dic = {'EABhandler': {'foo': 'bar'}}
         mock_imp.return_value = 'foo'
         self.assertEqual('foo', self.eab_handler_load(self.logger, config_dic))
 
     @patch('importlib.util')
-    def test_219_eab_handler_load(self, mock_util):
+    def test_220_eab_handler_load(self, mock_util):
         """ test eab_handler_load """
         config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
         mock_util.module_from_spec = Mock(return_value='foo')
@@ -1638,7 +1655,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('importlib.import_module')
     @patch('importlib.util')
-    def test_220_eab_handler_load(self, mock_util, mock_imp):
+    def test_221_eab_handler_load(self, mock_util, mock_imp):
         """ test eab_handler_load """
         config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
         mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
@@ -1649,7 +1666,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     @patch('importlib.import_module')
     @patch('importlib.util')
-    def test_221_eab_handler_load(self, mock_util, mock_imp):
+    def test_222_eab_handler_load(self, mock_util, mock_imp):
         """ test eab_handler_load """
         config_dic = {'EABhandler': {'eab_handler_file': 'foo'}}
         mock_util.module_from_spec.side_effect = Exception('exc_mock_util')
@@ -1658,18 +1675,18 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
 
-    def test_222_hooks_load(self):
+    def test_223_hooks_load(self):
         """ test hooks load with empty config_dic """
         config_dic = {}
         self.assertFalse(self.hooks_load(self.logger, config_dic))
 
-    def test_223_hooks_load(self):
+    def test_224_hooks_load(self):
         """ test hooks load with hooks but no hooks_file in config_dic """
         config_dic = {'Hooks': {'foo': 'bar'}}
         self.assertFalse(self.hooks_load(self.logger, config_dic))
 
     @patch('importlib.util')
-    def test_224_hooks_load(self, mock_util):
+    def test_225_hooks_load(self, mock_util):
         """ test hooks load with hooks but no hooks_file in  config_dic """
         config_dic = {'Hooks': {'hooks_file': 'bar'}}
         mock_util.module_from_spec = Mock(return_value='foo')
@@ -1678,7 +1695,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertTrue(mock_util.module_from_spec.called)
 
     @patch('importlib.util')
-    def test_225_hooks_load(self, mock_util):
+    def test_226_hooks_load(self, mock_util):
         """ test hooks load with hooks but no hooks_file in  config_dic """
         config_dic = {'Hooks': {'hooks_file': 'bar'}}
         mock_util.module_from_spec = Exception('exc_mock_util')
@@ -1686,7 +1703,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.assertFalse(self.hooks_load(self.logger, config_dic))
         self.assertIn("CRITICAL:test_a2c:Helper.hooks_load(): loading Hooks configured in cfg failed with err: 'Exception' object is not callable", lcm.output)
 
-    def test_226_error_dic_get(self):
+    def test_227_error_dic_get(self):
         """ test error_dic_get """
         result = {
             'badcsr': 'urn:ietf:params:acme:error:badCSR',
@@ -1705,64 +1722,64 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
         self.assertEqual(result, self.error_dic_get(self.logger))
 
-    def test_227_logger_nonce_modify(self):
+    def test_228_logger_nonce_modify(self):
         """ test _logger_nonce_modify() """
         data_dic = {'foo': 'bar'}
         self.assertEqual({'foo': 'bar'}, self.logger_nonce_modify(data_dic))
 
-    def test_228_logger_nonce_modify(self):
+    def test_229_logger_nonce_modify(self):
         """ test _logger_nonce_modify() """
         data_dic = {'foo': 'bar', 'header': {'foo': 'bar'}}
         self.assertEqual({'foo': 'bar', 'header': {'foo': 'bar'}}, self.logger_nonce_modify(data_dic))
 
-    def test_229_logger_nonce_modify(self):
+    def test_230_logger_nonce_modify(self):
         """ test _logger_nonce_modify() """
         data_dic = {'foo': 'bar', 'header': {'Replay-Nonce': 'bar'}}
         self.assertEqual({'foo': 'bar', 'header': {'Replay-Nonce': '- modified -'}}, self.logger_nonce_modify(data_dic))
 
-    def test_230_logger_certificate_modify(self):
+    def test_231_logger_certificate_modify(self):
         """ test _logger_certificate_modify() """
         data_dic = {'data': 'bar'}
         self.assertEqual({'data': 'bar'}, self.logger_certificate_modify(data_dic, 'locator'))
 
-    def test_231_logger_certificate_modify(self):
+    def test_232_logger_certificate_modify(self):
         """ test _logger_certificate_modify() """
         data_dic = {'data': 'bar'}
         self.assertEqual({'data': ' - certificate - '}, self.logger_certificate_modify(data_dic, 'foo/acme/cert'))
 
-    def test_232_logger_token_modify(self):
+    def test_233_logger_token_modify(self):
         """ test _logger_token_modify() """
         data_dic = {'data': 'bar'}
         self.assertEqual({'data': 'bar'}, self.logger_token_modify(data_dic))
 
-    def test_233_logger_token_modify(self):
+    def test_234_logger_token_modify(self):
         """ test _logger_token_modify() """
         data_dic = {'data': {'token': 'token'}}
         self.assertEqual({'data': {'token': '- modified -'}}, self.logger_token_modify(data_dic))
 
-    def test_234_logger_challenges_modify(self):
+    def test_235_logger_challenges_modify(self):
         """ test _logger_challenges_modify() """
         data_dic = {'data': 'bar'}
         self.assertEqual({'data': 'bar'}, self.logger_challenges_modify(data_dic))
 
-    def test_235_logger_challenges_modify(self):
+    def test_236_logger_challenges_modify(self):
         """ test _logger_challenges_modify() """
         data_dic = {'data': {'challenges': [{'token': 'token1'}]}}
         self.assertEqual({'data': {'challenges': [{'token': '- modified - '}]}}, self.logger_challenges_modify(data_dic))
 
-    def test_236_logger_challenges_modify(self):
+    def test_237_logger_challenges_modify(self):
         """ test _logger_challenges_modify() """
         data_dic = {'data': {'challenges': [{'token': 'token1'}, {'token': 'token2'}]}}
         self.assertEqual({'data': {'challenges': [{'token': '- modified - '}, {'token': '- modified - '}]}}, self.logger_challenges_modify(data_dic))
 
-    def test_237_config_check(self):
+    def test_238_config_check(self):
         """ test config check """
         config_dic = {'foo': {'bar': '"foobar"'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.config_check(self.logger, config_dic)
         self.assertIn('WARNING:test_a2c:config_check(): section foo option: bar contains " characters. Check if this is really needed!', lcm.output)
 
-    def test_238_helper_cert_cn_get(self):
+    def test_239_helper_cert_cn_get(self):
         """ get cn of csr """
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
                 ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -1783,20 +1800,15 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 t+eRUDECE+0UnjyeCjTn3EU="""
         self.assertEqual('foo.example.com', self.cert_cn_get(self.logger, cert))
 
-    def test_239_logger_challenges_modify(self):
+    def test_240_logger_challenges_modify(self):
         """ test string_sanitize() """
         unsafe_string = 'foo'
         self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
 
-    def test_240_logger_challenges_modify(self):
+    def test_241_logger_challenges_modify(self):
         """ test string_sanitize() """
         unsafe_string = 'foo\n;'
         self.assertEqual('foo;', self.string_sanitize(self.logger, unsafe_string))
-
-    def test_241_logger_challenges_modify(self):
-        """ test string_sanitize() """
-        unsafe_string = 'fooö'
-        self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
 
     def test_242_logger_challenges_modify(self):
         """ test string_sanitize() """
@@ -1805,42 +1817,47 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 
     def test_243_logger_challenges_modify(self):
         """ test string_sanitize() """
+        unsafe_string = 'fooö'
+        self.assertEqual('foo', self.string_sanitize(self.logger, unsafe_string))
+
+    def test_244_logger_challenges_modify(self):
+        """ test string_sanitize() """
         unsafe_string = 'foo    '
         self.assertEqual('foo ', self.string_sanitize(self.logger, unsafe_string))
 
-    def test_244_logger_challenges_modify(self):
+    def test_245_logger_challenges_modify(self):
         """ test string_sanitize() """
         unsafe_string = 'foo\u0009'
         self.assertEqual('foo ', self.string_sanitize(self.logger, unsafe_string))
 
-    def test_245_pembundle_to_list(self):
+    def test_246_pembundle_to_list(self):
         """ bundle to list """
         pembundle_to_list = 'foo'
         self.assertFalse(self.pembundle_to_list(self.logger, pembundle_to_list))
 
-    def test_246_pembundle_to_list(self):
+    def test_247_pembundle_to_list(self):
         """ bundle to list """
         pembundle_to_list = '-----BEGIN CERTIFICATE-----foo'
         self.assertEqual(['-----BEGIN CERTIFICATE-----foo\n'], self.pembundle_to_list(self.logger, pembundle_to_list))
 
-    def test_247_pembundle_to_list(self):
+    def test_248_pembundle_to_list(self):
         """ bundle to list """
         pembundle_to_list = '-----BEGIN CERTIFICATE-----foo\n-----BEGIN CERTIFICATE-----foo1'
         self.assertEqual(['-----BEGIN CERTIFICATE-----foo\n', '-----BEGIN CERTIFICATE-----foo1\n'], self.pembundle_to_list(self.logger, pembundle_to_list))
 
-    def test_248_certid_check(self):
+    def test_249_certid_check(self):
         """ test certid_check """
         certid = 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'
         renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
         self.assertTrue(self.certid_check(self.logger, renewal_info, certid))
 
-    def test_249_certid_check(self):
+    def test_250_certid_check(self):
         """ test certid_check """
         certid = 'false'
         renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
         self.assertFalse(self.certid_check(self.logger, renewal_info, certid))
 
-    def test_250_certid_asn1_get(self):
+    def test_251_certid_asn1_get(self):
         """ test certid_asn1_get()"""
 
         cert_pem = '''-----BEGIN CERTIFICATE-----
@@ -1899,46 +1916,46 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         result = 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'
         self.assertEqual(result, self.certid_asn1_get(self.logger, cert_pem, issuer_pem))
 
-    def test_251_certid_hex_get(self):
+    def test_252_certid_hex_get(self):
         """ test certid_check """
         certid = 'false'
         renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
         self.assertEqual(('300b0609608648016503040201', 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'), self.certid_hex_get(self.logger, renewal_info))
 
     @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
-    def test_252_v6_adjust(self):
+    def test_253_v6_adjust(self):
         """ test v6_adjust() """
         url = 'http://www.foo.bar'
         self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR'}, 'http://www.foo.bar'), self.v6_adjust(self.logger, url))
 
     @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
-    def test_253_v6_adjust(self):
+    def test_254_v6_adjust(self):
         """ test v6_adjust() """
         url = 'http://192.168.123.10'
         self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR'}, 'http://192.168.123.10'), self.v6_adjust(self.logger, url))
 
     @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
-    def test_254_v6_adjust(self):
+    def test_255_v6_adjust(self):
         """ test v6_adjust() """
         url = 'http://fe80::215:5dff:fec0:102'
         self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR', 'Host': 'fe80::215:5dff:fec0:102'}, 'http://[fe80::215:5dff:fec0:102]/'), self.v6_adjust(self.logger, url))
 
-    def test_255_ipv6_chk(self):
+    def test_256_ipv6_chk(self):
         """ test ipv6_chk()"""
         addr_obj = 'fe80::215:5dff:fec0:102'
         self.assertTrue(self.ipv6_chk(self.logger, addr_obj))
 
-    def test_256_ipv6_chk(self):
+    def test_257_ipv6_chk(self):
         """ test ipv6_chk()"""
         addr_obj = 'foo.bar.local'
         self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
 
-    def test_257_ipv6_chk(self):
+    def test_258_ipv6_chk(self):
         """ test ipv6_chk()"""
         addr_obj = '192.168.123.10'
         self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
 
-    def test_258_ipv6_chk(self):
+    def test_259_ipv6_chk(self):
         """ test ipv6_chk()"""
         addr_obj = None
         self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
