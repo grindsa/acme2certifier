@@ -46,6 +46,9 @@ jobs:
         git clone https://github.com/openxpki/openxpki-docker.git
         cd openxpki-docker/
         git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
+        cd openxpki-config/
+        git checkout a86981e2929e68f3fe3530a83bdb7a4436dfd604
+        cd ..
         sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
         sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
         sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
@@ -369,9 +372,10 @@ jobs:
       run: |
         git clone https://github.com/openxpki/openxpki-docker.git
         cd openxpki-docker/
-        git clone https://github.com/openxpki/openxpki-docker.git
-        cd openxpki-docker/
         git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
+        cd openxpki-config/
+        git checkout a86981e2929e68f3fe3530a83bdb7a4436dfd604
+        cd ..
         sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
         sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
         sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
