@@ -483,7 +483,7 @@ def fqdn_in_san_check(logger, san_list, fqdn):
     if fqdn and san_list:
         for san in san_list:
             try:
-                (_type, value) = san.lower().split(':')
+                (_type, value) = san.lower().split(':', 1)
                 if fqdn == value:
                     result = True
                     break
@@ -1023,7 +1023,11 @@ def servercert_get(logger, hostname, port=443, proxy_server=None, sni=None):
     logger.debug('servercert_get({0}:{1})'.format(hostname, port))
 
     pem_cert = None
-    sock = socks.socksocket()
+
+    if ipv6_chk(logger, hostname):
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    else:
+        sock = socks.socksocket()
     context = ssl.create_default_context()  # NOSONAR
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # NOSONAR
@@ -1185,14 +1189,29 @@ def v6_adjust(logger, url):
 
     url_dic = parse_url(logger, url)
 
-    try:
-        # we need to set a host header and braces for ipv6 headers and
-        if type(ipaddress.ip_address(url_dic['host'])) is ipaddress.IPv6Address:
-            logger.debug('v6_adjust(}): ipv6 address detected')
-            headers['Host'] = url_dic['host']
-            url = '{0}://[{1}]/{2}'.format(url_dic['proto'], url_dic['host'], url_dic['path'])
-    except Exception:
-        pass
+    # adjust headers and url in case we have an ipv6address
+    if ipv6_chk(logger, url_dic['host']):
+        headers['Host'] = url_dic['host']
+        url = '{0}://[{1}]/{2}'.format(url_dic['proto'], url_dic['host'], url_dic['path'])
+
 
     logger.debug('v6_adjust() ended')
     return (headers, url)
+
+
+def ipv6_chk(logger, address):
+    """ check if an address is ipv6 """
+    logger.debug('ipv6_chk({0})'.format(address))
+
+    try:
+        # we need to set a host header and braces for ipv6 headers and
+        if type(ipaddress.ip_address(address)) is ipaddress.IPv6Address:
+            logger.debug('v6_adjust(}): ipv6 address detected')
+            result = True
+        else:
+            result = False
+    except Exception:
+        result = False
+
+    logger.debug('ipv6_chk() ended with {0}'.format(result))
+    return result
