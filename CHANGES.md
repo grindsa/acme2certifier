@@ -5,6 +5,20 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.29
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Features and Improvements**:
+
+- Support [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html): Certificates for IP addresses
+- Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+- Interoperability testing with [Caddy](https://caddyserver.com/docs/automatic-https) as part of regular regression
+
 # Changes in 0.28
 
 **Features and Improvements**:

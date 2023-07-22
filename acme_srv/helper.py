@@ -1028,6 +1028,11 @@ def servercert_get(logger, hostname, port=443, proxy_server=None, sni=None):
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     else:
         sock = socks.socksocket()
+
+    # backup - set sni to hostname
+    if not sni:
+        sni = hostname
+
     context = ssl.create_default_context()  # NOSONAR
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE  # NOSONAR
