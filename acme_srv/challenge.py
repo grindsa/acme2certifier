@@ -369,7 +369,7 @@ class Challenge(object):
             # resolve name
             (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
             self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
-            sni = id_type
+            sni = id_value
         elif id_type == 'ip':
             (sni, invalid) = ip_validate(self.logger, id_value)
         else:
