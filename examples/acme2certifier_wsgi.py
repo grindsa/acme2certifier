@@ -467,17 +467,17 @@ def get_handler_cls():
     class Acme2certiferhandler(cls, object):
         """ source: https://review.opendev.org/#/c/79876/9/ceilometer/api/app.py """
         def address_string(self):
-            return self.client_address[0]
+            return self.client_address[0]  # pragma: no cover
 
     return Acme2certiferhandler
 
 
 if __name__ == '__main__':
 
-    LOGGER.info('starting acme2certifier version %s', __version__)
+    LOGGER.info('starting acme2certifier version %s', __version__)  # pragma: no cover
 
     # check configuration for parameters masked in ""
-    config_check(LOGGER, CONFIG)
+    config_check(LOGGER, CONFIG)  # pragma: no cover
 
-    SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())
-    SRV.serve_forever()
+    SRV = make_server('0.0.0.0', 80, application, handler_class=get_handler_cls())  # pragma: no cover
+    SRV.serve_forever()  # pragma: no cover

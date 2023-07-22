@@ -906,8 +906,13 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         csr = 'MIICtzCCAZ8CAQAwGTEXMBUGA1UEAwwOZm9vMS5iYXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDMwfxxbCCTsZY8mTFZkoQ5cAJyQZLUiz34sDDRvEpI9ZzdNNm2AEZR7AgKNuBkLwzUzY5iQ182huNzYJYZZEvYX++ocF2ngapTMQgfB+bWS5bpWIdjnAcz1/86jmJgTciwL25dSnEWL17Yn3pAWweoewr730rq/PMyIbviQrasksnSo7abe2mctxkHjHb5sZ+Z1yRTN6ir/bObXmxr+vHeeD2vLRv4Hd5XaA1d+k31J2FVMnrn5OpWbxGHo49zd0xdy2mgTdZ9UraLaQnyGlkjYzV0rqHIAIm8HOUjGN5U75/rlOPF0x62FCICZU/z1AgRvugaA5eO8zTSQJiMiBe3AgMBAAGgWTBXBgkqhkiG9w0BCQ4xSjBIMAsGA1UdDwQEAwIF4DA5BgNVHREEMjAwgg5mb28xLmJhci5sb2NhbIIOZm9vMi5iYXIubG9jYWyCDmZvbzMuYmFyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4IBAQAQRkub6G4uijaXOYpCkoz40I+SVRsbRDgnMNjsooZz1+7DVglFjrr6Pb0PPTOvOxtmbHP2KK0WokDn4LqOD2t0heuI+KPQy7m/ROpOB/YZOzTWEB8yS4vjkf/RFiJ7fnCAc8vA+3K/mBVb+89F8w/KlyPmpg1GK7UNgjEa5bnznTox8q12CocCJVykPEiC8AT/VPWUOPfg6gs+V6LO8R73VRPMVy0ttYKGX80ob+KczDTMUhoxXg8OG+G+bXXU+4Tu4l+nQWf2lFejECi/vNKzUT90IbcGJwyk7rc4Q7BJ/t/5nMo+vuV9f+2HI7qakHcw6u9RGylL4OYDf1CrqF1R'
         self.assertEqual(['DNS:foo1.bar.local', 'DNS:foo2.bar.local', 'DNS:foo3.bar.local'], self.csr_san_get(self.logger, csr))
 
+    def test_113_helper_csr_san_get(self):
+        """ get sans but three sans """
+        csr = 'MIIBFjCBvQIBADAYMRYwFAYDVQQDEw1mb28uYmFyLmxvY2FsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETOQukalTTCD8y7zoAsmxeAWlbi9oZtzh7XQc7A7KF4fZLP3pYjoZG6s+sXCp7bUpKhuIejrDRp1cFE5NlEK8jaBDMEEGCSqGSIb3DQEJDjE0MDIwMAYDVR0RBCkwJ4INZm9vLmJhci5sb2NhbIcEwKgOg4cQ/oAAAAAAAAACFV3//sABAjAKBggqhkjOPQQDAgNIADBFAiBKUb5r/8aSN4/utaDoi0vIcaASVZz8p1nSJ1YWSCkIpAIhAI20iVBu5j0tBmTc3uRzKIYTqsnXpH0UV8bcONy4m1Sa'
+        self.assertEqual(['DNS:foo.bar.local', 'IP:192.168.14.131', 'IP:fe80::215:5dff:fec0:102'], self.csr_san_get(self.logger, csr))
+
     @patch('acme_srv.helper.csr_load')
-    def test_113_helper_csr_san_get(self, mock_csrload):
+    def test_114_helper_csr_san_get(self, mock_csrload):
         """ get sans but three sans """
         csr = 'csr'
         mock_csrload.return_value = 'mock_csrload'

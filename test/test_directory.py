@@ -132,6 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.supress_version)
         self.assertFalse(self.directory.tos_url)
         self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_014_config_load(self, mock_load_cfg):
@@ -143,6 +144,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.supress_version)
         self.assertFalse(self.directory.tos_url)
         self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_015_config_load(self, mock_load_cfg):
@@ -154,6 +156,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.supress_version)
         self.assertFalse(self.directory.tos_url)
         self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_016_config_load(self, mock_load_cfg):
@@ -165,6 +168,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.directory.supress_version)
         self.assertFalse(self.directory.tos_url)
         self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_017_config_load(self, mock_load_cfg):
@@ -176,6 +180,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.supress_version)
         self.assertEqual('tos_url', self.directory.tos_url)
         self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_018_config_load(self, mock_load_cfg):
@@ -188,6 +193,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.tos_url)
         self.assertTrue(self.directory.eab)
         self.assertFalse(self.directory.url_prefix)
+        self.assertFalse(self.directory.db_check)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_019_config_load(self, mock_load_cfg):
@@ -200,6 +207,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.directory.supress_version)
         self.assertEqual('tos_url', self.directory.tos_url)
         self.assertTrue(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.load_config')
     def test_020_config_load(self, mock_load_cfg):
@@ -212,9 +220,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.tos_url)
         self.assertFalse(self.directory.eab)
         self.assertEqual('url_prefix', self.directory.url_prefix)
+        self.assertFalse(self.directory.db_check)
+
+    @patch('acme_srv.directory.load_config')
+    def test_021_config_load(self, mock_load_cfg):
+        """ test _config_load eab """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'db_check': True}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+        self.assertTrue(self.directory.db_check)
+
+    @patch('acme_srv.directory.load_config')
+    def test_022_config_load(self, mock_load_cfg):
+        """ test _config_load eab """
+        parser = configparser.ConfigParser()
+        parser['Directory'] = {'db_check': False}
+        mock_load_cfg.return_value = parser
+        self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
 
     @patch('acme_srv.directory.Directory._config_load')
-    def test_021__enter__(self, mock_cfg):
+    def test_023__enter__(self, mock_cfg):
         """ test enter """
         mock_cfg.return_value = True
         self.directory.__enter__()
