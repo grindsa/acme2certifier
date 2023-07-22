@@ -23,7 +23,18 @@ from acme_srv.version import __dbversion__, __version__
 
 
 # We address a cpdesmells
-WRT_MESSAGE = 'Wrong request type. Expected POST.'
+HTTP_CODE_DIC = {
+    200: 'Created',
+    201: 'OK',
+    400: 'Bad Request',
+    401: 'Unauthorized',
+    403: 'Forbidden',
+    404: 'Not Found',
+    405: 'Method Not Allowed',
+    500: 'serverInternal '
+}
+
+WRT_ERROR_MSG = json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected POST.'}).encode('utf-8')
 CONTENT_TYPE_JSON = 'application/json'
 WSGI_INPUT = 'wsgi.input'
 
@@ -31,11 +42,16 @@ WSGI_INPUT = 'wsgi.input'
 CONFIG = load_config()
 try:
     DEBUG = CONFIG.getboolean('DEFAULT', 'debug')
-except Exception:  # pragma: no cover
+except Exception:
     DEBUG = False
 
 
-def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
+def err_wrong_request_mothod(start_response):
+    """ this is the error response for a wrong reqest method """
+    start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
+
+
+def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -53,17 +69,6 @@ with Housekeeping(DEBUG, LOGGER) as db_check:
 
 # examption handling via logger
 sys.excepthook = handle_exception
-
-HTTP_CODE_DIC = {
-    200: 'Created',
-    201: 'OK',
-    400: 'Bad Request',
-    401: 'Unauthorized',
-    403: 'Forbidden',
-    404: 'Not Found',
-    405: 'Method Not Allowed',
-    500: 'serverInternal '
-}
 
 
 def create_header(response_dic, add_json_header=True):
@@ -149,8 +154,8 @@ def authz(environ, start_response):
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
             return [json.dumps(response_dic['data']).encode('utf-8')]
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def newaccount(environ, start_response):
@@ -170,8 +175,8 @@ def newaccount(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def directory(environ, start_response):
@@ -212,8 +217,8 @@ def cert(environ, start_response):
             return [response_dic['data']]
 
         else:
-            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+            err_wrong_request_mothod(start_response)
+            return [WRT_ERROR_MSG]
 
 
 def chall(environ, start_response):
@@ -247,8 +252,8 @@ def chall(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
         else:
-            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+            err_wrong_request_mothod(start_response)
+            return [WRT_ERROR_MSG]
 
 
 def newnonce(environ, start_response):
@@ -260,7 +265,7 @@ def newnonce(environ, start_response):
         start_response(status, headers)
         return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
+        err_wrong_request_mothod(start_response)
         return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': 'Wrong request type. Expected HEAD or GET.'}).encode('utf-8')]
 
 
@@ -280,8 +285,8 @@ def neworders(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def order(environ, start_response):
@@ -300,8 +305,8 @@ def order(environ, start_response):
             return [json.dumps(response_dic['data']).encode('utf-8')]
 
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def renewalinfo(environ, start_response):
@@ -336,8 +341,8 @@ def renewalinfo(environ, start_response):
                 return []
 
         else:
-            start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-            return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+            err_wrong_request_mothod(start_response)
+            return [WRT_ERROR_MSG]
 
 
 def revokecert(environ, start_response):
@@ -358,8 +363,8 @@ def revokecert(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def trigger(environ, start_response):
@@ -381,8 +386,8 @@ def trigger(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def housekeeping(environ, start_response):
@@ -404,8 +409,8 @@ def housekeeping(environ, start_response):
             else:
                 return []
     else:
-        start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
-        return [json.dumps({'status': 405, 'message': HTTP_CODE_DIC[405], 'detail': WRT_MESSAGE}).encode('utf-8')]
+        err_wrong_request_mothod(start_response)
+        return [WRT_ERROR_MSG]
 
 
 def not_found(_environ, start_response):
@@ -454,7 +459,7 @@ def application(environ, start_response):
     return not_found(environ, start_response)
 
 
-def get_handler_cls():  # pragma: no cover
+def get_handler_cls():
     """ my handler to disable name resolution """
     cls = WSGIRequestHandler
 
