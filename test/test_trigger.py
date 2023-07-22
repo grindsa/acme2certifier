@@ -363,7 +363,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.trigger.ca_handler_load')
     @patch('acme_srv.trigger.load_config')
-    def test_030_config_load(self, mock_load_cfg, mock_cahandler_load):
+    def test_031_config_load(self, mock_load_cfg, mock_cahandler_load):
         """ test _config_load() """
         parser = configparser.ConfigParser()
         parser['Foo'] = {'foo': 'bar'}
