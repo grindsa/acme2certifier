@@ -4,7 +4,7 @@
 # pylint: disable=C0209, r0913
 from __future__ import print_function
 import json
-from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get
+from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get, ip_validate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -369,10 +369,12 @@ class Challenge(object):
             # resolve name
             (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
             self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+            sni = id_type
         elif id_type == 'ip':
-            invalid = False
+            (sni, invalid) = ip_validate(self.logger, id_value)
         else:
             invalid = True
+            sni = None
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
         # which is base64 encoded '0420' has been taken from acme_srv.sh sources
@@ -386,7 +388,7 @@ class Challenge(object):
                 proxy_server = proxy_check(self.logger, id_value, self.proxy_server_list)
             else:
                 proxy_server = None
-            cert = servercert_get(self.logger, id_value, 443, proxy_server)
+            cert = servercert_get(self.logger, id_value, 443, proxy_server, sni)
             if cert:
                 result = self._extensions_validate(cert, extension_value, id_value)
             else:
@@ -435,6 +437,7 @@ class Challenge(object):
             self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
         elif id_type == 'ip':
             invalid = False
+            (_sni, invalid) = ip_validate(self.logger, id_value)
         else:
             invalid = True
 

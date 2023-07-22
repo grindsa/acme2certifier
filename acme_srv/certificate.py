@@ -408,7 +408,7 @@ class Certificate(object):
 
     def _identifier_chk(self, cert_type, cert_value, identifiers, san_is_in):
         """ check identifier """
-        self.logger.debug('Certificate._identifer_status_list({0}/{1})'.format(cert_type, cert_value))
+        self.logger.debug('Certificate._identifier_chk({0}/{1})'.format(cert_type, cert_value))
 
         if cert_type and cert_value:
             for identifier in identifiers:
@@ -417,7 +417,7 @@ class Certificate(object):
                         san_is_in = True
                         break
 
-        self.logger.debug('Certificate._identifer_status_list({0})'.format(san_is_in))
+        self.logger.debug('Certificate._identifier_chk({0})'.format(san_is_in))
         return san_is_in
 
     def _identifer_status_list(self, identifiers, san_list):
@@ -428,8 +428,9 @@ class Certificate(object):
         for san in san_list:
             san_is_in = False
             try:
-                (cert_type, cert_value) = san.lower().split(':')
-            except Exception:
+                (cert_type, cert_value) = san.lower().split(':', 1)
+            except Exception as err_:
+                self.logger.error('Error while splitting san {0}: {1}'.format(san, err_))
                 cert_type = None
                 cert_value = None
 
@@ -478,7 +479,7 @@ class Certificate(object):
         else:
             identifier_status.append(False)
 
-        self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
+        self.logger.debug('Certificate._identifer_tnauth_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
     def _info(self, certificate_name, flist=('name', 'csr', 'cert', 'order__name')):

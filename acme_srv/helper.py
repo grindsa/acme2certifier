@@ -20,6 +20,7 @@ import ssl
 import logging
 import hashlib
 import html
+import ipaddress
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
@@ -873,6 +874,33 @@ def allowed_gai_family():
     return family
 
 
+def url_get_with_default_dns(logger, url, proxy_list, verify, timeout):
+    """ http get with default dns server """
+    logger.debug('url_get_with_default_dns({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
+
+    # we need to tweak headers and url for ipv6 addresse
+    (headers, url) = v6_adjust(logger, url)
+
+    try:
+        req = requests.get(url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list)
+        result = req.text
+    except Exception as err_:
+        logger.debug('url_get({0}): error'.format(err_))
+        # force fallback to ipv4
+        logger.debug('url_get({0}): fallback to v4'.format(url))
+        old_gai_family = urllib3_cn.allowed_gai_family
+        try:
+            urllib3_cn.allowed_gai_family = allowed_gai_family
+            req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, proxies=proxy_list)
+            result = req.text
+        except Exception as err:
+            result = None
+            logger.error('url_get error: {0}'.format(err))
+        urllib3_cn.allowed_gai_family = old_gai_family
+
+    return result
+
+
 def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, timeout=20):
     """ http get """
     logger.debug('url_get({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
@@ -885,22 +913,8 @@ def url_get(logger, url, dns_server_list=None, proxy_server=None, verify=True, t
     if dns_server_list and not proxy_server:
         result = url_get_with_own_dns(logger, url, verify)
     else:
-        try:
-            req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, proxies=proxy_list)
-            result = req.text
-        except Exception as err_:
-            logger.debug('url_get({0}): error'.format(err_))
-            # force fallback to ipv4
-            logger.debug('url_get({0}): fallback to v4'.format(url))
-            old_gai_family = urllib3_cn.allowed_gai_family
-            try:
-                urllib3_cn.allowed_gai_family = allowed_gai_family
-                req = requests.get(url, verify=verify, timeout=timeout, headers={'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}, proxies=proxy_list)
-                result = req.text
-            except Exception as err_:
-                result = None
-                logger.error('url_get error: {0}'.format(err_))
-            urllib3_cn.allowed_gai_family = old_gai_family
+        result = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
+
     logger.debug('url_get() ended with: {0}'.format(result))
     return result
 
@@ -1004,7 +1018,7 @@ def proxystring_convert(logger, proxy_server):
     return (proto_string, proxy_addr, proxy_port)
 
 
-def servercert_get(logger, hostname, port=443, proxy_server=None):
+def servercert_get(logger, hostname, port=443, proxy_server=None, sni=None):
     """ get server certificate from an ssl connection """
     logger.debug('servercert_get({0}:{1})'.format(hostname, port))
 
@@ -1028,8 +1042,8 @@ def servercert_get(logger, hostname, port=443, proxy_server=None):
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
         sock.connect((hostname, port))
-        with context.wrap_socket(sock, server_hostname=hostname) as sslsock:
-            logger.debug('servercert_get(): {0}:{1} version: {2}'.format(hostname, port, sslsock.version()))
+        with context.wrap_socket(sock, server_hostname=sni) as sslsock:
+            logger.debug('servercert_get(): {0}:{1}:{2} version: {3}'.format(hostname, sni, port, sslsock.version()))
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:
@@ -1147,3 +1161,38 @@ def certid_check(logger, renewal_info, certid_database):
 
     logger.debug('certid_check() ended with: {0}'.format(result))
     return result
+
+
+def ip_validate(logger, ip_addr):
+    """  validate ip address """
+    logger.debug('ip_validate({0})'.format(ip_addr))
+
+    try:
+        reverse_pointer = ipaddress.ip_address(ip_addr).reverse_pointer
+        invalid = False
+    except ValueError:
+        reverse_pointer = None
+        invalid = True
+    logger.debug('ip_validate() ended with: {0}:{1}'.format(reverse_pointer, invalid))
+    return (reverse_pointer, invalid)
+
+
+def v6_adjust(logger, url):
+    """ corner case for v6 addresses """
+    logger.debug('v6_adjust({0})'.format(url))
+
+    headers = {'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}
+
+    url_dic = parse_url(logger, url)
+
+    try:
+        # we need to set a host header and braces for ipv6 headers and
+        if type(ipaddress.ip_address(url_dic['host'])) is ipaddress.IPv6Address:
+            logger.debug('v6_adjust(}): ipv6 address detected')
+            headers['Host'] = url_dic['host']
+            url = '{0}://[{1}]/{2}'.format(url_dic['proto'], url_dic['host'], url_dic['path'])
+    except Exception:
+        pass
+
+    logger.debug('v6_adjust() ended')
+    return (headers, url)
