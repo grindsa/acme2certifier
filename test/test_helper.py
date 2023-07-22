@@ -29,7 +29,7 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -73,6 +73,7 @@ class TestACMEHandler(unittest.TestCase):
         self.generate_random_string = generate_random_string
         self.get_url = get_url
         self.hooks_load = hooks_load
+        self.ipv6_chk = ipv6_chk
         self.jwk_thumbprint_get = jwk_thumbprint_get
         self.load_config = load_config
         self.logger_setup = logger_setup
@@ -97,6 +98,7 @@ class TestACMEHandler(unittest.TestCase):
         self.sha256_hash_hex = sha256_hash_hex
         self.string_sanitize = string_sanitize
         self.proxystring_convert = proxystring_convert
+        self.v6_adjust = v6_adjust
         self.handle_exception = handle_exception
 
     def test_001_helper_b64decode_pad(self):
@@ -1902,6 +1904,44 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         certid = 'false'
         renewal_info = 'MFswCwYJYIZIAWUDBAIBBCDhge--b3rj6nHHj8meQibXGFcVvj0onqpWgB3_RpbKTQQgrg3PUzRWkYJrgdCT6cdYjDXdXsXqz1sbJgYzBRXV-vQCCCzKhfZA1UFC'
         self.assertEqual(('300b0609608648016503040201', 'e181efbe6f7ae3ea71c78fc99e4226d7185715be3d289eaa56801dff4696ca4d0420ae0dcf53345691826b81d093e9c7588c35dd5ec5eacf5b1b2606330515d5faf402082cca85f640d54142'), self.certid_hex_get(self.logger, renewal_info))
+
+    @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
+    def test_252_v6_adjust(self):
+        """ test v6_adjust() """
+        url = 'http://www.foo.bar'
+        self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR'}, 'http://www.foo.bar'), self.v6_adjust(self.logger, url))
+
+    @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
+    def test_253_v6_adjust(self):
+        """ test v6_adjust() """
+        url = 'http://192.168.123.10'
+        self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR'}, 'http://192.168.123.10'), self.v6_adjust(self.logger, url))
+
+    @patch('acme_srv.helper.USER_AGENT', 'FOOBAR')
+    def test_254_v6_adjust(self):
+        """ test v6_adjust() """
+        url = 'http://fe80::215:5dff:fec0:102'
+        self.assertEqual(({'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': 'FOOBAR', 'Host': 'fe80::215:5dff:fec0:102'}, 'http://[fe80::215:5dff:fec0:102]/'), self.v6_adjust(self.logger, url))
+
+    def test_255_ipv6_chk(self):
+        """ test ipv6_chk()"""
+        addr_obj = 'fe80::215:5dff:fec0:102'
+        self.assertTrue(self.ipv6_chk(self.logger, addr_obj))
+
+    def test_256_ipv6_chk(self):
+        """ test ipv6_chk()"""
+        addr_obj = 'foo.bar.local'
+        self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
+
+    def test_257_ipv6_chk(self):
+        """ test ipv6_chk()"""
+        addr_obj = '192.168.123.10'
+        self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
+
+    def test_258_ipv6_chk(self):
+        """ test ipv6_chk()"""
+        addr_obj = None
+        self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
 
 if __name__ == '__main__':
     unittest.main()

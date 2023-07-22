@@ -783,7 +783,41 @@ class TestACMEHandler(unittest.TestCase):
         mock_srv.return_value = 'cert'
         mock_encode.return_value = 'foo'
         mock_ext.return_value = ['foobar', 'bar', 'foo']
-        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'ip', 'fqdn', 'token', 'jwk_thumbprint'))
+        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'ip', '192.168.0.1', 'token', 'jwk_thumbprint'))
+        self.assertFalse(mock_resolve.called)
+
+    @patch('acme_srv.challenge.cert_extensions_get')
+    @patch('acme_srv.challenge.b64_encode')
+    @patch('acme_srv.challenge.fqdn_in_san_check')
+    @patch('acme_srv.challenge.cert_san_get')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    def test_073_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+        """ test validate_alpn_challenge up with unknown value """
+        mock_resolve.return_value = ('foo', False)
+        mock_sanget.return_value = ['foo', 'bar']
+        mock_sanchk.return_value = True
+        mock_srv.return_value = 'cert'
+        mock_encode.return_value = 'foo'
+        mock_ext.return_value = ['foobar', 'bar', 'foo']
+        self.assertEqual((False, True), self.challenge._validate_alpn_challenge('cert_name', 'ip', 'somethingwrong', 'token', 'jwk_thumbprint'))
+        self.assertFalse(mock_resolve.called)
+
+    @patch('acme_srv.challenge.cert_extensions_get')
+    @patch('acme_srv.challenge.b64_encode')
+    @patch('acme_srv.challenge.fqdn_in_san_check')
+    @patch('acme_srv.challenge.cert_san_get')
+    @patch('acme_srv.challenge.servercert_get')
+    @patch('acme_srv.challenge.fqdn_resolve')
+    def test_074_challenge__validate_alpn_challenge(self, mock_resolve, mock_srv, mock_sanget, mock_sanchk, mock_encode, mock_ext):
+        """ test validate_alpn_challenge ipv6 extension sucessful """
+        mock_resolve.return_value = ('foo', False)
+        mock_sanget.return_value = ['foo', 'bar']
+        mock_sanchk.return_value = True
+        mock_srv.return_value = 'cert'
+        mock_encode.return_value = 'foo'
+        mock_ext.return_value = ['foobar', 'bar', 'foo']
+        self.assertEqual((True, False), self.challenge._validate_alpn_challenge('cert_name', 'ip', 'fe80::215:5dff:fec0:102', 'token', 'jwk_thumbprint'))
         self.assertFalse(mock_resolve.called)
 
     @patch('acme_srv.challenge.cert_extensions_get')

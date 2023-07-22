@@ -1194,7 +1194,6 @@ def v6_adjust(logger, url):
         headers['Host'] = url_dic['host']
         url = '{0}://[{1}]/{2}'.format(url_dic['proto'], url_dic['host'], url_dic['path'])
 
-
     logger.debug('v6_adjust() ended')
     return (headers, url)
 
@@ -1205,7 +1204,7 @@ def ipv6_chk(logger, address):
 
     try:
         # we need to set a host header and braces for ipv6 headers and
-        if type(ipaddress.ip_address(address)) is ipaddress.IPv6Address:
+        if isinstance(ipaddress.ip_address(address), ipaddress.IPv6Address):
             logger.debug('v6_adjust(}): ipv6 address detected')
             result = True
         else:
