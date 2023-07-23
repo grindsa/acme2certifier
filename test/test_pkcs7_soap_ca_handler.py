@@ -6,11 +6,11 @@ import unittest
 import sys
 import os
 from unittest.mock import patch, Mock, mock_open
-import requests
+import base64
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
-import base64
+
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')

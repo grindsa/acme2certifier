@@ -1390,6 +1390,20 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(b'basicConstraints', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].get_short_name())
         self.assertEqual('CA:FALSE', self.cahandler._duplicates_clean(default_extension_list, csr_extension_list)[2].__str__())
 
+    @patch('examples.ca_handler.openssl_ca_handler.CAhandler._duplicates_clean')
+    @patch('examples.ca_handler.openssl_ca_handler.convert_byte_to_string')
+    def test_137__cert_extension_add(self, mock_b2s, mock_dup):
+        """ test _cert_extension_add() """
+        # req = 'MIIBFjCBvQIBADAYMRYwFAYDVQQDEw1mb28uYmFyLmxvY2FsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETOQukalTTCD8y7zoAsmxeAWlbi9oZtzh7XQc7A7KF4fZLP3pYjoZG6s+sXCp7bUpKhuIejrDRp1cFE5NlEK8jaBDMEEGCSqGSIb3DQEJDjE0MDIwMAYDVR0RBCkwJ4INZm9vLmJhci5sb2NhbIcEwKgOg4cQ/oAAAAAAAAACFV3//sABAjAKBggqhkjOPQQDAgNIADBFAiBKUb5r/8aSN4/utaDoi0vIcaASVZz8p1nSJ1YWSCkIpAIhAI20iVBu5j0tBmTc3uRzKIYTqsnXpH0UV8bcONy4m1Sa'
+        req = Mock()
+        extension = Mock()
+        extension.get_short_name(return_value='short_name')
+        req.get_extensions = Mock(return_value=[extension, extension])
+        mock_b2s.side_effect = Exception('cert_ext_add')
+        mock_dup.return_value = ['foo', 'bar']
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(['foo', 'bar'], self.cahandler._cert_extension_add(req, []))
+        self.assertIn('ERROR:test_a2c: CAhandler._cert_extension_add() failed to load extension shortname: cert_ext_add', lcm.output)
 
 if __name__ == '__main__':
 
