@@ -418,5 +418,5 @@ class CommandLineInterface(object):
 if __name__ == "__main__":
 
     # start cli
-    CLI = CommandLineInterface()
-    CLI.start()
+    CLI = CommandLineInterface()  # pragma: no cover
+    CLI.start()  # pragma: no cover
