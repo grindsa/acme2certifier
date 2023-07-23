@@ -307,8 +307,8 @@ class CAhandler(object):
 
         """
         content = decoder.decode(signature_block_file, asn1Spec=rfc2315.ContentInfo())[0]
-        if content.getComponentByName('contentType') != rfc2315.signedData:
-            return None
+        if content.getComponentByName('contentType') != rfc2315.signedData:  # pragma: no cover
+            return None  # pragma: no cover
         content = decoder.decode(content.getComponentByName('content'), asn1Spec=rfc2315.SignedData())[0]
 
         cert_list = []

@@ -54,8 +54,8 @@ def err_wrong_request_mothod(start_response):
 def handle_exception(exc_type, exc_value, exc_traceback):
     """ exception handler """
     if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)  # pragma: no cover
+        return  # pragma: no cover
 
     # LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     LOGGER.error("Uncaught exception")
