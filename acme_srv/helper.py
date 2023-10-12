@@ -538,9 +538,9 @@ def load_config(logger=None, mfilter=None, cfg_file=None):
             cfg_file = os.path.dirname(__file__) + '/' + 'acme_srv.cfg'
     if logger:
         logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
-    config = configparser.RawConfigParser()
+    config = configparser.ConfigParser(interpolation=None)
     config.optionxform = str
-    config.read(cfg_file)
+    config.read(cfg_file, encoding='utf8')
     return config
 
 
