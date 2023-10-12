@@ -140,6 +140,11 @@ jobs:
   wes_handler_tests:
     name: "wes_handler_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        authscheme: ['ntlm']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v3
@@ -180,7 +185,7 @@ jobs:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
         WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WES_AUTHMETHOD: ${{ matrix.authscheme }}
         WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
 
     - name: "Test http://acme-srv/directory is accessable again"
@@ -226,7 +231,7 @@ jobs:
       uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
-        name: wse.tar.gz
+        name: wse.${{ matrix.authscheme }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   wcce_handler_tests_rpm:
@@ -382,6 +387,10 @@ jobs:
   wes_handler_tests_rpm:
     name: "wes_handler_tests_rpm"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        authscheme: ['ntlm']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v3
@@ -448,7 +457,7 @@ jobs:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
         WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WES_AUTHMETHOD: ${{ matrix.authscheme }}
         WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
 
     - name: "[ PREPARE ] Almalinux instance"

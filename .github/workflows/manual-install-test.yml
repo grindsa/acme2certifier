@@ -310,6 +310,7 @@ jobs:
 
     - name: "[ Install ] install apache2 and acme2certifier packages"
       run: |
+        sudo apt-get update
         sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
         sudo apt-get install -y ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
@@ -402,6 +403,7 @@ jobs:
 
     - name: "[ Install ] install nginx and acme2certifier packages"
       run: |
+        sudo apt-get update
         sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
         sudo apt-get install -y ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
