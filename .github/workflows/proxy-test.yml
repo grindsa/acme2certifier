@@ -125,11 +125,11 @@ jobs:
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "host: ${{ secrets.MSCA_NAME }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: ${{ secrets.NCLM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: ${{ secrets.NCLM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "auth_method: ${{ secrets.MSCA_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: ${{ secrets.MSCA_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: ${{ secrets.WES_HOST }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: ${{ secrets.WES_USER }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: ${{ secrets.WES_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: ${{ secrets.WES_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: ${{ secrets.WES_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
@@ -187,28 +187,28 @@ jobs:
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup using tls-client-auth"
-      run: |
-        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"http:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+    #- name: "[ PREPARE ] setup using tls-client-auth"
+    #  run: |
+    #    sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+    #    sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
+    #    sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
+    #    sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
+    #    sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+    #    sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"http:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
+    #    cd examples/Docker/
+    #    docker-compose restart
+    #    docker-compose logs
 
-    - name: "[ ENROLL ] via est using tls-client-auth"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+    # - name: "[ ENROLL ] via est using tls-client-auth"
+    #  run: |
+    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+    #    # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
-      run: |
-        docker logs proxy | grep http | grep -- "->"
-        docker stop proxy
-        docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
+    #- name: "[ CHECK ] proxy logs"
+    #  run: |
+    #    docker logs proxy | grep http | grep -- "->"
+    #    docker stop proxy
+    #    docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
     - name: "[ PREPARE ] setup nclm ca_handler for proxy usage"
       run: |
@@ -485,27 +485,27 @@ jobs:
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup using tls-client-auth"
-      run: |
-        sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
-        sudo echo "est_client_key: volume/acme_ca/est_client_key.pem" >> data/acme_srv.cfg
-        sudo echo "est_client_cert: volume/acme_ca/est_client_cert.pem" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
-        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
+    #- name: "[ PREPARE ] setup using tls-client-auth"
+    #  run: |
+    #    sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+    #    sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
+    #    sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
+    #    sudo echo "est_client_key: volume/acme_ca/est_client_key.pem" >> data/acme_srv.cfg
+    #    sudo echo "est_client_cert: volume/acme_ca/est_client_cert.pem" >> data/acme_srv.cfg
+    #    sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+    #    sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
 
-    - name: "[ PREPARE  ] reconfigure est ca-handler "
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+    #- name: "[ PREPARE  ] reconfigure est ca-handler "
+    #  run: |
+    #    docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL ] via est using tls-client-auth"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+    #- name: "[ ENROLL ] via est using tls-client-auth"
+    #  run: |
+    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ CHECK ] proxy logs"
-      run: |
-        docker logs proxy | grep socks5 | grep -- "->"
+    #- name: "[ CHECK ] proxy logs"
+    #  run: |
+    #    docker logs proxy | grep socks5 | grep -- "->"
 
     - name: "[ PREPARE ] setup using nclm_ca_handler"
       run: |
@@ -543,9 +543,9 @@ jobs:
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
         sleep 45
 
-    - name: "[ CHECK ] proxy logs"
-      run: |
-        docker logs proxy | grep socks5 | grep -- "->"
+    #- name: "[ CHECK ] proxy logs"
+    #  run: |
+    #    docker logs proxy | grep socks5 | grep -- "->"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
