@@ -5,6 +5,18 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.29.2
+
+**Bugfixes**:
+
+- #119 - handling of utf-8 encoded parameters in `acme_srv.cfg`
+- adding `python3-requests-ntlm` dependency in control file for debian packages
+- multiple smaller fixes in workflow files
+
+# Changes to 0.29.1
+
+- withdrawn as released by mistake
+
 # Changes in 0.29
 
 **Upgrade notes**:
