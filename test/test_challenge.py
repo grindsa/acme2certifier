@@ -46,9 +46,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.challenge.generate_random_string')
     def test_003_challenge__new(self, mock_random):
-        """ test challenge generation for sertigo challenge """
+        """ test challenge generation for sectigo challenge """
         mock_random.return_value = 'foo'
-        self.challenge.sertigo_sim = True
+        self.challenge.sectigo_sim = True
         # self.order.dbstore.challenge_new.return_value = 1
         self.assertEqual({'url': 'http://tester.local/acme/chall/foo', 'type': 'sectigo-email-01', 'status': 'valid'}, self.challenge._new('authz_name', 'sectigo-email-01', 'token'))
 
@@ -78,10 +78,10 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.challenge.Challenge._new')
     def test_008_challenge_new_set(self, mock_challenge):
-        """ test generation of a challenge with sertigo_sim True """
-        mock_challenge.return_value = {'foo' : 'sertigo_sim'}
-        self.challenge.sertigo_sim = True
-        self.assertEqual([{'foo': 'sertigo_sim'}], self.challenge.new_set('authz_name', 'token', False))
+        """ test generation of a challenge with sectigo_sim True """
+        mock_challenge.return_value = {'foo' : 'sectigo_sim'}
+        self.challenge.sectigo_sim = True
+        self.assertEqual([{'foo': 'sectigo_sim'}], self.challenge.new_set('authz_name', 'token', False))
 
     def test_009_challenge__info(self):
         """ test challenge.info() """
@@ -876,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list )
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -889,7 +889,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -902,7 +902,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -915,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -928,7 +928,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertTrue(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -941,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertEqual(['10.10.10.10'], self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -954,7 +954,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertEqual(['10.10.10.10', '10.0.0.1'], self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('json.loads')
@@ -971,7 +971,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -985,7 +985,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.dns_server_list)
         self.assertEqual({'authz_path': 'url_prefix//acme/authz/','chall_path': 'url_prefix//acme/chall/'}, self.challenge.path_dic)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -998,7 +998,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertEqual({'key1.bar.local': 'val1.bar.local'}, self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -1011,7 +1011,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertEqual({'key1.bar.local': 'val1.bar.local', 'key2.bar.local': 'val2.bar.local'}, self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('json.loads')
@@ -1028,7 +1028,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -1041,7 +1041,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(5, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
@@ -1056,33 +1056,33 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
     def test_105_config_load(self, mock_load_cfg):
-        """ test _config_load sertigo_sim """
+        """ test _config_load sectigo_sim """
         parser = configparser.ConfigParser()
-        parser['Challenge'] = {'sertigo_sim': True}
+        parser['Challenge'] = {'sectigo_sim': True}
         mock_load_cfg.return_value = parser
         self.challenge._config_load()
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.proxy_server_list)
-        self.assertTrue(self.challenge.sertigo_sim )
+        self.assertTrue(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     @patch('acme_srv.challenge.load_config')
     def test_106_config_load(self, mock_load_cfg):
-        """ test _config_load sertigo_sim """
+        """ test _config_load sectigo_sim """
         parser = configparser.ConfigParser()
-        parser['Challenge'] = {'sertigo_sim': False}
+        parser['Challenge'] = {'sectigo_sim': False}
         mock_load_cfg.return_value = parser
         self.challenge._config_load()
         self.assertFalse(self.challenge.challenge_validation_disable)
         self.assertFalse(self.challenge.tnauthlist_support)
         self.assertFalse(self.challenge.proxy_server_list)
-        self.assertFalse(self.challenge.sertigo_sim )
+        self.assertFalse(self.challenge.sectigo_sim )
         self.assertEqual(10, self.challenge.challenge_validation_timeout )
 
     def test_107__name_get(self):
