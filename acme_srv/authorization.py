@@ -12,7 +12,7 @@ from acme_srv.nonce import Nonce
 
 
 class Authorization(object):
-    """ class for order handling """
+    """ class for Authorization handling """
 
     def __init__(self, debug=None, srv_name=None, logger=None):
         self.server_name = srv_name
@@ -40,7 +40,7 @@ class Authorization(object):
         try:
             self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
         except Exception as err_:
-            self.logger.error('acme2certifier database error in Authorization._authz_info({0}) update: {1}'.format(authz_name, err_))
+            self.logger.error('acme2certifier database error in Authorization._expiry_update({0}) update: {1}'.format(authz_name, err_))
 
         self.logger.debug('Authorization._expiry_update() ended')
 
@@ -96,7 +96,7 @@ class Authorization(object):
             authz_info_dic['identifier'] = {'type': auth_info[0]['type'], 'value': auth_info[0]['value']}
             if auth_info[0]['type'] == 'TNAuthList':
                 tnauth = True
-            # add fildcard flag into authoritzation response and modify identifier
+            # add wildcard flag into authoritzation response and modify identifier
             if auth_info[0]['value'].startswith('*.'):
                 self.logger.debug('Authorization._authz_info() - adding wildcard flag')
                 authz_info_dic['identifier']['value'] = auth_info[0]['value'][2:]

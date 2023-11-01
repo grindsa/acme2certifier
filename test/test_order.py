@@ -824,6 +824,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -837,6 +838,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertTrue(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -850,6 +852,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(1200, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -863,6 +866,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(1200, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -877,6 +881,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -891,6 +896,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(1200, self.order.validity)
@@ -904,6 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(1200, self.order.validity)
@@ -918,6 +925,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -932,6 +940,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -945,6 +954,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -959,6 +969,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
         self.assertFalse(self.order.expiry_check_disable)
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
@@ -974,6 +985,68 @@ class TestACMEHandler(unittest.TestCase):
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
         self.assertEqual({'authz_path': 'url_prefix/acme/authz/', 'cert_path': 'url_prefix/acme/cert/', 'order_path': 'url_prefix/acme/order/'}, self.order.path_dic)
+
+    @patch('acme_srv.order.load_config')
+    def test_104_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'sertigo_sim': True}
+        mock_load_cfg.return_value = parser
+        self.order._config_load()
+        self.assertFalse(self.order.tnauthlist_support)
+        self.assertTrue(self.order.sertigo_sim)
+        self.assertFalse(self.order.expiry_check_disable)
+        self.assertEqual(600, self.order.retry_after)
+        self.assertEqual(86400, self.order.validity)
+        self.assertEqual(86400, self.order.authz_validity)
+
+    @patch('acme_srv.order.load_config')
+    def test_105_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Challenge'] = {'sertigo_sim': False}
+        mock_load_cfg.return_value = parser
+        self.order._config_load()
+        self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sertigo_sim)
+        self.assertFalse(self.order.expiry_check_disable)
+        self.assertEqual(600, self.order.retry_after)
+        self.assertEqual(86400, self.order.validity)
+        self.assertEqual(86400, self.order.authz_validity)
+
+    @patch('acme_srv.order.DBstore.authorization_add')
+    @patch('acme_srv.order.generate_random_string')
+    def test_106__auth_add(self, mock_name, mock_order_add):
+        """ test _auth_add() """
+        mock_name.return_value = 'name'
+        auth_dic = {}
+        payload = {}
+        self.assertEqual('urn:ietf:params:acme:error:malformed', self.order._auth_add(None, payload, auth_dic))
+        self.assertFalse(mock_order_add.called)
+
+    @patch('acme_srv.order.generate_random_string')
+    def test_107__auth_add(self, mock_name):
+        """ test _auth_add() """
+        mock_name.return_value = 'name'
+        auth_dic = {}
+        payload = {'identifiers': [{'foo': 'bar'}]}
+        self.order.dbstore.authorization_add.side_effect = ['authz_add']
+        self.assertFalse(self.order._auth_add('oid', payload, auth_dic))
+        self.assertTrue(self.order.dbstore.authorization_add.called)
+        self.assertFalse(self.order.dbstore.authorization_update.called)
+
+    @patch('acme_srv.order.generate_random_string')
+    def test_108__auth_add(self, mock_name):
+        """ test _auth_add() """
+        mock_name.return_value = 'name'
+        auth_dic = {}
+        payload = {'identifiers': [{'foo': 'bar'}]}
+        self.order.sertigo_sim = True
+        self.order.dbstore.authorization_add.side_effect = ['authz_add']
+        self.assertFalse(self.order._auth_add('oid', payload, auth_dic))
+        self.assertTrue(self.order.dbstore.authorization_add.called)
+        self.assertTrue(self.order.dbstore.authorization_update.called)
+
 
 if __name__ == '__main__':
     unittest.main()

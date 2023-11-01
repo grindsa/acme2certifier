@@ -26,6 +26,7 @@ class Order(object):
         self.path_dic = {'authz_path': '/acme/authz/', 'order_path': '/acme/order/', 'cert_path': '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
+        self.sertigo_sim = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -51,6 +52,9 @@ class Order(object):
                 auth['expires'] = uts_now() + self.authz_validity
                 try:
                     self.dbstore.authorization_add(auth)
+                    if self.sertigo_sim:
+                        auth['status'] = 'valid'
+                        self.dbstore.authorization_update(auth)
                 except Exception as err_:
                     self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
         else:
@@ -102,9 +106,14 @@ class Order(object):
         """" load config from file """
         self.logger.debug('Order._config_orderconfig_load()')
 
+        if 'Challenge' in config_dic:
+            self.sertigo_sim = config_dic.getboolean('Challenge', 'sertigo_sim', fallback=False)
+
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
+
+
             if 'retry_after_timeout' in config_dic['Order']:
                 try:
                     self.retry_after = int(config_dic['Order']['retry_after_timeout'])
@@ -192,6 +201,7 @@ class Order(object):
 
         # lookup order-status (must be ready to proceed)
         order_dic = self._info(order_name)
+
         if 'status' in order_dic and order_dic['status'] == 'ready':
             # update order_status / set to processing
             self._update({'name': order_name, 'status': 'processing'})
@@ -387,7 +397,6 @@ class Order(object):
             order_list = []
         output_list = []
         for order in order_list:
-            # print(order['id'])
             # select all orders which are not invalid
             if 'name' in order and 'status__name' in order and order['status__name'] != 'invalid':
                 # change status and add to output list
