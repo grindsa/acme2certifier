@@ -24,7 +24,7 @@ class Challenge(object):
         self.challenge_validation_disable = False
         self.challenge_validation_timeout = 10
         self.tnauthlist_support = False
-        self.sertigo_sim = False
+        self.sectigo_sim = False
         self.dns_server_list = None
         self.proxy_server_list = {}
 
@@ -173,7 +173,7 @@ class Challenge(object):
 
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
-            self.sertigo_sim = config_dic.getboolean('Challenge', 'sertigo_sim', fallback=False)
+            self.sectigo_sim = config_dic.getboolean('Challenge', 'sectigo_sim', fallback=False)
             if 'dns_server_list' in config_dic['Challenge']:
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
@@ -565,7 +565,7 @@ class Challenge(object):
 
         if tnauth:
             challenge_list.append(self._new(authz_name, 'tkauth-01', token))
-        elif self.sertigo_sim:
+        elif self.sectigo_sim:
             challenge_list.append(self._new(authz_name, 'sectigo-email-01', None))
         else:
             challenge_type_list = ['http-01', 'dns-01', 'tls-alpn-01']

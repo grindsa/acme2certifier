@@ -26,7 +26,7 @@ class Order(object):
         self.path_dic = {'authz_path': '/acme/authz/', 'order_path': '/acme/order/', 'cert_path': '/acme/cert/'}
         self.retry_after = 600
         self.tnauthlist_support = False
-        self.sertigo_sim = False
+        self.sectigo_sim = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -52,7 +52,7 @@ class Order(object):
                 auth['expires'] = uts_now() + self.authz_validity
                 try:
                     self.dbstore.authorization_add(auth)
-                    if self.sertigo_sim:
+                    if self.sectigo_sim:
                         auth['status'] = 'valid'
                         self.dbstore.authorization_update(auth)
                 except Exception as err_:
@@ -107,7 +107,7 @@ class Order(object):
         self.logger.debug('Order._config_orderconfig_load()')
 
         if 'Challenge' in config_dic:
-            self.sertigo_sim = config_dic.getboolean('Challenge', 'sertigo_sim', fallback=False)
+            self.sectigo_sim = config_dic.getboolean('Challenge', 'sectigo_sim', fallback=False)
 
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
