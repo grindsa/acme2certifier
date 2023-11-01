@@ -24,6 +24,7 @@ class Challenge(object):
         self.challenge_validation_disable = False
         self.challenge_validation_timeout = 10
         self.tnauthlist_support = False
+        self.sertigo_sim = False
         self.dns_server_list = None
         self.proxy_server_list = {}
 
@@ -172,6 +173,7 @@ class Challenge(object):
 
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
+            self.sertigo_sim = config_dic.getboolean('Challenge', 'sertigo_sim', fallback=False)
             if 'dns_server_list' in config_dic['Challenge']:
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
@@ -247,6 +249,9 @@ class Challenge(object):
             'status': 2
         }
 
+        if mtype == 'sectigo-email-01':
+            data_dic['status'] = 5
+
         try:
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except Exception as err_:
@@ -261,6 +266,10 @@ class Challenge(object):
             challenge_dic['status'] = 'pending'
             if mtype == 'tkauth-01':
                 challenge_dic['tkauth-type'] = 'atc'
+            elif mtype == 'sectigo-email-01':
+                challenge_dic['status'] = 'valid'
+                challenge_dic.pop('token', None)
+
         return challenge_dic
 
     def _parse(self, code, payload, protected, challenge_name, challenge_dic):
@@ -553,7 +562,12 @@ class Challenge(object):
         """ net challenge set """
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, value))
         challenge_list = []
-        if not tnauth:
+
+        if tnauth:
+            challenge_list.append(self._new(authz_name, 'tkauth-01', token))
+        elif self.sertigo_sim:
+            challenge_list.append(self._new(authz_name, 'sectigo-email-01', None))
+        else:
             challenge_type_list = ['http-01', 'dns-01', 'tls-alpn-01']
             # remove dns challnge for ip-addresses
             if id_type == 'ip':
@@ -566,8 +580,6 @@ class Challenge(object):
                     challenge_list.append(challenge_json)
                 else:
                     self.logger.error('ERROR: Empty challenge returned for {0}'.format(challenge_type))
-        else:
-            challenge_list.append(self._new(authz_name, 'tkauth-01', token))
 
         self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
         return challenge_list

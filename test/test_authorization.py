@@ -159,7 +159,7 @@ class TestACMEHandler(unittest.TestCase):
         self.authorization.dbstore.authorization_lookup.return_value = [{'name': 'foo'}]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.authorization._authz_info('http://tester.local/acme/authz/foo')
-        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._authz_info(foo) update: exc_authz_update', lcm.output)
+        self.assertIn('ERROR:test_a2c:acme2certifier database error in Authorization._expiry_update(foo) update: exc_authz_update', lcm.output)
 
     @patch('acme_srv.challenge.Challenge.new_set')
     @patch('acme_srv.authorization.uts_now')
