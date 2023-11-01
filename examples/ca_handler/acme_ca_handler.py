@@ -122,7 +122,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._challenge_filter({0})'.format(chall_type))
         result = None
         for challenge in authzr.body.challenges:
-            if challenge.chall.typ == chall_type:
+            if challenge.chall.to_partial_json()['type'] == chall_type:
                 result = challenge
                 break
         if not result:
@@ -234,28 +234,34 @@ class CAhandler(object):
         self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def _http_challenge_info(self, authzr, user_key):
+    def _challenge_info(self, authzr, user_key):
         """ filter challenges and get challenge details """
-        self.logger.debug('CAhandler._http_challenge_info()')
+        self.logger.debug('CAhandler._challenge_info()')
 
         chall_name = None
         chall_content = None
 
         if authzr and user_key:
             challenge = self._challenge_filter(authzr)
-            chall_content = challenge.chall.validation(user_key)
-            try:
-                (chall_name, _token) = chall_content.split('.', 2)
-            except Exception:
-                self.logger.error('CAhandler._http_challenge_info() challenge split failed: {0}'.format(chall_content))
+            if challenge:
+                chall_content = challenge.chall.validation(user_key)
+                try:
+                    (chall_name, _token) = chall_content.split('.', 2)
+                except Exception:
+                    self.logger.error('CAhandler._challenge_info() challenge split failed: {0}'.format(chall_content))
+
+            else:
+                challenge = self._challenge_filter(authzr, chall_type='sectigo-email-01')
+                chall_content = challenge.to_partial_json()
+
         else:
             if authzr:
-                self.logger.error('CAhandler._http_challenge_info() userkey is missing')
+                self.logger.error('CAhandler._challenge_info() userkey is missing')
             else:
-                self.logger.error('CAhandler._http_challenge_info() authzr is missing')
+                self.logger.error('CAhandler._challenge_info() authzr is missing')
             challenge = None
 
-        self.logger.debug('CAhandler._http_challenge_info() ended with {0}'.format(chall_name))
+        self.logger.debug('CAhandler._challenge_info() ended with {0}'.format(chall_name))
         return (chall_name, chall_content, challenge)
 
     def _key_generate(self):
@@ -292,6 +298,30 @@ class CAhandler(object):
         self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key)))
         return user_key
 
+    def _order_authorization(self, acmeclient, order, user_key):
+        """ validate challgenges """
+        self.logger.debug('CAhandler._order_authorization()')
+
+        authz_valid = False
+
+        # query challenges
+        for authzr in list(order.authorizations):
+            (challenge_name, challenge_content, challenge) = self._challenge_info(authzr, user_key)
+            if challenge_name and challenge_content:
+                self.logger.debug('CAhandler._order_authorization(): http-01 challenge detected')
+                # store challenge in database to allow challenge validation
+                self._challenge_store(challenge_name, challenge_content)
+                _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
+                authz_valid = True
+            else:
+                if isinstance(challenge_content, dict):
+                    if 'type' in challenge_content and challenge_content['type'] == 'sectigo-email-01' and 'status' in challenge_content and challenge_content['status'] == 'valid':
+                        self.logger.debug('CAhandler._order_authorization(): sectigo-email-01 challenge detected')
+                        authz_valid = True
+
+        self.logger.debug('CAhandler._order_authorization() ended with: {0}'.format(authz_valid))
+        return authz_valid
+
     def _order_issue(self, acmeclient, user_key, csr_pem):
         """ isuse order """
         self.logger.debug('CAhandler.enroll() issuing signing order')
@@ -302,24 +332,20 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        # query challenges
-        for authzr in list(order.authorizations):
-            (challenge_name, challenge_content, challenge) = self._http_challenge_info(authzr, user_key)
-            if challenge_name and challenge_content:
-                # store challenge in database to allow challenge validation
-                self._challenge_store(challenge_name, challenge_content)
-                _auth_response = acmeclient.answer_challenge(challenge, challenge.chall.response(user_key))  # lgtm [py/unused-local-variable]
+        # valid orders
+        order_valid = self._order_authorization(acmeclient, order, user_key)
 
-        self.logger.debug('CAhandler.enroll() polling for certificate')
-        order = acmeclient.poll_and_finalize(order)
+        if order_valid:
+            self.logger.debug('CAhandler.enroll() polling for certificate')
+            order = acmeclient.poll_and_finalize(order)
 
-        if order.fullchain_pem:
-            self.logger.debug('CAhandler.enroll() successful')
-            cert_bundle = str(order.fullchain_pem)
-            cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
-        else:
-            self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
-            error = 'Error getting certificate: {0}'.format(order.error)
+            if order.fullchain_pem:
+                self.logger.debug('CAhandler.enroll() successful')
+                cert_bundle = str(order.fullchain_pem)
+                cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
+            else:
+                self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
+                error = 'Error getting certificate: {0}'.format(order.error)
 
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw)
