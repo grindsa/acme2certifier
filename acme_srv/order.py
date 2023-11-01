@@ -113,7 +113,6 @@ class Order(object):
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
 
-
             if 'retry_after_timeout' in config_dic['Order']:
                 try:
                     self.retry_after = int(config_dic['Order']['retry_after_timeout'])
