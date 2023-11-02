@@ -27,6 +27,7 @@ class Order(object):
         self.retry_after = 600
         self.tnauthlist_support = False
         self.sectigo_sim = False
+        self.header_info_list = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -123,6 +124,11 @@ class Order(object):
                     self.validity = int(config_dic['Order']['validity'])
                 except Exception:
                     self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
+            if 'header_info_list' in config_dic['Order']:
+                try:
+                    self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
+                except Exception as err_:
+                    self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
 
         self.logger.debug('Order._config_orderconfig_load() ended')
 
@@ -190,7 +196,24 @@ class Order(object):
             result = None
         return result
 
-    def _finalize(self, order_name, payload):
+    def _header_info_lookup(self, header):
+        """ lookup header information and serialize them in a string """
+        self.logger.debug('Order._header_info_lookup()')
+
+        header_info_dic = {}
+        if header and self.header_info_list:
+            for ele in self.header_info_list:
+                if ele in header:
+                    header_info_dic[ele] = header[ele]
+
+        result = None
+        if header_info_dic:
+            result = json.dumps(header_info_dic)
+
+        self.logger.debug('Order._header_info_lookup() ended with: {0} keys in dic'.format(len(header_info_dic.keys())))
+        return result
+
+    def _finalize(self, order_name, payload, header=None):
         """ finalize request """
         self.logger.debug('Order._finalize()')
 
@@ -201,13 +224,16 @@ class Order(object):
         # lookup order-status (must be ready to proceed)
         order_dic = self._info(order_name)
 
+        # lookup header information
+        header_info = self._header_info_lookup(header)
+
         if 'status' in order_dic and order_dic['status'] == 'ready':
             # update order_status / set to processing
             self._update({'name': order_name, 'status': 'processing'})
             if 'csr' in payload:
                 self.logger.debug('CSR found()')
                 # this is a new request
-                (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'])
+                (code, certificate_name, detail) = self._csr_process(order_name, payload['csr'], header_info)
                 # change status only if we do not have a poll_identifier (stored in detail variable)
                 if code == 200:
                     if not detail:
@@ -231,7 +257,7 @@ class Order(object):
         self.logger.debug('Order._finalize() ended')
         return (code, message, detail, certificate_name)
 
-    def _process(self, order_name, protected, payload):
+    def _process(self, order_name, protected, payload, header=None):
         """ process order """
         self.logger.debug('Order._process({0})'.format(order_name))
         certificate_name = None
@@ -241,7 +267,7 @@ class Order(object):
         if 'url' in protected:
             if 'finalize' in protected['url']:
                 # finalize order
-                (code, message, detail, certificate_name) = self._finalize(order_name, payload)
+                (code, message, detail, certificate_name) = self._finalize(order_name, payload, header)
             else:
                 self.logger.debug('polling request()')
                 code = 200
@@ -264,7 +290,7 @@ class Order(object):
         self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return (code, message, detail, certificate_name)
 
-    def _csr_process(self, order_name, csr):
+    def _csr_process(self, order_name, csr, header_info):
         """ process certificate signing request """
         self.logger.debug('Order._csr_process({0})'.format(order_name))
 
@@ -275,7 +301,7 @@ class Order(object):
             csr = b64_url_recode(self.logger, csr)
 
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
-                certificate_name = certificate.store_csr(order_name, csr)
+                certificate_name = certificate.store_csr(order_name, csr, header_info)
                 if certificate_name:
                     (error, detail) = certificate.enroll_and_store(certificate_name, csr, order_name)
                     if not error:
@@ -442,7 +468,7 @@ class Order(object):
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
-    def _parse(self, protected, payload):
+    def _parse(self, protected, payload, header=None):
         """ new oder parse """
         self.logger.debug('Order._parse()')
 
@@ -453,7 +479,7 @@ class Order(object):
             if order_name:
                 order_dic = self._lookup(order_name)
                 if order_dic:
-                    (code, message, detail, certificate_name) = self._process(order_name, protected, payload)
+                    (code, message, detail, certificate_name) = self._process(order_name, protected, payload, header)
                 else:
                     code = 403
                     message = self.error_msg_dic['ordernotready']
@@ -470,7 +496,7 @@ class Order(object):
         self.logger.debug('Order._parse() ended with code: {0}'.format(code))
         return (code, message, detail, certificate_name, order_name)
 
-    def parse(self, content):
+    def parse(self, content, header=None):
         """ new oder request """
         self.logger.debug('Order.parse()')
 
@@ -485,7 +511,7 @@ class Order(object):
         if code == 200:
 
             # parse message
-            (code, message, detail, certificate_name, order_name) = self._parse(protected, payload)
+            (code, message, detail, certificate_name, order_name) = self._parse(protected, payload, header)
 
             if code == 200:
                 # create response

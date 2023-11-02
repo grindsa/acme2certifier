@@ -43,7 +43,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Certificate.store_csr() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'foo'
         mock_name.return_value = 'bar'
-        self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr'))
+        self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr', 'header_info'))
 
     @patch('acme_srv.certificate.Certificate._renewal_info_get')
     def test_002_certificate__store_cert(self, mock_renew):
@@ -59,7 +59,7 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add')
         mock_name.return_value = 'bar'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr'))
+            self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr', 'header_info'))
         self.assertIn('CRITICAL:test_a2c:Database error in Certificate.store_csr(): exc_cert_add', lcm.output)
 
     @patch('acme_srv.certificate.Certificate._renewal_info_get')

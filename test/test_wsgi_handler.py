@@ -589,7 +589,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name', 'header_info': 'header_info1'}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
 
     def test_069_certificate_add(self):
@@ -598,9 +598,9 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1'}
+        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1', 'header_info': 'header_info2'}
         self.assertEqual(2, self.dbstore.certificate_add(data_dic))
 
     def test_070_certificate_add(self):
@@ -609,11 +609,11 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1'}
+        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname3', 'csr': 'csr3', 'order': 'name2', 'error': 'error3'}
+        data_dic = {'name': 'certname3', 'csr': 'csr3', 'order': 'name2', 'error': 'error3', 'header_info': 'header_info1'}
         self.assertEqual(3, self.dbstore.certificate_add(data_dic))
 
     def test_071_certificate_add(self):
@@ -622,7 +622,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
         data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
@@ -633,9 +633,9 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1'}
+        data_dic = {'name': 'certname2', 'csr': 'csr2', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
         data_dic = {'name': 'certname2', 'error': 'error3', 'poll_identifier': None}
         self.assertEqual(2, self.dbstore.certificate_add(data_dic))
@@ -646,7 +646,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'order': 'name1', 'header_info': None}
         self.assertEqual(1, self.dbstore.certificate_add(data_dic))
         self.assertEqual({'cert': None, 'order': u'name1', 'order__name': u'name1', 'name': u'certname1', 'csr': u''}, self.dbstore.certificate_lookup('name', 'certname1'))
 
@@ -656,7 +656,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'name' : 'name1', 'identifiers' : 'identifiers', 'account' : 'name1', 'status' : 1, 'expires' : '25'}
         self.dbstore.order_add(data_dic)
-        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
+        data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1', 'header_info': 'header_info1'}
         self.dbstore.certificate_add(data_dic)
         data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
         self.dbstore.certificate_add(data_dic)
@@ -674,7 +674,7 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.order_add(data_dic)
         data_dic = {'name': 'certname1', 'csr': 'csr1', 'order': 'name1'}
         self.dbstore.certificate_add(data_dic)
-        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier'}
+        data_dic = {'name': 'certname1', 'cert': 'cert', 'cert_raw': 'cert_raw', 'poll_identifier': 'poll_identifier', 'header_info': None}
         self.dbstore.certificate_add(data_dic)
         self.assertEqual({'name': u'certname1', 'order__account__name': u'name1'}, self.dbstore.certificate_lookup('name', 'certname1', ('name', 'order__account__name')))
 

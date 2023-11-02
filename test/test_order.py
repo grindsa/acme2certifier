@@ -275,7 +275,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_026_order__csr_process(self, mock_oinfo):
         """ test order prcoess_csr with empty order_dic """
         mock_oinfo.return_value = {}
-        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order._csr_process('order_name', 'csr'))
+        self.assertEqual((400, 'urn:ietf:params:acme:error:unauthorized', 'order: order_name not found'), self.order._csr_process('order_name', 'csr', 'header_info'))
 
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.Certificate.store_csr')
@@ -285,7 +285,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_oinfo.return_value = {'foo', 'bar'}
         mock_certname.return_value = None
         mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
-        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order._csr_process('order_name', 'csr'))
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'CSR processing failed'), self.order._csr_process('order_name', 'csr', 'header_info'))
 
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.Certificate.enroll_and_store')
@@ -297,7 +297,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = ('error', 'detail')
         mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
-        self.assertEqual((400, 'error', 'detail'), self.order._csr_process('order_name', 'csr'))
+        self.assertEqual((400, 'error', 'detail'), self.order._csr_process('order_name', 'csr', 'header_info'))
 
     @patch('importlib.import_module')
     @patch('acme_srv.certificate.Certificate.enroll_and_store')
@@ -309,7 +309,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_certname.return_value = 'foo'
         mock_enroll.return_value = (None, None)
         mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
-        self.assertEqual((200, 'foo', None), self.order._csr_process('order_name', 'csr'))
+        self.assertEqual((200, 'foo', None), self.order._csr_process('order_name', 'csr', 'header_info'))
 
     def test_030_order__name_get(self):
         """ Order.name_get() http"""
@@ -641,7 +641,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_certname.return_value = 'foo'
         mock_import.return_value = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
         mock_enroll.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
-        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr'))
+        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'detail'), self.order._csr_process('order_name', 'csr', 'header_info'))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._process')
@@ -784,6 +784,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_089_config_load(self, mock_load_cfg):
@@ -793,6 +794,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_090_config_load(self, mock_load_cfg):
@@ -802,6 +804,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_091_config_load(self, mock_load_cfg):
@@ -815,6 +818,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_092_config_load(self, mock_load_cfg):
@@ -829,6 +833,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_093_config_load(self, mock_load_cfg):
@@ -843,6 +848,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_094_config_load(self, mock_load_cfg):
@@ -857,6 +863,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(1200, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_095_config_load(self, mock_load_cfg):
@@ -871,6 +878,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(1200, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_096_config_load(self, mock_load_cfg):
@@ -887,6 +895,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn('WARNING:test_a2c:Order._config_load(): failed to parse retry_after: foo', lcm.output)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_097_config_load(self, mock_load_cfg):
@@ -901,6 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(1200, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_098_config_load(self, mock_load_cfg):
@@ -915,6 +925,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(1200, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_099_config_load(self, mock_load_cfg):
@@ -931,6 +942,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn('WARNING:test_a2c:Order._config_load(): failed to parse validity: foo', lcm.output)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_100_config_load(self, mock_load_cfg):
@@ -945,6 +957,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(1200, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_101_config_load(self, mock_load_cfg):
@@ -959,6 +972,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(1200, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_102_config_load(self, mock_load_cfg):
@@ -975,6 +989,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn('WARNING:test_a2c:Order._config_load(): failed to parse authz validity: foo', lcm.output)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_103_config_load(self, mock_load_cfg):
@@ -985,6 +1000,7 @@ class TestACMEHandler(unittest.TestCase):
         self.order._config_load()
         self.assertFalse(self.order.tnauthlist_support)
         self.assertEqual({'authz_path': 'url_prefix/acme/authz/', 'cert_path': 'url_prefix/acme/cert/', 'order_path': 'url_prefix/acme/order/'}, self.order.path_dic)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_104_config_load(self, mock_load_cfg):
@@ -999,6 +1015,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
 
     @patch('acme_srv.order.load_config')
     def test_105_config_load(self, mock_load_cfg):
@@ -1013,6 +1030,39 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(600, self.order.retry_after)
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
+
+    @patch('acme_srv.order.load_config')
+    def test_106_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'header_info_list': '["foo", "bar"]'}
+        mock_load_cfg.return_value = parser
+        self.order._config_load()
+        self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sectigo_sim)
+        self.assertFalse(self.order.expiry_check_disable)
+        self.assertEqual(600, self.order.retry_after)
+        self.assertEqual(86400, self.order.validity)
+        self.assertEqual(86400, self.order.authz_validity)
+        self.assertEqual(['foo', 'bar'], self.order.header_info_list)
+
+    @patch('acme_srv.order.load_config')
+    def test_107_config_load(self, mock_load_cfg):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['Order'] = {'header_info_list': 'foo'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.order._config_load()
+        self.assertFalse(self.order.tnauthlist_support)
+        self.assertFalse(self.order.sectigo_sim)
+        self.assertFalse(self.order.expiry_check_disable)
+        self.assertEqual(600, self.order.retry_after)
+        self.assertEqual(86400, self.order.validity)
+        self.assertEqual(86400, self.order.authz_validity)
+        self.assertFalse(self.order.header_info_list)
+        self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('acme_srv.order.DBstore.authorization_add')
     @patch('acme_srv.order.generate_random_string')
@@ -1046,6 +1096,42 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.order._auth_add('oid', payload, auth_dic))
         self.assertTrue(self.order.dbstore.authorization_add.called)
         self.assertTrue(self.order.dbstore.authorization_update.called)
+
+    def test_109__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = {'foo1': 'bar1', 'foo2': 'bar2'}
+        self.order.header_info_list = ['foo1', 'foo2']
+        self.assertEqual('{"foo1": "bar1", "foo2": "bar2"}', self.order._header_info_lookup(header))
+
+    def test_110__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = {'foo1': 'bar1', 'foo2': 'bar2'}
+        self.order.header_info_list = ['foo2']
+        self.assertEqual('{"foo2": "bar2"}', self.order._header_info_lookup(header))
+
+    def test_111__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = {'foo1': 'bar1', 'foo2': 'bar2'}
+        self.order.header_info_list = ['foo1']
+        self.assertEqual('{"foo1": "bar1"}', self.order._header_info_lookup(header))
+
+    def test_112__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = {'foo1': 'bar1', 'foo2': 'bar2'}
+        self.order.header_info_list = ['foo1', 'foo3']
+        self.assertEqual('{"foo1": "bar1"}', self.order._header_info_lookup(header))
+
+    def test_113__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = None
+        self.order.header_info_list = ['foo1', 'foo3']
+        self.assertFalse(self.order._header_info_lookup(header))
+
+    def test_114__header_info_lookup(self):
+        """ test _header_info_lookup() """
+        header = {'foo1': 'bar1', 'foo2': 'bar2'}
+        self.order.header_info_list = False
+        self.assertFalse(self.order._header_info_lookup(header))
 
 
 if __name__ == '__main__':

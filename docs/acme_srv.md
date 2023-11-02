@@ -34,6 +34,7 @@
 | `Message`| `signature_check_disable` | disable signature check of incoming JWS messages. THIS IS A SEVERE SECURITY ISSUE bypassing security checks and allowing message manipulations during transit. Please enable for testing/debugging purposes only. | True/False | False|
 | `Nonce`| `nonce_check_disable` | disable nonce check. THIS IS A SECURITY ISSUE as it exposes the API for replay attacks! Should be enabled for testing/debugging purposes only. | True/False | False|
 | `Order` | `expiry_check_disable` | Disable order expiration  | True/False | False|
+| `Order` | `header_info_list` | HTTP header fields to be passed to ca handler  | ["HTTP_USER_AGENT", "FOO_BAR"] |[]|
 | `Order` | `retry_after_timeout` | Retry-After value to be send to client in case a certificate enrollment request gets pending on CA server  | Integer |120|
 | `Order` | [`tnauthlist_support`](tnauthlist.md) | accept [TNAuthList identifiers](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-03) and challenges containing [tkauth-01 type](https://tools.ietf.org/html/draft-ietf-acme-authority-token-03) | True/False | False|
 | `Order` | `validity` | Order validity in seconds | Integer |86400|
