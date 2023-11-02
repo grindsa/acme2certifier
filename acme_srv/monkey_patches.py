@@ -4,7 +4,6 @@
 # pylint: disable=c0413, c0415, e0401, e1121
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction
-# import django
 
 
 def django_sqlite_atomic():  # NOSONAR
