@@ -132,10 +132,12 @@ class DBstore(object):
         self._db_open()
         if 'csr' not in data_dic:
             data_dic['csr'] = ''
+        if 'header_info' not in data_dic:
+            data_dic['header_info'] = ''
         if 'error' in data_dic:
-            self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr) VALUES(:name, :error, :order, :csr)''', data_dic)
+            self.cursor.execute('''INSERT INTO Certificate(name, error, order_id, csr, header_info) VALUES(:name, :error, :order, :csr, :header_info)''', data_dic)
         else:
-            self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id) VALUES(:name, :csr, :order)''', data_dic)
+            self.cursor.execute('''INSERT INTO Certificate(name, csr, order_id, header_info) VALUES(:name, :csr, :order, :header_info)''', data_dic)
         self._db_close()
         self.logger.debug('insert new entry for {0}'.format(data_dic['name']))
 
@@ -156,7 +158,8 @@ class DBstore(object):
                 data_dic['issue_uts'] = 0
             if 'replaced' not in data_dic:
                 data_dic['replaced'] = exists['replaced']
-            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier, replaced = :replaced WHERE name = :name''', data_dic)
+
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier, replaced = :replaced, header_info = :header_info WHERE name = :name''', data_dic)
         self._db_close()
         rid = dict_from_row(exists)['id']
 
@@ -863,6 +866,8 @@ class DBstore(object):
                 data_dic['poll_identifier'] = exists['poll_identifier']
             if 'renewal_info' not in data_dic:
                 data_dic['renewal_info'] = exists['renewal_info']
+            if 'header_info' not in data_dic:
+                data_dic['header_info'] = exists['header_info']
 
             rid = self._certificate_update(data_dic, exists)
         else:

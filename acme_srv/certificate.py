@@ -930,11 +930,11 @@ class Certificate(object):
         self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
         return _result
 
-    def store_csr(self, order_name, csr):
+    def store_csr(self, order_name, csr, header_info):
         """ store csr into database """
         self.logger.debug('Certificate.store_csr({0})'.format(order_name))
         certificate_name = generate_random_string(self.logger, 12)
-        data_dic = {'order': order_name, 'csr': csr, 'name': certificate_name}
+        data_dic = {'order': order_name, 'csr': csr, 'name': certificate_name, 'header_info': header_info}
         try:
             self.dbstore.certificate_add(data_dic)
         except Exception as err_:
