@@ -10,6 +10,9 @@ from OpenSSL import crypto
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get
 
 
+DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
+
+
 def dict_from_row(row):
     """ small helper to convert the output of a "select" command into a dictionary """
     return dict(zip(row.keys(), row))
@@ -211,7 +214,7 @@ class CAhandler(object):
         if not csr_info:
 
             # csr does not exist in db - lets import it
-            insert_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
+            insert_date = uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT)
             item_dic = {'type': 2, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': request_name}
             row_id = self._item_insert(item_dic)
 
@@ -517,7 +520,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke({0}/{1})'.format(serial, ca_id))
         # check if certificate has alreay been revoked:
         if not self._revocation_search('serial', serial):
-            rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'invaldate': uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ'), 'reasonBit': 0}
+            rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT), 'invaldate': uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT), 'reasonBit': 0}
             row_id = self._revocation_insert(rev_dic)
             if row_id:
                 code = 200
@@ -557,7 +560,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._store_cert()')
 
         # insert certificate into item table
-        insert_date = uts_to_date_utc(uts_now(), '%Y%m%d%H%M%SZ')
+        insert_date = uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT)
         item_dic = {'type': 3, 'comment': 'from acme2certifier', 'source': 2, 'date': insert_date, 'name': cert_name}
         row_id = self._item_insert(item_dic)
         # insert certificate to cert table
