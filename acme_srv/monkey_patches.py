@@ -7,20 +7,24 @@ from django.db import transaction
 import django
 
 
+def atomic_get(using):
+    """ atomic decorator """
+    # Bare decorator: @atomic -- although the first argument is called
+    # `using`, it's actually the function being decorated.
+    if callable(using):
+        atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint, True)(using)
+    # Decorator: @atomic(...) or context manager: with atomic(...): ...
+    else:
+        atomic_ = transaction.Atomic(using, savepoint, True)
+
+    atomic_.immediate = immediate
+    return atomic_
+
 def django_sqlite_atomic():
     """ monkey patch for django deployments fixing database lock issues """
 
     def atomic(using=None, savepoint=True, immediate=False):
-        # Bare decorator: @atomic -- although the first argument is called
-        # `using`, it's actually the function being decorated.
-        if callable(using):
-            atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint, True)(using)
-        # Decorator: @atomic(...) or context manager: with atomic(...): ...
-        else:
-            atomic_ = transaction.Atomic(using, savepoint, True)
-
-        atomic_.immediate = immediate
-        return atomic_
+        return atomic_get(using)
 
     def __enter__(self):
         """ enter function """
