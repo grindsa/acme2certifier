@@ -4,28 +4,23 @@
 # pylint: disable=c0413, c0415, e0401, e1121
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction
-import django
-
-
-def atomic_get(using):
-    """ atomic decorator """
-    # Bare decorator: @atomic -- although the first argument is called
-    # `using`, it's actually the function being decorated.
-    if callable(using):
-        atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint, True)(using)
-    # Decorator: @atomic(...) or context manager: with atomic(...): ...
-    else:
-        atomic_ = transaction.Atomic(using, savepoint, True)
-
-    atomic_.immediate = immediate
-    return atomic_
+# import django
 
 
 def django_sqlite_atomic():  # NOSONAR
     """ monkey patch for django deployments fixing database lock issues """
 
     def atomic(using=None, savepoint=True, immediate=False):
-        return atomic_get(using)
+        # Bare decorator: @atomic -- although the first argument is called
+        # `using`, it's actually the function being decorated.
+        if callable(using):
+            atomic_ = transaction.Atomic(DEFAULT_DB_ALIAS, savepoint, True)(using)
+        # Decorator: @atomic(...) or context manager: with atomic(...): ...
+        else:
+            atomic_ = transaction.Atomic(using, savepoint, True)
+
+        atomic_.immediate = immediate
+        return atomic_
 
     def __enter__(self):
         """ enter function """
