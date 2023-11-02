@@ -20,7 +20,8 @@ def atomic_get(using):
     atomic_.immediate = immediate
     return atomic_
 
-def django_sqlite_atomic():
+
+def django_sqlite_atomic():  # NOSONAR
     """ monkey patch for django deployments fixing database lock issues """
 
     def atomic(using=None, savepoint=True, immediate=False):
