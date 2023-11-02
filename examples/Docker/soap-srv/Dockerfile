@@ -1,12 +1,7 @@
 FROM ubuntu:22.04
 LABEL maintainer="grindelsack@gmail.com"
 
-RUN apt-get update
-RUN DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y tzdata
-RUN apt-get install --no-install-recommends -y \
-    python3-pip \
-    curl \
- && rm -rf /var/lib/apt/lists/*
+RUN DEBIAN_FRONTEND="noninteractive" apt-get update  && apt-get  -y install --no-install-recommends tzdata  & apt-get install --no-install-recommends -y python3-pip curl && rm -rf /var/lib/apt/lists/*
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
