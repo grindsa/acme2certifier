@@ -2,7 +2,7 @@
 """ skeleton for customized CA handler """
 from __future__ import print_function
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config
+from acme_srv.helper import load_config, header_info_get
 
 
 class CAhandler(object):
@@ -45,8 +45,13 @@ class CAhandler(object):
         error = None
         cert_raw = None
         poll_indentifier = None
-        self._stub_func(csr)
 
+        # optional: lookup http header information from request
+        qset = header_info_get(self.logger, csr=csr)
+        if qset:
+            self.logger.info(qset[-1]['header_info'])
+
+        self._stub_func(csr)
         self.logger.debug('Certificate.enroll() ended')
 
         return (error, cert_bundle, cert_raw, poll_indentifier)

@@ -529,6 +529,17 @@ def get_url(environ, include_path=False):
     return result
 
 
+def header_info_get(logger, csr, vlist=('id', 'name', 'header_info')):
+    """ lookup header information """
+    logger.debug('header_info_get()')
+
+    from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+    dbstore = DBstore(logger=logger)
+    result = dbstore.certificates_search('csr', csr, vlist)
+
+    return result
+
+
 def load_config(logger=None, mfilter=None, cfg_file=None):
     """ small configparser wrappter to load a config file """
     if not cfg_file:
