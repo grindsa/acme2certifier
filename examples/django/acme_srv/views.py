@@ -215,7 +215,7 @@ def order(request):
     """ order request """
     if request.method == 'POST':
         with Order(DEBUG, get_url(request.META), LOGGER) as eorder:
-            response_dic = eorder.parse(request.body)
+            response_dic = eorder.parse(request.body, request.META)
             # create the response
             response = JsonResponse(status=response_dic['code'], data=response_dic['data'])
             # generate additional header elements

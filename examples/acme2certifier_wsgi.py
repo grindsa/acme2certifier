@@ -294,7 +294,7 @@ def order(environ, start_response):
     if environ['REQUEST_METHOD'] == 'POST':
         with Order(DEBUG, get_url(environ), LOGGER) as eorder:
             request_body = get_request_body(environ)
-            response_dic = eorder.parse(request_body)
+            response_dic = eorder.parse(request_body, environ)
 
             # create header
             headers = create_header(response_dic)
