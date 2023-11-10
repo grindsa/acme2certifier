@@ -13,6 +13,7 @@ def get_dce_rpc_from_string_binding(
     target_ip: str = None,
     remote_name: str = None,
     auth_level: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
+    do_kerberos=False
 ) -> rpcrt.DCERPC_v5:
     """ get dce from rpc """
     if target_ip is None:
@@ -20,7 +21,7 @@ def get_dce_rpc_from_string_binding(
     if remote_name is None:
         remote_name = target.remote_name
 
-    target.do_kerberos = False
+    target.do_kerberos = do_kerberos
 
     rpctransport = transport.DCERPCTransportFactory(string_binding)
 
@@ -83,13 +84,14 @@ def get_dce_rpc(
     target: Target,
     timeout=5,
     verbose=False,
+    do_kerberos=False,
     auth_level_np: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
     auth_level_dyn: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
 ) -> rpcrt.DCERPC_v5:
     """ get dce rpc """
     def _try_binding(string_binding: str, auth_level: int) -> rpcrt.DCERPC_v5:
         dce = get_dce_rpc_from_string_binding(
-            string_binding, target, timeout, auth_level=auth_level
+            string_binding, target, timeout, auth_level=auth_level, do_kerberos=do_kerberos
         )
         logging.debug("Trying to connect to endpoint: %s" % string_binding)
         try:

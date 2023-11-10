@@ -32,6 +32,7 @@ class CAhandler(object):
         self.domain_controller = None
         self.ca_name = None
         self.ca_bundle = False
+        self.use_kerberos = False
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -99,6 +100,8 @@ class CAhandler(object):
         if 'template' in config_dic['CAhandler']:
             self.template = config_dic['CAhandler']['template']
 
+        self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
+
         self.logger.debug("CAhandler._config_parameters_load()")
 
     def _config_proxy_load(self, config_dic):
@@ -155,6 +158,7 @@ class CAhandler(object):
             target=target,
             ca=self.ca_name,
             template=self.template,
+            do_kerberos=self.use_kerberos
         )
 
         self.logger.debug('CAhandler.request_create() ended')

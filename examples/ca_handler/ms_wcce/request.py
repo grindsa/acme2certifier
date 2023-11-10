@@ -85,6 +85,7 @@ class Request:
         template: str = None,
         alt: str = None,
         debug=False,
+        do_kerberos=False,
         **kwargs
     ):
         self.target = target
@@ -94,13 +95,14 @@ class Request:
         self.request_id = 0
         self.verbose = debug
         self.kwargs = kwargs
-
+        self.do_kerberos = do_kerberos
         self.dce = get_dce_rpc(
             MSRPC_UUID_ICPR,
             r"\pipe\cert",
             self.target,
             timeout=self.target.timeout,
             verbose=self.verbose,
+            do_kerberos=self.do_kerberos
         )
 
     def get_cert(self, csr: bytes) -> bytes:
