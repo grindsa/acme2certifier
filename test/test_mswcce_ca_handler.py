@@ -5,6 +5,7 @@
 import sys
 import unittest
 from unittest.mock import patch, mock_open, Mock
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -42,11 +43,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_003_config_load(self, mock_load_cfg):
         """ test _config_load wrongly configured cahandler section """
-        mock_load_cfg.return_value = {'CAhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -57,12 +61,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'host_var': 'host_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_004_config_load(self, mock_load_cfg):
         """ test _config_load - load host from variable """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_var'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'host_var'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('host_var', self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -73,12 +80,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'host_var': 'host_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_005_config_load(self, mock_load_cfg):
         """ test _config_load - load host from not_existing variable """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'unk'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'unk'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -91,12 +101,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'unk'", lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'host_var': 'host_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_006_config_load(self, mock_load_cfg):
         """ test _config_load - overwrite host variable """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_var', 'host': 'host_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'host_var', 'host': 'host_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('host_local', self.cahandler.host)
@@ -109,11 +122,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite host', lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_007_config_load(self, mock_load_cfg):
         """ test _config_load - load host from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'host': 'host_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host': 'host_local'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('host_local', self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -124,12 +140,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'user_var': 'user_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
         """ test _config_load - load user from variable """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_var'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'user_var'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertEqual('user_var', self.cahandler.user)
@@ -140,12 +159,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'user_var': 'user_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
         """ test _config_load - load user from not existing variable """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'unk'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'unk'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -158,12 +180,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'unk'", lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'user_var': 'user_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
         """ test _config_load - overwrite user variable """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_var', 'user': 'user_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'user_var', 'user': 'user_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -176,11 +201,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite user', lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
         """ test _config_load - load user from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'user': 'user_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user': 'user_local'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertEqual('user_local', self.cahandler.user)
@@ -191,12 +219,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'password_var': 'password_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
         """ test _config_load - load password from variable """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_var'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'password_var'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -207,12 +238,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'password_var': 'password_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_013_config_load(self, mock_load_cfg):
         """ test _config_load - load password from not existing variable """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'unk'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'unk'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -225,12 +259,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'unk'", lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch.dict('os.environ', {'password_var': 'password_var'})
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_014_config_load(self, mock_load_cfg):
         """ test _config_load - overwrite password variable """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_var', 'password': 'password_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'password_var', 'password': 'password_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -243,11 +280,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite password', lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_015_config_load(self, mock_load_cfg):
         """ test _config_load - load password from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'password': 'password_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password': 'password_local'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -258,11 +298,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_016_config_load(self, mock_load_cfg):
         """ test _config_load - load target domain from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'target_domain': 'target_domain'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'target_domain': 'target_domain'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -273,11 +316,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_017_config_load(self, mock_load_cfg):
         """ test _config_load - load domain_controller from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'domain_controller': 'domain_controller'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'domain_controller': 'domain_controller'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -288,11 +334,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_018_config_load(self, mock_load_cfg):
         """ test _config_load - load ca_name from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'ca_name': 'ca_name'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_name': 'ca_name'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -303,11 +352,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_019_config_load(self, mock_load_cfg):
         """ test _config_load - load ca_name from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'ca_bundle': 'ca_bundle'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_bundle': 'ca_bundle'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -318,11 +370,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_020_config_load(self, mock_load_cfg):
         """ test _config_load - load template from config file """
-        mock_load_cfg.return_value = {'CAhandler': {'template': 'template'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'template': 'template'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -333,6 +388,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.proxy_check')
     @patch('json.loads')
@@ -354,6 +410,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.target_domain)
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
 
     @patch('examples.ca_handler.mswcce_ca_handler.proxy_check')
     @patch('json.loads')
@@ -377,6 +434,99 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertIn('WARNING:test_a2c:CAhandler._config_load() proxy_server_list failed with error: exc_load_config', lcm.output)
+        self.assertFalse(self.cahandler.use_kerberos)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.load_config')
+    def test_023_config_load(self, mock_load_cfg):
+        """ test _config_load - load template from config file """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'use_kerberos': 'True'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.proxy)
+        self.assertFalse(self.cahandler.target_domain)
+        self.assertFalse(self.cahandler.domain_controller)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.use_kerberos)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.load_config')
+    def test_024_config_load(self, mock_load_cfg):
+        """ test _config_load - load template from config file """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'use_kerberos': True}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.proxy)
+        self.assertFalse(self.cahandler.target_domain)
+        self.assertFalse(self.cahandler.domain_controller)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertTrue(self.cahandler.use_kerberos)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load - load template from config file """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'use_kerberos': False}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.proxy)
+        self.assertFalse(self.cahandler.target_domain)
+        self.assertFalse(self.cahandler.domain_controller)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.load_config')
+    def test_026_config_load(self, mock_load_cfg):
+        """ test _config_load - load template from config file """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'use_kerberos': 'False'}
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.proxy)
+        self.assertFalse(self.cahandler.target_domain)
+        self.assertFalse(self.cahandler.domain_controller)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.load_config')
+    def test_027_config_load(self, mock_load_cfg):
+        """ test _config_load - load template from config file """
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'use_kerberos': 'aaaa'}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.proxy)
+        self.assertFalse(self.cahandler.target_domain)
+        self.assertFalse(self.cahandler.domain_controller)
+        self.assertFalse(self.cahandler.ca_name)
+        self.assertFalse(self.cahandler.use_kerberos)
+        self.assertIn('WARNING:test_a2c:CAhandler._config_load() use_kerberos failed with error: Not a boolean: aaaa', lcm.output)
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_023__file_load(self):

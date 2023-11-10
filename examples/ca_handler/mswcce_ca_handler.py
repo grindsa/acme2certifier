@@ -100,7 +100,10 @@ class CAhandler(object):
         if 'template' in config_dic['CAhandler']:
             self.template = config_dic['CAhandler']['template']
 
-        self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
+        try:
+            self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
+        except Exception as err_:
+            self.logger.warning('CAhandler._config_load() use_kerberos failed with error: {0}'.format(err_))
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
