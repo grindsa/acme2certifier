@@ -7,7 +7,7 @@ import uuid
 import json
 from OpenSSL import crypto
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_get
 
 
 DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
@@ -820,6 +820,13 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         error = self._config_check()
+
+        # optional: lookup http header information from request
+        qset = header_info_get(self.logger, csr=csr)
+        if qset:
+            self.logger.info(qset[-1]['header_info'])
+
+        sys.exit(0)
 
         if not error:
             request_name = self._requestname_get(csr)
