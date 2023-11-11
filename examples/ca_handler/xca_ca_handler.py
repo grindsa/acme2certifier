@@ -821,12 +821,10 @@ class CAhandler(object):
         cert_raw = None
         error = self._config_check()
 
-        # optional: lookup http header information from request
+        # lookup http header information from request
         qset = header_info_get(self.logger, csr=csr)
         if qset:
-            self.logger.info(qset[-1]['header_info'])
-
-        sys.exit(0)
+            self.logger.info('header_info: {0}'.format(qset[-1]['header_info']))
 
         if not error:
             request_name = self._requestname_get(csr)
