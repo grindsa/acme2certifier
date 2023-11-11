@@ -479,7 +479,7 @@ class CAhandler(object):
         return pem_chain
 
     def _requestname_get(self, csr):
-        """ enroll certificate  """
+        """ get request name """
         self.logger.debug('CAhandler._request_name_get()')
 
         # try to get cn for a name in database

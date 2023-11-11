@@ -1,4 +1,4 @@
-name: CA handler tests - XCA
+name: Tests header_info feature
 
 on:
   push:
