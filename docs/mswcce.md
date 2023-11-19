@@ -13,7 +13,8 @@ When using the handler please be aware of the following limitations:
 
 1. Active Directory Certificate Services (AD-CS) must be enabled and configured - of course :-)
 2. The CA handler is using RPC/DCOM to communicate with the CA server. That means that your CA-server must be reachable via TCP port 445.
-3. You need to have a set of credentials with permissions to access the service and enrollment templates
+3. (optional): In case you are installing from RPM or DEB and plan to use kerberos authentication you need an updated [impacket modules of version 0.11 or higher](https://github.com/fortra/impacket) as older versions have issues with the handling of utf8-encoded passwords. If you have no clue from where to get these packaages feel free to use the one being part of [the a2c github repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs)
+4. You need to have a set of credentials with permissions to access the service and enrollment templates
 
 ## Installation
 
