@@ -669,10 +669,6 @@ jobs:
     - name: "[ RUN ] Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-        docker exec -i acme-srv host -d $WCCE_ADS_DOMAIN $RUNNER_IP
-      env:
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "[ PREPARE ] create letsencrypt and lego folder"
       run: |
