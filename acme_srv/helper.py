@@ -537,7 +537,7 @@ def header_info_get(logger, csr, vlist=('id', 'name', 'header_info')):
     dbstore = DBstore(logger=logger)
     result = dbstore.certificates_search('csr', csr, vlist)
 
-    return result
+    return list(result)
 
 
 def load_config(logger=None, mfilter=None, cfg_file=None):
