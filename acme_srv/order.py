@@ -103,6 +103,19 @@ class Order(object):
         self.logger.debug('Order._add() ended')
         return (error, order_name, auth_dic, uts_to_date_utc(expires))
 
+    def _config_headerinfo_config_load(self, config_dic):
+        """" load config from file """
+        self.logger.debug('Order._config_headerinfo_config_load()')
+
+        if 'Order' in config_dic:
+            if 'header_info_list' in config_dic['Order']:
+                try:
+                    self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
+                except Exception as err_:
+                    self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('Order._config_headerinfo_config_load() ended')
+
     def _config_orderconfig_load(self, config_dic):
         """" load config from file """
         self.logger.debug('Order._config_orderconfig_load()')
@@ -124,11 +137,6 @@ class Order(object):
                     self.validity = int(config_dic['Order']['validity'])
                 except Exception:
                     self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
-            if 'header_info_list' in config_dic['Order']:
-                try:
-                    self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
-                except Exception as err_:
-                    self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
 
         self.logger.debug('Order._config_orderconfig_load() ended')
 
@@ -139,6 +147,7 @@ class Order(object):
         config_dic = load_config()
         # load order config
         self._config_orderconfig_load(config_dic)
+        self._config_headerinfo_config_load(config_dic)
 
         if 'Authorization' in config_dic:
             if 'validity' in config_dic['Authorization']:

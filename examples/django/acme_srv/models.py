@@ -92,21 +92,21 @@ class Challenge(models.Model):
         return self.name
 
 
-class Certificate(models.Model):  # NOSONAR
+class Certificate(models.Model):
     """ order table """
     name = models.CharField(max_length=15, unique=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    csr = models.TextField(null=True, blank=True)
-    cert = models.TextField(null=True, blank=True)
-    cert_raw = models.TextField(null=True, blank=True)
-    error = models.TextField(null=True, blank=True)
-    poll_identifier = models.TextField(null=True, blank=True)
+    csr = models.TextField(null=True, blank=True)  # NOSONAR
+    cert = models.TextField(null=True, blank=True)  # NOSONAR
+    cert_raw = models.TextField(null=True, blank=True)  # NOSONAR
+    error = models.TextField(null=True, blank=True)  # NOSONAR
+    poll_identifier = models.TextField(null=True, blank=True)  # NOSONAR
     expire_uts = models.IntegerField(default=0)
     issue_uts = models.IntegerField(default=0)
-    renewal_info = models.TextField(null=True, blank=True)
+    renewal_info = models.TextField(null=True, blank=True)  # NOSONAR
     replaced = models.BooleanField(default=False)
-    header_info = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    header_info = models.TextField(null=True, blank=True)  # NOSONAR
+    created_at = models.DateTimeField(auto_now_add=True, null=True)  # NOSONAR
 
     def __unicode__(self):
         return self.name
