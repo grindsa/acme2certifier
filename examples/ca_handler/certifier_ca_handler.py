@@ -26,6 +26,7 @@ class CAhandler(object):
         self.ca_name = None
         self.auth = None
         self.polling_timeout = 60
+        self.profile_id = None
         self.proxy = None
 
     def __enter__(self):
@@ -133,6 +134,11 @@ class CAhandler(object):
 
         if 'href' in ca_dic:
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
+
+            # set profileid if configured
+            if self.profile_id:
+                data['profileId'] = self.profile_id
+
             cert_dic = self._api_post(self.api_host + '/v1/requests', data)
 
         if not cert_dic:
@@ -238,6 +244,7 @@ class CAhandler(object):
             self.ca_name = config_dic['CAhandler']['ca_name']
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file')
+
         if 'polling_timeout' in config_dic['CAhandler']:
             self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
 
@@ -246,6 +253,9 @@ class CAhandler(object):
                 self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
             except Exception:
                 self.request_timeout = 20
+
+        # load profile_id
+        self.profile_id = config_dic['CAhandler'].get('profile_id', None)
 
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:

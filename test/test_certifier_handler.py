@@ -11,6 +11,7 @@ import requests
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
 
+
 class TestACMEHandler(unittest.TestCase):
     """ test class for certifier_ca_handler """
 
@@ -57,6 +58,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_005_config_load(self, mock_load_cfg):
@@ -72,6 +74,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_006_config_load(self, mock_load_cfg):
@@ -87,6 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_007_config_load(self, mock_load_cfg):
@@ -102,6 +106,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
@@ -117,6 +122,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
@@ -130,6 +136,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
@@ -143,6 +150,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(120, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
@@ -156,6 +164,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(120, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
@@ -169,6 +178,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(120, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
     def test_013_config_load(self, mock_load_cfg):
@@ -182,6 +192,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertEqual(120, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -190,6 +201,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'api_user_variable': 'api_user_var'}}
         self.cahandler._config_load()
         self.assertEqual('user_var', self.cahandler.api_user)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -200,6 +212,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_user)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'does_not_exist'", lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -210,6 +223,7 @@ class TestACMEHandler(unittest.TestCase):
         # with self.assertLogs('test_a2c', level='INFO') as lcm:
         self.assertEqual('api_user', self.cahandler.api_user)
         # self.assertIn("foo", lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -218,6 +232,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'api_password_variable': 'api_password_var'}}
         self.cahandler._config_load()
         self.assertEqual('password_var', self.cahandler.api_password)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -228,6 +243,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_password)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load passphrase_variable:'does_not_exist'", lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -238,6 +254,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual('api_password', self.cahandler.api_password)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite api_password_variable', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.parse_url')
     @patch('json.loads')
@@ -250,6 +267,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._config_load()
         self.assertTrue(mock_json.called)
         self.assertTrue(mock_url.called)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.proxy_check')
     @patch('examples.ca_handler.certifier_ca_handler.parse_url')
@@ -266,6 +284,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertTrue(mock_chk.called)
         self.assertEqual({'http': 'proxy.bar.local', 'https': 'proxy.bar.local'},self.cahandler.proxy )
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.proxy_check')
     @patch('examples.ca_handler.certifier_ca_handler.parse_url')
@@ -284,6 +303,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy )
         self.assertIn('WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)', lcm.output)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -293,6 +313,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual(10, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
     @patch('examples.ca_handler.certifier_ca_handler.load_config')
@@ -302,6 +323,23 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual(20, self.cahandler.request_timeout)
+        self.assertFalse(self.cahandler.profile_id)
+
+    @patch.dict('os.environ', {'api_user_var': 'user_var'})
+    @patch('examples.ca_handler.certifier_ca_handler.load_config')
+    def test_025_config_load(self, mock_load_cfg):
+        """ test _config_load - load template with user variable """
+        mock_load_cfg.return_value = {'CAhandler': {'profile_id': 'profile_id'}}
+        self.cahandler._config_load()
+        self.assertEqual('profile_id', self.cahandler.profile_id)
+
+    @patch.dict('os.environ', {'api_user_var': 'user_var'})
+    @patch('examples.ca_handler.certifier_ca_handler.load_config')
+    def test_026_config_load(self, mock_load_cfg):
+        """ test _config_load - load template with user variable """
+        mock_load_cfg.return_value = {'CAhandler': {'profile_id': None}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.profile_id)
 
     def test_025_auth_set(self):
         """ test _auth_set """
@@ -453,6 +491,16 @@ class TestACMEHandler(unittest.TestCase):
         mock_caget.return_value = {'href': 'href'}
         mock_post.return_value = {}
         self.assertEqual({'href': 'href'}, self.cahandler._cert_get('csr'))
+
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._api_post')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
+    def test_045__cert_get(self, mock_caget, mock_post):
+        """ CAhandler._ca_get_properties() _ca_get_properties does returns "href" key """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.profile_id = 100
+        mock_caget.return_value = {'href': 'href'}
+        mock_post.return_value = {'mock': 'post'}
+        self.assertEqual({'mock': 'post'}, self.cahandler._cert_get('csr'))
 
     @patch('requests.get')
     def test_045__cert_get_properties(self, mock_req):
