@@ -92,7 +92,7 @@ class Challenge(models.Model):
         return self.name
 
 
-class Certificate(models.Model):
+class Certificate(models.Model):  # NOSONAR
     """ order table """
     name = models.CharField(max_length=15, unique=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
