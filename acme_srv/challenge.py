@@ -485,7 +485,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_tkauth_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_tnauthlist_payload(self, payload):
+    def _validate_tnauthlist_payload(self, payload, challenge_dic):
         """ check payload in cae tnauthlist option has been set """
         self.logger.debug('Challenge._validate_tnauthlist_payload({0})'.format(payload))
 
