@@ -107,12 +107,11 @@ class Order(object):
         """" load config from file """
         self.logger.debug('Order._config_headerinfo_config_load()')
 
-        if 'Order' in config_dic:
-            if 'header_info_list' in config_dic['Order']:
-                try:
-                    self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
-                except Exception as err_:
-                    self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+        if 'Order' in config_dic and 'header_info_list' in config_dic['Order']:
+            try:
+                self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
+            except Exception as err_:
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
 
         self.logger.debug('Order._config_headerinfo_config_load() ended')
 
