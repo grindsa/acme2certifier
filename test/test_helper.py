@@ -23,10 +23,6 @@ class TestACMEHandler(unittest.TestCase):
     acme = None
     def setUp(self):
         """ setup unittest """
-        #models_mock = MagicMock()
-        #models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        #modules = {'acme_srv.db_handler': models_mock}
-        #patch.dict('sys.modules', modules).start()
         import logging
         logging.basicConfig(level=logging.CRITICAL)
         from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, header_info_get
@@ -1966,21 +1962,23 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         addr_obj = None
         self.assertFalse(self.ipv6_chk(self.logger, addr_obj))
 
-    @patch('acme_srv.db_handler.DBstore.certificates_search')
-    def test_260_header_info_get(self, mock_store):
+    def test_260_header_info_get(self):
         """ header_info_get () """
-        # mock_search.side_effect = Exception('mock_search')
-        mock_store.return_value =  ['foo', 'bar']
+        models_mock = MagicMock()
+        models_mock.DBstore().certificates_search.return_value = ('foo', 'bar')
+        modules = {'acme_srv.db_handler': models_mock}
+        patch.dict('sys.modules', modules).start()
         self.assertEqual(['foo', 'bar'], self.header_info_get(self.logger, 'csr'))
 
-    @patch('acme_srv.db_handler.DBstore.certificates_search')
-    def test_261_header_info_get(self, mock_store):
+    def test_261_header_info_get(self):
         """ header_info_get () """
-        mock_store.side_effect = Exception('mock_search')
+        models_mock = MagicMock()
+        models_mock.DBstore().certificates_search.side_effect = Exception('mock_search')
+        modules = {'acme_srv.db_handler': models_mock}
+        patch.dict('sys.modules', modules).start()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.header_info_get(self.logger, 'csr'))
         self.assertIn('ERROR:test_a2c:Helper.header_info_get(): error: mock_search', lcm.output)
-
 
 if __name__ == '__main__':
     unittest.main()
