@@ -533,9 +533,13 @@ def header_info_get(logger, csr, vlist=('id', 'name', 'header_info')):
     """ lookup header information """
     logger.debug('header_info_get()')
 
-    from acme_srv.db_handler import DBstore  # pylint: disable=c0415
-    dbstore = DBstore(logger=logger)
-    result = dbstore.certificates_search('csr', csr, vlist)
+    try:
+        from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+        dbstore = DBstore(logger=logger)
+        result = dbstore.certificates_search('csr', csr, vlist)
+    except Exception as err:
+        result = []
+        logger.error('Helper.header_info_get(): error: {0}'.format(err))
 
     return list(result)
 
