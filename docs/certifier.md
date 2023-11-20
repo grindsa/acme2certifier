@@ -19,6 +19,7 @@ api_user: <user>
 api_password: <password>
 ca_bundle: <value>
 ca_name: <ca_name>
+profile_id: <value>
 polling_timeout: <seconds>
 ```
 
@@ -29,6 +30,7 @@ polling_timeout: <seconds>
 - api_password_variable - *optional* - name of the environment variable containing the password for the REST user (a configured `api_password` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
+- profile_id - optional - profileId
 - polling_timeout - optional - polling timeout (default: 60s)
 
 Depending on CA policy configuration a CSR may require approval. In such a situation acme2certfier will poll the CA server to check the CSR status. The polling interval can be configured in acme.server.cfg.
