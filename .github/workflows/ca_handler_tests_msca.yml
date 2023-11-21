@@ -552,7 +552,7 @@ jobs:
         path: ${{ github.workspace }}/artifact/upload/
 
   wcce_handler_krb_tests_rpm:
-    name: "wcce_handler_tests_rpm"
+    name: "wcce_handler_krb_tests_rpm"
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -742,7 +742,7 @@ jobs:
       uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
-        name: wcce_krb_rpm.tar.gz
+        name: wcce_handler_krb_tests_rpm.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   wes_handler_tests_rpm:
