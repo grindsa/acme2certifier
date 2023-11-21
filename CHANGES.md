@@ -20,7 +20,6 @@ and pick the appropriate release branch.
   - [Kerberos support](https://github.com/grindsa/acme2certifier/issues/119#issuecomment-1763851071) in `mswcce_ca_handler.py`
   - [#122](https://github.com/grindsa/acme2certifier/issues/122) support of `sectigo-email-01` challenges
 
-
 # Changes in 0.29.2
 
 **Bugfixes**:
