@@ -5,6 +5,22 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.30
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+  **Features and Improvements**:
+
+  - [use http-header attributes to pass data from acme-client to ca-handler](https://github.com/grindsa/acme2certifier/blob/devel/docs/header_info.md)
+  - ProfileID support in `certifier_ca_handler.py`
+  - [Kerberos support](https://github.com/grindsa/acme2certifier/issues/119#issuecomment-1763851071) in `mswcce_ca_handler.py`
+  - [#122](https://github.com/grindsa/acme2certifier/issues/122) support of `sectigo-email-01` challenges
+
+
 # Changes in 0.29.2
 
 **Bugfixes**:

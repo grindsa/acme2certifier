@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Passing information from acme client to CA-handler -->
-# CA-handler
+<!-- wiki-title Pass information from acme client to CA-handler -->
+# Pass information from acme client to CA-handler
 
 Since version 0.30 acme2certifier allows to pass information to the CA handler. To avoid breaking compatibility with [RFC8555](https://datatracker.ietf.org/doc/html/rfc8555) acme-clients need to insert these information as attributes into the http-header being part of the order-finalization message.
 
