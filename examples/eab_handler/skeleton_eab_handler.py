@@ -9,7 +9,7 @@ from acme_srv.helper import load_config
 class EABhandler(object):
     """ EAB file handler """
 
-    def __init__(self, logger=None):
+    def __init__(self, logger: object = None):
         self.logger = logger
         self.key = None
 
@@ -32,7 +32,7 @@ class EABhandler(object):
 
         self.logger.debug('EABhandler._config_load() ended')
 
-    def mac_key_get(self, kid=None):
+    def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
         mac_key = None

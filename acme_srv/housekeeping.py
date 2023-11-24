@@ -1,10 +1,10 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # pylint: disable=c0209
 """ Housekeeping class """
 from __future__ import print_function
 import csv
 import json
+from typing import List, Tuple, Dict
 from acme_srv.db_handler import DBstore
 from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
@@ -16,7 +16,7 @@ from acme_srv.version import __version__
 
 class Housekeeping(object):
     """ Housekeeping class """
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: bool = False, logger: object = None):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.message = Message(debug, None, self.logger)
@@ -31,7 +31,7 @@ class Housekeeping(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _accountlist_get(self):
+    def _accountlist_get(self) -> Dict[str, str]:
         """ get list of certs from database """
         self.logger.debug('Housekeeping._certlist_get()')
         try:
@@ -41,7 +41,7 @@ class Housekeeping(object):
             result = None
         return result
 
-    def _certificatelist_get(self):
+    def _certificatelist_get(self) -> Dict[str, str]:
         """ get list of certs from database """
         self.logger.debug('Housekeeping._certlist_get()')
         try:
@@ -51,7 +51,7 @@ class Housekeeping(object):
             result = None
         return result
 
-    def _cliconfig_check(self, config_dic):
+    def _cliconfig_check(self, config_dic: Dict[str, str]) -> bool:
         """ verify config """
         self.logger.debug('config_check()')
 
@@ -62,7 +62,7 @@ class Housekeeping(object):
 
         return check_result
 
-    def _cliaccounts_list(self, silent=True):
+    def _cliaccounts_list(self, silent: bool = True) -> Dict[str, str]:
         """ list cli accounts """
         self.logger.debug('Housekeeping._cliaccounts_list()')
         try:
@@ -74,7 +74,7 @@ class Housekeeping(object):
             self._cliaccounts_format(result)
         return result
 
-    def _cliaccounts_format(self, result_list):
+    def _cliaccounts_format(self, result_list: List[str]):
         """ format cliaccount report """
         self.logger.debug('Housekeeping._cliaccounts_format()')
         try:
@@ -87,7 +87,7 @@ class Housekeeping(object):
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): {0}'.format(err))
 
-    def _report_get(self, payload):
+    def _report_get(self, payload: Dict[str, str]) -> Tuple[Dict[str, str], int, str, str]:
         """ create report """
         self.logger.debug('Housekeeping._report_get()')
 
@@ -114,7 +114,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._report_get() ended')
         return (response_dic, code, message, detail)
 
-    def _clireport_get(self, payload, permissions_dic):
+    def _clireport_get(self, payload: Dict[str, str], permissions_dic: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
         """ get reports for CLI """
         self.logger.debug('Housekeeping._clireport_get()')
 
@@ -140,7 +140,7 @@ class Housekeeping(object):
         if 'Housekeeping' in config_dic:
             self.logger.debug('Housekeeping._config_load()')
 
-    def _uts_fields_set(self, cert, cert_raw_field, cert_issue_date_field, cert_expire_date_field):
+    def _uts_fields_set(self, cert: Dict[str, str], cert_raw_field: str, cert_issue_date_field: 0, cert_expire_date_field: 0) -> Dict[str, str]:
         """ set uts to 0 if we do not have them in dictionary """
         self.logger.debug('Housekeeping._zero_uts_fields()')
 
@@ -162,7 +162,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._uts_fields_set() ended.')
         return cert
 
-    def _cert_serial_add(self, cert_raw):
+    def _cert_serial_add(self, cert_raw: str) -> str:
         """ add serial number form cert """
         self.logger.debug('Housekeeping._cert_serial_add()')
 
@@ -174,7 +174,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._cert_serial_add() ended')
         return serial
 
-    def _convert_data(self, cert_list):
+    def _convert_data(self, cert_list: List[str]) -> List[str]:
         """ convert data from uts to real date """
         self.logger.debug('Housekeeping._convert_dates()')
 
@@ -208,14 +208,14 @@ class Housekeeping(object):
 
         return cert_list
 
-    def _csv_dump(self, filename, content):
+    def _csv_dump(self, filename: str, content: List[str]):
         """ dump content csv file """
         self.logger.debug('Housekeeping._csv_dump()')
         with open(filename, 'w', encoding='utf8', newline='') as file_:
             writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
             writer.writerows(content)
 
-    def _data_dic_create(self, config_dic):
+    def _data_dic_create(self, config_dic: Dict[str, str]) -> Dict[str, str]:
         """ create dictionalry """
         self.logger.debug('Housekeeping._data_dic_create()')
 
@@ -229,7 +229,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._data_dic_create() ended')
         return data_dic
 
-    def _data_dic_build(self, config_dic):
+    def _data_dic_build(self, config_dic: Dict[str, str]) -> Dict[str, str]:
         """ cli user manager """
         self.logger.debug('Housekeeping._data_dic_build()')
 
@@ -251,14 +251,14 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._data_dic_build() ended')
         return data_dic
 
-    def _json_dump(self, filename, data_):
+    def _json_dump(self, filename: str, data_: Dict[str, str]):
         """ dump content json file """
         self.logger.debug('Housekeeping._json_dump()')
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
         with open(filename, 'w', encoding='utf8', newline='') as file_:
             file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
-    def _fieldlist_normalize(self, field_list, prefix):
+    def _fieldlist_normalize(self, field_list: List[str], prefix: str) -> Dict[str, str]:
         """ normalize field_list """
         self.logger.debug('Housekeeping._fieldlist_normalize()')
         field_dic = {}
@@ -276,7 +276,7 @@ class Housekeeping(object):
 
         return field_dic
 
-    def _lists_normalize(self, field_list, value_list, prefix):
+    def _lists_normalize(self, field_list: List[str], value_list: List[str], prefix: str) -> Tuple[List[str], List[str]]:
         """ normalize list """
         self.logger.debug('Housekeeping._list_normalize()')
 
@@ -295,9 +295,9 @@ class Housekeeping(object):
         # get field_list
         field_list = list(field_dic.values())
 
-        return (field_list, new_list)
+        return field_list, new_list
 
-    def _account_list_convert(self, tmp_json):
+    def _account_list_convert(self, tmp_json: List[str]) -> List[str]:
         """ create account list """
         self.logger.debug('Housekeeping._account_list_convert()')
 
@@ -326,7 +326,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._account_list_convert() ended')
         return account_list
 
-    def _dicstructure_create(self, tmp_json, ele, account_field, order_field, authz_field, chall_field):
+    def _dicstructure_create(self, tmp_json: Dict[str, str], ele: str, account_field: str, order_field: str, authz_field: str, chall_field: str) -> Dict[str, str]:
         # pylint: disable=r0913
         """ create dictionary structure """
         self.logger.debug('Housekeeping._dicstructure_create()')
@@ -350,7 +350,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._dicstructure_create() ended')
         return tmp_json
 
-    def _account_dic_create(self, account_list):
+    def _account_dic_create(self, account_list: List[str]) -> Tuple[Dict[str, str], List[str]]:
         """ account list create """
         self.logger.debug('Housekeeping._account_dic_create()')
 
@@ -387,7 +387,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._account_dic_create() ended')
         return (tmp_json, error_list)
 
-    def _to_acc_json(self, account_list):
+    def _to_acc_json(self, account_list: List[str]) -> List[str]:
         """ stack list to json """
         self.logger.debug('Housekeeping._to_acc_json()')
 
@@ -403,7 +403,7 @@ class Housekeeping(object):
 
         return account_list
 
-    def _to_list(self, field_list, cert_list):
+    def _to_list(self, field_list: List[str], cert_list: List[str]) -> List[str]:
         """ convert query to csv format """
         self.logger.debug('Housekeeping._to_list()')
         csv_list = []
@@ -433,7 +433,7 @@ class Housekeeping(object):
         self.logger.debug('Housekeeping._to_list() ended with {0} entries'.format(len(csv_list)))
         return csv_list
 
-    def accountreport_get(self, report_format='csv', report_name=None, nested=False):
+    def accountreport_get(self, report_format: str = 'csv', report_name: str = None, nested: bool = False) -> List[str]:
         """ get account report """
         self.logger.debug('Housekeeping.accountreport_get()')
         (field_list, account_list) = self._accountlist_get()
@@ -460,7 +460,7 @@ class Housekeeping(object):
 
         return account_list
 
-    def certreport_get(self, report_format='csv', report_name=None):
+    def certreport_get(self, report_format: str = 'csv', report_name: str = None) -> List[str]:
         """ get certificate report """
         self.logger.debug('Housekeeping.certreport_get()')
 
@@ -501,7 +501,7 @@ class Housekeeping(object):
         with Certificate(self.debug, None, self.logger) as certificate:
             certificate.dates_update()
 
-    def certificates_cleanup(self, uts=None, purge=False, report_format='csv', report_name=None):
+    def certificates_cleanup(self, uts: int = None, purge: bool = False, report_format: str = 'csv', report_name: str = None) -> List[str]:
         """ database cleanuip certificate-table """
         self.logger.debug('Housekeeping.certificates_cleanup()')
         if not uts:
@@ -530,7 +530,7 @@ class Housekeeping(object):
 
         return cert_list
 
-    def cli_usermgr(self, config_dic):
+    def cli_usermgr(self, config_dic: Dict[str, str]) -> int:
         """ cli usermanager """
         self.logger.debug('Housekeeping.cli_usermgr()')
         check_result = self._cliconfig_check(config_dic)
@@ -558,7 +558,7 @@ class Housekeeping(object):
 
         return result
 
-    def authorizations_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
+    def authorizations_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None):
         """ authorizations cleanup based on expiry date """
         self.logger.debug('Housekeeping.authorization_invalidate({0})'.format(uts))
 
@@ -585,7 +585,7 @@ class Housekeeping(object):
                 else:
                     self.logger.debug('Housekeeping.authorizations_invalidate(): No authorizations to dump')
 
-    def dbversion_check(self, version=None):
+    def dbversion_check(self, version: str = None):
         """ check database version """
         self.logger.debug('Housekeeping.dbversion_check({0})'.format(version))
 
@@ -603,7 +603,7 @@ class Housekeeping(object):
         else:
             self.logger.critical('acme2certifier database version could not be verified in Housekeeping.dbversion_check()')
 
-    def orders_invalidate(self, uts=uts_now(), report_format='csv', report_name=None):
+    def orders_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None) -> List[str]:
         """ orders cleanup based on expiry date"""
         self.logger.debug('Housekeeping.orders_invalidate({0})'.format(uts))
 
@@ -632,7 +632,7 @@ class Housekeeping(object):
 
         return order_list
 
-    def parse(self, content):
+    def parse(self, content: str) -> Dict[str, str]:
         """ new oder request """
         self.logger.debug('Housekeeping.parse()')
 

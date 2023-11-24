@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Challenge class """
 # pylint: disable=C0209, r0913
 from __future__ import print_function
 import json
+from typing import List, Tuple, Dict
 from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get, ip_validate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -13,7 +13,7 @@ from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 class Challenge(object):
     """ Challenge handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None, expiry=3600):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None, expiry: int = 3600):
         self.server_name = srv_name
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
@@ -36,7 +36,7 @@ class Challenge(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
-    def _challengelist_search(self, key, value, vlist=('name', 'type', 'status__name', 'token')):
+    def _challengelist_search(self, key: str, value: str, vlist: List = ('name', 'type', 'status__name', 'token')) -> List[str]:
         """ get exsting challenges for a given authorization """
         self.logger.debug('Challenge._challengelist_search()')
 
@@ -66,7 +66,7 @@ class Challenge(object):
         self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
         return challenge_list
 
-    def _challenge_validate(self, pub_key, challenge_name, challenge_dic, payload):
+    def _challenge_validate(self, pub_key: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str,str]) -> Tuple[bool, bool]:
         """ challenge validate """
         self.logger.debug('Challenge._challenge_validate({0})'.format(challenge_name))
 
@@ -91,7 +91,7 @@ class Challenge(object):
         self.logger.debug('Challenge._challenge_validate() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _check(self, challenge_name, payload):
+    def _check(self, challenge_name: str, payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ challenge check """
         self.logger.debug('Challenge._check({0})'.format(challenge_name))
 
@@ -120,7 +120,7 @@ class Challenge(object):
         self.logger.debug('challenge._check() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _existing_challenge_validate(self, challenge_list):
+    def _existing_challenge_validate(self, challenge_list: List[str]) -> Dict[str, str]:
         """ validate an existing challenge set """
         self.logger.debug('Challenge._existing_challenge_validate()')
 
@@ -155,7 +155,7 @@ class Challenge(object):
         self.logger.debug('Challenge._info({0}) ended'.format(challenge_name))
         return challenge_dic
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load proxy config """
         self.logger.debug('Challenge._config_proxy_load()')
 
@@ -167,7 +167,7 @@ class Challenge(object):
 
         self.logger.debug('Challenge._config_proxy_load() ended')
 
-    def _config_challenge_load(self, config_dic):
+    def _config_challenge_load(self, config_dic: Dict[str, str]):
         """ load proxy config """
         self.logger.debug('Challenge._config_challenge_load()')
 
@@ -206,7 +206,7 @@ class Challenge(object):
 
         self.logger.debug('Challenge._config_load() ended.')
 
-    def _extensions_validate(self, cert, extension_value, fqdn):
+    def _extensions_validate(self, cert: str, extension_value: str, fqdn: str) -> bool:
         """ validate extension """
         self.logger.debug('Challenge._extensions_validate({0}/{1})'.format(extension_value, fqdn))
         result = False
@@ -225,7 +225,7 @@ class Challenge(object):
         self.logger.debug('Challenge._extensions_validate() ended with: {0}'.format(result))
         return result
 
-    def _name_get(self, url):
+    def _name_get(self, url: str) -> str:
         """ get challenge """
         self.logger.debug('Challenge.get_name({0})'.format(url))
         url_dic = parse_url(self.logger, url)
@@ -234,7 +234,7 @@ class Challenge(object):
             (challenge_name, _sinin) = challenge_name.split('/', 1)
         return challenge_name
 
-    def _new(self, authz_name, mtype, token, value=None):
+    def _new(self, authz_name: str, mtype: str, token: str, value: str = None) -> Dict[str, str]:
         """ new challenge """
         self.logger.debug('Challenge._new({0}:{2}:{1})'.format(authz_name, mtype, value))
 
@@ -272,7 +272,7 @@ class Challenge(object):
 
         return challenge_dic
 
-    def _parse(self, code, payload, protected, challenge_name, challenge_dic):
+    def _parse(self, code: int, payload: Dict[str, str], protected: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
         # pylint: disable=R0913
         """ challenge parse """
         self.logger.debug('Challenge._parse({0})'.format(challenge_name))
@@ -312,7 +312,7 @@ class Challenge(object):
         self.logger.debug('Challenge._parse() ended with: {0}'.format(code))
         return (code, message, detail, response_dic)
 
-    def _update(self, data_dic):
+    def _update(self, data_dic: Dict[str, str]):
         """ update challenge """
         self.logger.debug('Challenge._update({0})'.format(data_dic))
         try:
@@ -321,7 +321,7 @@ class Challenge(object):
             self.logger.critical('acme2certifier database error in Challenge._update(): {0}'.format(err_))
         self.logger.debug('Challenge._update() ended')
 
-    def _update_authz(self, challenge_name, data_dic):
+    def _update_authz(self, challenge_name: str, data_dic: Dict[str, str]):
         """ update authorizsation based on challenge_name """
         self.logger.debug('Challenge._update_authz({0})'.format(challenge_name))
         try:
@@ -341,7 +341,7 @@ class Challenge(object):
 
         self.logger.debug('Challenge._update_authz() ended')
 
-    def _validate(self, challenge_name, payload):
+    def _validate(self, challenge_name: str, payload: Dict[str, str]) -> bool:
         """ validate challenge"""
         self.logger.debug('Challenge._validate({0}: {1})'.format(challenge_name, payload))
         # change state to processing
@@ -370,7 +370,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
         return challenge_check
 
-    def _validate_alpn_challenge(self, challenge_name, id_type, id_value, token, jwk_thumbprint):
+    def _validate_alpn_challenge(self, challenge_name: str, id_type: str, id_value: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
 
@@ -409,7 +409,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_dns_challenge(self, challenge_name, _type, fqdn, token, jwk_thumbprint):
+    def _validate_dns_challenge(self, challenge_name: str, _type: str, fqdn: str, token: str, jwk_thumbprint: str) -> Tuple[bool, False]:
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
@@ -436,7 +436,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
         return (result, False)
 
-    def _validate_http_challenge(self, challenge_name, id_type, id_value, token, jwk_thumbprint):
+    def _validate_http_challenge(self, challenge_name: str, id_type: str, id_value: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate http challenge """
         self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
 
@@ -476,7 +476,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_http_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_tkauth_challenge(self, challenge_name, _type, tnauthlist, _token, _jwk_thumbprint, payload):
+    def _validate_tkauth_challenge(self, challenge_name: str, _type: str, tnauthlist: str, _token: str, _jwk_thumbprint: str, payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ validate tkauth challenge """
         self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1}:{2})'.format(challenge_name, tnauthlist, payload))
 
@@ -485,7 +485,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_tkauth_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_tnauthlist_payload(self, payload, challenge_dic):
+    def _validate_tnauthlist_payload(self, payload: Dict[str, str], challenge_dic: Dict[str, str]) -> Tuple[int, str, str]:
         """ check payload in cae tnauthlist option has been set """
         self.logger.debug('Challenge._validate_tnauthlist_payload({0})'.format(payload))
 
@@ -518,7 +518,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
         return (code, message, detail)
 
-    def _wcd_manipulate(self, fqdn):
+    def _wcd_manipulate(self, fqdn: str) -> str:
         """ wildcard domain handling """
         self.logger.debug('Challenge._wc_manipulate() for fqdn: {0}'.format(fqdn))
         if fqdn.startswith('*.'):
@@ -526,7 +526,7 @@ class Challenge(object):
         self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
         return fqdn
 
-    def challengeset_get(self, authz_name, _auth_status, token, tnauth, id_type='dns', id_value=None):
+    def challengeset_get(self, authz_name: str, _auth_status: str, token: str, tnauth: bool, id_type: str = 'dns', id_value: str = None) -> List[str]:
         """ get the challengeset for an authorization """
         self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, id_value))
         # check database if there are exsting challenges for a particular authorization
@@ -549,7 +549,7 @@ class Challenge(object):
 
         return challenge_list
 
-    def get(self, url):
+    def get(self, url: str) -> Dict[str, str]:
         """ get challenge details based on get request """
         challenge_name = self._name_get(url)
         self.logger.debug('Challenge.get({0})'.format(challenge_name))
@@ -558,7 +558,7 @@ class Challenge(object):
         response_dic['data'] = self._info(challenge_name)
         return response_dic
 
-    def new_set(self, authz_name, token, tnauth=False, id_type='dns', value=None):
+    def new_set(self, authz_name: str, token: str, tnauth: bool = False, id_type: str = 'dns', value: str = None) -> List[str]:
         """ net challenge set """
         self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, value))
         challenge_list = []
@@ -584,7 +584,7 @@ class Challenge(object):
         self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
         return challenge_list
 
-    def parse(self, content):
+    def parse(self, content: str) -> Dict[str, str]:
         """ parse challenge """
         self.logger.debug('Challenge.parse()')
 

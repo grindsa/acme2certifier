@@ -6,6 +6,7 @@ from __future__ import print_function
 import os
 import sys
 import json
+from typing import List, Tuple, Dict
 
 
 def initialize():  # nopep8
@@ -20,6 +21,7 @@ def initialize():  # nopep8
 initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
+from django.db.models import QuerySet
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Cliaccount, Housekeeping, Nonce, Order, Status  # nopep8
 import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
@@ -27,21 +29,21 @@ import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 class DBstore(object):
     """ helper to do datebase operations """
 
-    def __init__(self, _debug=False, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         """ init """
         self.logger = logger
 
-    def _account_getinstance(self, aname):
+    def _account_getinstance(self, aname: str) -> QuerySet[Account]:
         """ get account instance """
         self.logger.debug('DBStore._account_getinstance({0})'.format(aname))
         return Account.objects.get(name=aname)
 
-    def _authorization_getinstance(self, name):
+    def _authorization_getinstance(self, name: str) -> QuerySet[Authorization]:
         """ get authorization instance """
         self.logger.debug('DBStore._authorization_getinstance({0})'.format(name))
         return Authorization.objects.get(name=name)
 
-    def _modify_key(self, mkey, operant):
+    def _modify_key(self, mkey: str, operant: str) -> str:
         """ quick hack """
         self.logger.debug('DBStore._modify_key({0}/{1})'.format(mkey, operant))
 
@@ -51,17 +53,17 @@ class DBstore(object):
         self.logger.debug('DBStore._modify_key() ended with: {0}'.format(mkey))
         return mkey
 
-    def _order_getinstance(self, value=id, mkey='id'):
+    def _order_getinstance(self, value: str = id, mkey: id = 'id') -> QuerySet[Order]:
         """ get order instance """
         self.logger.debug('DBStore._order_getinstance({0}:{1})'.format(mkey, value))
         return Order.objects.get(**{mkey: value})
 
-    def _status_getinstance(self, value, mkey='id'):
+    def _status_getinstance(self, value: str, mkey: str = 'id') -> QuerySet[Status]:
         """ get account instance """
         self.logger.debug('DBStore._status_getinstance({0}:{1})'.format(mkey, value))
         return Status.objects.get(**{mkey: value})
 
-    def account_add(self, data_dic):
+    def account_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """ add account in database """
         self.logger.debug('DBStore.account_add({0})'.format(data_dic))
         account_list = self.account_lookup('jwk', data_dic['jwk'])
@@ -72,9 +74,9 @@ class DBstore(object):
             obj, created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
             obj.save()
             aname = data_dic['name']
-        return (aname, created)
+        return aname, created
 
-    def account_lookup(self, mkey, value):
+    def account_lookup(self, mkey: str, value: str) -> Dict[str, str]:
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup({0}:{1})'.format(mkey, value))
         account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name', 'contact', 'alg', 'created_at')[:1]
@@ -90,7 +92,7 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic):
+    def account_update(self, data_dic: Dict[str, str]) -> int:
         """ update existing account """
         self.logger.debug('DBStore.account_update({0})'.format(data_dic))
         obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -98,7 +100,7 @@ class DBstore(object):
         self.logger.debug('acct_id({0})'.format(obj.id))
         return obj.id
 
-    def accountlist_get(self):
+    def accountlist_get(self) -> Tuple[List[str], QuerySet[Account]]:
         """ accountlist_get """
         self.logger.debug('DBStore.accountlist_get()')
         vlist = [
@@ -110,9 +112,9 @@ class DBstore(object):
             'order__authorization__challenge__expires', 'order__authorization__challenge__type', 'order__authorization__challenge__keyauthorization',
             'order__authorization__challenge__created_at', 'order__authorization__challenge__status__id', 'order__authorization__challenge__status__name']
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
-        return (vlist, list(Account.objects.filter(name__isnull=False).values(*vlist)))
+        return vlist, list(Account.objects.filter(name__isnull=False).values(*vlist))
 
-    def authorization_add(self, data_dic):
+    def authorization_add(self, data_dic: Dict[str, str]) -> int:
         """ add authorization to database """
         self.logger.debug('DBStore.authorization_add({0})'.format(data_dic))
 
@@ -128,13 +130,13 @@ class DBstore(object):
         self.logger.debug('auth_id({0})'.format(obj.id))
         return obj.id
 
-    def authorization_lookup(self, mkey, value, vlist=('type', 'value')):
+    def authorization_lookup(self, mkey: str, value: str, vlist: List[str] = ('type', 'value')) -> QuerySet[Authorization]:
         """ search account for a given id """
         self.logger.debug('authorization_lookup({0}:{1}:{2})'.format(mkey, value, vlist))
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
         return authz_list
 
-    def authorizations_expired_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def authorizations_expired_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant: str = 'LIKE') -> QuerySet[Authorization]:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.authorizations_invalid_search(column:{0}, pattern:{1})'.format(mkey, value))
 
@@ -143,7 +145,7 @@ class DBstore(object):
         self.logger.debug('DBStore.authorizations_invalid_search() ended')
         return Authorization.objects.filter(**{mkey: value}).exclude(status__name='expired').values(*vlist)
 
-    def authorization_update(self, data_dic):
+    def authorization_update(self, data_dic: Dict[str, str]) -> int:
         """ update existing authorization """
         self.logger.debug('DBStore.authorization_update({0})'.format(data_dic))
         # get some instance for DB insert
@@ -164,7 +166,7 @@ class DBstore(object):
         self.logger.debug('auth_id({0})'.format(obj.id))
         return obj.id
 
-    def cahandler_add(self, data_dic):
+    def cahandler_add(self, data_dic: Dict[str, str]) -> Tuple[str, bool]:
         """ add cahandler to database """
         self.logger.debug('DBStore.cahandler_add({0})'.format(data_dic))
         cahandler_list = self.cahandler_lookup('name', data_dic['name'])
@@ -177,7 +179,7 @@ class DBstore(object):
             cname = data_dic['name']
         return (cname, created)
 
-    def cahandler_lookup(self, mkey, value):
+    def cahandler_lookup(self, mkey: str, value: str) -> Dict[str, str]:
         """ search cahandler for a given id """
         self.logger.debug('DBStore.cahandler_lookup({0}:{1})'.format(mkey, value))
         cahandler_dict = Cahandler.objects.filter(**{mkey: value}).values('name', 'value1', 'value2', 'created_at')[:1]
@@ -187,7 +189,7 @@ class DBstore(object):
             result = None
         return result
 
-    def challenge_add(self, value, mtype, data_dic):
+    def challenge_add(self, value: str, mtype: str, data_dic: Dict[str, str]) -> int:
         """ add challenge to database """
         self.logger.debug('DBStore.challenge_add({0}:{1})'.format(value, mtype))
 
@@ -210,7 +212,7 @@ class DBstore(object):
         self.logger.debug('DBStore.challenge_add({0}:{1}:{2})'.format(value, mtype, obj.id))
         return obj.id
 
-    def certificate_add(self, data_dic):
+    def certificate_add(self, data_dic: Dict[str, str]) -> int:
         """ add csr/certificate to database """
         self.logger.debug('DBStore.certificate_add()')
 
@@ -223,7 +225,7 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_add() ended with :{0}'.format(obj.id))
         return obj.id
 
-    def certificate_account_check(self, account_name, certificate):
+    def certificate_account_check(self, account_name: str, certificate: str) -> str:
         """ check issuer against certificate """
         self.logger.debug('DBStore.certificate_account_check({0})'.format(account_name))
 
@@ -242,12 +244,12 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_account_check() ended with: {0}'.format(result))
         return result
 
-    def certificate_delete(self, mkey, value):
+    def certificate_delete(self, mkey: str, value: str) -> QuerySet[Certificate]:
         """ delete certificate from table """
         self.logger.debug('DBStore.certificate_delete({0}:{1})'.format(mkey, value))
         Certificate.objects.filter(**{mkey: value}).delete()
 
-    def certificatelist_get(self):
+    def certificatelist_get(self) -> Tuple[List[str], List[QuerySet[Certificate]]]:
         """ certificatelist_get """
         self.logger.debug('DBStore.certificatelist_get()')
         vlist = [
@@ -257,7 +259,7 @@ class DBstore(object):
         # for historical reason cert_raw an be NULL or ''; we have to consider both cases during selection
         return (vlist, list(Certificate.objects.filter(cert_raw__isnull=False).exclude(cert_raw='').values(*vlist)))
 
-    def certificate_lookup(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name')):
+    def certificate_lookup(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name')) -> Dict[str, str]:
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificate_lookup({0}:{1})'.format(mkey, value))
         certificate_list = Certificate.objects.filter(**{mkey: value}).values(*vlist)[:1]
@@ -271,13 +273,13 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: {0}'.format(result))
         return result
 
-    def certificates_search(self, mkey, value, vlist=('name', 'csr', 'cert', 'order__name'), operator=None):
+    def certificates_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operator=None) -> QuerySet[Certificate]:
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificates_search({0}:{1})'.format(mkey, value))
         mkey = self._modify_key(mkey, operator)
         return Certificate.objects.filter(**{mkey: value}).values(*vlist)
 
-    def challenge_lookup(self, mkey, value, vlist=('type', 'token', 'status__name')):
+    def challenge_lookup(self, mkey: str, value: str, vlist: List[str] = ('type', 'token', 'status__name')) -> Dict[str, str]:
         """ search account for a given id """
         self.logger.debug('DBStore.challenge_lookup({0}:{1})'.format(mkey, value))
         challenge_list = Challenge.objects.filter(**{mkey: value}).values(*vlist)[:1]
@@ -293,12 +295,12 @@ class DBstore(object):
             result = None
         return result
 
-    def challenges_search(self, mkey, value, vlist=('name', 'type', 'cert', 'status__name', 'token')):
+    def challenges_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'type', 'cert', 'status__name', 'token')) -> QuerySet[Challenge]:
         """ search challenges based on "something" """
         self.logger.debug('DBStore.challenges_search({0}:{1})'.format(mkey, value))
         return Challenge.objects.filter(**{mkey: value}).values(*vlist)
 
-    def challenge_update(self, data_dic):
+    def challenge_update(self, data_dic: Dict[str, str]):
         """ update challenge """
         self.logger.debug('challenge_update({0})'.format(data_dic))
         # replace orderstatus with an instance
@@ -307,7 +309,7 @@ class DBstore(object):
         obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def cli_jwk_load(self, aname):
+    def cli_jwk_load(self, aname: str) -> Dict[str, str]:
         """ looad account informatino and build jwk key dictionary from cliaccounts teable """
         self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
         account_dict = Cliaccount.objects.filter(name=aname).values('jwk')[:1]
@@ -320,8 +322,8 @@ class DBstore(object):
                 jwk_dict = json.loads(account_dict[0]['jwk'])
         return jwk_dict
 
-    def cli_permissions_get(self, aname):
-        """ looad account informatino and build jwk key dictionary from cliaccounts teable """
+    def cli_permissions_get(self, aname: str) -> Dict[str, str]:
+        """ looad account informations and build jwk key dictionary from cliaccounts teable """
         self.logger.debug('DBStore.cli_jwk_load({0})'.format(aname))
         account_dict = Cliaccount.objects.filter(name=aname).values('reportadmin', 'cliadmin', 'certificateadmin')[:1]
         permissions_dict = {}
@@ -329,7 +331,7 @@ class DBstore(object):
             permissions_dict = account_dict[0]
         return permissions_dict
 
-    def dbversion_get(self):
+    def dbversion_get(self) -> Tuple[Dict[str, str], str]:
         """ get db version from housekeeping table """
         self.logger.debug('DBStore.dbversion_get()')
         version_list = Housekeeping.objects.filter(name='dbversion').values_list('value', flat=True)
@@ -340,13 +342,13 @@ class DBstore(object):
         self.logger.debug('DBStore.dbversion_get() ended with {0}'.format(result))
         return (result, 'tools/django_update.py')
 
-    def hkparameter_add(self, data_dic):
+    def hkparameter_add(self, data_dic: Dict[str, str]):
         """ add housekeeping paramter to database """
         self.logger.debug('DBStore.hkparameter_add({0})'.format(data_dic))
         obj, _created = Housekeeping.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def hkparameter_get(self, parameter):
+    def hkparameter_get(self, parameter: str) -> str:
         """ get parameter from housekeeping table """
         self.logger.debug('DBStore.hkparameter_get()')
         result_list = Housekeeping.objects.filter(name=parameter).values_list('value', flat=True)
@@ -357,7 +359,7 @@ class DBstore(object):
         self.logger.debug('DBStore.hkparameter_get() ended with {0}'.format(result))
         return result
 
-    def jwk_load(self, aname):
+    def jwk_load(self, aname: str) -> Dict[str, str]:
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load({0})'.format(aname))
         account_dict = Account.objects.filter(name=aname).values('jwk', 'alg')[:1]
@@ -370,7 +372,7 @@ class DBstore(object):
             jwk_dict['alg'] = account_dict[0]['alg']
         return jwk_dict
 
-    def nonce_add(self, nonce):
+    def nonce_add(self, nonce: str) -> int:
         """ check if nonce is in datbase
         in: nonce
         return: rowid """
@@ -379,7 +381,7 @@ class DBstore(object):
         obj.save()
         return obj.id
 
-    def nonce_check(self, nonce):
+    def nonce_check(self, nonce: str) -> bool:
         """ ceck if nonce is in datbase
         in: nonce
         return: true in case nonce exit, otherwise false """
@@ -387,13 +389,13 @@ class DBstore(object):
         nonce_list = Nonce.objects.filter(nonce=nonce).values('nonce')[:1]
         return bool(nonce_list)
 
-    def nonce_delete(self, nonce):
+    def nonce_delete(self, nonce: str):
         """ delete nonce from datbase
         in: nonce """
         self.logger.debug('DBStore.nonce_delete({0})'.format(nonce))
         Nonce.objects.filter(nonce=nonce).delete()
 
-    def order_add(self, data_dic):
+    def order_add(self, data_dic: Dict[str, str]) -> int:
         """ add order to database """
         self.logger.debug('DBStore.order_add({0})'.format(data_dic))
         # replace accountid with instance
@@ -406,7 +408,7 @@ class DBstore(object):
         self.logger.debug('order_id({0})'.format(obj.id))
         return obj.id
 
-    def order_lookup(self, mkey, value, vlist=('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')):
+    def order_lookup(self, mkey: str, value: str, vlist: List[str] = ('name', 'notbefore', 'notafter', 'identifiers', 'status__name', 'account__name', 'expires')) -> Dict[str, str]:
         """ search orders for a given ordername """
         self.logger.debug('order_lookup({0}:{1})'.format(mkey, value))
         order_list = Order.objects.filter(**{mkey: value}).values(*vlist)[:1]
@@ -422,7 +424,7 @@ class DBstore(object):
             result = None
         return result
 
-    def order_update(self, data_dic):
+    def order_update(self, data_dic: Dict[str, str]):
         """ update order """
         self.logger.debug('order_update({0})'.format(data_dic))
         # replace orderstatus with an instance
@@ -431,7 +433,7 @@ class DBstore(object):
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def orders_invalid_search(self, mkey, value, vlist=('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE'):
+    def orders_invalid_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE') -> QuerySet[Order]:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:{0}, pattern:{1})'.format(mkey, value))
         mkey = self._modify_key(mkey, operant)

@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # pylint: disable=c0209
 """ message class """
 from __future__ import print_function
 import json
+from typing import Tuple, Dict
 from acme_srv.helper import decode_message, load_config
 from acme_srv.error import Error
 from acme_srv.db_handler import DBstore
@@ -14,7 +14,7 @@ from acme_srv.signature import Signature
 class Message(object):
     """ Message  handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.nonce = Nonce(self.debug, self.logger)
@@ -42,7 +42,7 @@ class Message(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
 
-    def _name_rev_get(self, content):
+    def _name_rev_get(self, content: Dict[str, str]) -> str:
         """ this is needed for cases where we get a revocation message signed with account key but account name is missing """
         self.logger.debug('Message._name_rev_get()')
 
@@ -62,7 +62,7 @@ class Message(object):
         self.logger.debug('Message._name_rev_get() ended with kid: {0}'.format(kid))
         return kid
 
-    def _name_get(self, content):
+    def _name_get(self, content: Dict[str, str]) -> str:
         """ get name for account """
         self.logger.debug('Message._name_get()')
 
@@ -82,7 +82,7 @@ class Message(object):
         self.logger.debug('Message._name_get() returns: {0}'.format(kid))
         return kid
 
-    def _check(self, skip_nonce_check, skip_signature_check, content, protected, use_emb_key):
+    def _check(self, skip_nonce_check: bool, skip_signature_check: bool, content: str, protected: Dict[str, str], use_emb_key: bool) -> Tuple[int, str, str, str]:
         """ decoding successful - check nonce for anti replay protection """
         self.logger.debug('Message._check()')
 
@@ -118,7 +118,7 @@ class Message(object):
         return (code, message, detail, account_name)
 
     # pylint: disable=R0914
-    def check(self, content, use_emb_key=False, skip_nonce_check=False):
+    def check(self, content: str, use_emb_key: bool = False, skip_nonce_check: bool = False) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str]:
         """ validate message """
         self.logger.debug('Message.check()')
         # disable signature check if paramter has been set
@@ -142,7 +142,7 @@ class Message(object):
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return (code, message, detail, protected, payload, account_name)
 
-    def cli_check(self, content):
+    def cli_check(self, content: str) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str, Dict[str, str]]:
         """ validate message coming from CLI client """
         self.logger.debug('Message.cli_check()')
 
@@ -174,7 +174,7 @@ class Message(object):
         self.logger.debug('Message.check() ended with:{0}'.format(code))
         return (code, message, detail, protected, payload, account_name, permissions)
 
-    def prepare_response(self, response_dic, status_dic, add_nonce=True):
+    def prepare_response(self, response_dic: Dict[str, str], status_dic: Dict[str, str], add_nonce: bool = True) -> Dict[str, str]:
         """ prepare response_dic """
         self.logger.debug('Message.prepare_response()')
         if 'code' not in status_dic:

@@ -1,8 +1,8 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Signature class """
 # pylint: disable=c0209
 from __future__ import print_function
+from typing import Tuple, Dict
 from acme_srv.helper import signature_check, load_config, error_dic_get
 from acme_srv.db_handler import DBstore
 
@@ -10,7 +10,7 @@ from acme_srv.db_handler import DBstore
 class Signature(object):
     """ Signature handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
@@ -23,7 +23,7 @@ class Signature(object):
             else:
                 self.revocation_path = '/acme/revokecert'
 
-    def _cli_jwk_load(self, kid):
+    def _cli_jwk_load(self, kid: int) -> Dict[str, str]:
         """ get key for a specific account id """
         self.logger.debug('Signature._cli_jwk_load({0})'.format(kid))
         try:
@@ -33,7 +33,7 @@ class Signature(object):
             result = None
         return result
 
-    def _jwk_load(self, kid):
+    def _jwk_load(self, kid: str) -> Dict[str, str]:
         """ get key for a specific account id """
         self.logger.debug('Signature._jwk_load({0})'.format(kid))
         try:
@@ -43,7 +43,7 @@ class Signature(object):
             result = None
         return result
 
-    def cli_check(self, aname, content):
+    def cli_check(self, aname: str, content: str) -> Tuple[str, str, None]:
         """ signature check against cli key """
         self.logger.debug('Signature.cli_check({0})'.format(aname))
         result = False
@@ -65,7 +65,7 @@ class Signature(object):
         self.logger.debug('Signature.cli_check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)
 
-    def check(self, aname, content, use_emb_key=False, protected=None):
+    def check(self, aname: str, content: str, use_emb_key: bool = False, protected: Dict[str, str] = None) -> Tuple[str, str, None]:
         """ signature check """
         self.logger.debug('Signature.check({0})'.format(aname))
         result = False
@@ -93,7 +93,7 @@ class Signature(object):
         self.logger.debug('Signature.check() ended with: {0}:{1}'.format(result, error))
         return (result, error, None)
 
-    def eab_check(self, content, mac_key):
+    def eab_check(self, content: str, mac_key: str) -> Tuple[str, str]:
         """ signature check """
         self.logger.debug('Signature.eab_check()')
         result = False

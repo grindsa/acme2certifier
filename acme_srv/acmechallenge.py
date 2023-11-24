@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ acmechallenge class """
 # pylint: disable=C0209
@@ -22,7 +21,7 @@ class Acmechallenge(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def lookup(self, path_info):
+    def lookup(self, path_info: str) -> str:
         """ check nonce """
         self.logger.debug('Acmechallenge.lookup()')
 

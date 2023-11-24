@@ -1,16 +1,16 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Nonce class """
 # pylint: disable=c0209
 from __future__ import print_function
 import uuid
+from typing import Tuple, Dict
 from acme_srv.db_handler import DBstore
 
 
 class Nonce(object):
     """ Nonce handler """
 
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
@@ -22,7 +22,7 @@ class Nonce(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _check_and_delete(self, nonce):
+    def _check_and_delete(self, nonce: str) -> Tuple[int, str, str]:
         """ check if nonce exists and delete it """
         self.logger.debug('Nonce.nonce._check_and_delete({0})'.format(nonce))
 
@@ -47,12 +47,12 @@ class Nonce(object):
         self.logger.debug('Nonce._check_and_delete() ended with:{0}'.format(code))
         return (code, message, detail)
 
-    def _new(self):
+    def _new(self) -> str:
         """ generate a new nonce """
         self.logger.debug('Nonce.nonce__new()')
         return uuid.uuid4().hex
 
-    def check(self, protected_decoded):
+    def check(self, protected_decoded: Dict[str, str]) -> Tuple[int, str, str]:
         """ check nonce """
         self.logger.debug('Nonce.check_nonce()')
         if 'nonce' in protected_decoded:
@@ -64,7 +64,7 @@ class Nonce(object):
         self.logger.debug('Nonce.check_nonce() ended with:{0}'.format(code))
         return (code, message, detail)
 
-    def generate_and_add(self):
+    def generate_and_add(self) -> str:
         """ generate new nonce and store it """
         self.logger.debug('Nonce.nonce_generate_and_add()')
         nonce = self._new()

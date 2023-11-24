@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Monkey patches class """
 # pylint: disable=c0413, c0415, e0401, e1121
@@ -9,7 +8,7 @@ from django.db import transaction
 def django_sqlite_atomic():  # NOSONAR
     """ monkey patch for django deployments fixing database lock issues """
 
-    def atomic(using=None, savepoint=True, immediate=False):
+    def atomic(using: str = None, savepoint: bool = True, immediate: bool = False):
         # Bare decorator: @atomic -- although the first argument is called
         # `using`, it's actually the function being decorated.
         if callable(using):

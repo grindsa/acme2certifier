@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Order class """
 # pylint: disable=C0209, R0913
 from __future__ import print_function
 import json
+from typing import List, Tuple, Dict
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
 from acme_srv.helper import generate_random_string, uts_now, uts_to_date_utc, load_config, string_sanitize
@@ -14,7 +14,7 @@ from acme_srv.nonce import Nonce
 class Authorization(object):
     """ class for Authorization handling """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None):
         self.server_name = srv_name
         self.debug = debug
         self.logger = logger
@@ -33,7 +33,7 @@ class Authorization(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _expiry_update(self, authz_name, token, expires):
+    def _expiry_update(self, authz_name: str, token: str, expires: int):
         """ expiry date and token of an existing authorization """
         self.logger.debug('Authorization._expiry_update()')
 
@@ -44,7 +44,7 @@ class Authorization(object):
 
         self.logger.debug('Authorization._expiry_update() ended')
 
-    def _authz_lookup(self, authz_name, vlist=None):
+    def _authz_lookup(self, authz_name: str, vlist: List[str] = None) -> Dict[str, str]:
         self.logger.debug('Authorization._authz_lookup({0})'.format(authz_name))
 
         # lookup authorization based on name
@@ -60,7 +60,7 @@ class Authorization(object):
         self.logger.debug('Authorization._authz_lookup() ended')
         return authz
 
-    def _challengeset_get(self, authz_info_dic, authz_name, token, tnauth, expires):
+    def _challengeset_get(self, authz_info_dic: Dict[str, str], authz_name: str, token: str, tnauth: bool, expires: int) -> Dict[str, str]:
         """ get challenge set """
         self.logger.debug('Authorization._challengeset_get({0})'.format(authz_name))
 
@@ -82,7 +82,7 @@ class Authorization(object):
             self.logger.debug('Authorization._challengeset_get() ended')
             return challenge.challengeset_get(authz_name, authz_info_dic['status'], token, tnauth, id_type, id_value)
 
-    def _authz_info_dic_update(self, authz_info_dic, auth_info):
+    def _authz_info_dic_update(self, authz_info_dic: Dict[str, str], auth_info: Dict[str, str]) -> Tuple[Dict[str, str], bool]:
         """ enrich authinfo dic with information """
         self.logger.debug('Authorization._authz_info_dic_update()')
 
@@ -105,7 +105,7 @@ class Authorization(object):
         self.logger.debug('Authorization._authz_info_dic_update() ended')
         return (authz_info_dic, tnauth)
 
-    def _authz_info(self, url):
+    def _authz_info(self, url: str) -> Dict[str, str]:
         """ return authzs information """
         self.logger.debug('Authorization._authz_info()')
 
@@ -155,7 +155,7 @@ class Authorization(object):
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')
 
-    def invalidate(self, timestamp=None):
+    def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
         """ invalidate authorizations """
         self.logger.debug('Authorization.invalidate({0})'.format(timestamp))
         if not timestamp:
@@ -186,7 +186,7 @@ class Authorization(object):
         self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
         return (field_list, output_list)
 
-    def new_get(self, url):
+    def new_get(self, url: str) -> Dict[str, str]:
         """ challenge computation based on get request """
         self.logger.debug('Authorization.new_get()')
         response_dic = {}
@@ -195,7 +195,7 @@ class Authorization(object):
         response_dic['data'] = self._authz_info(url)
         return response_dic
 
-    def new_post(self, content):
+    def new_post(self, content: str) -> Dict[str, str]:
         """ challenge computation based on post request """
         self.logger.debug('Authorization.new_post()')
 
