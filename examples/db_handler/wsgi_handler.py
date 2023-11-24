@@ -190,7 +190,7 @@ class DBstore(object):
         self.logger.debug('DBStore._certificate_search() ended with: {0}'.format(bool(result)))
         return result
 
-    def _challenge_search(self, column: str , string: str) -> List[str]:
+    def _challenge_search(self, column: str, string: str) -> List[str]:
         """ search challenge table for a certain key/value pair """
         self.logger.debug('DBStore._challenge_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
