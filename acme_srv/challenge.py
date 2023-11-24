@@ -66,7 +66,7 @@ class Challenge(object):
         self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
         return challenge_list
 
-    def _challenge_validate(self, pub_key: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str,str]) -> Tuple[bool, bool]:
+    def _challenge_validate(self, pub_key: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ challenge validate """
         self.logger.debug('Challenge._challenge_validate({0})'.format(challenge_name))
 

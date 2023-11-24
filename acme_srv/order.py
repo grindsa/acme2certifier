@@ -443,7 +443,7 @@ class Order(object):
         self.logger.debug('Order.invalidate() ended: {0} orders identified'.format(len(output_list)))
         return (field_list, output_list)
 
-    def new(self, content:str) -> Dict[str, str]:
+    def new(self, content: str) -> Dict[str, str]:
         """ new oder request """
         self.logger.debug('Order.new()')
 
