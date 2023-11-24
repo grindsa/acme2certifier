@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Order class """
 # pylint: disable=c0209
 from __future__ import print_function
 import json
+from typing import List, Tuple, Dict
 from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, error_dic_get
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -13,7 +13,7 @@ from acme_srv.message import Message
 class Order(object):
     """ class for order handling """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = None, srv_name: str = None, logger: object = None):
         self.server_name = srv_name
         self.debug = debug
         self.logger = logger
@@ -37,7 +37,7 @@ class Order(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _auth_add(self, oid, payload, auth_dic):
+    def _auth_add(self, oid: str, payload: Dict[str, str], auth_dic: Dict[str, str]) -> str:
         self.logger.debug('Order._auth_add({0})'.format(oid))
 
         if oid:
@@ -64,7 +64,7 @@ class Order(object):
         self.logger.debug('Order._auth_add() ended with {0}'.format(error))
         return error
 
-    def _add(self, payload, aname):
+    def _add(self, payload: Dict[str, str], aname: str) -> Tuple[str, str, Dict[str, str], int]:
         """ add order request to database """
         self.logger.debug('Order._add({0})'.format(aname))
         error = None
@@ -103,7 +103,7 @@ class Order(object):
         self.logger.debug('Order._add() ended')
         return (error, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def _config_headerinfo_config_load(self, config_dic):
+    def _config_headerinfo_config_load(self, config_dic: Dict[str, str]):
         """" load config from file """
         self.logger.debug('Order._config_headerinfo_config_load()')
 
@@ -115,7 +115,7 @@ class Order(object):
 
         self.logger.debug('Order._config_headerinfo_config_load() ended')
 
-    def _config_orderconfig_load(self, config_dic):
+    def _config_orderconfig_load(self, config_dic: Dict[str, str]):
         """" load config from file """
         self.logger.debug('Order._config_orderconfig_load()')
 
@@ -160,7 +160,7 @@ class Order(object):
 
         self.logger.debug('Order._config_load() ended.')
 
-    def _name_get(self, url):
+    def _name_get(self, url: str) -> str:
         """ get ordername """
         self.logger.debug('Order._name_get({0})'.format(url))
         url_dic = parse_url(self.logger, url)
@@ -170,7 +170,7 @@ class Order(object):
         self.logger.debug('Order._name_get() ended')
         return order_name
 
-    def _identifiers_check(self, identifiers_list):
+    def _identifiers_check(self, identifiers_list: List[str]) -> str:
         """ check validity of identifers in order """
         self.logger.debug('Order._identifiers_check({0})'.format(identifiers_list))
         error = None
@@ -194,7 +194,7 @@ class Order(object):
         self.logger.debug('Order._identifiers_check() done with {0}:'.format(error))
         return error
 
-    def _info(self, order_name):
+    def _info(self, order_name: str) -> List[str]:
         """ list details of an order """
         self.logger.debug('Order._info({0})'.format(order_name))
         try:
@@ -204,7 +204,7 @@ class Order(object):
             result = None
         return result
 
-    def _header_info_lookup(self, header):
+    def _header_info_lookup(self, header: str) -> str:
         """ lookup header information and serialize them in a string """
         self.logger.debug('Order._header_info_lookup()')
 
@@ -221,7 +221,7 @@ class Order(object):
         self.logger.debug('Order._header_info_lookup() ended with: {0} keys in dic'.format(len(header_info_dic.keys())))
         return result
 
-    def _finalize(self, order_name, payload, header=None):
+    def _finalize(self, order_name: str, payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str]:
         """ finalize request """
         self.logger.debug('Order._finalize()')
 
@@ -265,7 +265,7 @@ class Order(object):
         self.logger.debug('Order._finalize() ended')
         return (code, message, detail, certificate_name)
 
-    def _process(self, order_name, protected, payload, header=None):
+    def _process(self, order_name: str, protected: Dict[str, str], payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str]:
         """ process order """
         self.logger.debug('Order._process({0})'.format(order_name))
         certificate_name = None
@@ -298,7 +298,7 @@ class Order(object):
         self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return (code, message, detail, certificate_name)
 
-    def _csr_process(self, order_name, csr, header_info):
+    def _csr_process(self, order_name: str, csr: str, header_info: str) -> Tuple[int, str, str]:
         """ process certificate signing request """
         self.logger.debug('Order._csr_process({0})'.format(order_name))
 
@@ -332,7 +332,7 @@ class Order(object):
         self.logger.debug('Order._csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
         return (code, message, detail)
 
-    def _update(self, data_dic):
+    def _update(self, data_dic: Dict[str, str]):
         """ update order based on ordername """
         self.logger.debug('Order._update({0})'.format(data_dic))
         try:
@@ -340,7 +340,7 @@ class Order(object):
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Order._update(): {0}'.format(err_))
 
-    def _order_dic_create(self, tmp_dic):
+    def _order_dic_create(self, tmp_dic: Dict[str, str]) -> Dict[str, str]:
         """ create order dictionary """
         self.logger.debug('Order._order_dic_create()')
 
@@ -362,7 +362,7 @@ class Order(object):
         self.logger.debug('Order._order_dic_create() ended')
         return order_dic
 
-    def _authz_list_lookup(self, order_name):
+    def _authz_list_lookup(self, order_name: str) -> List[str]:
         """ lookup authorization list """
         self.logger.debug('Order._authz_list_lookup({0})'.format(order_name))
 
@@ -375,7 +375,7 @@ class Order(object):
         self.logger.debug('Order._authz_list_lookup() ended')
         return authz_list
 
-    def _validity_list_create(self, authz_list, order_dic, order_name):
+    def _validity_list_create(self, authz_list: List[str], order_dic: Dict[str, str], order_name: str):
         self.logger.debug('Order._validity_list_create()')
         validity_list = []
         for authz in authz_list:
@@ -394,7 +394,7 @@ class Order(object):
 
         self.logger.debug('Order._lookup() ended')
 
-    def _lookup(self, order_name):
+    def _lookup(self, order_name: str) -> Dict[str, str]:
         """ sohw order details based on ordername """
         self.logger.debug('Order._validity_list_create({0})'.format(order_name))
         order_dic = {}
@@ -415,7 +415,7 @@ class Order(object):
         self.logger.debug('Order._lookup() ended')
         return order_dic
 
-    def invalidate(self, timestamp=None):
+    def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
         """ invalidate orders """
         self.logger.debug('Order.invalidate({0})'.format(timestamp))
         if not timestamp:
@@ -443,7 +443,7 @@ class Order(object):
         self.logger.debug('Order.invalidate() ended: {0} orders identified'.format(len(output_list)))
         return (field_list, output_list)
 
-    def new(self, content):
+    def new(self, content:str) -> Dict[str, str]:
         """ new oder request """
         self.logger.debug('Order.new()')
 
@@ -476,7 +476,7 @@ class Order(object):
         self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
         return response_dic
 
-    def _parse(self, protected, payload, header=None):
+    def _parse(self, protected: Dict[str, str], payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str, str]:
         """ new oder parse """
         self.logger.debug('Order._parse()')
 
@@ -504,7 +504,7 @@ class Order(object):
         self.logger.debug('Order._parse() ended with code: {0}'.format(code))
         return (code, message, detail, certificate_name, order_name)
 
-    def parse(self, content, header=None):
+    def parse(self, content: str, header: str = None) -> Dict[str, str]:
         """ new oder request """
         self.logger.debug('Order.parse()')
 

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ ThreadWithReturnValue class """
 # pylint: disable=r0913
@@ -16,6 +15,6 @@ class ThreadWithReturnValue(Thread):
         if self._target is not None:
             self._return = self._target(*self._args, **self._kwargs)
 
-    def join(self, timeout=None):
+    def join(self, timeout: int = None):
         Thread.join(self, timeout=timeout)
         return self._return

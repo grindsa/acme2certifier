@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """ Directory class """
 # pylint: disable=c0209, e0401, r0913
 from __future__ import print_function
 import uuid
+from typing import Dict
 from .version import __version__, __dbversion__
 from .helper import load_config
 from .db_handler import DBstore
@@ -50,7 +50,7 @@ class Directory(object):
 
         self.logger.debug('Directory._config_load() ended')
 
-    def directory_get(self):
+    def directory_get(self) -> Dict[str, str]:
         """ return response to ACME directory call """
         self.logger.debug('Directory.directory_get()')
 
@@ -98,7 +98,7 @@ class Directory(object):
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
         return d_dic
 
-    def servername_get(self):
+    def servername_get(self) -> str:
         """ dumb function to return servername """
         self.logger.debug('Directory.servername_get()')
         return self.server_name

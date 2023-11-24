@@ -1,9 +1,9 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # pylint: disable=c0209, r0902, r0912, r0913, r0915
 """ certificate class """
 from __future__ import print_function
 import json
+from typing import List, Tuple, Dict
 from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -13,7 +13,7 @@ from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 class Certificate(object):
     """ CA  handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
         self.debug = debug
         self.server_name = srv_name
         self.logger = logger
@@ -39,7 +39,7 @@ class Certificate(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _account_check(self, account_name, certificate):
+    def _account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
         """ check account """
         self.logger.debug('Certificate.issuer_check()')
         try:
@@ -49,7 +49,7 @@ class Certificate(object):
             result = None
         return result
 
-    def _authz_check(self, identifier_dic, certificate):
+    def _authz_check(self, identifier_dic: Dict[str, str], certificate: str) -> List[str]:
         self.logger.debug('Certificate._authz_check()')
         # load identifiers
         try:
@@ -81,7 +81,7 @@ class Certificate(object):
         self.logger.debug('Certificate._authz_check() ended')
         return identifier_status
 
-    def _authorization_check(self, order_name, certificate):
+    def _authorization_check(self, order_name: str, certificate: str) -> bool:
         """ check if an acount holds authorization for all identifiers = SANs in the certificate """
         self.logger.debug('Certificate._authorization_check()')
 
@@ -106,7 +106,7 @@ class Certificate(object):
         self.logger.debug('Certificate._authorization_check() ended with {0}'.format(result))
         return result
 
-    def _cert_reusage_check(self, csr):
+    def _cert_reusage_check(self, csr:str) -> Tuple[None, str, str, str]:
         """ check if an existing certificate an be reused """
         self.logger.debug('Certificate._cert_reusage_check({0})'.format(self.cert_reusage_timeframe))
 
@@ -142,7 +142,7 @@ class Certificate(object):
         self.logger.debug('Certificate._cert_reusage_check() ended with {0}'.format(message))
         return (None, cert, cert_raw, message)
 
-    def _config_hooks_load(self, config_dic):
+    def _config_hooks_load(self, config_dic: Dict[str, str]):
         """ load hook configuration """
         self.logger.debug('Certificate._config_hooks_load()')
 
@@ -161,7 +161,7 @@ class Certificate(object):
 
         self.logger.debug('Certificate._config_hooks_load() ended')
 
-    def _config_parameters_load(self, config_dic):
+    def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load various parameters """
         self.logger.debug('Certificate._config_parameters_load()')
 
@@ -207,7 +207,7 @@ class Certificate(object):
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
 
-    def _identifiers_load(self, identifier_dic, csr):
+    def _identifiers_load(self, identifier_dic: Dict[str, str], csr: str) -> List[str]:
         self.logger.debug('Certificate._identifiers_load()')
         # load identifiers
         try:
@@ -238,7 +238,7 @@ class Certificate(object):
         self.logger.debug('Certificate._identifiers_load() ended with {0}'.format(identifier_status))
         return identifier_status
 
-    def _csr_check(self, certificate_name, csr):
+    def _csr_check(self, certificate_name: str, csr: str) -> bool:
         """ compare csr extensions against order """
         self.logger.debug('Certificate._csr_check()')
 
@@ -268,7 +268,7 @@ class Certificate(object):
         self.logger.debug('Certificate._csr_check() ended with {0}'.format(csr_check_result))
         return csr_check_result
 
-    def _enroll(self, csr, ca_handler):
+    def _enroll(self, csr: str, ca_handler: object) -> Tuple[str, str, str, str]:
 
         if self.cert_reusage_timeframe:
             (error, certificate, certificate_raw, poll_identifier) = self._cert_reusage_check(csr)
@@ -277,14 +277,14 @@ class Certificate(object):
             certificate_raw = None
 
         if not certificate or not certificate_raw:
-            self.logger.debug('Certificate._enroll_and_store(): trigger enrollment')
+            self.logger.debug('Certificate._enroll(): trigger enrollment')
             (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
         else:
-            self.logger.info('Certificate._enroll_and_store(): reuse existing certificate')
+            self.logger.info('Certificate._enroll(): reuse existing certificate')
 
         return (error, certificate, certificate_raw, poll_identifier)
 
-    def _renewal_info_get(self, certificate):
+    def _renewal_info_get(self, certificate: str) -> str:
         """ get renewal info """
         self.logger.error('Certificate._renewal_info_get()')
 
@@ -295,10 +295,11 @@ class Certificate(object):
         self.logger.debug('Certificate.certid_asn1_get() ended with {0}'.format(renewal_info_hex))
         return renewal_info_hex
 
-    def _store(self, certificate, certificate_raw, poll_identifier, certificate_name, order_name, csr):
+    def _store(self, certificate: str, certificate_raw: str, poll_identifier: str, certificate_name: str, order_name: str, csr: str) -> Tuple[int, str]:
+        """ store  certificate """
+        self.logger.error('Certificate._store()')
 
         error = None
-
         (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
         try:
             result = self._store_cert(certificate_name, certificate, certificate_raw, issue_uts, expire_uts, poll_identifier)
@@ -317,15 +318,15 @@ class Certificate(object):
             result = None
             self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): {0}'.format(err_))
 
+        self.logger.error('Certificate._store() ended')
         return (result, error)
 
-    def _enrollerror_handler(self, error, poll_identifier, order_name, certificate_name):
+    def _enrollerror_handler(self, error: str, poll_identifier: str, order_name: str, certificate_name: str) -> Tuple[None, str, str]:
         """ store error message for later analysis """
         self.logger.error('Certificate._enroll_and_store({0})'.format(error))
 
         result = None
         detail = None
-
         try:
             if not poll_identifier:
                 self.logger.debug('Certificate._enroll_and_store(): invalidating order as there is no certificate and no poll_identifier: {0}/{1}'.format(error, order_name))
@@ -344,7 +345,7 @@ class Certificate(object):
         self.logger.error('Certificate._enroll_and_store() ended with: {0}'.format(result))
         return (result, error, detail)
 
-    def _pre_hooks_process(self, certificate_name, order_name, csr):
+    def _pre_hooks_process(self, certificate_name: str, order_name: str, csr: str) -> List[str]:
         self.logger.debug('Certificate._pre_hooks_process({0}, {1})'.format(certificate_name, order_name))
         hook_error = []
         if self.hooks:
@@ -359,7 +360,7 @@ class Certificate(object):
         self.logger.debug('Certificate._pre_hooks_process({0})'.format(hook_error))
         return hook_error
 
-    def _post_hooks_process(self, certificate_name, order_name, csr, error):
+    def _post_hooks_process(self, certificate_name: str, order_name: str, csr: str, error: str) -> List[str]:
         self.logger.debug('Certificate._pre_hooks_process({0}, {1})'.format(certificate_name, order_name))
 
         hook_error = []
@@ -375,7 +376,7 @@ class Certificate(object):
         self.logger.debug('Certificate._post_hooks_process({0})'.format(hook_error))
         return hook_error
 
-    def _enroll_and_store(self, certificate_name, csr, order_name=None):
+    def _enroll_and_store(self, certificate_name: str, csr: str, order_name: str = None) -> Tuple[str, str, str]:
         """ enroll and store certificate """
         self.logger.debug('Certificate._enroll_and_store({0}, {1}, {2})'.format(certificate_name, order_name, csr))
 
@@ -406,7 +407,7 @@ class Certificate(object):
         self.logger.debug('Certificate._enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (result, error, detail)
 
-    def _identifier_chk(self, cert_type, cert_value, identifiers, san_is_in):
+    def _identifier_chk(self, cert_type: str, cert_value: str, identifiers: List[str], san_is_in: bool) -> bool:
         """ check identifier """
         self.logger.debug('Certificate._identifier_chk({0}/{1})'.format(cert_type, cert_value))
 
@@ -420,7 +421,7 @@ class Certificate(object):
         self.logger.debug('Certificate._identifier_chk({0})'.format(san_is_in))
         return san_is_in
 
-    def _identifer_status_list(self, identifiers, san_list):
+    def _identifer_status_list(self, identifiers: List[str], san_list: List[str]) -> List[str]:
         """ compare identifiers and check if each san is in identifer list """
         self.logger.debug('Certificate._identifer_status_list()')
 
@@ -446,7 +447,7 @@ class Certificate(object):
         self.logger.debug('Certificate._identifer_status_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
-    def _identifier_tnauth_chk(self, identifier, tnauthlist):
+    def _identifier_tnauth_chk(self, identifier: Dict[str, str], tnauthlist: List[str]) -> bool:
         """ check tnauth identifier against tnauthlist """
         self.logger.debug('Certificate._identifier_tnauth_chk({0})'.format(identifier))
 
@@ -460,7 +461,7 @@ class Certificate(object):
         self.logger.debug('Certificate._identifier_tnauth_chk() endedt with {0}'.format(result))
         return result
 
-    def _identifer_tnauth_list(self, identifier_dic, tnauthlist):
+    def _identifer_tnauth_list(self, identifier_dic: Dict[str, str], tnauthlist: List[str]):
         """ compare identifiers and check if each san is in identifer list """
         self.logger.debug('Certificate._identifer_tnauth_list()')
 
@@ -482,7 +483,7 @@ class Certificate(object):
         self.logger.debug('Certificate._identifer_tnauth_list() ended with {0}'.format(identifier_status))
         return identifier_status
 
-    def _info(self, certificate_name, flist=('name', 'csr', 'cert', 'order__name')):
+    def _info(self, certificate_name: str, flist: List[str] = ('name', 'csr', 'cert', 'order__name')) -> Dict[str, str]:
         """ get certificate from database """
         self.logger.debug('Certificate._info({0})'.format(certificate_name))
         try:
@@ -492,7 +493,7 @@ class Certificate(object):
             result = None
         return result
 
-    def _expirydate_assume(self, cert, timestamp, to_be_cleared):
+    def _expirydate_assume(self, cert: str, timestamp: int, to_be_cleared: bool) -> bool:
         """ assume expiry date """
         self.logger.debug('Certificate._expirydate_assume()')
 
@@ -513,7 +514,7 @@ class Certificate(object):
         self.logger.debug('Certificate._expirydate_assume() ended')
         return to_be_cleared
 
-    def _expiredate_get(self, cert, timestamp, to_be_cleared):
+    def _expiredate_get(self, cert: str, timestamp: int, to_be_cleared: bool) -> bool:
         """ get expirey date from certificate """
         self.logger.debug('Certificate._expiredate_get()')
 
@@ -536,7 +537,7 @@ class Certificate(object):
         self.logger.debug('Certificate._expiredate_get() ended with: to_be_cleared:  {0}'.format(to_be_cleared))
         return to_be_cleared
 
-    def _invalidation_check(self, cert, timestamp, purge=False):
+    def _invalidation_check(self, cert: str, timestamp: int, purge: bool = False):
         """ check if cert must be invalidated """
         if 'name' in cert:
             self.logger.debug('Certificate._invalidation_check({0})'.format(cert['name']))
@@ -568,7 +569,7 @@ class Certificate(object):
 
         return (to_be_cleared, cert)
 
-    def _order_update(self, data_dic):
+    def _order_update(self, data_dic: Dict[str, str]):
         """ update order based on ordername """
         self.logger.debug('Certificate._order_update({0})'.format(data_dic))
         try:
@@ -576,7 +577,7 @@ class Certificate(object):
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Certificate._order_update(): {0}'.format(err_))
 
-    def _revocation_reason_check(self, reason):
+    def _revocation_reason_check(self, reason: str) -> str:
         """ check reason """
         self.logger.debug('Certificate._revocation_reason_check({0})'.format(reason))
 
@@ -598,7 +599,7 @@ class Certificate(object):
         self.logger.debug('Certificate._revocation_reason_check() ended with {0}'.format(result))
         return result
 
-    def _revocation_request_validate(self, account_name, payload):
+    def _revocation_request_validate(self, account_name: str, payload: Dict[str, str]) -> Tuple[int, str]:
         """ check revocaton request for consistency"""
         self.logger.debug('Certificate._revocation_request_validate({0})'.format(account_name))
 
@@ -635,7 +636,7 @@ class Certificate(object):
         self.logger.debug('Certificate._revocation_request_validate() ended with: {0}, {1}'.format(code, error))
         return (code, error)
 
-    def _store_cert(self, certificate_name, certificate, raw, issue_uts=0, expire_uts=0, poll_identifier=None):
+    def _store_cert(self, certificate_name: str, certificate: str, raw: str, issue_uts: int = 0, expire_uts: int = 0, poll_identifier: str =None) -> int:
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert({0})'.format(certificate_name))
 
@@ -650,7 +651,7 @@ class Certificate(object):
         self.logger.debug('Certificate._store_cert({0}) ended'.format(cert_id))
         return cert_id
 
-    def _store_cert_error(self, certificate_name, error, poll_identifier):
+    def _store_cert_error(self, certificate_name: str, error: str, poll_identifier: str) -> int:
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert_error({0})'.format(certificate_name))
         data_dic = {'error': error, 'name': certificate_name, 'poll_identifier': poll_identifier}
@@ -662,7 +663,7 @@ class Certificate(object):
         self.logger.debug('Certificate._store_cert_error({0}) ended'.format(cert_id))
         return cert_id
 
-    def _tnauth_identifier_check(self, identifier_dic):
+    def _tnauth_identifier_check(self, identifier_dic: Dict[str, str]) -> int:
         """ check if we have an tnauthlist_identifier """
         self.logger.debug('Certificate._tnauth_identifier_check()')
         # check if we have a tnauthlist identifier
@@ -675,7 +676,7 @@ class Certificate(object):
         self.logger.debug('Certificate._tnauth_identifier_check() ended with: {0}'.format(tnauthlist_identifer_in))
         return tnauthlist_identifer_in
 
-    def certlist_search(self, key, value, vlist=('name', 'csr', 'cert', 'order__name')):
+    def certlist_search(self, key: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name')) -> Dict[str, str]:
         """ get certificate from database """
         self.logger.debug('Certificate.certlist_search({0}: {1})'.format(key, value))
         try:
@@ -685,7 +686,7 @@ class Certificate(object):
             result = None
         return result
 
-    def _cleanup(self, report_list, timestamp, purge):
+    def _cleanup(self, report_list: List[str], timestamp: int, purge: bool):
         """ cleanup  """
         self.logger.debug('Certificate.cleanup({0},{1})'.format(timestamp, purge))
         if not purge:
@@ -712,7 +713,7 @@ class Certificate(object):
 
         self.logger.debug('Certificate.cleanup() ended')
 
-    def cleanup(self, timestamp=None, purge=False):
+    def cleanup(self, timestamp: int = None, purge: bool = False) -> Tuple[List[str], List[str]]:
         """ cleanup routine to shrink table-size """
         self.logger.debug('Certificate.cleanup({0},{1})'.format(timestamp, purge))
 
@@ -738,7 +739,7 @@ class Certificate(object):
         self.logger.debug('Certificate.cleanup() ended with: {0} certs'.format(len(report_list)))
         return (field_list, report_list)
 
-    def _dates_update(self, cert):
+    def _dates_update(self, cert: str):
         """ update issue and expiry date with date from certificate """
         self.logger.debug('Certificate._dates_update()')
 
@@ -763,7 +764,7 @@ class Certificate(object):
 
         self.logger.debug('Certificate.dates_update() ended')
 
-    def enroll_and_store(self, certificate_name, csr, order_name=None):
+    def enroll_and_store(self, certificate_name: str, csr: str, order_name: str = None) -> Tuple[str, str]:
         """ check csr and trigger enrollment """
         self.logger.debug('Certificate.enroll_and_store({0},{1})'.format(certificate_name, order_name))
 
@@ -795,7 +796,7 @@ class Certificate(object):
         self.logger.debug('Certificate.enroll_and_store() ended with: {0}:{1}'.format(result, error))
         return (error, detail)
 
-    def new_get(self, url):
+    def new_get(self, url: str) -> Dict[str, str]:
         """ get request """
         certificate_name = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['cert_path']), ''))
         self.logger.debug('Certificate.new_get({0})'.format(certificate_name))
@@ -830,7 +831,7 @@ class Certificate(object):
 
         return response_dic
 
-    def new_post(self, content):
+    def new_post(self, content: str) -> Dict[str, str]:
         """ post request """
         self.logger.debug('Certificate.new_post({0})')
 
@@ -868,7 +869,7 @@ class Certificate(object):
         self.logger.debug('Certificate.new_post() ended with: {0}'.format(result))
         return response_dic
 
-    def revoke(self, content):
+    def revoke(self, content: str) -> Dict[str, str]:
         """ revoke request """
         self.logger.debug('Certificate.revoke()')
 
@@ -902,7 +903,7 @@ class Certificate(object):
         self.logger.debug('Certificate.revoke() ended with: {0}'.format(response_dic))
         return response_dic
 
-    def poll(self, certificate_name, poll_identifier, csr, order_name):
+    def poll(self, certificate_name: str, poll_identifier: str, csr: str, order_name: str) -> int:
         """ try to fetch a certificate from CA and store it into database """
         self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
 
@@ -930,7 +931,7 @@ class Certificate(object):
         self.logger.debug('Certificate.poll({0}: {1})'.format(certificate_name, poll_identifier))
         return _result
 
-    def store_csr(self, order_name, csr, header_info):
+    def store_csr(self, order_name: str, csr: str, header_info: str) -> str:
         """ store csr into database """
         self.logger.debug('Certificate.store_csr({0})'.format(order_name))
         certificate_name = generate_random_string(self.logger, 12)

@@ -1,9 +1,8 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
 """ trigger class """
 # pylint: disable=c0209
 from __future__ import print_function
 import json
+from typing import List, Tuple, Dict
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_get, cert_der2pem, b64_decode, load_config, ca_handler_load
@@ -12,7 +11,7 @@ from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_
 class Trigger(object):
     """ Challenge handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool =False, srv_name: str = None, logger: object = None):
         self.debug = debug
         self.server_name = srv_name
         self.cahandler = None
@@ -28,7 +27,7 @@ class Trigger(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
-    def _certname_lookup(self, cert_pem):
+    def _certname_lookup(self, cert_pem: str) -> List[str]:
         """ compared certificate against csr stored in db """
         self.logger.debug('Trigger._certname_lookup()')
 
@@ -67,7 +66,7 @@ class Trigger(object):
         self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
         self.logger.debug('Certificate._config_load() ended.')
 
-    def _cert_store(self, cert_bundle, cert_raw):
+    def _cert_store(self, cert_bundle: str, cert_raw: str) -> Tuple[int, str, str]:
         """ store certificate """
         self.logger.debug('Trigger._cert_store()')
 
@@ -101,7 +100,7 @@ class Trigger(object):
         self.logger.debug('Trigger._cert_store() ended')
         return (code, message, detail)
 
-    def _payload_process(self, payload):
+    def _payload_process(self, payload: str) -> Tuple[int, str, str]:
         """ process payload """
         self.logger.debug('Trigger._payload_process()')
         with self.cahandler(self.debug, self.logger) as ca_handler:
@@ -122,7 +121,7 @@ class Trigger(object):
         self.logger.debug('Trigger._payload_process() ended with: {0} {1}'.format(code, message))
         return (code, message, detail)
 
-    def parse(self, content):
+    def parse(self, content: str) -> Dict[str, str]:
         """ new oder request """
         self.logger.debug('Trigger.parse()')
 

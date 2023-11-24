@@ -7,6 +7,7 @@ import argparse
 import tempfile
 import json
 import subprocess
+from typing import List, Tuple, Dict
 from http.client import responses
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
 import xmltodict
@@ -35,7 +36,7 @@ def arg_parse():
     return debug, configfile, hsc, error
 
 
-def _csr_get(logger, soap_dic, soapenvelope, soapbody, aurrequestcertificate):
+def _csr_get(logger, soap_dic: Dict[str, str], soapenvelope: str, soapbody: str, aurrequestcertificate: str) -> str:
     """ get CSR from dictionary """
     logger.debug('_csr_extract()')
     aurrequest = 'aur:request'
@@ -51,7 +52,7 @@ def _csr_get(logger, soap_dic, soapenvelope, soapbody, aurrequestcertificate):
     return csr
 
 
-def _csr_lookup(logger, soap_dic):
+def _csr_lookup(logger, soap_dic: Dict[str, str]) -> str:
     """ get csr from soap request """
     logger.debug('_csr_lookup()')
     csr = None
@@ -67,7 +68,7 @@ def _csr_lookup(logger, soap_dic):
     return csr
 
 
-def _opensslcmd_pem2pkcs7_convert(logger, tmp_dir, filename_list):
+def _opensslcmd_pem2pkcs7_convert(logger, tmp_dir: str, filename_list: List[str]) -> List[str]:
     """ build openssl command """
     logger.debug('_opensslcmd_pem2pkcs7_convert()')
     cmd_list = ['openssl', 'crl2pkcs7', '-nocrl', '-outform', 'DER', '-out', '{0}/cert.p7b'.format(tmp_dir)]
@@ -79,7 +80,7 @@ def _opensslcmd_pem2pkcs7_convert(logger, tmp_dir, filename_list):
     return cmd_list
 
 
-def _opensslcmd_csr_extract(logger, pkcs7_file, csr_file):
+def _opensslcmd_csr_extract(logger, pkcs7_file: str, csr_file: str) -> List[str]:
     """ build openssl command """
     logger.debug('_opensslcmd_csr_extract()')
     cmd_list = ['openssl', 'cms', '-in', pkcs7_file, '-verify', '-inform', 'DER', '-noverify', '-outform', 'PEM', '-out', csr_file]
@@ -87,7 +88,7 @@ def _opensslcmd_csr_extract(logger, pkcs7_file, csr_file):
     return cmd_list
 
 
-def _file_load_binary(logger, filename):
+def _file_load_binary(logger, filename: str) -> List[str]:
     """ load file at once """
     logger.debug('file_open({0})'.format(filename))
     with open(filename, 'rb') as _file:
@@ -95,7 +96,7 @@ def _file_load_binary(logger, filename):
     return lines
 
 
-def _file_load(logger, filename):
+def _file_load(logger, filename: str) -> List[str]:
     """ load file at once """
     logger.debug('file_open({0})'.format(filename))
     with open(filename, 'r', encoding='utf8') as _file:
@@ -103,21 +104,21 @@ def _file_load(logger, filename):
     return lines
 
 
-def _file_dump_binary(logger, filename, data_):
+def _file_dump_binary(logger, filename: str, data_: str):
     """ dump content in binary format to file """
     logger.debug('file_dump({0})'.format(filename))
     with open(filename, 'wb') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
 
 
-def _file_dump(logger, filename, data_):
+def _file_dump(logger, filename: str, data_: str):
     """ dump content to  file """
     logger.debug('file_dump({0})'.format(filename))
     with open(filename, 'w', encoding='utf8') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
 
 
-def _pem2pkcs7_convert(logger, tmp_dir, pem):
+def _pem2pkcs7_convert(logger, tmp_dir: str, pem: str) -> str:
     """ convert pem bunlde to pkcs#7 by using openssl """
     certificate_list = pem.split('-----END CERTIFICATE-----\n')
 
@@ -140,7 +141,7 @@ def _pem2pkcs7_convert(logger, tmp_dir, pem):
     return content
 
 
-def _get_request_body(environ):
+def _get_request_body(environ: Dict[str, str]) -> str:
     """ get body from request data """
     try:
         request_body_size = int(environ.get('CONTENT_LENGTH', 0))
@@ -153,7 +154,7 @@ def _get_request_body(environ):
     return request_body
 
 
-def _config_load(logger, config_file):
+def _config_load(logger, config_file: str) -> Dict[str, str]:
     """ load config file"""
     config_dic = load_config(logger, None, config_file)
 
@@ -175,7 +176,7 @@ def _config_load(logger, config_file):
     return cfg_dic
 
 
-def _csr_extract(logger, tmp_dir, csr):
+def _csr_extract(logger, tmp_dir: str, csr: str) -> str:
     """ extract csr from pkcs7 file """
 
     if csr:
@@ -194,7 +195,7 @@ def _csr_extract(logger, tmp_dir, csr):
     return content
 
 
-def request_process(logger, csr):
+def request_process(logger, csr: str) -> bytes:
     """ construct soap response """
 
     tmp_dir = tempfile.mkdtemp()
@@ -246,7 +247,7 @@ def request_process(logger, csr):
     return convert_string_to_byte(soap_response)
 
 
-def soap_srv(environ, start_response):
+def soap_srv(environ, start_response: List[str]) -> List[str]:
     """ echo application """
     request_body = _get_request_body(environ)
     stack_d = xmltodict.parse(request_body)

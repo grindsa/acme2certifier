@@ -2,6 +2,7 @@
 """ Nonce class """
 # pylint: disable=c0209
 from __future__ import print_function
+from typing import Dict
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now
@@ -10,7 +11,7 @@ from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, er
 class Renewalinfo(object):
     """ Nonce handler """
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
@@ -51,7 +52,7 @@ class Renewalinfo(object):
                 except Exception as err_:
                     self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: {0}'.format(err_))
 
-    def _lookup(self, certid_hex):
+    def _lookup(self, certid_hex: str) -> Dict[str, str]:
         """ lookup expiry dates based on renewal info """
         self.logger.debug('Renewalinfo._lookup()')
 
@@ -63,7 +64,7 @@ class Renewalinfo(object):
 
         return result_dic
 
-    def _renewalinfo_get(self, certid_hex):
+    def _renewalinfo_get(self, certid_hex: str) -> Dict[str, str]:
         """ create dictionary containing renwal infor data """
         self.logger.debug('Renewalinfo.get()')
 
@@ -96,7 +97,7 @@ class Renewalinfo(object):
 
         return renewalinfo_dic
 
-    def get(self, url):
+    def get(self, url: str) -> Dict[str, str]:
         """ get renewal information """
         self.logger.debug('Renewalinfo.get()')
 
@@ -125,7 +126,7 @@ class Renewalinfo(object):
 
         return response_dic
 
-    def update(self, content):
+    def update(self, content: str) -> Dict[str, str]:
         """ update renewalinfo request """
         self.logger.debug('Renewalinfo.update({0})')
 
