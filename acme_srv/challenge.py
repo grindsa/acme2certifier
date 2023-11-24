@@ -409,7 +409,7 @@ class Challenge(object):
         self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
         return (result, invalid)
 
-    def _validate_dns_challenge(self, challenge_name: str, _type: str, fqdn: str, token: str, jwk_thumbprint: str) -> Tuple[bool, False]:
+    def _validate_dns_challenge(self, challenge_name: str, _type: str, fqdn: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate dns challenge """
         self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
 
