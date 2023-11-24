@@ -106,7 +106,7 @@ class Certificate(object):
         self.logger.debug('Certificate._authorization_check() ended with {0}'.format(result))
         return result
 
-    def _cert_reusage_check(self, csr:str) -> Tuple[None, str, str, str]:
+    def _cert_reusage_check(self, csr: str) -> Tuple[None, str, str, str]:
         """ check if an existing certificate an be reused """
         self.logger.debug('Certificate._cert_reusage_check({0})'.format(self.cert_reusage_timeframe))
 
@@ -636,7 +636,7 @@ class Certificate(object):
         self.logger.debug('Certificate._revocation_request_validate() ended with: {0}, {1}'.format(code, error))
         return (code, error)
 
-    def _store_cert(self, certificate_name: str, certificate: str, raw: str, issue_uts: int = 0, expire_uts: int = 0, poll_identifier: str =None) -> int:
+    def _store_cert(self, certificate_name: str, certificate: str, raw: str, issue_uts: int = 0, expire_uts: int = 0, poll_identifier: str = None) -> int:
         """ get key for a specific account id """
         self.logger.debug('Certificate._store_cert({0})'.format(certificate_name))
 

@@ -637,7 +637,7 @@ class Account(object):
         self.logger.debug('Account._parse_deactivation() ended')
         return (code, message, detail, data)
 
-    def _parse_contacts_update(self, account_name: str, payload: Dict[str, str]) -> Tuple[int, str, str, dict[str, str]]:
+    def _parse_contacts_update(self, account_name: str, payload: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
         """ update contacts """
         self.logger.debug('Account._parse_contacts_update({0})'.format(account_name))
         data = None

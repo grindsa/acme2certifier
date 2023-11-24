@@ -11,7 +11,7 @@ from acme_srv.helper import convert_byte_to_string, cert_pubkey_get, csr_pubkey_
 class Trigger(object):
     """ Challenge handler """
 
-    def __init__(self, debug: bool =False, srv_name: str = None, logger: object = None):
+    def __init__(self, debug: bool = False, srv_name: str = None, logger: object = None):
         self.debug = debug
         self.server_name = srv_name
         self.cahandler = None

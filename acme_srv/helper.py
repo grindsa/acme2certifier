@@ -41,7 +41,7 @@ from .version import __version__
 USER_AGENT = 'acme2certifier/{0}'.format(__version__)
 
 
-def b64decode_pad(logger: logging.Logger, string:str) -> bytes:
+def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
     """ b64 decoding and padding of missing "=" """
     logger.debug('b64decode_pad()')
     try:
