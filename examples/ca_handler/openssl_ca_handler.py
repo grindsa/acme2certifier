@@ -11,9 +11,8 @@ import re
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, ExtendedKeyUsageOID, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
-from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID, ObjectIdentifier
+from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
+from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID
 # pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
@@ -47,7 +46,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _ca_load(self):
+    def _ca_load(self) -> Tuple[object, object]:
         """ load ca key and cert """
         self.logger.debug('CAhandler._ca_load()')
         ca_key = None
@@ -71,62 +70,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_load() ended')
         return (ca_key, ca_cert)
 
-    def _chain_verify(self, cert, ca_cert, error):
-        """ Create a certificate store and add ca cert(s) """
-        self.logger.debug('CAhandler._certificate_chain_verify()')
-
-        try:
-            store = crypto.X509Store()
-            store.add_cert(ca_cert)
-        except Exception:
-            error = 'issuing certificate could not be added to trust-store'
-
-        if not error:
-            # add ca chain to truststore
-            for cert_name in self.ca_cert_chain_list:
-                try:
-                    with open(cert_name, 'r', encoding='utf8') as fso:
-                        cain_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
-                    store.add_cert(cain_cert)
-                except Exception:
-                    error = 'certificate {0} could not be added to trust store'.format(cert_name)
-
-        if not error:
-            # Create a certificate context using the store and the downloaded certificate
-            store_ctx = crypto.X509StoreContext(store, cert)
-            # Verify the certificate, returns None if it can validate the certificate
-            try:
-                # pylint: disable=E1111
-                result = store_ctx.verify_certificate()
-            except Exception as err_:
-                result = str(err_)
-        else:
-            result = error
-
-        return result
-
-    def _certificate_chain_verify(self, cert, ca_cert):
-        """ verify certificate chain """
-        self.logger.debug('CAhandler._certificate_chain_verify()')
-
-        error = None
-        pem_file = build_pem_file(self.logger, None, b64_url_recode(self.logger, cert), True)
-
-        try:
-            cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-        except Exception as err_:
-            cert = None
-            error = err_
-
-        if not error:
-            result = self._chain_verify(cert, ca_cert, error)
-        else:
-            result = 'certificate could not get parsed'
-
-        self.logger.debug('CAhandler._certificate_chain_verify() ended with {0}'.format(result))
-        return result
-
-    def _certificate_extensions_add(self, cert_extension_dic, cert, ca_cert):
+    def _certificate_extensions_add(self, cert_extension_dic: Dict[str, str], cert=str, ca_cert: object = None) -> List[object]:
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_extensions_add()')
 
@@ -146,10 +90,10 @@ class CAhandler(object):
             if extension == 'subjectKeyIdentifier':
                 self.logger.info('_certificate_extensions_add(): subjectKeyIdentifier')
                 file_extension_list.append(SubjectKeyIdentifier.from_public_key(ca_cert.public_key()))
-            #elif 'subject' in cert_extension_dic[extension]:
+            # elif 'subject' in cert_extension_dic[extension]:
             #    self.logger.info('_certificate_extensions_add(): subject')
             #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-            #elif 'issuer' in cert_extension_dic[extension]:
+            # elif 'issuer' in cert_extension_dic[extension]:
             #    self.logger.info('_certificate_extensions_add(): issuer')
             #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
             else:
@@ -159,7 +103,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certificate_extensions_add() ended')
         return file_extension_list
 
-    def _certificate_extensions_load(self):
+    def _certificate_extensions_load(self) -> Dict[str, str]:
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_extensions_load()')
 
@@ -195,7 +139,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certificate_extensions_load() ended')
         return cert_extention_dic
 
-    def _certificate_store(self, cert):
+    def _certificate_store(self, cert: object):
         """ store certificate on disk """
         self.logger.debug('CAhandler._certificate_store()')
         serial = cert.serial_number
@@ -220,7 +164,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._certificate_store() ended')
 
-    def _config_check_issuer(self):
+    def _config_check_issuer(self) -> str:
         """ check issuing CA configuration """
         self.logger.debug('CAhandler._config_check_issuer()')
 
@@ -241,7 +185,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_check_issuer() ended with:  {0}'.format(error))
         return error
 
-    def _config_check_crl(self, error):
+    def _config_check_crl(self, error: str = None) -> str:
         """ check crl config """
         self.logger.debug('CAhandler._config_check_crl()')
 
@@ -255,7 +199,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_check_crl() ended with:  {0}'.format(error))
         return error
 
-    def _config_parameters_check(self, error):
+    def _config_parameters_check(self, error: str = None) -> str:
         """ check remaining configuration """
         self.logger.debug('CAhandler._config_parameters_check()')
 
@@ -275,7 +219,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_parameters_check() ended with:  {0}'.format(error))
         return error
 
-    def _config_check(self):
+    def _config_check(self) -> str:
         """ check config for consitency """
         self.logger.debug('CAhandler._config_check()')
 
@@ -290,7 +234,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_check() ended')
         return error
 
-    def _config_domainlists_load(self, config_dic):
+    def _config_domainlists_load(self, config_dic: Dict[str, str]):
         """" load config from file """
         self.logger.debug('CAhandler._config_domainlists_load()')
         if 'openssl_conf' in config_dic['CAhandler']:
@@ -307,7 +251,7 @@ class CAhandler(object):
             self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
         self.logger.debug('CAhandler._config_domainlists_load() ended')
 
-    def _config_credentials_load(self, config_dic):
+    def _config_credentials_load(self, config_dic: Dict[str, str]):
         """ load credential config """
         self.logger.debug('CAhandler._config_credentials_load()')
 
@@ -331,7 +275,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_credentials_load() ended')
 
-    def _config_policy_load(self, config_dic):
+    def _config_policy_load(self, config_dic: Dict[str, str]):
         """ load certificate policy """
         self.logger.debug('CAhandler._config_policy_load()')
 
@@ -367,27 +311,7 @@ class CAhandler(object):
         self.save_cert_as_hex = config_dic.getboolean('CAhandler', 'save_cert_as_hex', fallback=False)
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _crl_check(self, crl, serial):
-        """ check if CRL already contains serial """
-        self.logger.debug('CAhandler._crl_check()')
-        sn_match = False
-
-        # convert to lower case
-        if isinstance(serial, str):
-            serial = serial.lower()
-
-        serial = convert_string_to_byte(serial)
-        if crl and serial:
-            crl_list = crl.get_revoked()
-            if crl_list:
-                for rev in crl_list:
-                    if serial == rev.get_serial().lower():
-                        sn_match = True
-                        break
-        self.logger.debug('CAhandler._crl_check() with:{0}'.format(sn_match))
-        return sn_match
-
-    def _chk_san_lists_get(self, csr):
+    def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:
         """ check lists  """
         self.logger.debug('CAhandler._chk_san_lists_get()')
 
@@ -411,7 +335,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._chk_san_lists_get() ended')
         return (san_list, check_list)
 
-    def _cn_add(self, csr, san_list):
+    def _cn_add(self, csr: str, san_list: List[str]) -> Tuple[List[str], str]:
         """ add CN if required """
         self.logger.debug('CAhandler._cn_add()')
 
@@ -434,7 +358,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cn_add() ended with: {0}'.format(enforced_cn))
         return (san_list, enforced_cn)
 
-    def _csr_check(self, csr):
+    def _csr_check(self, csr: str) -> Tuple[bool, str]:
         """ check CSR against definied allowed_domainlists """
         self.logger.debug('CAhandler._csr_check()')
 
@@ -460,7 +384,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check() ended with: {0} enforce_cn: {1}'.format(result, enforced_cn))
         return (result, enforced_cn)
 
-    def _list_regex_check(self, entry, list_):
+    def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
         """ check entry against regex """
         self.logger.debug('CAhandler._list_regex_check()')
 
@@ -476,7 +400,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._list_regex_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def _list_check(self, entry, list_, toggle=False):
+    def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
         """ check string against list """
         self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
         self.logger.debug('check against list: {0}'.format(list_))
@@ -498,7 +422,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def _pemcertchain_generate(self, ee_cert, issuer_cert):
+    def _pemcertchain_generate(self, ee_cert: str, issuer_cert: str) -> str:
         """ build pem chain """
         self.logger.debug('CAhandler._pemcertchain_generate()')
 
@@ -515,7 +439,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pemcertchain_generate() ended')
         return pem_chain
 
-    def _string_wlbl_check(self, entry, white_list, black_list):
+    def _string_wlbl_check(self, entry: str, white_list: List[str], black_list: List[str]) -> bool:
         """ check single against allowed_domainlist and blocked_domainlist """
         self.logger.debug('CAhandler._string_wlbl_check({0})'.format(entry))
 
@@ -541,10 +465,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
-    def _duplicates_clean(self, default_extension_list, extensions):
+    def _duplicates_clean(self, default_extension_list: List[str], extensions: List[str]) -> List[str]:
         """ clean duplicate extensions """
         self.logger.debug('CAhandler._duplicates_clean()')
-
+        # pylint: disable=w0212
         extension_list = []
         for csr_ext in extensions:
             ext_in = False
@@ -565,27 +489,27 @@ class CAhandler(object):
         self.logger.debug('CAhandler._duplicates_clean() ended')
         return extension_list
 
-    def _cert_extension_dic_add(self, cert, ca_cert, cert_extension_dic, default_extension_list, req):
+    def _cert_extension_dic_add(self, cert: str, ca_cert: str, cert_extension_dic: Dict[str, str], default_extension_list: Dict[str, str], req: str):
         """ add extension from templat """
         self.logger.debug('CAhandler._cert_extension_dic_add()')
 
-        # try:
-        # remove duplicate extensions
-        list_ = self._certificate_extensions_add(cert_extension_dic, cert, ca_cert)
-        # extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
-        #print('jupp, jupp,', extension_list)
+        try:
+            # remove duplicate extensions
+            #  self._certificate_extensions_add(cert_extension_dic, cert, ca_cert)
+            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
 
-        # except Exception as err_:
-        #   self.logger.error('CAhandler.enroll() error while loading extensions from file. Use default set.\nerror: {0}'.format(err_))
-        #    # remove duplicate extensions
-        #    extension_list = self._duplicates_clean(default_extension_list, req.extensions)
+        except Exception as err_:
+            self.logger.error('CAhandler.enroll() error while loading extensions from file. Use default set.\nerror: {0}'.format(err_))
+            # remove duplicate extensions
+            extension_list = self._duplicates_clean(default_extension_list, req.extensions)
+
         self.logger.debug('CAhandler._cert_extension_dic_add() ended')
         return extension_list
 
-    def _cert_extension_add(self, default_extension_list, req):
+    def _cert_extension_add(self, default_extension_list: List[str], req: str) -> List[str]:
         """ add extensions """
         self.logger.debug('CAhandler._cert_extension_add()')
-
+        # pylint: disable=w0212
         # add keyUsage if it does not exist in CSR
         ku_is_in = False
         for ext in req.extensions:
@@ -607,7 +531,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_extension_add() ended')
         return extension_list
 
-    def _cert_signing_prep(self, ca_cert, req, subject):
+    def _cert_signing_prep(self, ca_cert: object, req: object, subject: str) -> object:
         """ enroll certificate """
         # pylint: disable=R0914, R0915
         self.logger.debug('CAhandler._cert_signing_prep()')
@@ -624,7 +548,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_signing_prep() ended')
         return builder
 
-    def _cert_extension_apply(self, builder, ca_cert, req):
+    def _cert_extension_apply(self, builder: object, ca_cert: object, req: object) -> object:
         """ add cert extensions """
         self.logger.debug('CAhandler._cert_extension_apply()')
 
@@ -638,29 +562,28 @@ class CAhandler(object):
         # load certificate_profile (if applicable)
         if self.openssl_conf:
             cert_extension_dic = self._certificate_extensions_load()
+            self.logger.error('CAhandler._cert_extension_apply(): disable cert_extension_dic() as not supported yet')
+            cert_extension_dic = []
         else:
             cert_extension_dic = []
 
         if cert_extension_dic:
-            # cert.add_extensions(self._cert_extension_dic_add(builder, ca_cert, cert_extension_dic, default_extension_list, req))
             extension_list = self._cert_extension_dic_add(builder, ca_cert, cert_extension_dic, default_extension_list, req)
         else:
             extension_list = self._cert_extension_add(default_extension_list, req)
 
         for extension in extension_list:
-            print(extension)
-            builder = builder.add_extension(extension, critical=extension.critical)
-
-                #try:
-            #    builder = builder.add_extension(extension, critical=False)
-            #except Exception as err:
-            #    self.logger.debug('CAhandler._cert_extension_apply() error: {0}: {1}. Try to load in a different way.'.format(extension.oid._name, err))
-            #    builder = builder.add_extension(extension.value, critical=extension.critical)
+            try:
+                builder = builder.add_extension(extension, critical=False)
+            except Exception as err:
+                # pylint: disable=w0212
+                self.logger.debug('CAhandler._cert_extension_apply() error: {0}: {1}. Try to load in a different way.'.format(extension.oid._name, err))
+                builder = builder.add_extension(extension.value, critical=extension.critical)
 
         self.logger.debug('CAhandler._cert_extension_apply() ended')
         return builder
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate """
         # pylint: disable=R0914, R0915
         self.logger.debug('CAhandler.enroll()')
@@ -686,7 +609,7 @@ class CAhandler(object):
                     req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
                     subject = req.subject
 
-                    #if self.cn_enforce and enforce_cn:
+                    # if self.cn_enforce and enforce_cn:
                     #    self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
                     #    setattr(subject, 'CN', enforce_cn)
 
@@ -694,14 +617,13 @@ class CAhandler(object):
                     builder = self._cert_extension_apply(builder, ca_cert, req)
 
                     # sign certificate
-                    cert = builder.sign(private_key = ca_key, algorithm=hashes.SHA256(), backend=default_backend())
+                    cert = builder.sign(private_key=ca_key, algorithm=hashes.SHA256(), backend=default_backend())
 
                     # store certifiate
                     self._certificate_store(cert)
                     # create bundle and raw cert
-                    # pylint: disable=R1732
                     cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
-                    cert_raw = convert_byte_to_string(base64.b64encode(cert.public_bytes(serialization.Encoding.PEM)))
+                    cert_raw = convert_byte_to_string(base64.b64encode(cert.public_bytes(serialization.Encoding.DER)))
                 else:
                     error = 'urn:ietf:params:acme:badCSR'
 
@@ -712,7 +634,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -724,7 +646,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
+    def revoke(self, cert_pem: str, rev_reason: str = 'unspecified', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         code = None
@@ -740,32 +662,39 @@ class CAhandler(object):
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
 
-            # proceed if the cert and ca-cert belong together
-            serial = cert_serial_get(self.logger, cert)
+            # get serial number from certicate to be revoked
+            serial = cert_serial_get(self.logger, cert_pem)
+
             if ca_key and ca_cert and serial:
-                serial = hex(serial).replace('0x', '')
                 if os.path.exists(self.issuer_dict['issuing_ca_crl']):
-                    # existing CRL
-                    with open(self.issuer_dict['issuing_ca_crl'], 'r', encoding='utf8') as fso:
-                        crl = crypto.load_crl(crypto.FILETYPE_PEM, fso.read())
-                    # check CRL already contains serial
-                    sn_match = self._crl_check(crl, serial)
+                    # load  existing CRL
+                    with open(self.issuer_dict['issuing_ca_crl'], 'rb') as fso:
+                        crl_data = fso.read()
+                        crl = x509.load_pem_x509_crl(crl_data, default_backend())
+                    builder = x509.CertificateRevocationListBuilder()
+                    # add crl certificates from file to the new crl object
+                    for i in range(0, len(crl)):
+                        builder = builder.add_revoked_certificate(crl[i])
                 else:
                     # new CRL
-                    crl = crypto.CRL()
-                    sn_match = None
+                    builder = x509.CertificateRevocationListBuilder()
 
-                # this is the revocation operation
-                if not sn_match:
-                    revoked = crypto.Revoked()
-                    revoked.set_reason(convert_string_to_byte(rev_reason))
-                    revoked.set_serial(convert_string_to_byte(serial))
-                    revoked.set_rev_date(convert_string_to_byte(rev_date))
-                    crl.add_revoked(revoked)
-                    # save CRL
-                    crl_text = crl.export(ca_cert, ca_key, crypto.FILETYPE_PEM, 7, convert_string_to_byte('sha256'))
+                builder = builder.issuer_name(crl.issuer)
+
+                # see if the cert to be revokek already in the list
+                ret = crl.get_revoked_certificate_by_serial_number(serial)
+                if not isinstance(ret, x509.RevokedCertificate):
+                    # this is the revocation operation
+                    # Set up the revoked entry
+                    revoked_entry = x509.RevokedCertificateBuilder().serial_number(serial).revocation_date(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).build(default_backend())
+                    builder = builder.add_revoked_certificate(revoked_entry)
+
+                    # Sign the CRL
+                    crl = builder.last_update(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).next_update(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).sign(ca_key, hashes.SHA256())
+
+                    # Save CRL
                     with open(self.issuer_dict['issuing_ca_crl'], 'wb') as fso:
-                        fso.write(crl_text)
+                        fso.write(crl.public_bytes(serialization.Encoding.PEM))
                     code = 200
                 else:
                     code = 400
@@ -783,7 +712,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
