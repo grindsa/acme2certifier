@@ -282,7 +282,7 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: naveenrajm7/rpmbuild@master
+      uses: grindsa/rpmbuild@master
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
