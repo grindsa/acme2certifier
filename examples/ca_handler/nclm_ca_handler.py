@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import time
 import json
+from typing import List, Tuple, Dict
 import requests
 # pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
@@ -42,7 +43,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _api_post(self, url, data):
+    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
         """  generic wrapper for an API post call """
         self.logger.debug('CAhandler._api_post()')
         try:
@@ -54,7 +55,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._api_post() ended with: {0}'.format(api_response))
         return api_response
 
-    def _ca_id_lookup(self):
+    def _ca_id_lookup(self) -> int:
         """ lookup CA ID based on CA_name """
         self.logger.debug('CAhandler._ca_id_lookup()')
         # query CAs
@@ -76,7 +77,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
-    def _ca_id_get(self, ca_list):
+    def _ca_id_get(self, ca_list: Dict[str, str]) -> int:
         """ get ca_id """
         self.logger.debug('CAhandler._ca_id_get()')
         ca_id = None
@@ -94,7 +95,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_id_get() with {0}'.format(ca_id))
         return ca_id
 
-    def _ca_policylink_id_lookup(self):
+    def _ca_policylink_id_lookup(self) -> int:
         """ lookup CA ID based on CA_name """
         self.logger.debug('CAhandler._ca_policylink_id_lookup()')
 
@@ -113,7 +114,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_policylink_id_lookup() ended with: {0}'.format(ca_id))
         return ca_id
 
-    def _cert_bundle_get(self, cert_dic, count, cert_id, cert_raw, cert_bundle, issuer_loop, error):
+    def _cert_bundle_get(self, cert_dic: Dict[str, str], count: int, cert_id: int, cert_raw: str, cert_bundle: str, issuer_loop: bool, error: str) -> Tuple[str, str, str, bool, int]:
         """ get ca bundle """
         self.logger.debug('CAhandler._cert_bundle_get()')
         if count == 1:
@@ -138,7 +139,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_bundle_get() ended with: {0}'.format(cert_id))
         return (error, cert_raw, cert_bundle, issuer_loop, cert_id)
 
-    def _cert_bundle_build(self, cert_id):
+    def _cert_bundle_build(self, cert_id: int) -> Tuple[str, str, str]:
         """ download cert and create bundle """
         self.logger.debug('CAhandler._cert_bundle_build({0})'.format(cert_id))
         cert_bundle = ''
@@ -167,7 +168,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_bundle_build() ended')
         return (error, cert_bundle, cert_raw)
 
-    def _cert_list_fetch(self, url):
+    def _cert_list_fetch(self, url: str) -> List[str]:
         """ fetch certificate list and consider pagination """
         self.logger.debug('CAhandler._cert_list_fetch({0})'.format(url))
 
@@ -191,7 +192,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_list_fetch() ended with {0} entries'.format(len(cert_list)))
         return cert_list
 
-    def _cert_list_lookup(self, csr_cn):
+    def _cert_list_lookup(self, csr_cn: str) -> Dict[str, str]:
         """ get certificates """
         self.logger.debug('CAhandler._cert_list_lookup({0})'.format(csr_cn))
 
@@ -208,7 +209,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_list_lookup() ended')
         return cert_list
 
-    def _cert_id_get(self, cert_list, san_list):
+    def _cert_id_get(self, cert_list: Dict[str, str], san_list: List[str]) -> int:
         """ lookup certificate id from certificate_list """
         self.logger.debug('CAhandler._cert_id_get()')
         cert_id = None
@@ -223,7 +224,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_id_get() ended')
         return cert_id
 
-    def _cert_id_lookup(self, csr_cn, san_list=None):
+    def _cert_id_lookup(self, csr_cn: str, san_list: List[str] = None) -> int:
         """ lookup cert id based on CN """
         self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
 
@@ -289,7 +290,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_check() ended')
 
-    def _config_api_user_load(self, config_dic):
+    def _config_api_user_load(self, config_dic: Dict[str, str]):
         """ load user """
         self.logger.debug('CAhandler._config_api_user_load()')
 
@@ -305,7 +306,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_api_user_load() ended.')
 
-    def _config_api_password_load(self, config_dic):
+    def _config_api_password_load(self, config_dic: Dict[str, str]):
         """ load password """
         self.logger.debug('CAhandler._config_api_password_load()')
 
@@ -321,7 +322,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_api_password_load() ended')
 
-    def _config_names_load(self, config_dic):
+    def _config_names_load(self, config_dic: Dict[str, str]):
         """ load names from config"""
         self.logger.debug('CAhandler._config_names_load()')
 
@@ -339,7 +340,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_names_load() ended')
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load proxy configuration """
         self.logger.debug('CAhandler._config_proxy_load()')
 
@@ -356,7 +357,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_proxy_load() ended')
 
-    def _config_timer_load(self, config_dic):
+    def _config_timer_load(self, config_dic: Dict[str, str]):
         """ load timer """
         self.logger.debug('CAhandler._config_proxy_load()')
 
@@ -397,7 +398,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _lastrequests_get(self):
+    def _lastrequests_get(self) -> Dict[str, str]:
         """ last requests get """
         self.logger.debug('CAhandler._lastrequests_get()')
 
@@ -415,7 +416,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
         return req_all
 
-    def _reqcn_lookup(self, req):
+    def _reqcn_lookup(self, req: Dict[str, str]) -> str:
         self.logger.debug('CAhandler._reqcn_lookup()')
 
         req_cn = None
@@ -431,7 +432,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._reqcn_lookup() ended with: {0}'.format(req_cn))
         return req_cn
 
-    def _reqid_from_last_requests(self, last_request_list, csr):
+    def _reqid_from_last_requests(self, last_request_list: Dict[str, str], csr: str) -> int:
         """ get reqid """
         self.logger.debug('CAhandler._reqid_from_last_requests()')
 
@@ -444,7 +445,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._reqid_from_last_requests() ended with: {0}'.format(req_id))
         return req_id
 
-    def _reqid_lookup(self, csr, csr_cn, uts_n, unused_request_list, last_request_list):
+    def _reqid_lookup(self, csr: str, csr_cn: str, uts_n: int, unused_request_list: Dict[str, str], last_request_list: Dict[str, str]) -> int:
         """ lookup request """
         self.logger.debug('CAhandler._reqid_lookup()')
 
@@ -470,7 +471,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._reqid_lookup() ended with: {0}'.format(req_id))
         return req_id
 
-    def _csr_id_lookup(self, csr_cn, _csr_san_list, csr=None):
+    def _csr_id_lookup(self, csr_cn: str, _csr_san_list: dict[str, str], csr: str = None) -> int:
         """ lookup CSR based on CN """
         self.logger.debug('CAhandler._csr_id_lookup()')
 
@@ -521,7 +522,7 @@ class CAhandler(object):
             # If response code is not ok (200), print the resulting http error code with description
             self.logger.error('CAhandler._login() error during get: {0}'.format(api_response.status_code))
 
-    def _request_import(self, csr):
+    def _request_import(self, csr: str) -> Dict[str, str]:
         """ import certificate request to NCLM """
         self.logger.debug('CAhandler._request_import()')
         data_dic = {'pkcs10': csr}
@@ -532,7 +533,7 @@ class CAhandler(object):
             result = None
         return result
 
-    def _unusedrequests_get(self):
+    def _unusedrequests_get(self) -> Dict[str, str]:
         """ get unused requests """
         self.logger.debug('CAhandler.requests_get()')
         try:
@@ -542,7 +543,7 @@ class CAhandler(object):
             result = None
         return result
 
-    def _san_compare(self, csr_san, cert_san):
+    def _san_compare(self, csr_san: str, cert_san: str) -> bool:
         """ compare sans from csr with san in cert """
         self.logger.debug('CAhandler._san_compare({0}, {1})'.format(csr_san, cert_san))
         # convert csr_sans to lower case
@@ -566,7 +567,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._san_compare() ended with: {0}'.format(result))
         return result
 
-    def _template_list_get(self):
+    def _template_list_get(self) -> List[str]:
         """ get list of templates """
         self.logger.debug('CAhandler._template_id_lookup({0})'.format(self.tsg_info_dic['id']))
         try:
@@ -577,7 +578,7 @@ class CAhandler(object):
 
         return template_list
 
-    def _templates_enumerate(self, template_list):
+    def _templates_enumerate(self, template_list: List[str]):
         """ get template id based on name """
         self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
 
@@ -623,7 +624,7 @@ class CAhandler(object):
             self.logger.error('CAhandler._tsg_id_lookup() no target-system-groups found for filter: {0}...'.format(self.tsg_info_dic['name']))
         self.logger.debug('CAhandler._tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
 
-    def _cert_enroll(self, csr, csr_cn, csr_san_list, policylink_id):
+    def _cert_enroll(self, csr: str, csr_cn: str, csr_san_list: List[str], policylink_id: int) -> Tuple[str, str, str]:
         """ enroll operation """
         self.logger.debug('CAhandler._cert_enroll()')
 
@@ -652,7 +653,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate from NCLM """
         self.logger.debug('CAhandler.enroll()')
 
@@ -689,7 +690,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -701,7 +702,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason, rev_date):
+    def revoke(self, cert: str, rev_reason: str, rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
         # get serial from pem file and convert to formated hex
@@ -740,7 +741,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

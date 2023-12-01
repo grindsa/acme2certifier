@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import textwrap
 import json
+from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 from requests_pkcs12 import Pkcs12Adapter
@@ -17,7 +18,7 @@ from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byt
 class CAhandler(object):
     """ EST CA  handler """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.est_host = None
         self.est_client_cert = False
@@ -38,7 +39,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _cacerts_get(self):
+    def _cacerts_get(self) -> Tuple[str, str]:
         """ get ca certs from cerver """
         self.logger.debug('CAhandler._cacerts_get()')
         error = None
@@ -64,7 +65,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cacerts_get() ended with err: {0}'.format(error))
         return (error, pem)
 
-    def _cert_bundle_create(self, error, ca_pem, cert_raw):
+    def _cert_bundle_create(self, error: str, ca_pem: str, cert_raw: str) -> Tuple[str, str, str]:
         """ create cert bundle """
         self.logger.debug('CAhandler._cert_bundle_create()')
 
@@ -80,7 +81,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_bundle_create()')
         return (error, cert_bundle, cert_raw)
 
-    def _config_host_load(self, config_dic):
+    def _config_host_load(self, config_dic: Dict[str, str]):
         """ load est server address """
         self.logger.debug('CAhandler._config_host_load()')
 
@@ -98,7 +99,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_host_load() ended')
 
-    def _cert_passphrase_load(self, config_dic):
+    def _cert_passphrase_load(self, config_dic: Dict[str, str]):
         """ load cert passphrase """
         self.logger.debug('CAhandler._cert_passphrase_load()')
         if 'cert_passphrase_variable' in config_dic['CAhandler']:
@@ -112,7 +113,7 @@ class CAhandler(object):
             self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
         self.logger.debug('CAhandler._cert_passphrase_load() ended')
 
-    def _config_clientauth_load(self, config_dic):
+    def _config_clientauth_load(self, config_dic: Dict[str, str]):
         """ check if we need to use clientauth """
         self.logger.debug('CAhandler._config_clientauth_load()')
 
@@ -132,7 +133,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_clientauth_load() ended')
 
-    def _config_userauth_load(self, config_dic):
+    def _config_userauth_load(self, config_dic: Dict[str, str]):
         """ check if we need to use user-auth """
         self.logger.debug('CAhandler._config_userauth_load()')
 
@@ -148,7 +149,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_userauth_load() ended')
 
-    def _config_password_load(self, config_dic):
+    def _config_password_load(self, config_dic: Dict[str, str]):
         """ load password """
         self.logger.debug('CAhandler._config_password_load()')
 
@@ -167,7 +168,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_password_load() ended')
 
-    def _config_parameters_load(self, config_dic):
+    def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load config paramters """
         self.logger.debug('CAhandler._config_load()')
 
@@ -187,7 +188,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load config paramters """
         self.logger.debug('CAhandler._config_proxy_load()')
 
@@ -236,7 +237,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
+    def _pkcs7_to_pem(self, pkcs7_content: str, outform: str = 'string') -> List[str]:
         """ convert pkcs7 to pem """
         self.logger.debug('CAhandler._pkcs7_to_pem()')
 
@@ -261,7 +262,7 @@ class CAhandler(object):
         self.logger.debug('Certificate._pkcs7_to_pem() ended')
         return result
 
-    def _simpleenroll(self, csr):
+    def _simpleenroll(self, csr: str) -> Tuple[str, str]:
         """EST /simpleenroll request."""
         self.logger.debug('CAhandler._simpleenroll()')
         error = None
@@ -282,7 +283,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._simpleenroll() ended with err: {0}'.format(error))
         return (error, pem)
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from NCLM """
         self.logger.debug('CAhandler.enroll()')
         cert_bundle = None
@@ -308,7 +309,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -320,7 +321,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.tsg_id_lookup()')
 
@@ -331,7 +332,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

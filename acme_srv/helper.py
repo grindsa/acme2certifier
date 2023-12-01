@@ -345,19 +345,21 @@ def csr_load(logger: logging.Logger, csr: str) -> x509.CertificateSigningRequest
     return csr_data
 
 
-def csr_cn_get(logger: logging.Logger, csr: str) -> str:
+def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
     """ get cn from certificate request """
     logger.debug('CAhandler.csr_cn_get()')
-    csr_obj = csr_load(logger, csr)
 
-    subject = csr_obj.subject
-    result = None
-    for attr in subject:
-        if attr.oid == x509.NameOID.COMMON_NAME:
-            result = attr.value
+    csr = csr_load(logger, csr_pem)
+
+    # Extract the subject's common name
+    common_name = None
+    for attribute in csr.subject:
+        if attribute.oid == x509.NameOID.COMMON_NAME:
+            common_name = attribute.value
             break
-    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(result))
-    return result
+
+    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(common_name))
+    return common_name
 
 
 def csr_dn_get(logger: logging.Logger, csr: str) -> str:
