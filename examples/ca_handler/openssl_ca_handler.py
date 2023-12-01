@@ -2,11 +2,18 @@
 """ handler for an openssl ca """
 from __future__ import print_function
 import os
+import datetime
 import json
+from typing import List, Tuple, Dict
 import base64
 import uuid
 import re
-from OpenSSL import crypto
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, ExtendedKeyUsageOID, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
+from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID, ObjectIdentifier
 # pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
@@ -14,7 +21,7 @@ from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_ut
 class CAhandler(object):
     """ CA  handler """
 
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.issuer_dict = {
@@ -48,16 +55,19 @@ class CAhandler(object):
         # open key and cert
         if 'issuing_ca_key' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['issuing_ca_key']):
-                if 'passphrase' in self.issuer_dict:
-                    with open(self.issuer_dict['issuing_ca_key'], 'r', encoding='utf8') as fso:
-                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read(), convert_string_to_byte(self.issuer_dict['passphrase']))
-                else:
-                    with open(self.issuer_dict['issuing_ca_key'], 'r', encoding='utf8') as fso:
-                        ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, fso.read())
+                with open(self.issuer_dict['issuing_ca_key'], 'rb') as fso:
+                    ca_key = serialization.load_pem_private_key(
+                        fso.read(),
+                        password=self.issuer_dict.get('passphrase', None),
+                        backend=default_backend()
+                    )
         if 'issuing_ca_cert' in self.issuer_dict:
             if os.path.exists(self.issuer_dict['issuing_ca_cert']):
-                with open(self.issuer_dict['issuing_ca_cert'], 'r', encoding='utf8') as fso:
-                    ca_cert = crypto.load_certificate(crypto.FILETYPE_PEM, fso.read())
+                with open(self.issuer_dict['issuing_ca_cert'], 'rb') as fso:
+                    ca_cert = x509.load_pem_x509_certificate(
+                        fso.read(),
+                        backend=default_backend()
+                    )
         self.logger.debug('CAhandler._ca_load() ended')
         return (ca_key, ca_cert)
 
@@ -120,24 +130,34 @@ class CAhandler(object):
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_extensions_add()')
 
-        _tmp_list = []
+        openssl_to_cryptography_map = {
+            'extendedKeyUsage': 'EXTENDED_KEY_USAGE',
+            'basicConstraints': 'BASIC_CONSTRAINTS',
+            'subjectKeyIdentifier': 'SUBJECT_KEY_IDENTIFIER',
+            'authorityKeyIdentifier': 'AUTHORITY_KEY_IDENTIFIER',
+            'keyUsage': 'KEY_USAGE',
+        }
+
+        file_extension_list = []
         # add extensins from config file
         for extension in cert_extension_dic:
             self.logger.debug('adding extension: {0}: {1}: {2}'.format(extension, cert_extension_dic[extension]['critical'], cert_extension_dic[extension]['value']))
+            oid = getattr(ExtensionOID, openssl_to_cryptography_map[extension])
             if extension == 'subjectKeyIdentifier':
                 self.logger.info('_certificate_extensions_add(): subjectKeyIdentifier')
-                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-            elif 'subject' in cert_extension_dic[extension]:
-                self.logger.info('_certificate_extensions_add(): subject')
-                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-            elif 'issuer' in cert_extension_dic[extension]:
-                self.logger.info('_certificate_extensions_add(): issuer')
-                _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
+                file_extension_list.append(SubjectKeyIdentifier.from_public_key(ca_cert.public_key()))
+            #elif 'subject' in cert_extension_dic[extension]:
+            #    self.logger.info('_certificate_extensions_add(): subject')
+            #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
+            #elif 'issuer' in cert_extension_dic[extension]:
+            #    self.logger.info('_certificate_extensions_add(): issuer')
+            #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
             else:
-                _tmp_list.append(crypto.X509Extension(type_name=convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value'])))
+                self.logger.info('_certificate_extensions_add(): {0}'.format(extension))
+                file_extension_list.append(x509.Extension(critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), oid=oid))
 
         self.logger.debug('CAhandler._certificate_extensions_add() ended')
-        return _tmp_list
+        return file_extension_list
 
     def _certificate_extensions_load(self):
         """ verify certificate chain """
@@ -178,7 +198,8 @@ class CAhandler(object):
     def _certificate_store(self, cert):
         """ store certificate on disk """
         self.logger.debug('CAhandler._certificate_store()')
-        serial = cert.get_serial_number()
+        serial = cert.serial_number
+
         # save cert if needed
         if self.cert_save_path and self.cert_save_path is not None:
             # create cert-store dir if not existing
@@ -193,7 +214,7 @@ class CAhandler(object):
             else:
                 cert_file = str(serial)
             with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
-                fso.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+                fso.write(cert.public_bytes(serialization.Encoding.PEM))
         else:
             self.logger.error('CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing')
 
@@ -520,50 +541,56 @@ class CAhandler(object):
         self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
-    def _duplicates_clean(self, default_extension_list, csr_extension_list):
+    def _duplicates_clean(self, default_extension_list, extensions):
         """ clean duplicate extensions """
+        self.logger.debug('CAhandler._duplicates_clean()')
 
         extension_list = []
-        for csr_ext in csr_extension_list:
+        for csr_ext in extensions:
             ext_in = False
-            csr_ext_name = csr_ext.get_short_name()
-
+            csr_ext_name = csr_ext.oid._name
             for def_ext in default_extension_list:
-                if csr_ext_name == def_ext.get_short_name():
+                if csr_ext_name == def_ext.oid._name:
                     ext_in = True
                     break
 
             if not ext_in:
+                self.logger.debug('CAhandler._cert_extension_dic_add(): add csr extension: {0}'.format(csr_ext_name))
                 extension_list.append(csr_ext)
 
         for def_ext in default_extension_list:
+            self.logger.debug('CAhandler._cert_extension_dic_add(): add default extension: {0}'.format(def_ext.oid._name))
             extension_list.append(def_ext)
 
+        self.logger.debug('CAhandler._duplicates_clean() ended')
         return extension_list
 
     def _cert_extension_dic_add(self, cert, ca_cert, cert_extension_dic, default_extension_list, req):
         """ add extension from templat """
         self.logger.debug('CAhandler._cert_extension_dic_add()')
 
-        try:
-            # remove duplicate extensions
-            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
-        except Exception as err_:
-            self.logger.error('CAhandler.enroll() error while loading extensions form file. Use default set.\nerror: {0}'.format(err_))
-            # remove duplicate extensions
-            extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+        # try:
+        # remove duplicate extensions
+        list_ = self._certificate_extensions_add(cert_extension_dic, cert, ca_cert)
+        # extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
+        #print('jupp, jupp,', extension_list)
 
+        # except Exception as err_:
+        #   self.logger.error('CAhandler.enroll() error while loading extensions from file. Use default set.\nerror: {0}'.format(err_))
+        #    # remove duplicate extensions
+        #    extension_list = self._duplicates_clean(default_extension_list, req.extensions)
+        self.logger.debug('CAhandler._cert_extension_dic_add() ended')
         return extension_list
 
-    def _cert_extension_add(self, req, default_extension_list):
+    def _cert_extension_add(self, default_extension_list, req):
         """ add extensions """
         self.logger.debug('CAhandler._cert_extension_add()')
 
         # add keyUsage if it does not exist in CSR
         ku_is_in = False
-        for ext in req.get_extensions():
+        for ext in req.extensions:
             try:
-                if convert_byte_to_string(ext.get_short_name()) == 'keyUsage':
+                if convert_byte_to_string(ext.oid._name) == 'keyUsage':
                     self.logger.debug('CAhandler._cert_extension_add() found keyUsage extension')
                     ku_is_in = True
             except Exception as err:
@@ -571,10 +598,11 @@ class CAhandler(object):
 
         if not ku_is_in:
             self.logger.debug('CAhandler._cert_extension_add() adding default keyUsage extension')
-            default_extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')))
+            key_usage = KeyUsage(digital_signature=True, content_commitment=True, key_encipherment=True, data_encipherment=True, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False)
+            default_extension_list.append(key_usage)
 
         # remove duplicate extensions
-        extension_list = self._duplicates_clean(default_extension_list, req.get_extensions())
+        extension_list = self._duplicates_clean(default_extension_list, req.extensions)
 
         self.logger.debug('CAhandler._cert_extension_add() ended')
         return extension_list
@@ -582,30 +610,29 @@ class CAhandler(object):
     def _cert_signing_prep(self, ca_cert, req, subject):
         """ enroll certificate """
         # pylint: disable=R0914, R0915
-        self.logger.debug('CAhandler._cert_signing()')
+        self.logger.debug('CAhandler._cert_signing_prep()')
 
         # sign csr
-        cert = crypto.X509()
-        cert.gmtime_adj_notBefore(0)
-        cert.gmtime_adj_notAfter(self.cert_validity_days * 86400)
-        cert.set_issuer(ca_cert.get_subject())
-        cert.set_subject(subject)
-        cert.set_pubkey(req.get_pubkey())
-        cert.set_serial_number(uuid.uuid4().int)
-        cert.set_version(2)
+        builder = x509.CertificateBuilder()
+        builder = builder.not_valid_before(datetime.datetime.utcnow())
+        builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=self.cert_validity_days))
+        builder = builder.issuer_name(ca_cert.subject)
+        builder = builder.subject_name(subject)
+        builder = builder.serial_number(uuid.uuid4().int)
+        builder = builder.public_key(req.public_key())
 
-        self.logger.debug('CAhandler._cert_signing() ended')
-        return cert
+        self.logger.debug('CAhandler._cert_signing_prep() ended')
+        return builder
 
-    def _cert_extension_apply(self, cert, ca_cert, req):
+    def _cert_extension_apply(self, builder, ca_cert, req):
         """ add cert extensions """
         self.logger.debug('CAhandler._cert_extension_apply()')
 
         default_extension_list = [
-            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-            crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-            crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+            BasicConstraints(ca=False, path_length=None),
+            ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
+            SubjectKeyIdentifier.from_public_key(ca_cert.public_key()),
+            AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
         ]
 
         # load certificate_profile (if applicable)
@@ -615,12 +642,23 @@ class CAhandler(object):
             cert_extension_dic = []
 
         if cert_extension_dic:
-            cert.add_extensions(self._cert_extension_dic_add(cert, ca_cert, cert_extension_dic, default_extension_list, req))
+            # cert.add_extensions(self._cert_extension_dic_add(builder, ca_cert, cert_extension_dic, default_extension_list, req))
+            extension_list = self._cert_extension_dic_add(builder, ca_cert, cert_extension_dic, default_extension_list, req)
         else:
-            cert.add_extensions(self._cert_extension_add(req, default_extension_list))
+            extension_list = self._cert_extension_add(default_extension_list, req)
+
+        for extension in extension_list:
+            print(extension)
+            builder = builder.add_extension(extension, critical=extension.critical)
+
+                #try:
+            #    builder = builder.add_extension(extension, critical=False)
+            #except Exception as err:
+            #    self.logger.debug('CAhandler._cert_extension_apply() error: {0}: {1}. Try to load in a different way.'.format(extension.oid._name, err))
+            #    builder = builder.add_extension(extension.value, critical=extension.critical)
 
         self.logger.debug('CAhandler._cert_extension_apply() ended')
-        return cert
+        return builder
 
     def enroll(self, csr):
         """ enroll certificate """
@@ -645,25 +683,25 @@ class CAhandler(object):
                     (ca_key, ca_cert) = self._ca_load()
 
                     # creating a rest form CSR
-                    req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
+                    req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
+                    subject = req.subject
 
-                    subject = req.get_subject()
-                    if self.cn_enforce and enforce_cn:
-                        self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
-                        setattr(subject, 'CN', enforce_cn)
+                    #if self.cn_enforce and enforce_cn:
+                    #    self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
+                    #    setattr(subject, 'CN', enforce_cn)
 
-                    cert = self._cert_signing_prep(ca_cert, req, subject)
-                    cert = self._cert_extension_apply(cert, ca_cert, req)
+                    builder = self._cert_signing_prep(ca_cert, req, subject)
+                    builder = self._cert_extension_apply(builder, ca_cert, req)
 
-                    cert.sign(ca_key, 'sha256')
+                    # sign certificate
+                    cert = builder.sign(private_key = ca_key, algorithm=hashes.SHA256(), backend=default_backend())
 
                     # store certifiate
                     self._certificate_store(cert)
-
                     # create bundle and raw cert
                     # pylint: disable=R1732
-                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
-                    cert_raw = convert_byte_to_string(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
+                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
+                    cert_raw = convert_byte_to_string(base64.b64encode(cert.public_bytes(serialization.Encoding.PEM)))
                 else:
                     error = 'urn:ietf:params:acme:badCSR'
 

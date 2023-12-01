@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os
 import json
+from typing import List, Tuple, Dict
 
 # pylint: disable=E0401, E0611, C0209
 from examples.ca_handler.ms_wcce.target import Target
@@ -21,7 +22,7 @@ from acme_srv.helper import (
 class CAhandler(object):
     """MS-WCCE CA handler"""
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
         self.user = None
@@ -43,7 +44,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _config_host_load(self, config_dic):
+    def _config_host_load(self, config_dic: Dict[str, str]):
         """ load host variable """
         self.logger.debug("CAhandler._config_host_load()")
 
@@ -59,7 +60,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_host_load() ended")
 
-    def _config_credentials_load(self, config_dic):
+    def _config_credentials_load(self, config_dic: Dict[str, str]):
         """ load host variable """
         self.logger.debug("CAhandler._config_credentials_load()")
 
@@ -85,7 +86,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
-    def _config_parameters_load(self, config_dic):
+    def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -107,7 +108,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load proxy settings """
         self.logger.debug("CAhandler._config_proxy_load()")
 
@@ -136,7 +137,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
-    def _file_load(self, bundle):
+    def _file_load(self, bundle: str) -> str:
         """ load file """
         file_ = None
         try:
@@ -146,7 +147,7 @@ class CAhandler(object):
             self.logger.error('CAhandler._file_load(): could not load {0}. Error: {1}'.format(bundle, err_))
         return file_
 
-    def request_create(self):
+    def request_create(self) -> Request:
         """create request object """
         self.logger.debug('CAhandler.request_create()')
 
@@ -167,7 +168,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.request_create() ended')
         return request
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler.enroll({0})".format(self.template))
         cert_bundle = None
@@ -215,7 +216,7 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """poll status of pending CSR and download certificates"""
         self.logger.debug("CAhandler.poll()")
 
@@ -227,7 +228,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler.poll() ended")
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """revoke certificate"""
         self.logger.debug("CAhandler.tsg_id_lookup()")
         # get serial from pem file and convert to formated hex
@@ -238,7 +239,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """process trigger message and return certificate"""
         self.logger.debug("CAhandler.trigger()")
 

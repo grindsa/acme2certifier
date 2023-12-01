@@ -3,6 +3,7 @@
 import math
 import time
 import os
+from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
@@ -13,7 +14,7 @@ from acme_srv.db_handler import DBstore
 class CAhandler(object):
     """ ejbca rest handler class """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = None, logger: object = None):
         self.logger = logger
         self.host = None
         self.ca_bundle = True
@@ -38,7 +39,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _cert_bundle_create(self, response):
+    def _cert_bundle_create(self, response: Dict[str, str]) -> Tuple[str, str, str]:
         """ format bundle """
         error = None
         cert_bundle = None
@@ -54,7 +55,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _cert_identifier_get(self, cert_raw):
+    def _cert_identifier_get(self, cert_raw: str) -> str:
         """ get cert_identifier """
         self.logger.debug('CAhandler._cert_identifier_get()')
 
@@ -107,7 +108,7 @@ class CAhandler(object):
                     self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
                     self.polling_timeout = 0
 
-    def _config_passphrase_load(self, config_dic):
+    def _config_passphrase_load(self, config_dic: Dict[str, str]):
         """ load passphrase """
         self.logger.debug('CAhandler._config_passphrase_load()')
         if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
@@ -125,7 +126,7 @@ class CAhandler(object):
                 self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
         self.logger.debug('CAhandler._config_passphrase_load() ended')
 
-    def _config_session_load(self, config_dic):
+    def _config_session_load(self, config_dic: Dict[str, str]):
         """ load session """
         self.logger.debug('CAhandler._config_session_load()')
 
@@ -164,7 +165,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _enroll(self, data_dic):
+    def _enroll(self, data_dic: Dict[str, str]) -> Tuple[str, str, str, str]:
         """ enroll operation  """
         self.logger.debug('CAhandler._enroll()')
 
@@ -204,7 +205,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._enroll() ended: Poll_identifier: {0}'.format(poll_indentifier))
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def _rpc_post(self, path, data_dic):
+    def _rpc_post(self, path: str, data_dic: Dict[str, str]) -> Dict[str, str]:
         """ enrollment via post request to openxpki RPC interface """
         self.logger.debug('CAhandler._rpc_post()')
         try:
@@ -218,7 +219,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._rpc_post() ended.')
         return response
 
-    def _revoke(self, cert_identifier, rev_reason):
+    def _revoke(self, cert_identifier: str, rev_reason: str) -> Tuple[int, str, str]:
         """ exceute revokation via rpc call """
         self.logger.debug('CAhandler._revoke()')
         code = None
@@ -246,7 +247,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
         return (code, message, detail)
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
@@ -279,7 +280,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -291,7 +292,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
+    def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         code = None
@@ -314,7 +315,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

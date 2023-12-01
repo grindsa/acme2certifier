@@ -7,6 +7,7 @@ import textwrap
 import base64
 import re
 import os.path
+from typing import List, Tuple, Dict
 import requests
 import josepy
 from OpenSSL import crypto
@@ -31,7 +32,7 @@ acme_keyfile: /path/to/privkey.json
 class CAhandler(object):
     """ EST CA  handler """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.url = None
         self.url_dic = {}
@@ -54,7 +55,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ close the connection at the end of the context """
 
-    def _config_account_load(self, config_dic):
+    def _config_account_load(self, config_dic: Dict[str, str]):
         self.logger.debug('CAhandler._config_account_load()')
 
         if 'acme_keyfile' in config_dic['CAhandler']:
@@ -82,7 +83,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_account_load() ended')
 
-    def _config_parameters_load(self, config_dic):
+    def _config_parameters_load(self, config_dic: Dict[str, str]):
         """" load eab config """
         self.logger.debug('CAhandler._config_eab_load()')
 
@@ -117,7 +118,7 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file')
 
-    def _challenge_filter(self, authzr, chall_type='http-01'):
+    def _challenge_filter(self, authzr: messages.AuthorizationResource, chall_type: str = 'http-01') -> messages.ChallengeBody:
         """ filter authorization for challenge """
         self.logger.debug('CAhandler._challenge_filter({0})'.format(chall_type))
         result = None
@@ -127,17 +128,19 @@ class CAhandler(object):
                 break
         if not result:
             self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type {0}'.format(chall_type))
+
         return result
 
-    def _challenge_store(self, challenge_name, challenge_content):
+    def _challenge_store(self, challenge_name: str, challenge_content: str):
         """ store challenge into database """
         self.logger.debug('CAhandler._challenge_store({0})'.format(challenge_name))
+
         if challenge_name and challenge_content:
             data_dic = {'name': challenge_name, 'value1': challenge_content}
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
 
-    def _sancheck_lists_create(self, csr):
+    def _sancheck_lists_create(self, csr: str) -> Tuple[List[str], List[str]]:
         self.logger.debug('CAhandler.sancheck_lists_create()')
 
         check_list = []
@@ -169,7 +172,7 @@ class CAhandler(object):
 
         return (san_list, check_list)
 
-    def _csr_check(self, csr):
+    def _csr_check(self, csr: str) -> bool:
         """ check CSR against definied whitelists """
         self.logger.debug('CAhandler._csr_check()')
 
@@ -195,7 +198,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
         return result
 
-    def _entry_check(self, entry, regex, check_result):
+    def _entry_check(self, entry: str, regex: str, check_result: bool) -> bool:
         """ check string against regex """
         self.logger.debug('_entry_check({0}/{1}):'.format(entry, regex))
 
@@ -210,7 +213,7 @@ class CAhandler(object):
         self.logger.debug('_entry_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def _list_check(self, entry, list_, toggle=False):
+    def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
         """ check string against list """
         self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
         self.logger.debug('check against list: {0}'.format(list_))
@@ -234,7 +237,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def _challenge_info(self, authzr, user_key):
+    def _challenge_info(self, authzr: messages.AuthorizationResource, user_key: josepy.jwk.JWKRSA):
         """ filter challenges and get challenge details """
         self.logger.debug('CAhandler._challenge_info()')
 
@@ -264,7 +267,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._challenge_info() ended with {0}'.format(chall_name))
         return (chall_name, chall_content, challenge)
 
-    def _key_generate(self):
+    def _key_generate(self) -> josepy.jwk.JWKRSA:
         """ generate key """
         self.logger.debug('CAhandler._key_generate({0})'.format(self.key_size))
         user_key = josepy.JWKRSA(
@@ -277,7 +280,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._key_generate() ended.')
         return user_key
 
-    def _user_key_load(self):
+    def _user_key_load(self) -> josepy.jwk.JWKRSA:
         """ enroll certificate  """
         self.logger.debug('CAhandler._user_key_load({0})'.format(self.keyfile))
 
@@ -298,7 +301,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key)))
         return user_key
 
-    def _order_authorization(self, acmeclient, order, user_key):
+    def _order_authorization(self, acmeclient: client.ClientV2, order: messages.OrderResource, user_key: josepy.jwk.JWKRSA) -> bool:
         """ validate challgenges """
         self.logger.debug('CAhandler._order_authorization()')
 
@@ -322,7 +325,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._order_authorization() ended with: {0}'.format(authz_valid))
         return authz_valid
 
-    def _order_issue(self, acmeclient, user_key, csr_pem):
+    def _order_issue(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str) -> Tuple[str, str, str]:
         """ isuse order """
         self.logger.debug('CAhandler.enroll() issuing signing order')
         self.logger.debug('CAhandler.enroll() csr: ' + str(csr_pem))
@@ -350,9 +353,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw)
 
-    def _account_lookup(self, acmeclient, reg, directory):
+    def _account_lookup(self, acmeclient: client.ClientV2, reg: str, directory: messages.Directory):
         """ lookup account """
         self.logger.debug('CAhandler._account_lookup()')
+
         response = acmeclient._post(directory['newAccount'], reg)
         regr = acmeclient._regr_from_response(response)
         regr = acmeclient.query_registration(regr)
@@ -366,7 +370,7 @@ class CAhandler(object):
                 # remove acc_path
                 self.account = self.account.replace(self.path_dic['acct_path'], '')
 
-    def _account_create(self, acmeclient, user_key, directory):
+    def _account_create(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, directory: messages.Directory) -> messages.RegistrationResource:
         """ register account """
         self.logger.debug('CAhandler._account_create(): register new account with email: {0}'.format(self.email))
 
@@ -392,7 +396,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._account_create() ended with: {0}'.format(bool(regr)))
         return regr
 
-    def _account_register(self, acmeclient, user_key, directory):
+    def _account_register(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, directory: messages.Directory) -> messages.RegistrationResource:
         """ register account / check registration """
         self.logger.debug('CAhandler._account_register({0})'.format(self.email))
         try:
@@ -428,7 +432,7 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._zerossl_eab_get() failed: {0}'.format(response.text))
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0915
         self.logger.debug('CAhandler.enroll()')
@@ -483,7 +487,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -495,7 +499,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
@@ -552,7 +556,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[int, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

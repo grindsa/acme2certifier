@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """ ejbca rest ca handler """
 import os
+from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=C0209, E0401
@@ -10,7 +11,7 @@ from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_de
 class CAhandler(object):
     """ ejbca rest handler class """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.api_host = None
         self.ca_bundle = True
@@ -33,7 +34,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _cert_status_check(self, issuer_dn, cert_serial):
+    def _cert_status_check(self, issuer_dn: str, cert_serial: str) -> Dict[str, str]:
         """ check certificate status """
         self.logger.debug('CAhandler._cert_status_check({0}: {1})'.format(issuer_dn, cert_serial))
 
@@ -52,7 +53,7 @@ class CAhandler(object):
 
         return certstatus_response
 
-    def _config_server_load(self, config_dic):
+    def _config_server_load(self, config_dic: Dict[str, str]):
         """ load server information """
         self.logger.debug('CAhandler._config_auth_load()')
 
@@ -67,7 +68,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
-    def _config_authuser_load(self, config_dic):
+    def _config_authuser_load(self, config_dic: Dict[str, str]):
         self.logger.debug('CAhandler._config_authuser_load()')
         if 'username_variable' in config_dic['CAhandler'] or 'username' in config_dic['CAhandler']:
             if 'username_variable' in config_dic['CAhandler']:
@@ -85,7 +86,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_auth_load() ended')
 
-    def _config_enrollmentcode_load(self, config_dic):
+    def _config_enrollmentcode_load(self, config_dic: Dict[str, str]):
         self.logger.debug('CAhandler._config_enrollmentcode_load()')
         if 'enrollment_code_variable' in config_dic['CAhandler'] or 'enrollment_code' in config_dic['CAhandler']:
             if 'enrollment_code_variable' in config_dic['CAhandler']:
@@ -103,7 +104,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_enrollmentcode_load() ended')
 
-    def _config_session_load(self, config_dic):
+    def _config_session_load(self, config_dic: Dict[str, str]):
         self.logger.debug('CAhandler._config_session_load()')
 
         if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
@@ -126,7 +127,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_session_load() ended')
 
-    def _config_auth_load(self, config_dic):
+    def _config_auth_load(self, config_dic: Dict[str, str]):
         """ load authentication information """
         self.logger.debug('CAhandler._config_authuser_load()')
 
@@ -138,7 +139,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_auth_load() ended')
 
-    def _config_cainfo_load(self, config_dic):
+    def _config_cainfo_load(self, config_dic: Dict[str, str]):
         """ load ca information """
         self.logger.debug('CAhandler._config_cainfo_load()')
 
@@ -171,7 +172,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _api_post(self, url, data):
+    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
         """ generic wrapper for an API post call """
         self.logger.debug('_api_post({0})'.format(url))
 
@@ -183,7 +184,7 @@ class CAhandler(object):
 
         return api_response
 
-    def _api_put(self, url):
+    def _api_put(self, url: str) -> Dict[str, str]:
         """ generic wrapper for an API put call """
         self.logger.debug('_api_put({0})'.format(url))
 
@@ -195,7 +196,7 @@ class CAhandler(object):
 
         return api_response
 
-    def _status_get(self):
+    def _status_get(self) -> Dict[str, str]:
         """ get status of the rest-api """
         self.logger.debug('_status_get()')
 
@@ -212,7 +213,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._status_get() ended')
         return api_response
 
-    def _sign(self, csr):
+    def _sign(self, csr: str) -> Dict[str, str]:
         """ submit CSR for signing """
         self.logger.debug('CAhandler._sign()')
         data_dic = {
@@ -233,7 +234,7 @@ class CAhandler(object):
 
         return sign_response
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
@@ -269,7 +270,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -281,7 +282,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='UNSPECIFIED', rev_date=None):
+    def revoke(self, cert: str, rev_reason: str = 'UNSPECIFIED', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
         code = None
@@ -320,7 +321,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import textwrap
 import json
+from typing import List, Tuple, Dict
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=C0209, E0401, E0611
@@ -15,7 +16,7 @@ from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string,
 class CAhandler(object):
     """ EST CA  handler """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
         self.user = None
@@ -34,14 +35,14 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _check_credentials(self, ca_server):
+    def _check_credentials(self, ca_server: str) -> bool:
         """ check creadentials """
         self.logger.debug('CAhandler.__check_credentials()')
         auth_check = ca_server.check_credentials()
         self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
         return auth_check
 
-    def _cert_bundle_create(self, ca_pem=None, cert_raw=None):
+    def _cert_bundle_create(self, ca_pem: str = None, cert_raw: str = None) -> Tuple[str, str, str]:
         """ create bundle """
         self.logger.debug('CAhandler._cert_bundle_create()')
 
@@ -59,7 +60,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _config_user_load(self, config_dic):
+    def _config_user_load(self, config_dic: Dict[str, str]):
         """ load username """
         self.logger.debug('CAhandler._config_user_load()')
 
@@ -75,7 +76,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_user_load() ended')
 
-    def _config_password_load(self, config_dic):
+    def _config_password_load(self, config_dic: Dict[str, str]):
         """ load username """
         self.logger.debug('CAhandler._config_password_load()')
 
@@ -91,7 +92,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_password_load() ended')
 
-    def _config_hostname_load(self, config_dic):
+    def _config_hostname_load(self, config_dic: Dict[str, str]):
         """ load hostname """
         self.logger.debug('CAhandler._config_hostname_load()')
 
@@ -107,7 +108,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_hostname_load() ended')
 
-    def _config_parameters_load(self, config_dic):
+    def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load hostname """
         self.logger.debug('CAhandler._config_parameters_load()')
 
@@ -121,7 +122,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_parameters_load() ended')
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load hostname """
         self.logger.debug('CAhandler._config_proxy_load()')
 
@@ -152,7 +153,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _pkcs7_to_pem(self, pkcs7_content, outform='string'):
+    def _pkcs7_to_pem(self, pkcs7_content: str, outform: str = 'string') -> List[str]:
         """ convert pkcs7 to pem """
         self.logger.debug('CAhandler._pkcs7_to_pem()')
 
@@ -177,7 +178,7 @@ class CAhandler(object):
         self.logger.debug('Certificate._pkcs7_to_pem() ended')
         return result
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll({0})'.format(self.template))
         cert_bundle = None
@@ -225,7 +226,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -237,7 +238,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.tsg_id_lookup()')
         # get serial from pem file and convert to formated hex
@@ -248,7 +249,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[int, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

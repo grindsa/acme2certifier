@@ -6,6 +6,7 @@ import math
 import time
 import json
 import os
+from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
@@ -15,7 +16,7 @@ from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_u
 class CAhandler(object):
     """ CA  handler """
 
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.request_timeout = 20
@@ -48,7 +49,7 @@ class CAhandler(object):
             self.logger.error('CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file')
         self.logger.debug('CAhandler._auth_set() ended')
 
-    def _api_poll(self, request_dic):
+    def _api_poll(self, request_dic: Dict[str, str]) -> Tuple[str, str, str]:
         """ poll request """
         self.logger.debug('CAhandler._api_poll()')
 
@@ -71,7 +72,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._api_poll() ended')
         return (error, cert_bundle, cert_raw)
 
-    def _api_post(self, url, data):
+    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
         """
         generic wrapper for an API post call
         args:
@@ -88,7 +89,7 @@ class CAhandler(object):
 
         return api_response
 
-    def _ca_get(self, filter_key=None, filter_value=None):
+    def _ca_get(self, filter_key: str = None, filter_value: str = None) -> Dict[str, str]:
         """ get list of CAs"""
         self.logger.debug('_ca_get({0}:{1})'.format(filter_key, filter_value))
         params = {}
@@ -108,7 +109,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_get() ended with: {0}'.format(api_response))
         return api_response
 
-    def _ca_get_properties(self, filter_key, filter_value):
+    def _ca_get_properties(self, filter_key: str, filter_value: str) -> Dict[str, str]:
         """ get properties for a single CAs"""
         self.logger.debug('_ca_get_properties({0}:{1})'.format(filter_key, filter_value))
         ca_list = self._ca_get(filter_key, filter_value)
@@ -126,7 +127,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_get_properties() ended with: {0}'.format(ca_dic))
         return ca_dic
 
-    def _cert_get(self, csr):
+    def _cert_get(self, csr: str) -> Dict[str, str]:
         """ get certificate from CA """
         self.logger.debug('CAhandler._cert_get({0})'.format(csr))
         ca_dic = self._ca_get_properties('name', self.ca_name)
@@ -147,7 +148,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get() ended with: {0}'.format(cert_dic))
         return cert_dic
 
-    def _cert_get_properties(self, serial, ca_link):
+    def _cert_get_properties(self, serial: str, ca_link: str) -> Dict[str, str]:
         """ get properties for a single cert """
         self.logger.debug('_cert_get_properties({0}: {1})'.format(serial, ca_link))
 
@@ -160,7 +161,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get_properties() ended')
         return api_response
 
-    def _certificate_revoke(self, serial, ca_dic, rev_reason, rev_date):
+    def _certificate_revoke(self, serial: str, ca_dic: Dict[str, str], rev_reason: str, rev_date: str) -> Tuple[int, str, str]:
         self.logger.debug('CAhandler._certificate_revoke()')
 
         code = None
@@ -199,7 +200,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def _config_user_load(self, config_dic):
+    def _config_user_load(self, config_dic: Dict[str, str]):
         """ load username """
         self.logger.debug('_config_user_load()')
         if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
@@ -217,7 +218,7 @@ class CAhandler(object):
 
         self.logger.debug('_config_user_load() ended')
 
-    def _config_password_load(self, config_dic):
+    def _config_password_load(self, config_dic: Dict[str, str]):
         """ load password """
         self.logger.debug('_config_password_load()')
 
@@ -236,7 +237,7 @@ class CAhandler(object):
 
         self.logger.debug('_config_password_load() ended')
 
-    def _config_parameter_load(self, config_dic):
+    def _config_parameter_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug('_config_parameter_load()')
 
@@ -266,7 +267,7 @@ class CAhandler(object):
 
         self.logger.debug('_config_parameter_load() ended')
 
-    def _config_proxy_load(self, config_dic):
+    def _config_proxy_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug('_config_proxy_load()')
 
@@ -306,7 +307,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _poll_cert_get(self, request_dic, poll_identifier, error):
+    def _poll_cert_get(self, request_dic: Dict[str, str], poll_identifier: str, error: str) -> Tuple[str, str, str, str, bool]:
         """ get certificate via poll request """
         self.logger.debug('CAhandler._poll_cert_get()')
 
@@ -340,7 +341,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._poll_cert_get() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, break_loop)
 
-    def _loop_poll(self, request_url):
+    def _loop_poll(self, request_url: str) -> Tuple[str, str, str, str]:
         """ poll request """
         self.logger.debug('CAhandler._loop_poll({0})'.format(request_url))
 
@@ -370,7 +371,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._loop_poll() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw, poll_identifier)
 
-    def _pem_list_cert_get(self, cert_dic):
+    def _pem_list_cert_get(self, cert_dic: Dict[str, str]) -> Dict[str, str]:
         self.logger.debug('CAhandler._pem_list_cert_get()')
         if 'issuer' in cert_dic:
             self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
@@ -387,7 +388,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pem_list_cert_get() ended')
         return cert_dic
 
-    def _pem_list_build(self, cert_dic):
+    def _pem_list_build(self, cert_dic: Dict[str, str]) -> List[str]:
         self.logger.debug('CAhandler._pem_list_build()')
 
         pem_list = []
@@ -408,7 +409,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pem_list_build() ended')
         return pem_list
 
-    def _pem_cert_chain_generate(self, cert_dic):
+    def _pem_cert_chain_generate(self, cert_dic: str) -> str:
         """ build certificate chain based """
         self.logger.debug('CAhandler._pem_cert_chain_generate()')
 
@@ -427,7 +428,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
         return pem_file
 
-    def _request_poll(self, request_url):
+    def _request_poll(self, request_url: str) -> Tuple[str, str, str, str, bool]:
         """ poll request """
         self.logger.debug('CAhandler._request_poll({0})'.format(request_url))
 
@@ -458,7 +459,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def _trigger_bundle_build(self, cert_raw, ca_dic):
+    def _trigger_bundle_build(self, cert_raw: str, ca_dic: Dict[str, str]) -> Tuple[str, str]:
         self.logger.debug('CAhandler._trigger_bundle_build()')
         error = None
         cert_bundle = None
@@ -480,7 +481,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._trigger_bundle_build() ended with:  {0}'.format(error))
         return (error, cert_bundle)
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate """
         self.logger.debug('Certificate.enroll()')
         cert_bundle = None
@@ -510,7 +511,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, str, bool]:
         """ poll pending status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -526,7 +527,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
+    def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = uts_to_date_utc(uts_now())) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
 
@@ -551,7 +552,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

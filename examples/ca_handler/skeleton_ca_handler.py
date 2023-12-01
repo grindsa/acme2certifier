@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """ skeleton for customized CA handler """
 from __future__ import print_function
+from typing import Tuple
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, header_info_get
 
@@ -8,7 +9,7 @@ from acme_srv.helper import load_config, header_info_get
 class CAhandler(object):
     """ EST CA  handler """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = None, logger: object = None):
         self.logger = logger
         self.parameter = None
 
@@ -31,13 +32,13 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _stub_func(self, parameter):
+    def _stub_func(self, parameter: str):
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
 
         self.logger.debug('CAhandler._stub_func() ended')
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
@@ -56,7 +57,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -69,7 +70,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
@@ -80,7 +81,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 

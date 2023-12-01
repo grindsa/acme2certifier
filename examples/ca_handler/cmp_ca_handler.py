@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from typing import List, Tuple, Dict
 # pylint: disable=E0401, C0209
 from acme_srv.helper import load_config, build_pem_file, b64_url_recode
 
@@ -12,7 +13,7 @@ from acme_srv.helper import load_config, build_pem_file, b64_url_recode
 class CAhandler(object):
     """ EST CA  handler """
 
-    def __init__(self, _debug=None, logger=None):
+    def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.config_dic = {}
         self.openssl_bin = None
@@ -32,7 +33,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _certs_bundle(self):
+    def _certs_bundle(self) -> Tuple[str, str]:
         """ create needed cert(bundle) """
         self.logger.debug('CAhandler._certs_bundle()')
 
@@ -61,7 +62,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certs_bundle() ended with {0}/{1}'.format(bool(cert_bundle), bool(cert_raw)))
         return (cert_bundle, cert_raw)
 
-    def _config_refsecret_load(self, config_dic):
+    def _config_refsecret_load(self, config_dic: Dict[str, str]):
         """" load ref secrets from file """
         self.logger.debug('CAhandler._config_refsecret_load()')
 
@@ -100,7 +101,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_paramters_load() ended')
 
-    def _config_cmprecipient_load(self, config_dic):
+    def _config_cmprecipient_load(self, config_dic: Dict[str, str]):
         """ load and format recipient """
         self.logger.debug('CAhandler._config_cmprecipient_load()')
 
@@ -114,7 +115,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_cmprecipient_load() ended')
 
-    def _config_cmpparameter_load(self, ele, config_dic):
+    def _config_cmpparameter_load(self, ele: str, config_dic: Dict[str, str]):
         """ load cmp parameters """
         self.logger.debug('CAhandler._config_cmpparameter_load()')
 
@@ -160,7 +161,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
-    def _opensslcmd_build(self):
+    def _opensslcmd_build(self) -> List[str]:
         """ build openssl command """
         self.logger.debug('CAhandler._opensslcmd_build()')
 
@@ -186,7 +187,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._opensslcmd_build() ended with: {0}'.format(' '.join(cmd_list)))
         return cmd_list
 
-    def _file_save(self, filename, content):
+    def _file_save(self, filename: str, content: str):
         """ save content to file """
         self.logger.debug('CAhandler._file_save({0})'.format(filename))
         with open(filename, 'w', encoding='utf-8') as fso:
@@ -202,7 +203,7 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._tmp_dir_delete(): failed: {0}'.format(self.tmp_dir))
 
-    def enroll(self, csr):
+    def enroll(self, csr: str) -> Dict[str, str, str, str]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll()')
         cert_bundle = None
@@ -238,7 +239,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw, None)
 
-    def poll(self, _cert_name, poll_identifier, _csr):
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -250,7 +251,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, _cert, _rev_reason, _rev_date):
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.tsg_id_lookup()')
 
@@ -262,7 +263,7 @@ class CAhandler(object):
 
         return (code, message, detail)
 
-    def trigger(self, _payload):
+    def trigger(self, _payload: str) -> Tuple[int, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
