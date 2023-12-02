@@ -605,7 +605,7 @@ class CAhandler(object):
                     # load ca cert and key
                     (ca_key, ca_cert) = self._ca_load()
 
-                    # creating a rest form CSR
+                    # creating a rest from CSR
                     req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
                     subject = req.subject
 

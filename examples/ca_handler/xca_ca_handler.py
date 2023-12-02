@@ -5,7 +5,12 @@ import os
 import sqlite3
 import uuid
 import json
-from OpenSSL import crypto
+import datetime
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
+from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_get
 
@@ -101,7 +106,7 @@ class CAhandler(object):
 
         if 'cert' in db_result:
             try:
-                ca_cert = crypto.load_certificate(crypto.FILETYPE_ASN1, b64_decode(self.logger, db_result['cert']))
+                ca_cert = x509.load_der_x509_certificate(b64_decode(self.logger, db_result['cert']), backend=default_backend())
                 ca_id = db_result['id']
             except Exception as err_:
                 self.logger.error('CAhandler._ca_cert_load() failed with error: {0}'.format(err_))
@@ -126,8 +131,7 @@ class CAhandler(object):
         if db_result and 'private' in db_result:
             try:
                 private_key = '-----BEGIN ENCRYPTED PRIVATE KEY-----\n{0}\n-----END ENCRYPTED PRIVATE KEY-----'.format(db_result['private'])
-                ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM, private_key, convert_string_to_byte(self.passphrase))
-
+                ca_key = serialization.load_pem_private_key(convert_string_to_byte(private_key), password=convert_string_to_byte(self.passphrase), backend=default_backend())
             except Exception as err_:
                 self.logger.error('CAhandler._ca_key_load() failed with error: {0}'.format(err_))
         else:
@@ -313,7 +317,7 @@ class CAhandler(object):
         except Exception:
             db_result = {}
         self._db_close()
-        self.logger.debug('CAhandler._csr_search() ended')
+        self.logger.debug('CAhandler._csr_search() ended with: {0}'.format(bool(db_result)))
         return db_result
 
     def _db_open(self):
@@ -480,7 +484,7 @@ class CAhandler(object):
 
     def _requestname_get(self, csr):
         """ get request name """
-        self.logger.debug('CAhandler._request_name_get()')
+        self.logger.debug('CAhandler._requestname_get()')
 
         # try to get cn for a name in database
         request_name = csr_cn_get(self.logger, csr)
@@ -491,7 +495,7 @@ class CAhandler(object):
             except Exception:
                 self.logger.error('ERROR: CAhandler._request_name_get(): SAN split failed: {0}'.format(san_list))
 
-        self.logger.debug('CAhandler._request_name_get() ended with: {0}'.format(request_name))
+        self.logger.debug('CAhandler._requestname_get() ended with: {0}'.format(request_name))
         return request_name
 
     def _revocation_insert(self, rev_dic):
@@ -599,16 +603,21 @@ class CAhandler(object):
         """ modify subject name """
         self.logger.debug('CAhandler._subject_modify()')
 
+        subject_name_list = []
+
         if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
-            subject.organizationalUnitName = dn_dic['organizationalUnitName']
+            subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATIONAL_UNIT_NAME, dn_dic['organizationalUnitName']))
         if 'organizationName' in dn_dic and dn_dic['organizationName']:
-            subject.organizationName = dn_dic['organizationName']
+            subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, dn_dic['organizationName']))
         if 'localityName' in dn_dic and dn_dic['localityName']:
-            subject.localityName = dn_dic['localityName']
+            subject_name_list.append(x509.NameAttribute(x509.NameOID.LOCALITY_NAME, dn_dic['localityName']))
         if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
-            subject.stateOrProvinceName = dn_dic['stateOrProvinceName']
+            subject_name_list.append(x509.NameAttribute(x509.NameOID.STATE_OR_PROVINCE_NAME, dn_dic['stateOrProvinceName']))
         if 'countryName' in dn_dic and dn_dic['countryName']:
-            subject.countryName = dn_dic['countryName']
+            subject_name_list.append(x509.NameAttribute(x509.NameOID.COUNTRY_NAME, dn_dic['countryName']))
+
+        if subject_name_list:
+            subject = x509.Name([*subject, *subject_name_list])
 
         self.logger.debug('CAhandler._subject_modify() ended')
         return subject
@@ -746,24 +755,25 @@ class CAhandler(object):
 
         return extension_list
 
+    def _cert_subject_generate(self, req, request_name, dn_dic):
+        """ set subject """
+        self.logger.debug('CAhandler._cert_subject_generate()')
+
+        if not bool(req.subject):
+            self.logger.info('rewrite CN to {0}'.format(request_name))
+            subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)])
+        else:
+            subject = req.subject
+
+        if dn_dic:
+            # modify subject according to template
+            subject = self._subject_modify(subject, dn_dic)
+
+        self.logger.debug('CAhandler._cert_subject_generate() ended')
+        return subject
+
     def _cert_sign(self, csr, request_name, ca_key, ca_cert, ca_id):
         self.logger.debug('Certificate._cert_sign()')
-        # load request
-        req = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr)
-
-        # copy cn of request
-        subject = req.get_subject()
-        # rewrite CN if required
-        if not subject.CN:
-            self.logger.info('rewrite CN to {0}'.format(request_name))
-            subject.CN = request_name
-
-        # create certificate object
-        cert = crypto.X509()
-        cert.set_pubkey(req.get_pubkey())
-        cert.set_version(2)
-        cert.set_serial_number(uuid.uuid4().int & (1 << 63) - 1)
-        cert.set_issuer(ca_cert.get_subject())
 
         # load template if configured
         if self.template_name:
@@ -772,6 +782,11 @@ class CAhandler(object):
             dn_dic = {}
             template_dic = {}
 
+        print(dn_dic)
+
+        # creating a rest from CSR
+        req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
+
         # set cert_validity
         if 'validity' in template_dic:
             self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
@@ -779,29 +794,42 @@ class CAhandler(object):
             cert_validity = template_dic['validity']
         else:
             cert_validity = self.cert_validity_days
-        cert.gmtime_adj_notBefore(0)
-        cert.gmtime_adj_notAfter(cert_validity * 86400)
+
+        # create object for certificate
+        builder = x509.CertificateBuilder()
+
+        # set not valid before
+        builder = builder.not_valid_before(datetime.datetime.utcnow())
+        builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=cert_validity))
+        builder = builder.issuer_name(ca_cert.subject)
+        builder = builder.serial_number(uuid.uuid4().int)
+        builder = builder.public_key(req.public_key())
 
         # get extension list from CSR
-        csr_extensions_list = req.get_extensions()
-        extension_list = self._extension_list_generate(template_dic, cert, ca_cert, csr_extensions_list)
+        # csr_extensions_list = req.get_extensions()
+        csr_extensions_list = []
+        extension_list = self._extension_list_generate(template_dic, builder, ca_cert, csr_extensions_list)
+
+        # get subject and set to builder
+        subject = self._cert_subject_generate(req, request_name, dn_dic)
+        builder = builder.subject_name(subject)
 
         # add extensions (copy from CSR and take the ones we constructed)
-        # cert.add_extensions(csr_extensions_list)
-        cert.add_extensions(extension_list)
+        for extension in extension_list:
+            builder = builder.add_extension(extension, critical=False)
 
-        if dn_dic:
-            self.logger.info('modify subject with template data')
-            subject = self._subject_modify(subject, dn_dic)
-        cert.set_subject(subject)
 
-        # sign csr
-        cert.sign(ca_key, 'sha256')
-        serial = cert.get_serial_number()
+        # sign certificate
+        cert = builder.sign(private_key=ca_key, algorithm=hashes.SHA256(), backend=default_backend())
+
+        # get serial
+        serial = cert.serial_number
 
         # get hsshes
         issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
         name_hash = cert.subject_name_hash() & 0x7fffffff
+
+        sys.exit(0)
 
         # store certificate
         self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
@@ -828,6 +856,7 @@ class CAhandler(object):
 
         if not error:
             request_name = self._requestname_get(csr)
+
             if request_name:
                 # import CSR to database
                 _csr_info = self._csr_import(csr, request_name)  # lgtm [py/unused-local-variable]
@@ -851,29 +880,36 @@ class CAhandler(object):
         """ set extension list """
         self.logger.debug('CAhandler._extension_list_generate()')
 
-        csr_extensions_dic = {}
-        for ext in csr_extensions_list:
-            csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
+        default_extension_list = [
+            BasicConstraints(ca=False, path_length=None),
+            ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
+            SubjectKeyIdentifier.from_public_key(ca_cert.public_key()),
+            AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
+        ]
 
-        if template_dic:
-            # prcoess xca template
-            extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
-        else:
-            default_extension_list = [
-                crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-                crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-                crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-                crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-                crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
-                # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-            ]
-            extension_list = default_extension_list
+        #csr_extensions_dic = {}
+        #for ext in csr_extensions_list:
+        #    csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
+
+        #if template_dic:
+        #    # prcoess xca template
+        #    extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
+        #else:
+        #    default_extension_list = [
+        #        crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
+        #        crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+        #        crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
+        #        crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
+        #        crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
+        #        # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
+        #    ]
+        extension_list = default_extension_list
 
         # add subjectAltName(s)
-        if 'subjectAltName' in csr_extensions_dic:
-            # pylint: disable=C2801
-            self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
-            extension_list.append(csr_extensions_dic['subjectAltName'])
+        #if 'subjectAltName' in csr_extensions_dic:
+        #    # pylint: disable=C2801
+        #    self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
+        #    extension_list.append(csr_extensions_dic['subjectAltName'])
 
         self.logger.debug('CAhandler._extension_list_generate() ended')
         return extension_list
