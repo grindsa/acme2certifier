@@ -6,11 +6,13 @@ import sqlite3
 import uuid
 import json
 import datetime
+from typing import List, Tuple, Dict
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
-from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID
+from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
+from cryptography.x509.oid import ExtendedKeyUsageOID
+from OpenSSL import crypto as pyossslcrypto
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_get
 
@@ -26,7 +28,7 @@ def dict_from_row(row):
 class CAhandler(object):
     """ CA  handler """
 
-    def __init__(self, debug=None, logger=None):
+    def __init__(self, debug: bool = False, logger: object = None):
         self.debug = debug
         self.logger = logger
         self.xdb_file = None
@@ -46,7 +48,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _asn1_stream_parse(self, asn1_stream=None):
+    def _asn1_stream_parse(self, asn1_stream: str = None) -> Dict[str, str]:
         """ parse asn_string """
 
         self.logger.debug('CAhandler._asn1_stream_parse()')
@@ -86,7 +88,7 @@ class CAhandler(object):
             self.logger.debug('CAhandler._asn1_stream_parse() ended: {0}'.format(bool(dn_dic)))
         return dn_dic
 
-    def _ca_cert_load(self):
+    def _ca_cert_load(self) -> Tuple[object, int]:
         """ load ca key from database """
         self.logger.debug('CAhandler._ca_cert_load({0})'.format(self.issuing_ca_name))
 
@@ -112,7 +114,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._ca_cert_load() failed with error: {0}'.format(err_))
         return (ca_cert, ca_id)
 
-    def _ca_key_load(self):
+    def _ca_key_load(self) -> object:
         """ load ca key from database """
         self.logger.debug('CAhandler._ca_key_load({0})'.format(self.issuing_ca_key))
 
@@ -140,7 +142,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_key_load() ended')
         return ca_key
 
-    def _ca_load(self):
+    def _ca_load(self) -> Tuple[object, object, int]:
         """ load ca key and cert """
         self.logger.debug('CAhandler._ca_load()')
         ca_key = self._ca_key_load()
@@ -149,7 +151,148 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_load() ended')
         return (ca_key, ca_cert, ca_id)
 
-    def _config_check(self):
+    def _cdp_list_generate(self, cdp_string: str = None) -> List[str]:
+        """ generate cdp list """
+        self.logger.debug('CAhandler._cdp_list_generate()')
+
+        cdp_list = []
+        for ele in cdp_string.split(','):
+            cdp_list.append(x509.DistributionPoint([x509.UniformResourceIdentifier(ele.strip())], crl_issuer=None, reasons=None, relative_name=None))
+
+        self.logger.debug('CAhandler._cdp_list_generate() ended')
+        return cdp_list
+
+    def _cert_insert(self, cert_dic: Dict[str, str] = None) -> int:
+        """ insert new entry to request table """
+        self.logger.debug('CAhandler._cert_insert()')
+
+        row_id = None
+        if cert_dic:
+            if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
+                # pylint: disable=R0916
+                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int) and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
+                    self._db_open()
+                    self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
+                    row_id = self.cursor.lastrowid
+                    self._db_close()
+                else:
+                    self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
+            else:
+                self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
+        else:
+            self.logger.error('CAhandler._cert_insert() aborted. dataset empty')
+
+        self.logger.debug('CAhandler._cert_insert() ended with row_id: {0}'.format(row_id))
+        return row_id
+
+    def _cert_search(self, column: str, value: str) -> Dict[str, str]:
+        """ load ca key from database """
+        self.logger.debug('CAhandler._cert_search({0}:{1})'.format(column, value))
+
+        # query database for key
+        self._db_open()
+        pre_statement = '''SELECT * from items WHERE type == 3 and {0} LIKE ?'''.format(column)
+        self.cursor.execute(pre_statement, [value])
+
+        cert_result = {}
+        try:
+            item_result = dict_from_row(self.cursor.fetchone())
+        except Exception:
+            self.logger.error('CAhandler._cert_search(): item search failed: {0}'.format(self.cursor.fetchone()))
+            item_result = {}
+
+        if item_result:
+            item_id = item_result['id']
+            pre_statement = '''SELECT * from certs WHERE item LIKE ?'''
+            self.cursor.execute(pre_statement, [item_id])
+            try:
+                cert_result = dict_from_row(self.cursor.fetchone())
+            except Exception:
+                self.logger.error('CAhandler._cert_search(): cert search failed: item: {0}'.format(item_id))
+
+        self._db_close()
+        self.logger.debug('CAhandler._cert_search() ended')
+        return cert_result
+
+    def _cert_subject_generate(self, req: object, request_name: str, dn_dic: Dict[str, str] = None) -> str:
+        """ set subject """
+        self.logger.debug('CAhandler._cert_subject_generate()')
+
+        if not bool(req.subject):
+            self.logger.info('rewrite CN to {0}'.format(request_name))
+            subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)])
+        else:
+            subject = req.subject
+
+        if dn_dic:
+            # modify subject according to template
+            subject = self._subject_modify(subject, dn_dic)
+
+        self.logger.debug('CAhandler._cert_subject_generate() ended')
+        return subject
+
+    def _cert_sign(self, csr: str, request_name: str, ca_key: object, ca_cert: object, ca_id: int) -> Tuple[str, str]:  # pylint: disable=R0913
+        self.logger.debug('Certificate._cert_sign()')
+
+        # load template if configured
+        if self.template_name:
+            (dn_dic, template_dic) = self._template_load()
+        else:
+            dn_dic = {}
+            template_dic = {}
+
+        # creating a rest from CSR
+        req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
+
+        # set cert_validity
+        if 'validity' in template_dic:
+            self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
+            # take validity from template
+            cert_validity = template_dic['validity']
+        else:
+            cert_validity = self.cert_validity_days
+
+        # create object for certificate
+        builder = x509.CertificateBuilder()
+
+        # set not valid before
+        builder = builder.not_valid_before(datetime.datetime.utcnow())
+        builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=cert_validity))
+        builder = builder.issuer_name(ca_cert.subject)
+        builder = builder.serial_number(uuid.uuid4().int & (1 << 63) - 1)
+        builder = builder.public_key(req.public_key())
+
+        # get extension list from CSR
+        csr_extensions_list = req.extensions
+        extension_list = self._extension_list_generate(template_dic, req, ca_cert, csr_extensions_list)
+
+        # add extensions (copy from CSR and take the ones we constructed)
+        for extension in extension_list:
+            builder = builder.add_extension(extension['name'], critical=extension['critical'])
+
+        # get subject and set to builder
+        builder = builder.subject_name(self._cert_subject_generate(req, request_name, dn_dic))
+
+        # sign certificate
+        cert = builder.sign(private_key=ca_key, algorithm=hashes.SHA256(), backend=default_backend())
+
+        # get serial
+        serial = cert.serial_number
+
+        # get hsshes
+        issuer_subject_hash = self._subject_name_hash_get(ca_cert)
+        cert_subject_hash = self._subject_name_hash_get(cert)
+
+        # store certificate
+        self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, cert.public_bytes(serialization.Encoding.DER))), cert_subject_hash, issuer_subject_hash)
+
+        cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), convert_byte_to_string(ca_cert.public_bytes(serialization.Encoding.PEM)))
+        cert_raw = convert_byte_to_string(b64_encode(self.logger, cert.public_bytes(serialization.Encoding.DER)))
+
+        self.logger.debug('Certificate._cert_sign() ended.')
+        return (cert_bundle, cert_raw)
+
+    def _config_check(self) -> str:
         """ check config for consitency """
         self.logger.debug('CAhandler._config_check()')
         error = None
@@ -229,59 +372,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_import() ended')
         return csr_info
 
-    def _cert_insert(self, cert_dic):
-        """ insert new entry to request table """
-        self.logger.debug('CAhandler._cert_insert()')
-
-        row_id = None
-        if cert_dic:
-            if all(key in cert_dic for key in ('item', 'serial', 'issuer', 'ca', 'cert', 'iss_hash', 'hash')):
-                # pylint: disable=R0916
-                if isinstance(cert_dic['item'], int) and isinstance(cert_dic['issuer'], int) and isinstance(cert_dic['ca'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['iss_hash'], int) and isinstance(cert_dic['hash'], int):
-                    self._db_open()
-                    self.cursor.execute('''INSERT INTO CERTS(item, serial, issuer, ca, cert, hash, iss_hash) VALUES(:item, :serial, :issuer, :ca, :cert, :hash, :iss_hash)''', cert_dic)
-                    row_id = self.cursor.lastrowid
-                    self._db_close()
-                else:
-                    self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
-            else:
-                self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
-        else:
-            self.logger.error('CAhandler._cert_insert() aborted. dataset empty')
-
-        self.logger.debug('CAhandler._cert_insert() ended with row_id: {0}'.format(row_id))
-        return row_id
-
-    def _cert_search(self, column, value):
-        """ load ca key from database """
-        self.logger.debug('CAhandler._cert_search({0}:{1})'.format(column, value))
-
-        # query database for key
-        self._db_open()
-        pre_statement = '''SELECT * from items WHERE type == 3 and {0} LIKE ?'''.format(column)
-        self.cursor.execute(pre_statement, [value])
-
-        cert_result = {}
-        try:
-            item_result = dict_from_row(self.cursor.fetchone())
-        except Exception:
-            self.logger.error('CAhandler._cert_search(): item search failed: {0}'.format(self.cursor.fetchone()))
-            item_result = {}
-
-        if item_result:
-            item_id = item_result['id']
-            pre_statement = '''SELECT * from certs WHERE item LIKE ?'''
-            self.cursor.execute(pre_statement, [item_id])
-            try:
-                cert_result = dict_from_row(self.cursor.fetchone())
-            except Exception:
-                self.logger.error('CAhandler._cert_search(): cert search failed: item: {0}'.format(item_id))
-
-        self._db_close()
-        self.logger.debug('CAhandler._cert_search() ended')
-        return cert_result
-
-    def _csr_insert(self, csr_dic):
+    def _csr_insert(self, csr_dic: Dict[str, str] = None) -> int:
         """ insert new entry to request table """
         self.logger.debug('CAhandler._csr_insert()')
         row_id = None
@@ -303,7 +394,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-    def _csr_search(self, column, value):
+    def _csr_search(self, column: str, value: str) -> Dict[str, str]:
         """ load ca key from database """
         self.logger.debug('CAhandler._csr_search()')
 
@@ -335,12 +426,22 @@ class CAhandler(object):
         self.dbs.close()
         # self.logger.debug('DBStore._db_close() ended')
 
-    def _extended_keyusage_generate(self, template_dic, csr_extensions_dic=None):
+    def _extended_keyusage_generate(self, template_dic: Dict[str, str], _csr_extensions_dic: Dict[str, str] = None) -> Tuple[bool, List[str]]:
         """ set generate extended key usage extenstion """
         self.logger.debug('CAhandler._extended_keyusage_generate()')
 
+        eku_list = []
         if 'eKeyUse' in template_dic:
             # eku included in tempalate
+            eku_mapping_dic = {
+                'clientAuth': ExtendedKeyUsageOID.CLIENT_AUTH,
+                'serverAuth': ExtendedKeyUsageOID.SERVER_AUTH,
+                'codeSigning': ExtendedKeyUsageOID.CODE_SIGNING,
+                'emailProtection': ExtendedKeyUsageOID.EMAIL_PROTECTION,
+                'timeStamping': ExtendedKeyUsageOID.TIME_STAMPING,
+                'OCSPSigning': ExtendedKeyUsageOID.OCSP_SIGNING,
+                'pkInitKDC': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
+            }
             if 'ekuCritical' in template_dic:
                 try:
                     ekuc = bool(int(template_dic['ekuCritical']))
@@ -348,25 +449,55 @@ class CAhandler(object):
                     ekuc = False
             else:
                 ekuc = False
-            eku_string = template_dic['eKeyUse']
+            for ele in template_dic['eKeyUse'].split(', '):
+                if ele in eku_mapping_dic:
+                    eku_list.append(eku_mapping_dic[ele])
 
-        elif 'extendedKeyUsage' in csr_extensions_dic:
-            # eku usage in extention
-            try:
-                ekuc = csr_extensions_dic['extendedKeyUsage'].get_critical()
-            except Exception:
-                ekuc = False
-            # pylint: disable=C2801
-            eku_string = csr_extensions_dic['extendedKeyUsage'].__str__()
+        # elif 'extendedKeyUsage' in csr_extensions_dic:
+        #    # eku usage in extention
+        #    try:
+        #        ekuc = csr_extensions_dic['extendedKeyUsage'].get_critical()
+        #    except Exception:
+        #        ekuc = False
+        #    # pylint: disable=C2801
+        #    eku_string = csr_extensions_dic['extendedKeyUsage'].__str__()
 
         else:
             # neither extension nor template
-            eku_string = None
+            eku_list = None
             ekuc = False
 
-        return (ekuc, eku_string)
+        return (ekuc, eku_list)
 
-    def _item_insert(self, item_dic):
+    def _extension_list_generate(self, template_dic: Dict[str, str], cert: str, ca_cert: str, csr_extensions_list: List[str] = None) -> List[str]:
+        """ set extension list """
+        self.logger.debug('CAhandler._extension_list_generate()')
+
+        csr_extensions_dic = {}
+        for ext in csr_extensions_list:
+            csr_extensions_dic[convert_byte_to_string(ext.oid._name)] = ext  # pylint: disable=W0212
+
+        if template_dic:
+            # prcoess xca template
+            extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
+        else:
+            extension_list = [
+                {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
+                {'name': KeyUsage(digital_signature=True, key_encipherment=True, content_commitment=False, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
+                {'name': SubjectKeyIdentifier.from_public_key(ca_cert.public_key()), 'critical': False},
+                {'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False}
+            ]
+
+        # add subjectAltName(s)
+        if 'subjectAltName' in csr_extensions_dic:
+            # pylint: disable=C2801
+            self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
+            extension_list.append({'name': SubjectAlternativeName(csr_extensions_dic['subjectAltName'].value), 'critical': False})
+
+        self.logger.debug('CAhandler._extension_list_generate() ended')
+        return extension_list
+
+    def _item_insert(self, item_dic: Dict[str, str] = None) -> int:
         """ insert new entry to item_table """
         self.logger.debug('CAhandler._item_insert()')
         row_id = None
@@ -391,7 +522,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-    def _keyusage_generate(self, template_dic, csr_extensions_dic=None):
+    def _keyusage_generate(self, template_dic: Dict[str, str], _csr_extensions_dic: Dict[str, str] = None) -> Tuple[bool, Dict[str, str]]:
         """ set generate key usage extenstion """
         self.logger.debug('CAhandler._keyusage_generate()')
 
@@ -408,19 +539,12 @@ class CAhandler(object):
             kuc = False
             kup = 0
 
-        if 'keyUsage' in csr_extensions_dic:
-            # get key usage field csr
-            # pylint: disable=C2801
-            ku_csr = csr_extensions_dic['keyUsage'].__str__()
-        else:
-            ku_csr = None
-
         # generate key-usage extension
-        ku_string = self._kue_generate(kup, ku_csr)
+        ku_dic = self._kue_generate(kup, None)
 
-        return (kuc, ku_string)
+        return (kuc, ku_dic)
 
-    def _kue_generate(self, kuval=0, ku_csr=None):
+    def _kue_generate(self, kuval: int = 0, ku_csr: str = None) -> Dict[str, str]:
         """ set generate key usage extension """
         self.logger.debug('CAhandler._kue_generate()')
 
@@ -435,36 +559,35 @@ class CAhandler(object):
         if kuval:
             # we have a key-usage value from template
             self.logger.info('CAhandler._kue_generate() with data from template')
-            ku_string = self._ku_string_generate(kuval)
+            ku_dic = self._ku_dict_generate(kuval)
         elif ku_csr:
             # no data from template but data from csr
             self.logger.info('CAhandler._kue_generate() with data from csr')
-            ku_string = ku_csr
+            ku_dic = ku_csr
         else:
             # no data from template no data from csr - default (23)
             self.logger.info('CAhandler._kue_generate() with 23')
-            ku_string = self._ku_string_generate(23)
+            ku_dic = self._ku_dict_generate(23)
 
-        self.logger.debug('CAhandler._kue_generate() ended with: {0}'.format(ku_string))
-        return ku_string
+        self.logger.debug('CAhandler._kue_generate() ended with: {0}'.format(ku_dic))
+        return ku_dic
 
-    def _ku_string_generate(self, kuval):
-        self.logger.debug('CAhandler._ku_string_generate({0})'.format(kuval))
+    def _ku_dict_generate(self, kuval: int = 0) -> Dict[str, str]:
+        self.logger.debug('CAhandler._ku_dict_generate({0})'.format(kuval))
 
         # generate and reverse key_usage_list
-        key_usage_list = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly']
+        key_usage_list = ['digital_signature', 'content_commitment', 'key_encipherment', 'data_encipherment', 'key_agreement', 'key_cert_sign', 'crl_sign', 'encipher_only', 'decipher_only']
+        key_usage_dic = {'digital_signature': False, 'content_commitment': False, 'key_encipherment': False, 'data_encipherment': False, 'key_agreement': False, 'key_cert_sign': False, 'crl_sign': False, 'encipher_only': False, 'decipher_only': False}
 
         kubin = '{0:b}'.format(kuval)[::-1]
-        ku_list = []
         for idx, ele in enumerate(kubin):
             if ele == '1':
-                ku_list.append(key_usage_list[idx])
-        ku_string = ','.join(ku_list)
+                key_usage_dic[key_usage_list[idx]] = True
 
-        self.logger.debug('CAhandler._ku_string_generate() endedt with: {0}'.format(ku_string))
-        return ku_string
+        self.logger.debug('CAhandler._ku_dict_generate() ended with: {0}'.format(key_usage_dic))
+        return key_usage_dic
 
-    def _pemcertchain_generate(self, ee_cert, issuer_cert):
+    def _pemcertchain_generate(self, ee_cert: str, issuer_cert: str = None) -> str:
         """ build pem chain """
         self.logger.debug('CAhandler._pemcertchain_generate()')
 
@@ -476,13 +599,13 @@ class CAhandler(object):
         for cert in self.ca_cert_chain_list:
             cert_dic = self._cert_search('items.name', cert)
             if cert_dic and 'cert' in cert_dic:
-                ca_cert = crypto.load_certificate(crypto.FILETYPE_ASN1, b64_decode(self.logger, cert_dic['cert']))
-                pem_chain = '{0}{1}'.format(pem_chain, convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
+                ca_cert = x509.load_der_x509_certificate(b64_decode(self.logger, cert_dic['cert']), backend=default_backend())
+                pem_chain = '{0}{1}'.format(pem_chain, convert_byte_to_string(ca_cert.public_bytes(serialization.Encoding.PEM)))
 
         self.logger.debug('CAhandler._pemcertchain_generate() ended')
         return pem_chain
 
-    def _requestname_get(self, csr):
+    def _requestname_get(self, csr: str = None) -> str:
         """ get request name """
         self.logger.debug('CAhandler._requestname_get()')
 
@@ -498,7 +621,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._requestname_get() ended with: {0}'.format(request_name))
         return request_name
 
-    def _revocation_insert(self, rev_dic):
+    def _revocation_insert(self, rev_dic: Dict[str, str] = None) -> int:
         """ insert new entry to into revocation_table """
         self.logger.debug('CAhandler._revocation_insert()')
         row_id = None
@@ -520,8 +643,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_insert() ended with row_id: {0}'.format(row_id))
         return row_id
 
-    def _revocation_check(self, serial, ca_id, err_msg_dic):
+    def _revocation_check(self, serial: str, ca_id: int, err_msg_dic: Dict[str, str] = None) -> Tuple[int, str, str]:
         self.logger.debug('CAhandler.revoke({0}/{1})'.format(serial, ca_id))
+
         # check if certificate has alreay been revoked:
         if not self._revocation_search('serial', serial):
             rev_dic = {'caID': ca_id, 'serial': serial, 'date': uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT), 'invaldate': uts_to_date_utc(uts_now(), DEFAULT_DATE_FORMAT), 'reasonBit': 0}
@@ -542,7 +666,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke() ended with: {0}'.format(code))
         return (code, message, detail)
 
-    def _revocation_search(self, column, value):
+    def _revocation_search(self, column: str, value: str) -> Dict[str, str]:
         """ load ca key from database """
         self.logger.debug('CAhandler._revocation_search()')
         # query database for key
@@ -559,7 +683,7 @@ class CAhandler(object):
         return db_result
 
     # pylint: disable=R0913
-    def _store_cert(self, ca_id, cert_name, serial, cert, name_hash, issuer_hash):
+    def _store_cert(self, ca_id: int, cert_name: str, serial: str, cert: str, name_hash: str, issuer_hash: str) -> int:
         """ store certificate to database """
         self.logger.debug('CAhandler._store_cert()')
 
@@ -573,7 +697,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._store_cert() ended')
 
-    def _stream_split(self, byte_stream):
+    def _stream_split(self, byte_stream: str = None) -> Tuple[str, str]:
         """ split template in asn1 structure and utf_stream """
         self.logger.debug('CAhandler._stream_split()')
         asn1_stream = None
@@ -593,13 +717,22 @@ class CAhandler(object):
         self.logger.debug('CAhandler._stream_split() ended: {0}:{1}'.format(bool(asn1_stream), bool(utf_stream)))
         return (asn1_stream, utf_stream)
 
-    def _stub_func(self, parameter):
+    def _stub_func(self, parameter: str) -> str:
         """" load config from file """
         self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
         self.logger.debug('CAhandler._stub_func() ended')
         return parameter
 
-    def _subject_modify(self, subject, dn_dic):
+    def _subject_name_hash_get(self, cert: str = None) -> int:
+        """ get subject name hash """
+        self.logger.debug('CAhandler._subject_name_hash_get()')
+
+        pyopenssl_cert = pyossslcrypto.X509.from_cryptography(cert)
+        pyopenssl_subject_name_hash = pyopenssl_cert.subject_name_hash() & 0x7fffffff
+
+        return pyopenssl_subject_name_hash
+
+    def _subject_modify(self, subject: str, dn_dic: Dict[str, str] = None) -> str:
         """ modify subject name """
         self.logger.debug('CAhandler._subject_modify()')
 
@@ -622,7 +755,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._subject_modify() ended')
         return subject
 
-    def _template_load(self):
+    def _template_load(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         """ load template from database """
         self.logger.debug('CAhandler._template_load({0})'.format(self.template_name))
         # query database for template
@@ -646,7 +779,7 @@ class CAhandler(object):
 
         return (dn_dic, template_dic)
 
-    def _template_parse(self, byte_string=None):
+    def _template_parse(self, byte_string: str = None) -> Tuple[Dict[str, str], Dict[str, str]]:
         """ process template """
         self.logger.debug('CAhandler._template_parse()')
         (asn1_stream, utf_stream) = self._stream_split(byte_string)
@@ -667,7 +800,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_parse() ended')
         return (dn_dic, template_dic)
 
-    def _utf_stream_parse(self, utf_stream=None):
+    def _utf_stream_parse(self, utf_stream: str = None) -> Dict[str, str]:
         """ parse template information from utf_stream into dictitionary """
         self.logger.debug('CAhandler._utf_stream_parse()')
         template_dic = {}
@@ -697,7 +830,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._utf_stream_parse() ended: {0}'.format(bool(template_dic)))
         return template_dic
 
-    def _validity_calculate(self, template_dic):
+    def _validity_calculate(self, template_dic: Dict[str, str] = None) -> int:
         """ calculate validity in days """
         self.logger.debug('CAhandler._validity_calculate()')
 
@@ -718,26 +851,29 @@ class CAhandler(object):
         self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
         return cert_validity
 
-    def _xca_template_process(self, template_dic, csr_extensions_dic, cert, ca_cert):
+    def _xca_template_process(self, template_dic: Dict[str, str], csr_extensions_dic: Dict[str, str], cert: str, ca_cert: str) -> List[str]:
         """ add xca template """
         self.logger.debug('Certificate._xca_template_process()')
+
+        print(cert.public_key())
         extension_list = [
-            crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-            crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
+            {'name': x509.SubjectKeyIdentifier.from_public_key(cert.public_key()), 'critical': False},
+            {'name': x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False},
         ]
 
         # key_usage
-        (kuc, ku_string) = self._keyusage_generate(template_dic, csr_extensions_dic)
-        extension_list.append(crypto.X509Extension(convert_string_to_byte('keyUsage'), kuc, convert_string_to_byte(ku_string)))
+        (kuc, ku_dic) = self._keyusage_generate(template_dic, csr_extensions_dic)
+        extension_list.append({'name': x509.KeyUsage(**ku_dic), 'critical': kuc})
 
         # extended key_usage
-        (ekuc, eku_string) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
-        if eku_string:
-            extension_list.append(crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), ekuc, convert_string_to_byte(eku_string)))
+        (ekuc, eku_list) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
+        if eku_list:
+            extension_list.append({'name': ExtendedKeyUsage(eku_list), 'critical': ekuc})
 
         # add cdp
         if 'crlDist' in template_dic and template_dic['crlDist']:
-            extension_list.append(crypto.X509Extension(convert_string_to_byte('crlDistributionPoints'), False, convert_string_to_byte(template_dic['crlDist'])))
+            cdp_list = self._cdp_list_generate(template_dic['crlDist'])
+            extension_list.append({'name': x509.CRLDistributionPoints(cdp_list), 'critical': False})
 
         # add basicConstraints
         if 'ca' in template_dic:
@@ -748,99 +884,15 @@ class CAhandler(object):
                     bcc = False
             else:
                 bcc = False
+
             if template_dic['ca'] == '1':
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:TRUE')))
+                extension_list.append({'name': BasicConstraints(ca=True, path_length=None), 'critical': bcc})
             elif template_dic['ca'] == '2':
-                extension_list.append(crypto.X509Extension(convert_string_to_byte('basicConstraints'), bcc, convert_string_to_byte('CA:FALSE')))
+                extension_list.append({'name': BasicConstraints(ca=False, path_length=None), 'critical': bcc})
 
         return extension_list
 
-    def _cert_subject_generate(self, req, request_name, dn_dic):
-        """ set subject """
-        self.logger.debug('CAhandler._cert_subject_generate()')
-
-        if not bool(req.subject):
-            self.logger.info('rewrite CN to {0}'.format(request_name))
-            subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)])
-        else:
-            subject = req.subject
-
-        if dn_dic:
-            # modify subject according to template
-            subject = self._subject_modify(subject, dn_dic)
-
-        self.logger.debug('CAhandler._cert_subject_generate() ended')
-        return subject
-
-    def _cert_sign(self, csr, request_name, ca_key, ca_cert, ca_id):
-        self.logger.debug('Certificate._cert_sign()')
-
-        # load template if configured
-        if self.template_name:
-            (dn_dic, template_dic) = self._template_load()
-        else:
-            dn_dic = {}
-            template_dic = {}
-
-        print(dn_dic)
-
-        # creating a rest from CSR
-        req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
-
-        # set cert_validity
-        if 'validity' in template_dic:
-            self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
-            # take validity from template
-            cert_validity = template_dic['validity']
-        else:
-            cert_validity = self.cert_validity_days
-
-        # create object for certificate
-        builder = x509.CertificateBuilder()
-
-        # set not valid before
-        builder = builder.not_valid_before(datetime.datetime.utcnow())
-        builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=cert_validity))
-        builder = builder.issuer_name(ca_cert.subject)
-        builder = builder.serial_number(uuid.uuid4().int)
-        builder = builder.public_key(req.public_key())
-
-        # get extension list from CSR
-        # csr_extensions_list = req.get_extensions()
-        csr_extensions_list = []
-        extension_list = self._extension_list_generate(template_dic, builder, ca_cert, csr_extensions_list)
-
-        # get subject and set to builder
-        subject = self._cert_subject_generate(req, request_name, dn_dic)
-        builder = builder.subject_name(subject)
-
-        # add extensions (copy from CSR and take the ones we constructed)
-        for extension in extension_list:
-            builder = builder.add_extension(extension, critical=False)
-
-
-        # sign certificate
-        cert = builder.sign(private_key=ca_key, algorithm=hashes.SHA256(), backend=default_backend())
-
-        # get serial
-        serial = cert.serial_number
-
-        # get hsshes
-        issuer_hash = ca_cert.subject_name_hash() & 0x7fffffff
-        name_hash = cert.subject_name_hash() & 0x7fffffff
-
-        sys.exit(0)
-
-        # store certificate
-        self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert))), name_hash, issuer_hash)
-
-        cert_bundle = self._pemcertchain_generate(convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, cert)), convert_byte_to_string(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert)))
-        cert_raw = convert_byte_to_string(b64_encode(self.logger, crypto.dump_certificate(crypto.FILETYPE_ASN1, cert)))
-
-        self.logger.debug('Certificate._cert_sign() ended.')
-        return (cert_bundle, cert_raw)
-
-    def enroll(self, csr):
+    def enroll(self, csr: str = None) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0914, R0915
         self.logger.debug('CAhandler.enroll()')
@@ -876,45 +928,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
 
-    def _extension_list_generate(self, template_dic, cert, ca_cert, csr_extensions_list):
-        """ set extension list """
-        self.logger.debug('CAhandler._extension_list_generate()')
-
-        default_extension_list = [
-            BasicConstraints(ca=False, path_length=None),
-            ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
-            SubjectKeyIdentifier.from_public_key(ca_cert.public_key()),
-            AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
-        ]
-
-        #csr_extensions_dic = {}
-        #for ext in csr_extensions_list:
-        #    csr_extensions_dic[convert_byte_to_string(ext.get_short_name())] = ext
-
-        #if template_dic:
-        #    # prcoess xca template
-        #    extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
-        #else:
-        #    default_extension_list = [
-        #        crypto.X509Extension(convert_string_to_byte('subjectKeyIdentifier'), False, convert_string_to_byte('hash'), subject=cert),
-        #        crypto.X509Extension(convert_string_to_byte('authorityKeyIdentifier'), False, convert_string_to_byte('keyid:always'), issuer=ca_cert),
-        #        crypto.X509Extension(convert_string_to_byte('keyUsage'), True, convert_string_to_byte('digitalSignature,keyEncipherment')),
-        #        crypto.X509Extension(convert_string_to_byte('basicConstraints'), True, convert_string_to_byte('CA:FALSE')),
-        #        crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('serverAuth')),
-        #        # crypto.X509Extension(convert_string_to_byte('extendedKeyUsage'), False, convert_string_to_byte('clientAuth,serverAuth')),
-        #    ]
-        extension_list = default_extension_list
-
-        # add subjectAltName(s)
-        #if 'subjectAltName' in csr_extensions_dic:
-        #    # pylint: disable=C2801
-        #    self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
-        #    extension_list.append(csr_extensions_dic['subjectAltName'])
-
-        self.logger.debug('CAhandler._extension_list_generate() ended')
-        return extension_list
-
-    def poll(self, cert_name, poll_identifier, _csr):
+    def poll(self, cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
@@ -927,7 +941,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert, _rev_reason='unspecified', _rev_date=None):
+    def revoke(self, cert: str, _rev_reason: str = 'unspecified', _rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
@@ -941,6 +955,7 @@ class CAhandler(object):
             if serial:
                 serial = '{:X}'.format(serial)
 
+            print(serial)
             if ca_id and serial:
                 (code, message, detail) = self._revocation_check(serial, ca_id, err_msg_dic)
             else:
@@ -955,7 +970,7 @@ class CAhandler(object):
         self.logger.debug('Certificate.revoke() ended')
         return (code, message, detail)
 
-    def trigger(self, payload):
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
         """ process trigger message and return certificate """
         self.logger.debug('CAhandler.trigger()')
 
