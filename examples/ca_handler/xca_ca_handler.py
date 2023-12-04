@@ -156,8 +156,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cdp_list_generate()')
 
         cdp_list = []
-        for ele in cdp_string.split(','):
-            cdp_list.append(x509.DistributionPoint([x509.UniformResourceIdentifier(ele.strip())], crl_issuer=None, reasons=None, relative_name=None))
+        if cdp_string:
+            for ele in cdp_string.split(','):
+                cdp_list.append(x509.DistributionPoint([x509.UniformResourceIdentifier(ele.strip())], crl_issuer=None, reasons=None, relative_name=None))
 
         self.logger.debug('CAhandler._cdp_list_generate() ended')
         return cdp_list
@@ -256,8 +257,8 @@ class CAhandler(object):
         builder = x509.CertificateBuilder()
 
         # set not valid before
-        builder = builder.not_valid_before(datetime.datetime.utcnow())
-        builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=cert_validity))
+        builder = builder.not_valid_before(datetime.datetime.now(datetime.UTC))
+        builder = builder.not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=cert_validity))
         builder = builder.issuer_name(ca_cert.subject)
         builder = builder.serial_number(uuid.uuid4().int & (1 << 63) - 1)
         builder = builder.public_key(req.public_key())
@@ -278,7 +279,6 @@ class CAhandler(object):
 
         # get serial
         serial = cert.serial_number
-
         # get hsshes
         issuer_subject_hash = self._subject_name_hash_get(ca_cert)
         cert_subject_hash = self._subject_name_hash_get(cert)
@@ -441,14 +441,17 @@ class CAhandler(object):
                 'timeStamping': ExtendedKeyUsageOID.TIME_STAMPING,
                 'OCSPSigning': ExtendedKeyUsageOID.OCSP_SIGNING,
                 'pkInitKDC': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
-            }
+                'eKeyUse': 'eKeyUse'  # this is just for testing
+             }
             if 'ekuCritical' in template_dic:
                 try:
                     ekuc = bool(int(template_dic['ekuCritical']))
                 except Exception:
+                    self.logger.error('CAhandler._extended_keyusage_generate(): convert to int failed defaulting ekuc to False')
                     ekuc = False
             else:
                 ekuc = False
+
             for ele in template_dic['eKeyUse'].split(', '):
                 if ele in eku_mapping_dic:
                     eku_list.append(eku_mapping_dic[ele])
@@ -469,24 +472,36 @@ class CAhandler(object):
 
         return (ekuc, eku_list)
 
+    def _extension_list_default(self, ca_cert: str = None, cert: str = None):
+        """ set default extension list """
+        self.logger.debug('CAhandler._extension_list_default()')
+
+        extension_list = [
+            {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
+            {'name': KeyUsage(digital_signature=True, key_encipherment=True, content_commitment=False, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
+        ]
+        if cert:
+            extension_list.append({'name': SubjectKeyIdentifier.from_public_key(cert.public_key()), 'critical': False},)
+        if ca_cert:
+            extension_list.append({'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False})
+
+        self.logger.debug('CAhandler._extension_list_default() ended')
+        return extension_list
+
     def _extension_list_generate(self, template_dic: Dict[str, str], cert: str, ca_cert: str, csr_extensions_list: List[str] = None) -> List[str]:
         """ set extension list """
         self.logger.debug('CAhandler._extension_list_generate()')
 
         csr_extensions_dic = {}
-        for ext in csr_extensions_list:
-            csr_extensions_dic[convert_byte_to_string(ext.oid._name)] = ext  # pylint: disable=W0212
+        if csr_extensions_list:
+            for ext in csr_extensions_list:
+                csr_extensions_dic[convert_byte_to_string(ext.oid._name)] = ext  # pylint: disable=W0212
 
         if template_dic:
             # prcoess xca template
             extension_list = self._xca_template_process(template_dic, csr_extensions_dic, cert, ca_cert)
         else:
-            extension_list = [
-                {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
-                {'name': KeyUsage(digital_signature=True, key_encipherment=True, content_commitment=False, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
-                {'name': SubjectKeyIdentifier.from_public_key(ca_cert.public_key()), 'critical': False},
-                {'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False}
-            ]
+            extension_list = self._extension_list_default(ca_cert, cert)
 
         # add subjectAltName(s)
         if 'subjectAltName' in csr_extensions_dic:
@@ -739,14 +754,19 @@ class CAhandler(object):
         subject_name_list = []
 
         if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
+            self.logger.info('rewrite OU to {0}'.format(dn_dic['organizationalUnitName']))
             subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATIONAL_UNIT_NAME, dn_dic['organizationalUnitName']))
         if 'organizationName' in dn_dic and dn_dic['organizationName']:
+            self.logger.info('rewrite O to {0}'.format(dn_dic['organizationName']))
             subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, dn_dic['organizationName']))
         if 'localityName' in dn_dic and dn_dic['localityName']:
+            self.logger.info('rewrite L to {0}'.format(dn_dic['localityName']))
             subject_name_list.append(x509.NameAttribute(x509.NameOID.LOCALITY_NAME, dn_dic['localityName']))
         if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
+            self.logger.info('rewrite ST to {0}'.format(dn_dic['stateOrProvinceName']))
             subject_name_list.append(x509.NameAttribute(x509.NameOID.STATE_OR_PROVINCE_NAME, dn_dic['stateOrProvinceName']))
         if 'countryName' in dn_dic and dn_dic['countryName']:
+            self.logger.info('rewrite C to {0}'.format(dn_dic['countryName']))
             subject_name_list.append(x509.NameAttribute(x509.NameOID.COUNTRY_NAME, dn_dic['countryName']))
 
         if subject_name_list:
@@ -855,15 +875,14 @@ class CAhandler(object):
         """ add xca template """
         self.logger.debug('Certificate._xca_template_process()')
 
-        print(cert.public_key())
         extension_list = [
-            {'name': x509.SubjectKeyIdentifier.from_public_key(cert.public_key()), 'critical': False},
-            {'name': x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False},
+            {'name': SubjectKeyIdentifier.from_public_key(cert.public_key()), 'critical': False},
+            {'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False},
         ]
 
         # key_usage
         (kuc, ku_dic) = self._keyusage_generate(template_dic, csr_extensions_dic)
-        extension_list.append({'name': x509.KeyUsage(**ku_dic), 'critical': kuc})
+        extension_list.append({'name': KeyUsage(**ku_dic), 'critical': kuc})
 
         # extended key_usage
         (ekuc, eku_list) = self._extended_keyusage_generate(template_dic, csr_extensions_dic)
@@ -955,7 +974,6 @@ class CAhandler(object):
             if serial:
                 serial = '{:X}'.format(serial)
 
-            print(serial)
             if ca_id and serial:
                 (code, message, detail) = self._revocation_check(serial, ca_id, err_msg_dic)
             else:

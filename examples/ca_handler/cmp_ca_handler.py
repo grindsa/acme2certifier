@@ -203,7 +203,7 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._tmp_dir_delete(): failed: {0}'.format(self.tmp_dir))
 
-    def enroll(self, csr: str) -> Dict[str, str, str, str]:
+    def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll()')
         cert_bundle = None
