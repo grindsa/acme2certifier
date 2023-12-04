@@ -13,7 +13,7 @@ import os
 import sys
 import importlib
 import textwrap
-from datetime import datetime
+import datetime
 from string import digits, ascii_letters
 from typing import List, Tuple, Dict
 import socket
@@ -654,7 +654,7 @@ def logger_setup(debug: bool) -> logging.Logger:
 def print_debug(debug: bool, text: str):
     """ little helper to print debug messages """
     if debug:
-        print('{0}: {1}'.format(datetime.now(), text))
+        print('{0}: {1}'.format(datetime.datetime.now(), text))
 
 
 def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
@@ -952,17 +952,17 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
 
 def uts_now() -> int:
     """ unixtimestamp in utc """
-    return calendar.timegm(datetime.utcnow().utctimetuple())
+    return calendar.timegm(datetime.datetime.now(datetime.UTC).utctimetuple())
 
 
 def uts_to_date_utc(uts: int, tformat: str = '%Y-%m-%dT%H:%M:%SZ') -> str:
     """ convert unix timestamp to date format """
-    return datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
+    return datetime.datetime.fromtimestamp(int(uts), tz=pytz.utc).strftime(tformat)
 
 
 def date_to_uts_utc(date_human: str, _tformat: str = '%Y-%m-%dT%H:%M:%S') -> int:
     """ convert date to unix timestamp """
-    if isinstance(date_human, datetime):
+    if isinstance(date_human, datetime.datetime):
         # we already got an datetime object as input
         result = calendar.timegm(date_human.timetuple())
     else:
@@ -970,7 +970,7 @@ def date_to_uts_utc(date_human: str, _tformat: str = '%Y-%m-%dT%H:%M:%S') -> int
     return result
 
 
-def date_to_datestr(date: datetime, tformat: str = '%Y-%m-%dT%H:%M:%SZ') -> str:
+def date_to_datestr(date: datetime.datetime, tformat: str = '%Y-%m-%dT%H:%M:%SZ') -> str:
     """ convert dateobj to datestring """
     try:
         result = date.strftime(tformat)
@@ -982,7 +982,7 @@ def date_to_datestr(date: datetime, tformat: str = '%Y-%m-%dT%H:%M:%SZ') -> str:
 def datestr_to_date(datestr: str, tformat: str = '%Y-%m-%dT%H:%M:%S') -> str:
     """ convert datestr to dateobj """
     try:
-        result = datetime.strptime(datestr, tformat)
+        result = datetime.datetime.strptime(datestr, tformat)
     except Exception:
         result = None
     return result
