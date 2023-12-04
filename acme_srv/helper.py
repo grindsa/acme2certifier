@@ -950,9 +950,9 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
     return txt_record_list
 
 
-def uts_now() -> int:
+def uts_now():
     """ unixtimestamp in utc """
-    return calendar.timegm(datetime.datetime.utcnow().utctimetuple()).utctimetuple()
+    return calendar.timegm(datetime.datetime.utcnow().utctimetuple())
 
 
 def uts_to_date_utc(uts: int, tformat: str = '%Y-%m-%dT%H:%M:%SZ') -> str:
