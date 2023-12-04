@@ -89,7 +89,7 @@ class CAhandler(object):
             oid = getattr(ExtensionOID, openssl_to_cryptography_map[extension])
             if extension == 'subjectKeyIdentifier':
                 self.logger.info('_certificate_extensions_add(): subjectKeyIdentifier')
-                file_extension_list.append(SubjectKeyIdentifier.from_public_key(ca_cert.public_key()))
+                file_extension_list.append(SubjectKeyIdentifier.from_public_key(a_ca_cert.public_key()))
             # elif 'subject' in cert_extension_dic[extension]:
             #    self.logger.info('_certificate_extensions_add(): subject')
             #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
@@ -555,7 +555,7 @@ class CAhandler(object):
         default_extension_list = [
             BasicConstraints(ca=False, path_length=None),
             ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
-            SubjectKeyIdentifier.from_public_key(ca_cert.public_key()),
+            SubjectKeyIdentifier.from_public_key(aca_cert.public_key()),
             AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
         ]
 
