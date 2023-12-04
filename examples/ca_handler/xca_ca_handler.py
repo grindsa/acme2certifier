@@ -479,6 +479,7 @@ class CAhandler(object):
         extension_list = [
             {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
             {'name': KeyUsage(digital_signature=True, key_encipherment=True, content_commitment=False, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
+            {'name': ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), 'critical': False},
         ]
         if cert:
             extension_list.append({'name': SubjectKeyIdentifier.from_public_key(cert.public_key()), 'critical': False},)

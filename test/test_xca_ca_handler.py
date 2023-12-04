@@ -1275,46 +1275,52 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_submod.called)
         self.assertTrue(mock_name.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.ExtendedKeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_166__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki):
+    def test_166__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
         mock_ku.return_value = 'mock_ku'
+        mock_eku.return_value = 'mock_eku'
         mock_ski.from_public_key.return_value = 'mock_ski'
         mock_aki.from_issuer_public_key.return_value = 'mock_aki'
-        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'name': 'mock_ski', 'critical': False}, {'name': 'mock_aki', 'critical': False}]
+        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'critical': False, 'name': 'mock_eku'}, {'name': 'mock_ski', 'critical': False}, {'name': 'mock_aki', 'critical': False}]
         self.assertEqual(result, self.cahandler._extension_list_default(cert, cert))
 
+    @patch('examples.ca_handler.xca_ca_handler.ExtendedKeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_167__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki):
+    def test_167__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
         mock_ku.return_value = 'mock_ku'
+        mock_eku.return_value = 'mock_eku'
         mock_ski.from_public_key.return_value = 'mock_ski'
         mock_aki.from_issuer_public_key.return_value = 'mock_aki'
-        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'name': 'mock_ski', 'critical': False}]
+        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'critical': False, 'name': 'mock_eku'}, {'name': 'mock_ski', 'critical': False}]
         self.assertEqual(result, self.cahandler._extension_list_default(None, cert))
 
+    @patch('examples.ca_handler.xca_ca_handler.ExtendedKeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_168__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki):
+    def test_168__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
         mock_ku.return_value = 'mock_ku'
+        mock_eku.return_value = 'mock_eku'
         mock_ski.from_public_key.return_value = 'mock_ski'
         mock_aki.from_issuer_public_key.return_value = 'mock_aki'
-        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'name': 'mock_aki', 'critical': False}]
+        result = [{'name': 'mock_bc', 'critical': True}, {'name': 'mock_ku', 'critical': True}, {'critical': False, 'name': 'mock_eku'}, {'name': 'mock_aki', 'critical': False}]
         self.assertEqual(result, self.cahandler._extension_list_default(cert, None))
 
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
