@@ -11,8 +11,8 @@ import re
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage
-from cryptography.x509.oid import ExtendedKeyUsageOID, ExtensionOID
+from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
+from cryptography.x509.oid import ExtendedKeyUsageOID
 # pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
@@ -70,38 +70,81 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_load() ended')
         return (ca_key, ca_cert)
 
-    def _certificate_extensions_add(self, cert_extension_dic: Dict[str, str], cert=str, ca_cert: object = None) -> List[object]:
-        """ verify certificate chain """
-        self.logger.debug('CAhandler._certificate_extensions_add()')
+    def _cert_extension_ku_parse(self, ext: str) -> Dict[str, str]:
+        self.logger.debug('CAhandler._cert_extension_ku_parse()')
 
-        openssl_to_cryptography_map = {
-            'extendedKeyUsage': 'EXTENDED_KEY_USAGE',
-            'basicConstraints': 'BASIC_CONSTRAINTS',
-            'subjectKeyIdentifier': 'SUBJECT_KEY_IDENTIFIER',
-            'authorityKeyIdentifier': 'AUTHORITY_KEY_IDENTIFIER',
-            'keyUsage': 'KEY_USAGE',
+        template_dic = {'digital_signature': False, 'content_commitment': False, 'key_encipherment': False, 'data_encipherment': False, 'key_agreement': False, 'key_cert_sign': False, 'crl_sign': False, 'encipher_only': False, 'decipher_only': False}
+        ku_mapping_dic = {
+            'digitalsignature': 'digital_signature',
+            'nonrepudiation': 'content_commitment',
+            'keyencipherment': 'key_encipherment',
+            'dataencipherment': 'data_encipherment',
+            'keyagreement': 'key_agreement',
+            'keycertsign': 'key_cert_sign',
+            'crlsign': 'crl_sign',
+            'encipheronly': 'encipher_only',
+            'decipheronly': 'decipher_only',
+        }
+        for attribute in ext.split(','):
+            if attribute.strip().lower() in ku_mapping_dic:
+                self.logger.debug('CAhandler._cert_extension_ku_parse(): found {0}'.format(attribute))
+                template_dic[ku_mapping_dic[attribute.strip().lower()]] = True
+
+        self.logger.debug('CAhandler._cert_extension_ku_parse() ended')
+        return template_dic
+
+    def _cert_extension_eku_parse(self, ext: str) -> Dict[str, str]:
+        self.logger.debug('CAhandler._cert_extension_eku_parse()')
+
+        # eku included in tempalate
+        eku_mapping_dic = {
+            'clientauth': ExtendedKeyUsageOID.CLIENT_AUTH,
+            'serverauth': ExtendedKeyUsageOID.SERVER_AUTH,
+            'codesigning': ExtendedKeyUsageOID.CODE_SIGNING,
+            'emailprotection': ExtendedKeyUsageOID.EMAIL_PROTECTION,
+            'timestamping': ExtendedKeyUsageOID.TIME_STAMPING,
+            'ocspsigning': ExtendedKeyUsageOID.OCSP_SIGNING,
+            'pkinitkdc': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
+            'ekeyuse': 'eKeyUse'  # this is just for testing
         }
 
-        file_extension_list = []
-        # add extensins from config file
-        for extension in cert_extension_dic:
-            self.logger.debug('adding extension: {0}: {1}: {2}'.format(extension, cert_extension_dic[extension]['critical'], cert_extension_dic[extension]['value']))
-            oid = getattr(ExtensionOID, openssl_to_cryptography_map[extension])
-            if extension == 'subjectKeyIdentifier':
-                self.logger.info('_certificate_extensions_add(): subjectKeyIdentifier')
-                file_extension_list.append(SubjectKeyIdentifier.from_public_key(a_ca_cert.public_key()))
-            # elif 'subject' in cert_extension_dic[extension]:
-            #    self.logger.info('_certificate_extensions_add(): subject')
-            #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), subject=cert))
-            # elif 'issuer' in cert_extension_dic[extension]:
-            #    self.logger.info('_certificate_extensions_add(): issuer')
-            #    _tmp_list.append(crypto.X509Extension(convert_string_to_byte(extension), critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), issuer=ca_cert))
-            else:
-                self.logger.info('_certificate_extensions_add(): {0}'.format(extension))
-                file_extension_list.append(x509.Extension(critical=cert_extension_dic[extension]['critical'], value=convert_string_to_byte(cert_extension_dic[extension]['value']), oid=oid))
+        eku_list = []
+        for attribute in ext.split(','):
+            if attribute.strip().lower() in eku_mapping_dic:
+                self.logger.debug('CAhandler._cert_extension_eku_parse(): found {0}'.format(attribute))
+                eku_list.append(eku_mapping_dic[attribute.strip().lower()])
 
-        self.logger.debug('CAhandler._certificate_extensions_add() ended')
-        return file_extension_list
+        self.logger.debug('CAhandler._cert_extension_eku_parse() ended')
+        return eku_list
+
+    def _cert_extension_dic_parse(self, cert_extension_dic: Dict[str, str], cert: str, ca_cert: str) -> List[object]:
+        """ parse certificate exteions loaded from config file """
+        self.logger.debug('CAhandler.cert_extesion_dic_parse()')
+
+        extension_list = []
+        for ext_name, ext  in cert_extension_dic.items():
+            _tmp_dic = {'critical': ext['critical']}
+
+            if ext_name.lower() == 'basicconstraints':
+                self.logger.info('CAhandler.cert_extesion_dic_parse(): basicConstraints')
+                _tmp_dic['name'] = BasicConstraints(ca=False, path_length=None)
+            elif ext_name.lower() == 'subjectkeyidentifier':
+                self.logger.info('CAhandler.cert_extesion_dic_parse(): subjectKeyIdentifier')
+                _tmp_dic['name'] = SubjectKeyIdentifier.from_public_key(cert.public_key())
+            elif ext_name.lower() == 'authoritykeyidentifier':
+                self.logger.info('CAhandler.cert_extesion_dic_parse(): authorityKeyIdentifier')
+                _tmp_dic['name'] = AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
+            elif ext_name.lower() == 'keyusage':
+                self.logger.info('CAhandler.cert_extesion_dic_parse(): keyUsage')
+                _tmp_dic['name'] = KeyUsage(**self._cert_extension_ku_parse(ext['value']))
+            elif ext_name.lower() == 'extendedkeyusage':
+                self.logger.info('CAhandler.cert_extesion_dic_parse(): extendedKeyUsage')
+                _tmp_dic['name'] = ExtendedKeyUsage(self._cert_extension_eku_parse(ext['value']))
+
+            extension_list.append(_tmp_dic)
+
+        self.logger.debug('CAhandler.cert_extesion_dic_parse() ended.')
+        return extension_list
 
     def _certificate_extensions_load(self) -> Dict[str, str]:
         """ verify certificate chain """
@@ -465,72 +508,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
         return chk_result
 
-    def _duplicates_clean(self, default_extension_list: List[str], extensions: List[str]) -> List[str]:
-        """ clean duplicate extensions """
-        self.logger.debug('CAhandler._duplicates_clean()')
-        # pylint: disable=w0212
-        extension_list = []
-        for csr_ext in extensions:
-            ext_in = False
-            csr_ext_name = csr_ext.oid._name
-            for def_ext in default_extension_list:
-                if csr_ext_name == def_ext.oid._name:
-                    ext_in = True
-                    break
-
-            if not ext_in:
-                self.logger.debug('CAhandler._cert_extension_dic_add(): add csr extension: {0}'.format(csr_ext_name))
-                extension_list.append(csr_ext)
-
-        for def_ext in default_extension_list:
-            self.logger.debug('CAhandler._cert_extension_dic_add(): add default extension: {0}'.format(def_ext.oid._name))
-            extension_list.append(def_ext)
-
-        self.logger.debug('CAhandler._duplicates_clean() ended')
-        return extension_list
-
-    def _cert_extension_dic_add(self, cert: str, ca_cert: str, cert_extension_dic: Dict[str, str], default_extension_list: Dict[str, str], req: str):
-        """ add extension from templat """
-        self.logger.debug('CAhandler._cert_extension_dic_add()')
-
-        try:
-            # remove duplicate extensions
-            #  self._certificate_extensions_add(cert_extension_dic, cert, ca_cert)
-            extension_list = self._duplicates_clean(default_extension_list, self._certificate_extensions_add(cert_extension_dic, cert, ca_cert))
-
-        except Exception as err_:
-            self.logger.error('CAhandler.enroll() error while loading extensions from file. Use default set.\nerror: {0}'.format(err_))
-            # remove duplicate extensions
-            extension_list = self._duplicates_clean(default_extension_list, req.extensions)
-
-        self.logger.debug('CAhandler._cert_extension_dic_add() ended')
-        return extension_list
-
-    def _cert_extension_add(self, default_extension_list: List[str], req: str) -> List[str]:
-        """ add extensions """
-        self.logger.debug('CAhandler._cert_extension_add()')
-        # pylint: disable=w0212
-        # add keyUsage if it does not exist in CSR
-        ku_is_in = False
-        for ext in req.extensions:
-            try:
-                if convert_byte_to_string(ext.oid._name) == 'keyUsage':
-                    self.logger.debug('CAhandler._cert_extension_add() found keyUsage extension')
-                    ku_is_in = True
-            except Exception as err:
-                self.logger.error(' CAhandler._cert_extension_add() failed to load extension shortname: {0}'.format(err))
-
-        if not ku_is_in:
-            self.logger.debug('CAhandler._cert_extension_add() adding default keyUsage extension')
-            key_usage = KeyUsage(digital_signature=True, content_commitment=True, key_encipherment=True, data_encipherment=True, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False)
-            default_extension_list.append(key_usage)
-
-        # remove duplicate extensions
-        extension_list = self._duplicates_clean(default_extension_list, req.extensions)
-
-        self.logger.debug('CAhandler._cert_extension_add() ended')
-        return extension_list
-
     def _cert_signing_prep(self, ca_cert: object, req: object, subject: str) -> object:
         """ enroll certificate """
         # pylint: disable=R0914, R0915
@@ -548,37 +525,45 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_signing_prep() ended')
         return builder
 
+    def _cert_extension_default(self, ca_cert: object, req: object) -> List[str]:
+        """ add default extensions """
+        self.logger.debug('CAhandler._cert_extension_default()')
+
+        default_extension_list = [
+            {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
+            {'name': ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]), 'critical': False},
+            {'name': KeyUsage(digital_signature=True, content_commitment=True, key_encipherment=True, data_encipherment=True, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
+        ]
+        if req:
+            default_extension_list.append({'name': SubjectKeyIdentifier.from_public_key(req.public_key()), 'critical': False},)
+        if ca_cert:
+            default_extension_list.append({'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False})
+
+
+        self.logger.debug('CAhandler._cert_extension_default() ended')
+        return default_extension_list
+
     def _cert_extension_apply(self, builder: object, ca_cert: object, req: object) -> object:
         """ add cert extensions """
         self.logger.debug('CAhandler._cert_extension_apply()')
 
-        default_extension_list = [
-            BasicConstraints(ca=False, path_length=None),
-            ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
-            SubjectKeyIdentifier.from_public_key(aca_cert.public_key()),
-            AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
-        ]
 
         # load certificate_profile (if applicable)
         if self.openssl_conf:
             cert_extension_dic = self._certificate_extensions_load()
-            self.logger.error('CAhandler._cert_extension_apply(): disable cert_extension_dic() as not supported yet')
-            cert_extension_dic = []
+            extension_list = self._cert_extension_dic_parse(cert_extension_dic, req, ca_cert)
         else:
-            cert_extension_dic = []
+            extension_list = self._cert_extension_default(ca_cert, req)
 
-        if cert_extension_dic:
-            extension_list = self._cert_extension_dic_add(builder, ca_cert, cert_extension_dic, default_extension_list, req)
-        else:
-            extension_list = self._cert_extension_add(default_extension_list, req)
+        # add subject alternative names
+        if req:
+            for ext in req.extensions:
+                if ext.oid._name == 'subjectAltName':
+                    extension_list.append({'name': SubjectAlternativeName(ext.value), 'critical': False})
 
         for extension in extension_list:
-            try:
-                builder = builder.add_extension(extension, critical=False)
-            except Exception as err:
-                # pylint: disable=w0212
-                self.logger.debug('CAhandler._cert_extension_apply() error: {0}: {1}. Try to load in a different way.'.format(extension.oid._name, err))
-                builder = builder.add_extension(extension.value, critical=extension.critical)
+            # add extensions to csr
+            builder = builder.add_extension(extension['name'], critical=extension['critical'])
 
         self.logger.debug('CAhandler._cert_extension_apply() ended')
         return builder
