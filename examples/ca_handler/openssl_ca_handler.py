@@ -12,7 +12,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
-from cryptography.x509.oid import ExtendedKeyUsageOID
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 # pylint: disable=C0209, E0401, R0913
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get
 
@@ -122,7 +122,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.cert_extesion_dic_parse()')
 
         extension_list = []
-        for ext_name, ext  in cert_extension_dic.items():
+        for ext_name, ext in cert_extension_dic.items():
             _tmp_dic = {'critical': ext['critical']}
 
             if ext_name.lower() == 'basicconstraints':
@@ -235,7 +235,7 @@ class CAhandler(object):
         if not error:
             if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
                 if not os.path.exists(self.issuer_dict['issuing_ca_crl']):
-                    error = 'issuing_ca_crl {0} does not exist'.format(self.issuer_dict['issuing_ca_crl'])
+                    self.logger.info('CAhandler._config_check_crl(): issuing_ca_crl {0} does not exist.'.format(self.issuer_dict['issuing_ca_crl']))
             else:
                 error = 'issuing_ca_crl must be specified in config file'
 
@@ -539,14 +539,12 @@ class CAhandler(object):
         if ca_cert:
             default_extension_list.append({'name': AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()), 'critical': False})
 
-
         self.logger.debug('CAhandler._cert_extension_default() ended')
         return default_extension_list
 
     def _cert_extension_apply(self, builder: object, ca_cert: object, req: object) -> object:
         """ add cert extensions """
         self.logger.debug('CAhandler._cert_extension_apply()')
-
 
         # load certificate_profile (if applicable)
         if self.openssl_conf:
@@ -558,7 +556,7 @@ class CAhandler(object):
         # add subject alternative names
         if req:
             for ext in req.extensions:
-                if ext.oid._name == 'subjectAltName':
+                if ext.oid._name == 'subjectAltName':  # pylint: disable=W0212
                     extension_list.append({'name': SubjectAlternativeName(ext.value), 'critical': False})
 
         for extension in extension_list:
@@ -594,9 +592,9 @@ class CAhandler(object):
                     req = x509.load_pem_x509_csr(convert_string_to_byte(csr), default_backend())
                     subject = req.subject
 
-                    # if self.cn_enforce and enforce_cn:
-                    #    self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
-                    #    setattr(subject, 'CN', enforce_cn)
+                    if self.cn_enforce and enforce_cn:
+                        self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
+                        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)])
 
                     builder = self._cert_signing_prep(ca_cert, req, subject)
                     builder = self._cert_extension_apply(builder, ca_cert, req)
@@ -607,8 +605,9 @@ class CAhandler(object):
                     # store certifiate
                     self._certificate_store(cert)
                     # create bundle and raw cert
-                    cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), open(self.issuer_dict['issuing_ca_cert'], encoding='utf8').read())
-                    cert_raw = convert_byte_to_string(base64.b64encode(cert.public_bytes(serialization.Encoding.DER)))
+                    with open(self.issuer_dict['issuing_ca_cert'], 'r', encoding='utf8') as ca_fso:
+                        cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), ca_fso.read())
+                        cert_raw = convert_byte_to_string(base64.b64encode(cert.public_bytes(serialization.Encoding.DER)))
                 else:
                     error = 'urn:ietf:params:acme:badCSR'
 
@@ -652,22 +651,26 @@ class CAhandler(object):
 
             if ca_key and ca_cert and serial:
                 if os.path.exists(self.issuer_dict['issuing_ca_crl']):
+                    self.logger.info('CAhandler.revoke(): load existing crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
                     # load  existing CRL
                     with open(self.issuer_dict['issuing_ca_crl'], 'rb') as fso:
                         crl_data = fso.read()
                         crl = x509.load_pem_x509_crl(crl_data, default_backend())
                     builder = x509.CertificateRevocationListBuilder()
+                    builder = builder.issuer_name(crl.issuer)
                     # add crl certificates from file to the new crl object
-                    for i in range(0, len(crl)):
-                        builder = builder.add_revoked_certificate(crl[i])
+                    for revserial in crl:
+                        builder = builder.add_revoked_certificate(revserial)
+
+                    # see if the cert to be revokek already in the list
+                    ret = crl.get_revoked_certificate_by_serial_number(serial)
+
                 else:
-                    # new CRL
+                    self.logger.info('CAhandler.revoke(): create new crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
                     builder = x509.CertificateRevocationListBuilder()
+                    builder = builder.issuer_name(ca_cert.issuer)
+                    ret = None
 
-                builder = builder.issuer_name(crl.issuer)
-
-                # see if the cert to be revokek already in the list
-                ret = crl.get_revoked_certificate_by_serial_number(serial)
                 if not isinstance(ret, x509.RevokedCertificate):
                     # this is the revocation operation
                     # Set up the revoked entry
