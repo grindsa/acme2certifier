@@ -194,7 +194,7 @@ class Order(object):
         self.logger.debug('Order._identifiers_check() done with {0}:'.format(error))
         return error
 
-    def _info(self, order_name: str) -> List[str]:
+    def _info(self, order_name: str) -> Dict[str, str]:
         """ list details of an order """
         self.logger.debug('Order._info({0})'.format(order_name))
         try:

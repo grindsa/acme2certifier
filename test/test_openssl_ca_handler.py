@@ -1450,7 +1450,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_datetime.utcnow.return_value.utctimetuple.return_value = 'utcnow'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((200, None, None), self.cahandler.revoke('cert'))
-        self.assertIn('INFO:test_a2c:CAhandler.revoke(): create new crl issuing_ca_crl)', lcm.output)
+        self.assertIn('INFO:test_a2c:CAhandler._crlobject_build(): create new crl issuing_ca_crl)', lcm.output)
         self.assertTrue(mock_ca_load.called)
         self.assertTrue(mock_serial.called)
         self.assertTrue(mock_certbuilder.called)

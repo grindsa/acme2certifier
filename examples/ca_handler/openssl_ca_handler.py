@@ -630,6 +630,33 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
+    def _crlobject_build(self, ca_cert: object, serial: int) -> Tuple[x509.CertificateRevocationListBuilder, object]:
+        self.logger.debug('CAhandler._crlobject_build()')
+
+        if os.path.exists(self.issuer_dict['issuing_ca_crl']):
+            self.logger.info('CAhandler.revoke(): load existing crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
+            # load  existing CRL
+            with open(self.issuer_dict['issuing_ca_crl'], 'rb') as fso:
+                crl_data = fso.read()
+                crl = x509.load_pem_x509_crl(crl_data, default_backend())
+            builder = x509.CertificateRevocationListBuilder()
+            builder = builder.issuer_name(crl.issuer)
+            # add crl certificates from file to the new crl object
+            for revserial in crl:
+                builder = builder.add_revoked_certificate(revserial)
+
+            # see if the cert to be revokek already in the list
+            ret = crl.get_revoked_certificate_by_serial_number(serial)
+
+        else:
+            self.logger.info('CAhandler._crlobject_build(): create new crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
+            builder = x509.CertificateRevocationListBuilder()
+            builder = builder.issuer_name(ca_cert.issuer)
+            ret = None
+
+        self.logger.debug('CAhandler._crlobject_build() ended')
+        return (builder, ret)
+
     def revoke(self, cert_pem: str, rev_reason: str = 'unspecified', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
@@ -645,6 +672,7 @@ class CAhandler(object):
         if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
             # load ca cert and key
             (ca_key, ca_cert) = self._ca_load()
+
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
 
@@ -652,26 +680,9 @@ class CAhandler(object):
             serial = cert_serial_get(self.logger, cert_pem)
 
             if ca_key and ca_cert and serial:
-                if os.path.exists(self.issuer_dict['issuing_ca_crl']):
-                    self.logger.info('CAhandler.revoke(): load existing crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
-                    # load  existing CRL
-                    with open(self.issuer_dict['issuing_ca_crl'], 'rb') as fso:
-                        crl_data = fso.read()
-                        crl = x509.load_pem_x509_crl(crl_data, default_backend())
-                    builder = x509.CertificateRevocationListBuilder()
-                    builder = builder.issuer_name(crl.issuer)
-                    # add crl certificates from file to the new crl object
-                    for revserial in crl:
-                        builder = builder.add_revoked_certificate(revserial)
 
-                    # see if the cert to be revokek already in the list
-                    ret = crl.get_revoked_certificate_by_serial_number(serial)
-
-                else:
-                    self.logger.info('CAhandler.revoke(): create new crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
-                    builder = x509.CertificateRevocationListBuilder()
-                    builder = builder.issuer_name(ca_cert.issuer)
-                    ret = None
+                # build crl object
+                (builder, ret) = self._crlobject_build(ca_cert, serial)
 
                 if not isinstance(ret, x509.RevokedCertificate):
                     # this is the revocation operation
