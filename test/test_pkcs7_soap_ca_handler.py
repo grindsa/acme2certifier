@@ -555,8 +555,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('cryptography.hazmat.primitives.asymmetric.rsa')
     def test_030_sign(self, mock_rsa):
         """ test _sign rsa key """
+        keyph = b'Test1234'
         with open(self.dir_path + '/ca/sub-ca-key.pem', 'rb') as open_file:
-            key = serialization.load_pem_private_key(open_file.read(), password=None, backend=default_backend())
+            key = serialization.load_pem_private_key(open_file.read(), password=keyph, backend=default_backend())
         payload = b'foo'
         result = self.cahandler._sign(key, payload)
         signature = b'4oTEIybGnmkfnG+Fvf0t8Sx8YHSf55tm3WtcdPagvtNM3vLjsidWKc2yliGYVmDqT9E+/wx3tvsMeDrgRiAzMhbjPYOeKwyx30BZT++4Fw9OkRQyriwyLB3ncFReVF8DyBRj/3S1Ftoy6Msa2CCk59LhYm/ubBQAm88gYiBzCFtVhneNOg5vS2s79UuyLjE2J90Yjs3z7OCckWrZ1UxI3UBoaJAWQg83M6fnF4aMkpnO3Jd6oQ4nq7r4EeVKYYEwrOINKKfh/1ykaCLg2K9OAD2LY1b9LilHTG8lcoUhS+bBMJkESHi508EzFQ4IUdsA42porTkEkdc5g9ZmCm7PPjroSRZGtM00R6aV/4z8Tlp4JBaov9x3fUd5wKjGIP0mdLQamAfxhK/pUqzM/lXtndprV7yh07tzypHa1XNvmTn/di2jNu90cq3eGgi3nBY98u+GcHTFnFH2aW2hk7kxqmxT4ymsZhlviIX8GIT4blE2nJgcl91Ktxm9QataRMjny/uJd//olQAXGMcbDwhNpYBfdJe99XoeuY+xNtJtlQt7IciTmJ3DEcK2kTtsNZ2i/lvn+iYR4iD9fJ/S4FedHqPZi48Q+LSnGC61zD21ZgbT8FrzUTnmmgw9BeDTWezGDGgBdOIuG313waZlvdDahk+6AYz9tOxS+bm9Epcj3NY='
@@ -585,10 +586,11 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_033_pkcs7_create(self):
         """ test pkcs7_create """
+        keyph = b'Test1234'
         with open(self.dir_path + '/ca/csr.der', 'rb') as open_file:
            csr_der = open_file.read()
         with open(self.dir_path + '/ca/sub-ca-key.pem', 'rb') as open_file:
-            signing_key = serialization.load_pem_private_key(open_file.read(), password=None, backend=default_backend())
+            signing_key = serialization.load_pem_private_key(open_file.read(), password=keyph, backend=default_backend())
         with open(self.dir_path + '/ca/sub-ca-cert.pem', 'rb') as open_file:
             signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
 
