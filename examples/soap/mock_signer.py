@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
         # CONFIG_VARIANT contains the signing cert
         with open(CONFIG_VARIANT, 'rb') as open_file:
-            signing_key = serialization.load_pem_private_key(open_file.read(), password=None, backend=default_backend())
+            signing_key = serialization.load_pem_private_key(open_file.read(), password=b'Test1234', backend=default_backend())
 
             ca_handler = CAhandler(DEBUG, LOGGER)
 

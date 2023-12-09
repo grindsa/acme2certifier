@@ -471,7 +471,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._reqid_lookup() ended with: {0}'.format(req_id))
         return req_id
 
-    def _csr_id_lookup(self, csr_cn: str, _csr_san_list: dict[str, str], csr: str = None) -> int:
+    def _csr_id_lookup(self, csr_cn: str, _csr_san_list: Dict[str, str], csr: str = None) -> int:
         """ lookup CSR based on CN """
         self.logger.debug('CAhandler._csr_id_lookup()')
 
