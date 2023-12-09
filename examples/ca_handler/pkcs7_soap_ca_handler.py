@@ -87,7 +87,7 @@ class CAhandler(object):
             self.logger.error('CAhandler._config_load(): signing_cert option is missing in config file')
 
         if 'password' in config_dic['CAhandler']:
-            self.password = config_dic['CAhandler']['password']
+            self.password = convert_string_to_byte(config_dic['CAhandler']['password'])
 
         if 'signing_key' in config_dic['CAhandler']:
             if os.path.exists(config_dic['CAhandler']['signing_key']):
