@@ -494,7 +494,7 @@ class Certificate(object):
             result = None
         return result
 
-    def _expirydate_assume(self, cert: str, timestamp: int, to_be_cleared: bool) -> bool:
+    def _expirydate_assume(self, cert: Dict[str, str], timestamp: int, to_be_cleared: bool) -> bool:
         """ assume expiry date """
         self.logger.debug('Certificate._expirydate_assume()')
 
@@ -515,7 +515,7 @@ class Certificate(object):
         self.logger.debug('Certificate._expirydate_assume() ended')
         return to_be_cleared
 
-    def _expiredate_get(self, cert: str, timestamp: int, to_be_cleared: bool) -> bool:
+    def _expiredate_get(self, cert: Dict[str, str], timestamp: int, to_be_cleared: bool) -> bool:
         """ get expirey date from certificate """
         self.logger.debug('Certificate._expiredate_get()')
 
@@ -538,7 +538,7 @@ class Certificate(object):
         self.logger.debug('Certificate._expiredate_get() ended with: to_be_cleared:  {0}'.format(to_be_cleared))
         return to_be_cleared
 
-    def _invalidation_check(self, cert: str, timestamp: int, purge: bool = False):
+    def _invalidation_check(self, cert: Dict[str, str], timestamp: int, purge: bool = False):
         """ check if cert must be invalidated """
         if 'name' in cert:
             self.logger.debug('Certificate._invalidation_check({0})'.format(cert['name']))
@@ -740,7 +740,7 @@ class Certificate(object):
         self.logger.debug('Certificate.cleanup() ended with: {0} certs'.format(len(report_list)))
         return (field_list, report_list)
 
-    def _dates_update(self, cert: str):
+    def _dates_update(self, cert: Dict[str, str]):
         """ update issue and expiry date with date from certificate """
         self.logger.debug('Certificate._dates_update()')
 

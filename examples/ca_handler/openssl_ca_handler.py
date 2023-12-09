@@ -93,7 +93,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_extension_ku_parse() ended')
         return template_dic
 
-    def _cert_extension_eku_parse(self, ext: str) -> Dict[str, str]:
+    def _cert_extension_eku_parse(self, ext: str) -> List[str]:
         self.logger.debug('CAhandler._cert_extension_eku_parse()')
 
         # eku included in tempalate
@@ -150,7 +150,7 @@ class CAhandler(object):
         """ verify certificate chain """
         self.logger.debug('CAhandler._certificate_extensions_load()')
 
-        file_dic = dict(load_config(self.logger, None, self.openssl_conf))
+        file_dic = dict(load_config(self.logger, cfg_file=self.openssl_conf))
 
         cert_extention_dic = {}
         if 'extensions' in file_dic:
@@ -637,8 +637,10 @@ class CAhandler(object):
         message = None
         detail = None
 
+        rev_date_format = '%y%m%d%H%M%SZ'
+
         # overwrite revocation date - we ignore what has been submitted
-        rev_date = uts_to_date_utc(uts_now(), '%y%m%d%H%M%SZ')
+        rev_date = uts_to_date_utc(uts_now(), rev_date_format)
 
         if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
             # load ca cert and key
@@ -674,11 +676,11 @@ class CAhandler(object):
                 if not isinstance(ret, x509.RevokedCertificate):
                     # this is the revocation operation
                     # Set up the revoked entry
-                    revoked_entry = x509.RevokedCertificateBuilder().serial_number(serial).revocation_date(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).build(default_backend())
+                    revoked_entry = x509.RevokedCertificateBuilder().serial_number(serial).revocation_date(datetime.datetime.strptime(rev_date, rev_date_format)).build(default_backend())
                     builder = builder.add_revoked_certificate(revoked_entry)
 
                     # Sign the CRL
-                    crl = builder.last_update(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).next_update(datetime.datetime.strptime(rev_date, '%y%m%d%H%M%SZ')).sign(ca_key, hashes.SHA256())
+                    crl = builder.last_update(datetime.datetime.strptime(rev_date, rev_date_format)).next_update(datetime.datetime.strptime(rev_date, rev_date_format)).sign(ca_key, hashes.SHA256())
 
                     # Save CRL
                     with open(self.issuer_dict['issuing_ca_crl'], 'wb') as fso:

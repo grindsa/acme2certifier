@@ -567,7 +567,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._san_compare() ended with: {0}'.format(result))
         return result
 
-    def _template_list_get(self) -> List[str]:
+    def _template_list_get(self) -> Dict[str, str]:
         """ get list of templates """
         self.logger.debug('CAhandler._template_id_lookup({0})'.format(self.tsg_info_dic['id']))
         try:
@@ -578,7 +578,7 @@ class CAhandler(object):
 
         return template_list
 
-    def _templates_enumerate(self, template_list: List[str]):
+    def _templates_enumerate(self, template_list: Dict[str, str]):
         """ get template id based on name """
         self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
 

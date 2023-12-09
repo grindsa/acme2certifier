@@ -156,7 +156,7 @@ def _get_request_body(environ: Dict[str, str]) -> str:
 
 def _config_load(logger, config_file: str) -> Dict[str, str]:
     """ load config file"""
-    config_dic = load_config(logger, None, config_file)
+    config_dic = load_config(logger, cfg_file=config_file)
 
     cfg_dic = {}
     if 'CAhandler' in config_dic:
@@ -247,7 +247,7 @@ def request_process(logger, csr: str) -> bytes:
     return convert_string_to_byte(soap_response)
 
 
-def soap_srv(environ, start_response: List[str]) -> List[str]:
+def soap_srv(environ, start_response: object) -> List[str]:
     """ echo application """
     request_body = _get_request_body(environ)
     stack_d = xmltodict.parse(request_body)
