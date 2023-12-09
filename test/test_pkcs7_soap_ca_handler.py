@@ -572,8 +572,6 @@ class TestACMEHandler(unittest.TestCase):
         key = serialization.load_pem_private_key(ecc_key, password=None, backend=default_backend())
         payload = b'foo'
         result = self.cahandler._sign(key, payload)
-        # signature = b'MEQCIHuL0+ZfJAKIDeHHj4zhIA//SKhzcuMZQfPXjGEjFWQPAiA2gFoIklkXIqEDG4rWKqJKhfWsk/TDEupuHDvyEATx5Q=='
-        # self.assertEqual(signature, base64.b64encode(result[0]))
         alg = """AlgorithmIdentifier:\n algorithm=1.2.840.10045.4.3.2\n"""
         self.assertEqual(alg, str(result[1]))
 

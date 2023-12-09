@@ -442,7 +442,7 @@ class CAhandler(object):
                 'OCSPSigning': ExtendedKeyUsageOID.OCSP_SIGNING,
                 'pkInitKDC': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
                 'eKeyUse': 'eKeyUse'  # this is just for testing
-             }
+            }
             if 'ekuCritical' in template_dic:
                 try:
                     ekuc = bool(int(template_dic['ekuCritical']))
