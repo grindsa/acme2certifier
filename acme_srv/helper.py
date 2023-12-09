@@ -547,7 +547,7 @@ def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 
     return list(result)
 
 
-def load_config(logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None) -> Dict[str, str]:
+def load_config(logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None) -> configparser.ConfigParser:
     """ small configparser wrappter to load a config file """
     if not cfg_file:
         if 'ACME_SRV_CONFIGFILE' in os.environ:
@@ -886,7 +886,7 @@ def allowed_gai_family() -> socket.AF_INET:
     return family
 
 
-def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: List[str], verify: bool, timeout: int) -> str:
+def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: Dict[str, str], verify: bool, timeout: int) -> str:
     """ http get with default dns server """
     logger.debug('url_get_with_default_dns({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
 

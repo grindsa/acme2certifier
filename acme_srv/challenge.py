@@ -234,7 +234,7 @@ class Challenge(object):
             (challenge_name, _sinin) = challenge_name.split('/', 1)
         return challenge_name
 
-    def _new(self, authz_name: str, mtype: str, token: str, value: str = None) -> Dict[str, str]:
+    def _new(self, authz_name: str, mtype: str, token: str = None, value: str = None) -> Dict[str, str]:
         """ new challenge """
         self.logger.debug('Challenge._new({0}:{2}:{1})'.format(authz_name, mtype, value))
 
@@ -566,7 +566,7 @@ class Challenge(object):
         if tnauth:
             challenge_list.append(self._new(authz_name, 'tkauth-01', token))
         elif self.sectigo_sim:
-            challenge_list.append(self._new(authz_name, 'sectigo-email-01', None))
+            challenge_list.append(self._new(authz_name, 'sectigo-email-01'))
         else:
             challenge_type_list = ['http-01', 'dns-01', 'tls-alpn-01']
             # remove dns challnge for ip-addresses

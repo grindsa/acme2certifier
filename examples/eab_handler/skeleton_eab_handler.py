@@ -35,6 +35,6 @@ class EABhandler(object):
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
-        mac_key = None
+        mac_key = 'mac_key'
 
         return mac_key

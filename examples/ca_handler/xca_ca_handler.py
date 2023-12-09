@@ -556,7 +556,7 @@ class CAhandler(object):
             kup = 0
 
         # generate key-usage extension
-        ku_dic = self._kue_generate(kup, None)
+        ku_dic = self._kue_generate(kup)
 
         return (kuc, ku_dic)
 

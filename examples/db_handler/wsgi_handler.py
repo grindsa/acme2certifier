@@ -145,7 +145,7 @@ class DBstore(object):
         self.logger.debug('_certificate_insert() ended with: {0}'.format(rid))
         return rid
 
-    def _certificate_update(self, data_dic: Dict[str, str], exists: bool) -> int:
+    def _certificate_update(self, data_dic: Dict[str, str], exists: Dict[str, str]) -> int:
         self.logger.debug('_certificate_update() for {0} id:{1}'.format(data_dic['name'], dict_from_row(exists)['id']))
 
         self._db_open()
@@ -166,7 +166,7 @@ class DBstore(object):
         self.logger.debug('_certificate_update() ended with: {0}'.format(rid))
         return rid
 
-    def _certificate_search(self, column: str, string: str) -> List[str]:
+    def _certificate_search(self, column: str, string: str) -> Dict[str, str]:
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore._certificate_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -221,7 +221,7 @@ class DBstore(object):
         self.logger.debug('DBStore._challenge_search() ended')
         return result
 
-    def _cliaccount_search(self, column: str, string: str) -> List[str]:
+    def _cliaccount_search(self, column: str, string: str) -> Dict[str, str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._cliaccount_search(column:{0}, pattern:{1})'.format(column, string))
         self._db_open()
@@ -528,7 +528,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_add() ended')
         return (aname, created)
 
-    def account_delete(self, aname: str) -> List[str]:
+    def account_delete(self, aname: str) -> bool:
         """ add account in database """
         self.logger.debug('DBStore.account_delete({0})'.format(aname))
         self._db_open()
@@ -539,7 +539,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_delete() ended')
         return result
 
-    def account_lookup(self, column: str, string: str) -> List[str]:
+    def account_lookup(self, column: str, string: str) -> Dict[str, str]:
         """ lookup account table for a certain key/value pair and return id"""
         self.logger.debug('DBStore.account_lookup(column:{0}, pattern:{1})'.format(column, string))
         try:
@@ -777,7 +777,7 @@ class DBstore(object):
         self.logger.debug('DBStore.authorization_add() ended with: {0}'.format(rid))
         return rid
 
-    def cahandler_lookup(self, column: str, string: str, vlist: List[str] = ('name', 'value1', 'value2', 'created_at')) -> List[str]:
+    def cahandler_lookup(self, column: str, string: str, vlist: List[str] = ['name', 'value1', 'value2', 'created_at']) -> Dict[str, str]:
         """ lookup ca handler """
         self.logger.debug('DBStore.cahandler_lookup(column:{0}, pattern:{1})'.format(column, string))
 
@@ -928,7 +928,7 @@ class DBstore(object):
         self._db_close()
         return (vlist, cert_list)
 
-    def certificate_lookup(self, column: str, string: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name')) -> List[str]:
+    def certificate_lookup(self, column: str, string: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name')) -> Dict[str, str]:
         """ search certificate based on "something" """
         self.logger.debug('DBstore.certificate_lookup({0}:{1})'.format(column, string))
 
@@ -1044,7 +1044,7 @@ class DBstore(object):
         self.logger.debug('DBStore.challenge_add() ended')
         return rid
 
-    def challenge_lookup(self, column: str, string: str, vlist: List[str] = ('type', 'token', 'status__name')) -> List[str]:
+    def challenge_lookup(self, column: str, string: str, vlist: List[str] = ('type', 'token', 'status__name')) -> Dict[str, str]:
         """ search account for a given id """
         self.logger.debug('DBStore.challenge_lookup({0}:{1})'.format(column, string))
 
@@ -1062,8 +1062,7 @@ class DBstore(object):
                     result['authorization'] = lookup['authorization__name']
                 else:
                     result[ele] = lookup[ele]
-        else:
-            result = None
+
         self.logger.debug('DBStore.challenge_lookup() ended with:{0}'.format(result))
         return result
 
@@ -1227,7 +1226,7 @@ class DBstore(object):
         self.logger.debug('DBStore.nonce_add() ended')
         return rid
 
-    def nonce_check(self, nonce: str) -> List[str]:
+    def nonce_check(self, nonce: str) -> Dict[str, str]:
         """ ceck if nonce is in datbase
         in: nonce
         return: true in case nonce exit, otherwise false """
