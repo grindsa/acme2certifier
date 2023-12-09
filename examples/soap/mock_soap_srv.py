@@ -247,7 +247,7 @@ def request_process(logger, csr: str) -> bytes:
     return convert_string_to_byte(soap_response)
 
 
-def soap_srv(environ, start_response: object) -> List[str]:
+def soap_srv(environ, start_response) -> List[str]:
     """ echo application """
     request_body = _get_request_body(environ)
     stack_d = xmltodict.parse(request_body)

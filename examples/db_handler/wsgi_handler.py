@@ -1226,7 +1226,7 @@ class DBstore(object):
         self.logger.debug('DBStore.nonce_add() ended')
         return rid
 
-    def nonce_check(self, nonce: str) -> Dict[str, str]:
+    def nonce_check(self, nonce: str) -> bool:
         """ ceck if nonce is in datbase
         in: nonce
         return: true in case nonce exit, otherwise false """
@@ -1268,7 +1268,7 @@ class DBstore(object):
         self.logger.debug('DBStore.order_add() ended')
         return rid
 
-    def order_lookup(self, column: str, string: str, vlist: List[str] = ('notbefore', 'notafter', 'identifiers', 'expires', 'status__name')) -> List[str]:
+    def order_lookup(self, column: str, string: str, vlist: List[str] = ('notbefore', 'notafter', 'identifiers', 'expires', 'status__name')) -> Dict[str, str]:
         """ search orders for a given ordername """
         self.logger.debug('order_lookup({0}:{1})'.format(column, string))
 
@@ -1289,8 +1289,7 @@ class DBstore(object):
                     result['status'] = lookup['status__name']
                 else:
                     result[ele] = lookup[ele]
-        else:
-            result = None
+
         self.logger.debug('DBStore.order_lookup() ended with: {0}'.format(result))
         return result
 
