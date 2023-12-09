@@ -88,7 +88,7 @@ jobs:
     - name: "[ VERIFY ] Check timeout"
       working-directory: examples/Docker/
       run: |
-        docker-compose logs | grep "Certificate.enroll() ended with: None:timeout"
+        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
 
 
