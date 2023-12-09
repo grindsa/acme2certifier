@@ -532,7 +532,7 @@ class CAhandler(object):
         default_extension_list = [
             {'name': BasicConstraints(ca=False, path_length=None), 'critical': True},
             {'name': ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]), 'critical': False},
-            {'name': KeyUsage(digital_signature=True, content_commitment=True, key_encipherment=True, data_encipherment=True, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
+            {'name': KeyUsage(digital_signature=True, content_commitment=False, key_encipherment=True, data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), 'critical': True},
         ]
         if req:
             default_extension_list.append({'name': SubjectKeyIdentifier.from_public_key(req.public_key()), 'critical': False},)
