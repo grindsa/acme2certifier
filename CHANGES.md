@@ -5,6 +5,13 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.31
+
+**Features and Improvements**:
+
+- refactor `opennssl_ca_handler.py` and `xca_ca_handler.py` to replace pyopenssl
+- type hints for large parts of the project
+
 # Changes in 0.30
 
 **Upgrade notes**:
