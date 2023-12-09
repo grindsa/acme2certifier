@@ -74,6 +74,7 @@ jobs:
         sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
         sudo echo "signing_cert: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "signing_key: /var/www/acme2certifier/volume/key.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: Test1234" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profilename: foo" >> examples/Docker/data/acme_srv.cfg
         sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
