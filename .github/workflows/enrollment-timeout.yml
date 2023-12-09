@@ -64,7 +64,7 @@ jobs:
     - name: "[ VERIFY ] Check certificate reusage"
       working-directory: examples/Docker/
       run: |
-        docker-compose logs | grep "Certificate._enroll_and_store(): reuse existing certificate"
+        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
 
     - name: "[ ENROL] lego"
       run: |
@@ -88,7 +88,7 @@ jobs:
     - name: "[ VERIFY ] Check timeout"
       working-directory: examples/Docker/
       run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker-compose logs | grep "Certificate.enroll() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
 
 
@@ -106,5 +106,5 @@ jobs:
       uses: actions/upload-artifact@v3
       if: ${{ failure() }}
       with:
-        name: timeout.tar.gz
+        name: async_enrollment_cert_reusage.tar.gz
         path: ${{ github.workspace }}/artifact/upload/

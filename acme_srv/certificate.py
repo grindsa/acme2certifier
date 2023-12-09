@@ -269,7 +269,7 @@ class Certificate(object):
         return csr_check_result
 
     def _enroll(self, csr: str, ca_handler: object) -> Tuple[str, str, str, str]:
-
+        self.logger.debug('Certificate._enroll()')
         if self.cert_reusage_timeframe:
             (error, certificate, certificate_raw, poll_identifier) = self._cert_reusage_check(csr)
         else:
@@ -282,6 +282,7 @@ class Certificate(object):
         else:
             self.logger.info('Certificate._enroll(): reuse existing certificate')
 
+        self.logger.debug('Certificate._enroll() ended')
         return (error, certificate, certificate_raw, poll_identifier)
 
     def _renewal_info_get(self, certificate: str) -> str:
