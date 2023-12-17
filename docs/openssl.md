@@ -40,6 +40,7 @@ issuing_ca_key_passphrase: Test1234
 issuing_ca_cert: acme_srv/ca/ca-cert.pem
 issuing_ca_crl: acme_srv/ca/crl.pem
 cert_validity_days: 30
+cert_validity_adjust: True
 cert_save_path: acme_srv/ca/certs
 ca_cert_chain_list: []
 openssl_conf: acme_srv/ca/openssl.conf
@@ -62,6 +63,7 @@ cn_enforce: True
 - `blocked_domainlist` - *optional* - list of prohibited common names and sans. Format per entry must follow the [regular expression syntax](https://docs.python.org/3/library/re.html). To be stored in json format
 - `save_cert_as_hex` - *optional* - serialnumber in hex format will be used as filename to save enrolled certificates - default is `False`
 - `cn_enforce` - *optional* - use first SAN as CN in case there is no CN included in CSR - default is `False`
+- `cert_validity_adjust` - *optional* - limit on the "valid until" field, so that a certificate is never valid longer than any other certificate in the certificate chain - default is set to `False`
 
 `allowed_domainlist` and `blocked_domainlist` options can be used independently from each other. When used together please note that that a positive result of a blocked_domainlist check takes precedence over the positive result of a allowed_domainlist check.
 
