@@ -5,6 +5,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.32
+
+**Features and Improvements**:
+
+- [#114](https://github.com/grindsa/acme2certifier/issues/114) `cert_validity_adjust` parameter in openssl_ca_handler.py to limi cartificate validity so that a certificate is never valid longer than any ca certificate in the certificate chain
+
 # Changes in 0.31
 
 **Features and Improvements**:
