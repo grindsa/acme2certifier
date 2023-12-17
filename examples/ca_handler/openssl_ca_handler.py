@@ -590,7 +590,6 @@ class CAhandler(object):
         builder = x509.CertificateBuilder()
         builder = builder.not_valid_before(datetime.datetime.utcnow())
         builder = builder.not_valid_after(cert_validity)
-        # builder = builder.not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=self.cert_validity_days))
         builder = builder.issuer_name(ca_cert.subject)
         builder = builder.subject_name(subject)
         builder = builder.serial_number(uuid.uuid4().int)
