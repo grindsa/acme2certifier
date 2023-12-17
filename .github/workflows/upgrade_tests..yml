@@ -584,7 +584,7 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: grindsa/rpmbuild@master
+      uses: grindsa/rpmbuild@alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
@@ -747,7 +747,7 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: grindsa/rpmbuild@master
+      uses: grindsa/rpmbuild@alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
@@ -930,7 +930,7 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: grindsa/rpmbuild@master
+      uses: grindsa/rpmbuild@alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
@@ -1095,7 +1095,7 @@ jobs:
 
     - name: build RPM package
       id: rpm
-      uses: grindsa/rpmbuild@master
+      uses: grindsa/rpmbuild@alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
