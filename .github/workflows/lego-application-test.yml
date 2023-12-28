@@ -32,15 +32,27 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "create lego folder"
       run: |
@@ -49,12 +61,15 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo chmod 777 lego/certificates/lego.acme.issuer.crt
+        sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
+        sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
@@ -63,12 +78,12 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 2x domain lego"
       run: |
@@ -119,16 +134,29 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler and django config"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "create lego folder"
       run: |
@@ -137,12 +165,15 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo chmod 777 lego/certificates/lego.acme.issuer.crt
+        sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
+        sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
@@ -151,12 +182,12 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 2x domain lego"
       run: |
@@ -207,15 +238,27 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "create lego folder"
       run: |
@@ -224,12 +267,15 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo chmod 777 lego/certificates/lego.acme.issuer.crt
+        sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
+        sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
@@ -238,12 +284,12 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 2x domain lego"
       run: |
@@ -295,16 +341,28 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler and django config"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "create lego folder"
       run: |
@@ -313,12 +371,15 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo chmod 777 lego/certificates/lego.acme.issuer.crt
+        sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
+        sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 single domain lego"
       run: |
@@ -327,12 +388,12 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ RENEW ] HTTP-01 2x domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http renew
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ REVOKE ] HTTP-01 2x domain lego"
       run: |
