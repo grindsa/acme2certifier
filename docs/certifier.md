@@ -70,7 +70,30 @@ The response to this call will show a dictionary containing the list of CAs incl
       }
     }
   ]
-}
+```
+
+## Passing profileID from client to server
+
+The handler makes use of the [header_info_list feature](header_info.md) allowing the client to specify a profileID to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+
+```config
+[Order]
+...
+header_info_list: ["HTTP_USER_AGENT"]
+``
+
+The acme-client can then specify the profile id as part of its user-agent string.
+
+Example for acme.sh:
+
+```bash
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profileID=101 --debug 3 --output-insecure
+```
+
+Example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent profileID=101 -d <fqdn> --http run
 ```
 
 ## CA policy configuration
