@@ -74,7 +74,7 @@ The response to this call will show a dictionary containing the list of CAs incl
 
 ## Passing a profileID from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing the client to specify a profileID to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a profileID to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
 
 ```config
 [Order]
