@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_get
 
 
 class CAhandler(object):
@@ -29,6 +29,7 @@ class CAhandler(object):
         self.polling_timeout = 60
         self.profile_id = None
         self.proxy = None
+        self.header_info_field = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -132,6 +133,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get({0})'.format(csr))
         ca_dic = self._ca_get_properties('name', self.ca_name)
         cert_dic = {}
+
+        if self.header_info_field:
+            # parse profileid from http_header
+            self.profile_id = self._profile_id_get(csr=csr)
 
         if 'href' in ca_dic:
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
@@ -284,6 +289,18 @@ class CAhandler(object):
 
         self.logger.debug('_config_proxy_load() ended')
 
+    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+        """ load parameters """
+        self.logger.debug('_config_header_info()')
+
+        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+            try:
+                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+            except Exception as err_:
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('_config_header_info() ended')
+
     def _config_load(self):
         """" load config from file """
         # pylint: disable=R0912, R0915
@@ -301,6 +318,8 @@ class CAhandler(object):
             self._config_password_load(config_dic)
             # load parameters from config
             self._config_parameter_load(config_dic)
+            # load headerinfo
+            self._config_headerinfo_get(config_dic)
 
         # load proxy configuration
         self._config_proxy_load(config_dic)
@@ -428,6 +447,27 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
         return pem_file
 
+    def _profile_id_get(self, csr: str) -> str:
+        """ get profile id from csr """
+        self.logger.debug('CAhandler._profile_id_get({0})'.format(csr))
+        profile_id = None
+
+        # parse profileid from http_header
+        header_info = header_info_get(self.logger, csr=csr)
+        if header_info:
+            try:
+                header_info_dic = json.loads(header_info[-1]['header_info'])
+                if self.header_info_field in header_info_dic:
+                    for ele in header_info_dic[self.header_info_field].split(' '):
+                        if 'profileid' in ele.lower():
+                            profile_id = ele.split('=')[1]
+                            break
+            except Exception as err:
+                self.logger.error('CAhandler._profile_id_get() could not parse profile_id: {0}'.format(err))
+
+        self.logger.debug('CAhandler._profile_id_get() ended with: {0}'.format(profile_id))
+        return profile_id
+
     def _request_poll(self, request_url: str) -> Tuple[str, str, str, str, bool]:
         """ poll request """
         self.logger.debug('CAhandler._request_poll({0})'.format(request_url))
@@ -490,6 +530,7 @@ class CAhandler(object):
         poll_identifier = None
 
         cert_dic = self._cert_get(csr)
+
         if cert_dic:
             if 'status' in cert_dic:
                 # this is an error
