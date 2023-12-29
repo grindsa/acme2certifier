@@ -72,7 +72,7 @@ The response to this call will show a dictionary containing the list of CAs incl
   ]
 ```
 
-## Passing profileID from client to server
+## Passing a profileID from client to server
 
 The handler makes use of the [header_info_list feature](header_info.md) allowing the client to specify a profileID to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
 
@@ -80,9 +80,9 @@ The handler makes use of the [header_info_list feature](header_info.md) allowing
 [Order]
 ...
 header_info_list: ["HTTP_USER_AGENT"]
-``
+```
 
-The acme-client can then specify the profile id as part of its user-agent string.
+The acme-client can then specify the profileID as part of its user-agent string.
 
 Example for acme.sh:
 
