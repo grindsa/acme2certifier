@@ -1162,11 +1162,11 @@ def certid_hex_get(logger: logging.Logger, renewal_info: str) -> Tuple[str, str]
     renewal_info_hex = b64_decode(logger, renewal_info_b64).hex()
 
     # this is ugly but i did not find a better way to do this
-    aki, certid_renewal = renewal_info_hex.split('0420', 1)
-    aki = aki[4:]
+    mda, certid_renewal = renewal_info_hex.split('0420', 1)
+    mda = mda[4:]
 
     logger.debug('certid_hex_get() endet with {0}'.format(certid_renewal))
-    return aki, certid_renewal
+    return mda, certid_renewal
 
 
 def certid_check(logger: logging.Logger, renewal_info: str, certid_database: str) -> str:

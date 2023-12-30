@@ -103,7 +103,7 @@ class Renewalinfo(object):
 
         # we need to workaround a strange issue in win-acme
         url = url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo'].rstrip('/')), '')
-        url = url.rstrip('/')
+        url = url.lstrip('/')
 
         # sanitize renewal_info string
         renewalinfo_string = string_sanitize(self.logger, url)
@@ -118,12 +118,11 @@ class Renewalinfo(object):
         # parse renewalinfo
         renewalinfo_string = self.renewalinfo_string_get(url)
 
-        # get certid in hex
-        (aki_hex, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
+        (mda, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
 
         response_dic = {}
         # we cannot verify the AKI thus we accept any value
-        if aki_hex:
+        if mda:
             # get renewal window datas
             rewalinfo_dic = self._renewalinfo_get(certid_hex)
             if rewalinfo_dic:
