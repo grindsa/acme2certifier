@@ -242,7 +242,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_022_get(self, mock_sanitize, mock_hexget, mock_renget):
         """ test get() """
         mock_renget.return_value = None
-        mock_hexget.return_value = ('wronghashalgo', 'bar')
+        mock_hexget.return_value = (None, 'bar')
         self.assertEqual({'code': 400, 'data': 'urn:ietf:params:acme:error:malformed'}, self. renewalinfo.get('url'))
         self.assertTrue(mock_sanitize.called)
         self.assertTrue(mock_hexget.called)
@@ -301,7 +301,26 @@ class TestACMEHandler(unittest.TestCase):
         self.renewalinfo.dbstore.certificate_add.return_value = 1
         self.assertEqual({'code': 200}, self.renewalinfo.update('content'))
 
+    def test_029_renewalinfo_string_get(self):
+        """ test update() """
+        self.renewalinfo.server_name = 'http://server.name'
+        self.renewalinfo.path_dic = {'renewalinfo': '/renewalinfo'}
+        input_string = 'http://server.name/renewalinfo/foo'
+        self.assertEqual('foo', self.renewalinfo.renewalinfo_string_get(input_string))
 
+    def test_030_renewalinfo_string_get(self):
+        """ test update() """
+        self.renewalinfo.server_name = 'http://server.name'
+        self.renewalinfo.path_dic = {'renewalinfo': '/renewalinfo'}
+        input_string = 'http://server.name/renewalinfofoo'
+        self.assertEqual('foo', self.renewalinfo.renewalinfo_string_get(input_string))
+
+    def test_031_renewalinfo_string_get(self):
+        """ test update() """
+        self.renewalinfo.server_name = 'http://server.name'
+        self.renewalinfo.path_dic = {'renewalinfo': '/renewalinfo/'}
+        input_string = 'http://server.name/renewalinfo/foo'
+        self.assertEqual('foo', self.renewalinfo.renewalinfo_string_get(input_string))
 
 if __name__ == '__main__':
     unittest.main()
