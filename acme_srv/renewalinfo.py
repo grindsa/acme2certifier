@@ -77,9 +77,9 @@ class Renewalinfo(object):
             if 'issue_uts' not in cert_dic or not cert_dic['issue_uts']:
                 cert_dic['issue_uts'] = uts_now()
 
-            # for debugging trigger immedeate rewwal
+            # for debugging trigger immediate renwal
             if self.renewal_force:
-                self.logger.debug('Renewalinfo.get() - foce renewal')
+                self.logger.debug('Renewalinfo.get() - force renewal')
                 cert_dic['expire_uts'] = uts_now() + 86400
                 start_uts = int(cert_dic['expire_uts'] - (365 * 86400))
             else:
@@ -97,18 +97,32 @@ class Renewalinfo(object):
 
         return renewalinfo_dic
 
+    def renewalinfo_string_get(self, url: str) -> str:
+        """ get renewal string from url"""
+        self.logger.debug('Renewalinfo.renewal_string_get()')
+
+        # we need to workaround a strange issue in win-acme
+        url = url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo'].rstrip('/')), '')
+        url = url.lstrip('/')
+
+        # sanitize renewal_info string
+        renewalinfo_string = string_sanitize(self.logger, url)
+
+        self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: {0}'.format(renewalinfo_string))
+        return renewalinfo_string
+
     def get(self, url: str) -> Dict[str, str]:
         """ get renewal information """
         self.logger.debug('Renewalinfo.get()')
 
         # parse renewalinfo
-        renewalinfo_string = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo']), ''))
+        renewalinfo_string = self.renewalinfo_string_get(url)
 
-        # get certid in hex
         (mda, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
 
         response_dic = {}
-        if mda == '300b0609608648016503040201':
+        # we cannot verify the AKI thus we accept any value
+        if mda:
             # get renewal window datas
             rewalinfo_dic = self._renewalinfo_get(certid_hex)
             if rewalinfo_dic:
