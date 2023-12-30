@@ -502,6 +502,21 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {'mock': 'post'}
         self.assertEqual({'mock': 'post'}, self.cahandler._cert_get('csr'))
 
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._profile_id_get')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._api_post')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
+    def test_048__cert_get(self, mock_caget, mock_post, mock_profile):
+        """ CAhandler._ca_get_properties() _ca_get_properties does returns "href" key """
+        self.cahandler.api_host = 'api_host'
+        self.cahandler.profile_id = 100
+        self.cahandler.header_info_field = 'header_info_field'
+        mock_profile.return_value = '101'
+        mock_caget.return_value = {'href': 'href'}
+        mock_post.return_value = {'mock': 'post'}
+        self.assertEqual({'mock': 'post'}, self.cahandler._cert_get('csr'))
+        self.assertTrue(mock_profile.called)
+        self.assertEqual('101', self.cahandler.profile_id, )
+
     @patch('requests.get')
     def test_048__cert_get_properties(self, mock_req):
         """ CAhandler._cert_get_properties() all good """
@@ -979,7 +994,41 @@ class TestACMEHandler(unittest.TestCase):
         result = (None, 'bundle', 'certificateBase64', 'url', False)
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_get')
+    def test_096_profile_id_get(self, mock_header):
+        """ test _profile_id_get()"""
+        mock_header.return_value = [{'header_info': '{"header_field": "profileID=101 lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'}]
+        self.cahandler.header_info_field = 'header_field'
+        self.assertEqual('101', self.cahandler._profile_id_get('csr'))
 
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_get')
+    def test_097_profile_id_get(self, mock_header):
+        """ test _profile_id_get()"""
+        mock_header.return_value = [{'header_info': 'header_info'}]
+        self.cahandler.header_info_field = 'header_field'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._profile_id_get('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._profile_id_get() could not parse profile_id: Expecting value: line 1 column 1 (char 0)', lcm.output)
+
+    def test_098_config_headerinfo_get(self):
+        """ test config_headerinfo_get()"""
+        config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
+        self.cahandler._config_headerinfo_get(config_dic)
+        self.assertEqual( 'foo', self.cahandler.header_info_field)
+
+    def test_099_config_headerinfo_get(self):
+        """ test config_headerinfo_get()"""
+        config_dic = {'Order': {'header_info_list': '["foo"]'}}
+        self.cahandler._config_headerinfo_get(config_dic)
+        self.assertEqual( 'foo', self.cahandler.header_info_field)
+
+    def test_100_config_headerinfo_get(self):
+        """ test config_headerinfo_get()"""
+        config_dic = {'Order': {'header_info_list': 'foo'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_headerinfo_get(config_dic)
+        self.assertFalse(self.cahandler.header_info_field)
+        self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
 if __name__ == '__main__':
 
