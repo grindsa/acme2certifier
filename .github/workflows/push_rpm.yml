@@ -1,0 +1,61 @@
+name: build and upload rpm
+on:
+  push:
+    branches:
+      - "min"
+jobs:
+
+   build_and_upload_rpm:
+    name: build_and_upload_rpm
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: "Retrieve Version from version.py"
+        run: |
+          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+      - name: Retrieve Version from version.py
+        run: |
+          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+      - run: echo "APP tag is ${{ env.APP_NAME }}"
+      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+      - name: update version number in spec file
+        run: |
+          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.name "rpm update"
+          git add examples/nginx
+          git commit -a -m "rpm update"
+
+      - name: build RPM package
+        id: rpm_build
+        uses: grindsa/rpmbuild@alma9
+        with:
+          spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+      - run: echo "srpm path ${{ steps.rpm_build.outputs.source_rpm_path }}"
+      - run: echo "srpm name ${{ steps.rpm_build.outputs.source_rpm_path }}"
+      - run: echo "rpm path  ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
+      - run: echo "rpm name acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
+
+      - name: copy rpm
+        run: |
+          git reset --hard HEAD~1
+          mkdir -p examples/install_scripts/rpm/packages
+          cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
+          cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
+          sudo rm -rf rpmbuild
+          ls -la examples/install_scripts/rpm/packages
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: rpm update
