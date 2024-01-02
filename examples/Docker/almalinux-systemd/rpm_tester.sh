@@ -28,6 +28,12 @@ case "$1" in
       cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     fi
 
+    if [ -d /tmp/acme2certifier/nginx ]
+      then
+      mkdir -p /etc/nginx
+      yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
+    fi
+
     chown -R nginx.nginx /opt/acme2certifier/volume/
     ls -la /opt/acme2certifier/
     ls -la /opt/acme2certifier/volume
