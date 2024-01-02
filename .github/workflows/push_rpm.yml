@@ -2,7 +2,7 @@ name: build and upload rpm
 on:
   push:
     branches:
-      - "min_wf"
+      - "min"
 jobs:
 
    build_and_upload_rpm:
