@@ -1,0 +1,253 @@
+name: CA handler Tests - Insta ASA
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  asa_handler_tests:
+    name: "asa_handler_tests"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir certbot
+        mkdir lego
+        mkdir acme-sh
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] setup a2c with asa_ca_handler"
+      run: |
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Test http://acme-srv/directory is accessable again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+
+    #- name: "revoke via acme.sh"
+    #  run: |
+    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ REGISTER ] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --key-type rsa --rsa-key-size 2048
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+        sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
+
+    #- name: "revoke HTTP-01 single domain certbot"
+    #  run: |
+    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+
+    #- name: "revoke HTTP-01 single domain lego"
+    #  run: |
+    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: asa_wsgi.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  asa_handler_tests_rpm:
+    name: "asa_handler_tests_rpm"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v3
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: grindsa/rpmbuild@alma9
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "[ PREPARE ] setup environment for alma installation"
+      run: |
+        docker network create acme
+        sudo mkdir -p data
+        sudo chmod -R 777 data
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        mkdir certbot
+        mkdir lego
+        mkdir acme-sh
+
+    - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler"
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "[ PREPARE ] Almalinux instance"
+      run: |
+        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "[ PREPARE ] prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+    - name: "[ ENROLL ] acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+
+    #- name: "revoke via acme.sh"
+    #  run: |
+    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ REGISTER ] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --key-type rsa --rsa-key-size 2048
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+        sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
+
+    #- name: "revoke HTTP-01 single domain certbot"
+    #  run: |
+    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+
+    #- name: "revoke HTTP-01 single domain lego"
+    #  run: |
+    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: asa_handler_tests_rpm.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
