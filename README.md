@@ -14,9 +14,7 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 
-acme2certifier is development project to create an ACME protocol proxy. Main
-intention is to provide ACME services on CA servers which do not support this
-protocol yet. It consists of two libraries:
+acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme_srv/*.py - a bunch of classes implementing ACME server functionality based
 on [rfc8555](https://tools.ietf.org/html/rfc8555)
@@ -25,6 +23,7 @@ is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
 should be straight forward. As of today the following handlers are available:
   - [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)
   - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
+  - Insta ActiveCMS
   - [EJBCA](docs/ejbca.md)
   - [OpenXPKI](docs/openxpki.md)
   - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
@@ -36,8 +35,7 @@ should be straight forward. As of today the following handlers are available:
   - [XCA](docs/xca.md)
   - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)
 
-For more up-to-date information and further documentation, please visit the
-project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
+For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
 
 ## ChangeLog
 
@@ -57,14 +55,11 @@ Following acme-clients are used for regular testing of server functionality
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
 - [win-acme](https://www.win-acme.com/)
 
-Other clients are on my list for later testing. In case you are bored, feel
-free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new)
-if something does not work as expected.
+Other clients are on my list for later testing. In case you are bored, feel free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
 [Command-line parameters used for testing](docs/acme-clients.md)
 
-I am not a professional developer. Keep this in mind while laughing about my
-code and don’t forget to send patches.
+I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
 ## Features
 
@@ -87,12 +82,9 @@ Additional functionality will be added over time. If you are badly missing a cer
 
 ## Installation
 
-The proxy can run either as plain wsgi-script on either apache or nginx or as
-django project. Running acme2certifier as django project allows to use other
-database backends than SQLite.
+The proxy can run either as plain wsgi-script on either apache or nginx or as django project. Running acme2certifier as django project allows to use other database backends than SQLite.
 
-The fastest and most convenient way to install acme2certifier is to use docker
-containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
+The fastest and most convenient way to install acme2certifier is to use docker containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
 
 - [acme2certifier in Github container repository](https://github.com/grindsa?tab=packages&ecosystem=container)
 - [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
@@ -109,15 +101,11 @@ containers.  There are ready made images available at [dockerhub](https://hub.do
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of
-conduct, and the process for submitting pull requests.
-Please note that I have a life besides programming. Thus, expect a delay
-in answering.
+Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of conduct, and the process for submitting pull requests. Please note that I have a life besides programming. Thus, expect a delay in answering.
 
 ## Versioning
 
-I use [SemVer](http://semver.org/) for versioning. For the versions available,
-see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
+I use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
 
 ## License
 

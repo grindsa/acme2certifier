@@ -1,0 +1,356 @@
+# -*- coding: utf-8 -*-
+""" Insta Active Security API  handler"""
+from __future__ import print_function
+from typing import Tuple, Dict
+import requests
+from requests.auth import HTTPBasicAuth
+# pylint: disable=C0209, E0401
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_serial_get
+
+
+class CAhandler(object):
+    """ EST CA  handler """
+
+    def __init__(self, _debug: bool = None, logger: object = None):
+        self.logger = logger
+        self.api_host = None
+        self.api_user = None
+        self.api_password = None
+        self.api_key = None
+        self.ca_bundle = None
+        self.proxy = None
+        self.request_timeout = 10
+        self.ca_name = None
+        self.auth = None
+        self.profile_name = None
+        self.cert_validity_days = 30
+
+    def __enter__(self):
+        """ Makes CAhandler a Context Manager """
+        if not self.api_host:
+            self._config_load()
+        return self
+
+    def __exit__(self, *args):
+        """ cose the connection at the end of the context """
+
+    def _api_get(self, url: str) -> Dict[str, str]:
+        """ post data to API """
+        self.logger.debug('CAhandler._api_get()')
+        headers = {'x-api-key': self.api_key}
+
+        try:
+            api_response = requests.get(url=url, headers=headers, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+            code = api_response.status_code
+            try:
+                content = api_response.json()
+            except Exception as err_:
+                self.logger.error('CAhandler._api_get() returned error: {0}'.format(err_))
+                content = str(err_)
+        except Exception as err_:
+            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            code = 500
+            content = str(err_)
+
+        return code, content
+
+    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
+        """ post data to API """
+        self.logger.debug('CAhandler._api_post()')
+        headers = {'x-api-key': self.api_key}
+
+        try:
+            api_response = requests.post(url=url, headers=headers, json=data, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+            code = api_response.status_code
+            try:
+                content = api_response.json()
+            except Exception as err_:
+                self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+                content = str(err_)
+        except Exception as err_:
+            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            code = 500
+            content = str(err_)
+
+        return code, content
+
+    def _auth_set(self):
+        """ set basic authentication header """
+        self.logger.debug('CAhandler._auth_set()')
+        if self.api_user and self.api_password:
+            self.auth = HTTPBasicAuth(self.api_user, self.api_password)
+        else:
+            self.logger.error('CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file')
+        self.logger.debug('CAhandler._auth_set() ended')
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('CAhandler._config_load()')
+
+        config_dic = load_config(self.logger, 'CAhandler')
+        if 'CAhandler' in config_dic:
+            self.api_host = config_dic['CAhandler'].get('api_host')
+            self.api_user = config_dic['CAhandler'].get('api_user')
+            self.api_password = config_dic['CAhandler'].get('api_password')
+            self.api_key = config_dic['CAhandler'].get('api_key')
+            self.ca_name = config_dic['CAhandler'].get('ca_name')
+            self.profile_name = config_dic['CAhandler'].get('profile_name')
+
+            if 'ca_bundle' in config_dic['CAhandler'] and config_dic['CAhandler']['ca_bundle'] == 'False':
+                self.ca_bundle = False
+            else:
+                self.ca_bundle = config_dic['CAhandler'].get('ca_bundle')
+
+            try:
+                self.request_timeout = int(config_dic['CAhandler'].get('request_timeout', 10))
+            except Exception:
+                self.logger.error('CAhandler._config_load(): request_timeout not an integer')
+
+            try:
+                self.cert_validity_days = int(config_dic['CAhandler'].get('cert_validity_days', 30))
+            except Exception:
+                self.logger.error('CAhandler._config_load(): cert_validity_days not an integer')
+
+        for ele in ['api_host', 'api_user', 'api_password', 'api_key', 'ca_name', 'profile_name']:
+            if not getattr(self, ele):
+                self.logger.error('CAhandler._config_load(): {0} not set'.format(ele))
+
+        self._auth_set()
+
+        self.logger.debug('CAhandler._config_load() ended')
+
+    def _csr_cn_get(self, csr: str) -> str:
+        """ get CN from csr """
+        self.logger.debug('CAhandler._csr_cn_get()')
+
+        cn = csr_cn_get(self.logger, csr)
+
+        if not cn:
+            self.logger.info('CAhandler._csr_cn_get(): CN not found in CSR')
+            san_list = csr_san_get(self.logger, csr)
+            if san_list:
+                (_type, san_value) = san_list[0].split(':')
+                cn = san_value
+                self.logger.info('CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: {0}'.format(san_value))
+            else:
+                self.logger.error('CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found')
+
+        self.logger.debug('CAhandler._csr_cn_get() ended with: {0}'.format(cn))
+        return cn
+
+    def _issuer_verify(self) -> str:
+        """ verify issuer """
+        self.logger.debug('CAhandler._issuer_verify()')
+
+        api_response = self._issuers_list()
+
+        if 'issuers' in api_response:
+            if self.ca_name in api_response['issuers']:
+                error = None
+            else:
+                error = 'CA {0} not found'.format(self.ca_name)
+                self.logger.error('CAhandler.enroll(): CA {0} not found'.format(self.ca_name))
+        else:
+            error = 'Malformed response'
+            self.logger.error('CAhandler.enroll(): "Malformed response. "issuers" key not found')
+
+        self.logger.debug('CAhandler._issuer_verify() ended with: {0}'.format(error))
+        return error
+
+    def _issuers_list(self):
+        """ list issuers """
+        self.logger.debug('CAhandler._list_issuers()')
+
+        url = '{0}/list_issuers'.format(self.api_host)
+        _code, api_response = self._api_get(url)
+
+        self.logger.debug('CAhandler._list_issuers() ended')
+        return api_response
+
+    def _profiles_list(self):
+        """ list profiles """
+        self.logger.debug('CAhandler._profiles_list()')
+
+        url = '{0}/list_profiles?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        _code, api_response = self._api_get(url)
+
+        self.logger.debug('CAhandler._profiles_list() ended')
+        return api_response
+
+    def _profile_verify(self) -> str:
+        """ verify profile """
+        self.logger.debug('CAhandler._profile_verify()')
+        api_response = self._profiles_list()
+
+        if 'profiles' in api_response:
+            if self.profile_name in api_response['profiles']:
+                error = None
+            else:
+                error = 'Profile {0} not found'.format(self.profile_name)
+                self.logger.error('CAhandler.enroll(): Profile {0} not found'.format(self.profile_name))
+        else:
+            error = 'Malformed response'
+            self.logger.error('CAhandler.enroll(): "Malformed response. "profiles" key not found')
+
+        self.logger.debug('CAhandler._profile_verify() ended with: {0}'.format(error))
+        return error
+
+    def _validity_dates_get(self) -> Tuple[str, str]:
+        """ calculate validity dates """
+        self.logger.debug('CAhandler._validity_dates_get()')
+
+        uts_now_ = uts_now()
+        validfrom = uts_to_date_utc(uts_now_, tformat='%Y-%m-%dT%H:%M:%S')
+        validto = uts_to_date_utc(uts_now_ + (self.cert_validity_days * 24 * 60 * 60), tformat='%Y-%m-%dT%H:%M:%S')
+
+        self.logger.debug('CAhandler._validity_dates_get() ended')
+        return validfrom, validto
+
+    def _pem_cert_chain_generate(self, certs_list: list) -> str:
+        """ generate PEM certificate chain """
+        self.logger.debug('CAhandler._pem_cert_chain_generate()')
+
+        pem_chain = ''
+        for cert in certs_list:
+            pem_chain += convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert)))
+
+        self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
+        return pem_chain
+
+    def _issuer_chain_get(self) -> str:
+        """ get issuer chain """
+        self.logger.debug('CAhandler._issuer_chain_get()')
+
+        url = '{0}/get_issuer_chain?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        _code, api_response = self._api_get(url)
+        if 'certs' in api_response:
+            pem_chain = self._pem_cert_chain_generate(api_response['certs'])
+        else:
+            self.logger.error('CAhandler._issuer_chain_get(): "certs" key not found')
+            pem_chain = None
+
+        self.logger.debug('CAhandler._issuer_chain_get() ended')
+        return pem_chain
+
+    def _cert_get(self, data_dic: Dict[str, str]) -> str:
+        """ get certificate """
+        self.logger.debug('CAhandler._cert_get()')
+
+        url = '{0}/issue_certificate'.format(self.api_host)
+        code, api_response = self._api_post(url, data_dic)
+
+        if code == 200 and api_response:
+            cert = api_response
+        else:
+            self.logger.error('CAhandler._cert_get(): enrollment failed: {0}/{1}'.format(code, api_response))
+            cert = None
+
+        self.logger.debug('CAhandler._cert_get() ended')
+        return cert
+
+    def _enrollment_dic_create(self, csr: str) -> Dict[str, str]:
+        """ create enrollment dic """
+        self.logger.debug('CAhandler._enrollment_dic_create()')
+
+        # get public key from csr
+        csr_pubkey = csr_pubkey_get(self.logger, csr, encoding='base64der')
+        if csr_pubkey:
+            # get CN from csr
+            csr_cn = self._csr_cn_get(csr)
+
+            # calculate validiaty dates
+            validfrom, validto = self._validity_dates_get()
+
+            # prepare payload for api call
+            data_dic = {'publicKey': csr_pubkey, 'profileName': self.profile_name, 'issuerName': self.ca_name, 'cn': csr_cn, 'notBefore': validfrom, 'notAfter': validto}
+
+            # get SANs from csr as base64 encoded byte sequence
+            sans_base64 = csr_san_byte_get(self.logger, csr)
+            # if sans_base64:
+            #    data_dic['extensions'] = [{'oid': '2.5.29.17', 'value': sans_base64}]  # 'Zm9vLmJhci5sb2NhbA=='
+
+        else:
+            self.logger.error('CAhandler._enrollment_dic_create(): public key not found')
+            data_dic = None
+
+        return data_dic
+
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
+        """ enroll certificate  """
+        self.logger.debug('CAhandler.enroll()')
+
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_indentifier = None
+
+        # verify issuer
+        error = self._issuer_verify()
+
+        if not error:
+
+            error = self._profile_verify()
+            if not error:
+
+                # get issuer chain
+                issuer_chain = self._issuer_chain_get()
+
+                data_dic = self._enrollment_dic_create(csr)
+                if data_dic:
+                    cert_raw = self._cert_get(data_dic)
+
+                if cert_raw:
+                    cert = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
+                    cert_bundle = cert + issuer_chain
+                else:
+                    error = 'Enrollment failed'
+
+        self.logger.debug('Certificate.enroll() ended with: {0}'.format(error))
+        return (error, cert_bundle, cert_raw, poll_indentifier)
+
+    def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
+        """ poll status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
+
+        error = 'Method not implemented.'
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+
+        self.logger.debug('CAhandler.poll() ended')
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def revoke(self, cert: str, _rev_reason: str = 'unspecified', _rev_date: str = uts_to_date_utc(uts_now())) -> Tuple[int, str, str]:
+        """ revoke certificate """
+        self.logger.debug('CAhandler.revoke()')
+
+        code = None
+        message = None
+        detail = None
+
+        cert_serial = cert_serial_get(self.logger, cert, hexformat=True)    # get serial number from certificate
+        url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_serial)
+        data_dic = {}
+        code, content_dic = self._api_post(url, data_dic)
+        if content_dic:
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            if 'Message' in content_dic:
+                detail = content_dic.get('Message')
+            elif 'message' in content_dic:
+                detail = content_dic.get('message')
+            else:
+                detail = 'Unknown error'
+
+        self.logger.debug('Certificate.revoke() ended')
+        return (code, message, detail)
+
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = 'Method not implemented.'
+        cert_bundle = None
+        cert_raw = None
+
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        return (error, cert_bundle, cert_raw)
