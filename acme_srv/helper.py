@@ -373,17 +373,33 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     return subject
 
 
-def csr_pubkey_get(logger, csr):
+def csr_pubkey_get(logger, csr, encoding='pem'):
     """ get public key from certificate request """
     logger.debug('CAhandler.csr_pubkey_get()')
     csr_obj = csr_load(logger, csr)
     public_key = csr_obj.public_key()
-    pubkey_str = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
-    return convert_byte_to_string(pubkey_str)
+    if encoding == 'pem':
+        pubkey_str = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        pubkey = convert_byte_to_string(pubkey_str)
+    elif encoding == 'base64der':
+        pubkey_str = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        pubkey = b64_encode(logger, pubkey_str)
+
+    elif encoding == 'der':
+        pubkey = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+    else:
+        pubkey = None
+    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey))
+    return pubkey
 
 
 def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
@@ -409,6 +425,29 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
 
     logger.debug('csr_san_get() ended with: {0}'.format(str(sans)))
     return sans
+
+
+def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:
+    """ get sans from CSR as base64 encoded byte squence"""
+    # Load the CSR
+    logger.debug('csr_san_byte_get()')
+
+    csr = csr_load(logger, csr)
+
+    # Get the SAN extension
+    san_extension = csr.extensions.get_extension_for_oid(x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+
+    # Get the SANs
+    sans = san_extension.value
+
+    # Serialize the SANs to a byte sequence
+    sans_bytes = sans.public_bytes()
+
+    # Encode the byte sequence as base64
+    sans_base64 = b64_encode(logger, sans_bytes)
+
+    logger.debug('csr_san_byte_get() ended')
+    return sans_base64
 
 
 def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
