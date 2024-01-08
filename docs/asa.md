@@ -37,7 +37,6 @@ cert_validity_days: <days>
 - profile_name - profile name
 - cert_validity_days - optional - polling timeout (default: 60s)
 
-
 It is also recommended to increase the enrollment timeout to avoid that acme2certifier is closing the connection to early.
 
 ```config
