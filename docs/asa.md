@@ -37,6 +37,14 @@ cert_validity_days: <days>
 - profile_name - profile name
 - cert_validity_days - optional - polling timeout (default: 60s)
 
+
+It is also recommended to increase the enrollment timeout to avoid that acme2certifier is closing the connection to early.
+
+```config
+[Certificate]
+enrollment_timeout:15
+```
+
 You can get the list of certificate authrities by running the following REST call against ASA.
 
 ```bash
