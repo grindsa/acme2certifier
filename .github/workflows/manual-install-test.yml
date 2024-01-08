@@ -294,7 +294,7 @@ jobs:
 
     - name: "[ PREPARE ] environment to build deb package"
       run: |
-        # sudo apt-get update && sudo apt-get -y upgrade
+        sudo apt-get update && sudo apt-get -y upgrade
         sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
         rm setup.py
         cp -R examples/install_scripts/debian ./
@@ -388,7 +388,7 @@ jobs:
 
     - name: "[ PREPARE ] environment to build deb package"
       run: |
-        # sudo apt-get update && sudo apt-get -y upgrade
+        sudo apt-get update && sudo apt-get -y upgrade
         sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
         rm setup.py
         cp -R examples/install_scripts/debian ./
