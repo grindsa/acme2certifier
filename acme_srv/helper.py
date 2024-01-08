@@ -289,6 +289,17 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
     logger.debug('cert_san_get() ended')
     return sans
 
+def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
+    """ get subject key identifier from certificate """
+    logger.debug('cert_ski_get()')
+    cert = cert_load(logger, certificate, recode=True)
+    extensions = cert.extensions
+    print(extensions)
+    #ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
+    #ski = ski.value.digest.hex()
+    #logger.debug('cert_ski_get() ended with: {0}'.format(ski))
+    #return ski
+
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """ get extenstions from certificate certificate """
