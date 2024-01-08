@@ -6,7 +6,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_serial_get
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_serial_get, cert_ski_get
 
 
 class CAhandler(object):
@@ -252,7 +252,7 @@ class CAhandler(object):
 
     def _profile_verify(self) -> str:
         """ verify profile """
-        self.logger.debug('CAhandler._profile_verify()')
+        self.logger.debug('CAhandler._profile_verify({0})'.format(self.profile_name))
         api_response = self._profiles_list()
 
         if 'profiles' in api_response:
@@ -402,6 +402,11 @@ class CAhandler(object):
         detail = None
 
         cert_serial = cert_serial_get(self.logger, cert, hexformat=True)    # get serial number from certificate
+
+        cert_ski = cert_ski_get(self.logger, cert)    # get subjectKeyIdentifier from certificate
+
+        print(cert_ski)
+        sys.exit(0)
         url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_serial)
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
