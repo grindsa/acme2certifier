@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -72,6 +72,11 @@ class Certificate(object):
             try:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
+                # add common name to SANs
+                cert_cn = cert_cn_get(self.logger, certificate)
+                if cert_cn:
+                    san_list.append('DNS:{0}'.format(cert_cn))
+
                 identifier_status = self._identifer_status_list(identifiers, san_list)
             except Exception as err_:
                 # enough to set identifier_list as empty list
