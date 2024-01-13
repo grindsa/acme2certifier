@@ -63,11 +63,14 @@ class CAhandler(object):
         try:
             api_response = requests.post(url=url, headers=headers, json=data, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
             code = api_response.status_code
-            try:
-                content = api_response.json()
-            except Exception as err_:
-                self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
-                content = str(err_)
+            if api_response.text:
+                try:
+                    content = api_response.json()
+                except Exception as err_:
+                    self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+                    content = str(err_)
+            else:
+                content = None
         except Exception as err_:
             self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
             code = 500
@@ -101,6 +104,16 @@ class CAhandler(object):
             self.api_host = api_host
 
         self.logger.debug('_config_host_load() ended')
+
+    def _certificates_list(self) -> Dict[str, str]:
+        """ list profiles """
+        self.logger.debug('CAhandler._certificates_list()')
+
+        url = '{0}/list_certificates?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        _code, api_response = self._api_get(url)
+
+        self.logger.debug('CAhandler._certificates_list() ended')
+        return api_response
 
     def _config_key_load(self, config_dic: Dict[str, str]):
         """ load keyname """
@@ -230,7 +243,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._issuer_verify() ended with: {0}'.format(error))
         return error
 
-    def _issuers_list(self):
+    def _issuers_list(self) -> Dict[str, str]:
         """ list issuers """
         self.logger.debug('CAhandler._list_issuers()')
 
@@ -240,7 +253,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._list_issuers() ended')
         return api_response
 
-    def _profiles_list(self):
+    def _profiles_list(self) -> Dict[str, str]:
         """ list profiles """
         self.logger.debug('CAhandler._profiles_list()')
 
@@ -320,6 +333,16 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._cert_get() ended')
         return cert
+
+    def _cert_status_get(self, certificate: str) -> str:
+        self.logger.debug('CAhandler._cert_status_get()')
+
+        foo = b64_decode(self.logger, certificate)
+        data_dic = {'certificateFile': certificate}
+        url = '{0}/verify_certificate?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        code, api_response = self._api_post(url, data_dic)
+        api_response['code'] = code
+        return api_response
 
     def _enrollment_dic_create(self, csr: str) -> Dict[str, str]:
         """ create enrollment dic """
@@ -404,10 +427,7 @@ class CAhandler(object):
         cert_serial = cert_serial_get(self.logger, cert, hexformat=True)    # get serial number from certificate
 
         cert_ski = cert_ski_get(self.logger, cert)    # get subjectKeyIdentifier from certificate
-
-        print(cert_ski)
-        sys.exit(0)
-        url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_serial)
+        url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_ski)
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
         if content_dic:
