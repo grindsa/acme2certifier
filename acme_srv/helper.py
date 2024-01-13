@@ -33,6 +33,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import load_pem_x509_certificate, ocsp
+from OpenSSL import crypto
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
@@ -269,6 +270,31 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
     return convert_byte_to_string(pubkey_str)
 
 
+def cert_san_pyopenssl_get(logger, certificate, recode=True):
+    """ get subject alternate names from certificate """
+    logger.debug('cert_san_get()')
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
+
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+    san = []
+    ext_count = cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = cert.get_extension(i)
+        if 'subjectAltName' in str(ext.get_short_name()):
+            # pylint: disable=c2801
+            san_list = ext.__str__().split(',')
+            for san_name in san_list:
+                san_name = san_name.rstrip()
+                san_name = san_name.lstrip()
+                san.append(san_name)
+
+    logger.debug('cert_san_get() ended')
+    return san
+
+
 def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) -> List[str]:
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get({0})'.format(recode))
@@ -285,14 +311,16 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
             sans.append('IP:{0}'.format(san))
     except Exception as err:
         logger.error('cert_san_get(): Error: {0}'.format(err))
+        # sans = cert_san_pyopenssl_get(logger, certificate, recode=recode)
 
     logger.debug('cert_san_get() ended')
     return sans
 
+
 def cert_ski_pyopenssl_cert(logger, certificate: str) -> str:
     """Get Subject Key Identifier from a certificate as a hex string."""
     logger.debug('cert_ski_pyopenssl_cert()')
-    from OpenSSL import crypto
+
     pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
     cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
     # Get the SKI extension
@@ -309,6 +337,7 @@ def cert_ski_pyopenssl_cert(logger, certificate: str) -> str:
     ski_hex = ski.get_data()[2:].hex()
     logger.debug('cert_ski_pyopenssl_cert() ended with: {0}'.format(ski_hex))
     return ski_hex
+
 
 def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     """ get subject key identifier from certificate """

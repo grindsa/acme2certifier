@@ -75,9 +75,9 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
         # openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
 
-    #- name: "revoke via acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+    - name: "revoke via acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
     - name: "[ REGISTER ] certbot"
       run: |
@@ -90,9 +90,9 @@ jobs:
         sudo openssl x509 -in certbot/live/certbot/cert.pem -ext keyUsage -noout | grep "Digital Signature"
         # sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
 
-    #- name: "revoke HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    - name: "revoke HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -101,11 +101,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
         # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
 
-    #- name: "revoke HTTP-01 single domain lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+    - name: "revoke HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "[ PREPARE ] reconfiguration of a2c with asa_ca_handler"
+    - name: "[ PREPARE ] reconfiguration of a2c with a new profile"
       run: |
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
@@ -132,6 +132,13 @@ jobs:
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
 
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        sudo rm -rf certbot/*
+        sudo rm -rf lego/*
+        sudo rm -rf acme-sh/*
+        docker restart acme-sh
+
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
@@ -140,9 +147,13 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
 
-    #- name: "revoke via acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+    - name: "revoke via acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ REGISTER ] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -151,9 +162,9 @@ jobs:
         sudo openssl x509 -in certbot/live/certbot/cert.pem -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
 
-    #- name: "revoke HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    - name: "revoke HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -162,10 +173,9 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
 
-    #- name: "revoke HTTP-01 single domain lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
-
+    - name: "revoke HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -275,9 +285,9 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
         # openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
 
-    #- name: "revoke via acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+    - name: "revoke via acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
     - name: "[ REGISTER ] certbot"
       run: |
@@ -290,9 +300,9 @@ jobs:
         sudo openssl x509 -in certbot/live/certbot/cert.pem -ext keyUsage -noout | grep "Digital Signature"
         # sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
 
-    #- name: "revoke HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    - name: "revoke HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -301,9 +311,9 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
         # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
 
-    #- name: "revoke HTTP-01 single domain lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+    - name: "revoke HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler"
       run: |
@@ -332,6 +342,13 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
+    - name: "[ PREPARE ] create letsencrypt and lego folder"
+      run: |
+        sudo rm -rf certbot/*
+        sudo rm -rf lego/*
+        sudo rm -rf acme-sh/*
+        docker restart acme-sh
+
     - name: "[ ENROLL ] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
@@ -340,9 +357,13 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
 
-    #- name: "revoke via acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+    - name: "revoke via acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+    - name: "[ REGISTER ] certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -351,9 +372,9 @@ jobs:
         sudo openssl x509 -in certbot/live/certbot/cert.pem -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
 
-    #- name: "revoke HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    - name: "revoke HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
     - name: "[ ENROLL ] lego"
       run: |
@@ -362,9 +383,9 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
         # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
 
-    #- name: "revoke HTTP-01 single domain lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+    - name: "revoke HTTP-01 single domain lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
