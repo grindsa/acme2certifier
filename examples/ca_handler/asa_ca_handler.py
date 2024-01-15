@@ -37,7 +37,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _api_get(self, url: str) -> Tuple(int, Dict[str, str]):
+    def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """ post data to API """
         self.logger.debug('CAhandler._api_get()')
         headers = {'x-api-key': self.api_key}
@@ -57,7 +57,7 @@ class CAhandler(object):
 
         return code, content
 
-    def _api_post(self, url: str, data: Dict[str, str]) -> Tuple(int, Dict[str, str]):
+    def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
         """ post data to API """
         self.logger.debug('CAhandler._api_post()')
         headers = {'x-api-key': self.api_key}

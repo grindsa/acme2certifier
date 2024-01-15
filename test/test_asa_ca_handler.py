@@ -315,7 +315,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.return_value = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('status_code', "'str' object is not callable"), self.cahandler._api_post('url', 'data'))
-        self.assertIn("ERROR:test_a2c:CAhandler._api_post() returned error: 'str' object is not callable", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._api_post() returned error during json parsing: 'str' object is not callable", lcm.output)
 
     @patch('requests.post')
     def test_020__api_post(self, mock_req):
@@ -354,7 +354,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.return_value = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('status_code', "'str' object is not callable"), self.cahandler._api_get('url'))
-        self.assertIn("ERROR:test_a2c:CAhandler._api_get() returned error: 'str' object is not callable", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._api_get() returned error during json parsing: 'str' object is not callable", lcm.output)
 
     @patch('requests.get')
     def test_024__api_get(self, mock_req):
@@ -364,7 +364,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.side_effect = Exception('exc_api_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'exc_api_get'), self.cahandler._api_get('url'))
-        self.assertIn('ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_get', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._api_get() returned error: exc_api_get', lcm.output)
 
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_get')
     def test_025__issuers_list(self, mock_get):
