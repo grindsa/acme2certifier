@@ -30,6 +30,7 @@ class Certificate(object):
         self.tnauthlist_support = False
         self.cert_reusage_timeframe = 0
         self.enrollment_timeout = 5
+        self.cn2san_add = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -72,10 +73,11 @@ class Certificate(object):
             try:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
-                # add common name to SANs
-                cert_cn = cert_cn_get(self.logger, certificate)
-                if cert_cn:
-                    san_list.append('DNS:{0}'.format(cert_cn))
+                if self.cn2san_add:
+                    # add common name to SANs
+                    cert_cn = cert_cn_get(self.logger, certificate)
+                    if not san_list and cert_cn:
+                        san_list.append('DNS:{0}'.format(cert_cn))
 
                 identifier_status = self._identifer_status_list(identifiers, san_list)
             except Exception as err_:
@@ -193,6 +195,10 @@ class Certificate(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+
+        if 'CAhandler' in config_dic and config_dic.get('CAhandler', 'handler_file', fallback=None) == 'examples/ca_handler/asa_ca_handler.py':
+            self.cn2san_add = True
+            self.logger.debug('Certificate._config_load(): cn2san_add enabled')
 
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)

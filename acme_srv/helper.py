@@ -317,7 +317,7 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
     return sans
 
 
-def cert_ski_pyopenssl_cert(logger, certificate: str) -> str:
+def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
     """Get Subject Key Identifier from a certificate as a hex string."""
     logger.debug('cert_ski_pyopenssl_cert()')
 
@@ -329,12 +329,12 @@ def cert_ski_pyopenssl_cert(logger, certificate: str) -> str:
         ext = cert.get_extension(i)
         if 'subjectKeyIdentifier' in str(ext.get_short_name()):
             ski = ext
-
-    if ski is None:
-        raise ValueError("No SKI found in certificate")
-
-    # Get the SKI value and convert it to hex
-    ski_hex = ski.get_data()[2:].hex()
+    if ski:
+        # Get the SKI value and convert it to hex
+        ski_hex = ski.get_data()[2:].hex()
+    else:
+        logger.error("cert_ski_pyopenssl_get(): No SKI found in certificate")
+        ski_hex = None
     logger.debug('cert_ski_pyopenssl_cert() ended with: {0}'.format(ski_hex))
     return ski_hex
 
@@ -349,7 +349,7 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski_value = ski.value.digest.hex()
     except Exception as err:
         logger.error('cert_ski_get(): Error: {0}'.format(err))
-        ski_value = cert_ski_pyopenssl_cert(logger, certificate)
+        ski_value = cert_ski_pyopenssl_get(logger, certificate)
     logger.debug('cert_ski_get() ended with: {0}'.format(ski_value))
     return ski_value
 

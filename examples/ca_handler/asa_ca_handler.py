@@ -6,7 +6,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_serial_get, cert_ski_get
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get
 
 
 class CAhandler(object):
@@ -335,13 +335,14 @@ class CAhandler(object):
         return cert
 
     def _cert_status_get(self, certificate: str) -> str:
+        """ get certificate status """
         self.logger.debug('CAhandler._cert_status_get()')
 
-        foo = b64_decode(self.logger, certificate)
         data_dic = {'certificateFile': certificate}
         url = '{0}/verify_certificate?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
         code, api_response = self._api_post(url, data_dic)
         api_response['code'] = code
+
         return api_response
 
     def _enrollment_dic_create(self, csr: str) -> Dict[str, str]:
@@ -361,7 +362,7 @@ class CAhandler(object):
             data_dic = {'publicKey': csr_pubkey, 'profileName': self.profile_name, 'issuerName': self.ca_name, 'cn': csr_cn, 'notBefore': validfrom, 'notAfter': validto}
 
             # get SANs from csr as base64 encoded byte sequence
-            sans_base64 = csr_san_byte_get(self.logger, csr)
+            # sans_base64 = csr_san_byte_get(self.logger, csr)
             # if sans_base64:
             #    data_dic['extensions'] = [{'oid': '2.5.29.17', 'value': sans_base64}]  # 'Zm9vLmJhci5sb2NhbA=='
 
@@ -424,9 +425,8 @@ class CAhandler(object):
         message = None
         detail = None
 
-        cert_serial = cert_serial_get(self.logger, cert, hexformat=True)    # get serial number from certificate
-
         cert_ski = cert_ski_get(self.logger, cert)    # get subjectKeyIdentifier from certificate
+
         url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_ski)
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
