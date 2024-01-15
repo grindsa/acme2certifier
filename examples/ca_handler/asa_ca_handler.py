@@ -7,7 +7,7 @@ import json
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, header_info_get
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, header_info_get, csr_san_byte_get
 
 
 class CAhandler(object):
