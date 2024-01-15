@@ -379,13 +379,6 @@ class CAhandler(object):
             # prepare payload for api call
             data_dic = {'publicKey': csr_pubkey, 'profileName': self.profile_name, 'issuerName': self.ca_name, 'cn': csr_cn, 'notBefore': validfrom, 'notAfter': validto}
 
-            if self.header_info_field:
-                # parse profileid from http_header
-                profile_name = self._profile_name_get(csr=csr)
-                if profile_name:
-                    self.logger.info('CAhandler._enrollment_dic_create(): profile_name found in header_info: {0}'.format(profile_name))
-                    data_dic['profileName'] = profile_name
-
             # get SANs from csr as base64 encoded byte sequence
             # sans_base64 = csr_san_byte_get(self.logger, csr)
             # if sans_base64:
@@ -432,6 +425,14 @@ class CAhandler(object):
 
         if not error:
 
+            if self.header_info_field:
+                # parse profileid from http_header
+                profile_name = self._profile_name_get(csr=csr)
+                if profile_name:
+                    self.logger.info('CAhandler._enrollment_dic_create(): profile_name found in header_info: {0}'.format(profile_name))
+                    self.profile_name = profile_name
+
+            # verify profile
             error = self._profile_verify()
             if not error:
 
