@@ -564,6 +564,42 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
+    def test_042_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post, mock_profile):
+        """ test enroll() """
+        mock_iv.return_value = None
+        mock_pv.return_value = None
+        mock_icg.return_value = 'issuer_chain'
+        mock_vdg.return_value = ('date1', 'date2')
+        mock_post.return_value = (200, 'cert')
+        mock_b2s.return_value = 'bcert'
+        self.cahandler.header_info_field = 'foo'
+        mock_profile.return_value = 'profile'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((None, 'bcertissuer_chain', 'cert', None), self.cahandler.enroll('csr'))
+        self.assertIn('INFO:test_a2c:CAhandler._enrollment_dic_create(): profile_name found in header_info: profile', lcm.output)
+        self.assertTrue(mock_iv.called)
+        self.assertTrue(mock_pv.called)
+        self.assertTrue(mock_icg.called)
+        self.assertTrue(mock_cpg.called)
+        self.assertTrue(mockccg.called)
+        self.assertTrue(mock_vdg.called)
+        self.assertTrue(mock_b64.called)
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_b2s.called)
+        self.assertTrue(mock_d2p.called)
+        self.assertTrue(mock_profile.called)
+
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_name_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
+    @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
+    @patch('examples.ca_handler.asa_ca_handler.b64_decode')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
+    @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
     def test_043_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post, mock_profile):
         """ test enroll() """
         mock_iv.return_value = None
@@ -920,20 +956,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual(result, self.cahandler._enrollment_dic_create('csr'))
         self.assertFalse(mock_png.called)
 
-    @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_name_get')
-    @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
-    @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
-    @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
-    def test_070_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg, mock_png):
-        """ test _enrollment_dic_create()"""
-        mock_pkg.return_value = 'pubkey'
-        mock_ccg.return_value = 'cn'
-        mock_vdg.return_value = ('date1', 'date2')
-        mock_png.return_value = 'profile_name'
-        self.cahandler.header_info_field = 'header_field'
-        result = {'publicKey': 'pubkey', 'profileName': 'profile_name', 'issuerName': None, 'cn': 'cn', 'notBefore': 'date1', 'notAfter': 'date2'}
-        self.assertEqual(result, self.cahandler._enrollment_dic_create('csr'))
-        self.assertTrue(mock_png.called)
+
 
 if __name__ == '__main__':
 
