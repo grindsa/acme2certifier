@@ -37,7 +37,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
 
-    def _api_get(self, url: str) -> Dict[str, str]:
+    def _api_get(self, url: str) -> Tuple(int, Dict[str, str]):
         """ post data to API """
         self.logger.debug('CAhandler._api_get()')
         headers = {'x-api-key': self.api_key}
@@ -48,16 +48,16 @@ class CAhandler(object):
             try:
                 content = api_response.json()
             except Exception as err_:
-                self.logger.error('CAhandler._api_get() returned error: {0}'.format(err_))
+                self.logger.error('CAhandler._api_get() returned error during json parsing: {0}'.format(err_))
                 content = str(err_)
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_get() returned error: {0}'.format(err_))
             code = 500
             content = str(err_)
 
         return code, content
 
-    def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
+    def _api_post(self, url: str, data: Dict[str, str]) -> Tuple(int, Dict[str, str]):
         """ post data to API """
         self.logger.debug('CAhandler._api_post()')
         headers = {'x-api-key': self.api_key}
@@ -69,7 +69,7 @@ class CAhandler(object):
                 try:
                     content = api_response.json()
                 except Exception as err_:
-                    self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+                    self.logger.error('CAhandler._api_post() returned error during json parsing: {0}'.format(err_))
                     content = str(err_)
             else:
                 content = None
