@@ -311,7 +311,7 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
             sans.append('IP:{0}'.format(san))
     except Exception as err:
         logger.error('cert_san_get(): Error: {0}'.format(err))
-        # sans = cert_san_pyopenssl_get(logger, certificate, recode=recode)
+        # we may add the routing to get the sanes via pyopenssl here if needed (sans = cert_san_pyopenssl_get(logger, certificate, recode=recode))
 
     logger.debug('cert_san_get() ended')
     return sans
