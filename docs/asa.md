@@ -57,3 +57,28 @@ root@rlh:~# curl -u '$api_user':'$api_password' -H "x-api-key: <api_key> $api_ho
 ```
 
 The CA handler will verify ca_name and profile_name parameters before enrollment.
+
+## Passing a profileID from client to server
+
+The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a profile_name to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+
+```config
+[Order]
+...
+header_info_list: ["HTTP_USER_AGENT"]
+```
+
+The acme-client can then specify the profile_name as part of its user-agent string.
+
+Example for acme.sh:
+
+```bash
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profile_name=<profile-name>foo --debug 3 --output-insecure
+```
+
+Example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent profile_name=<profile_name> -d <fqdn> --http run
+```
+

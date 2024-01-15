@@ -4,9 +4,10 @@ from __future__ import print_function
 from typing import Tuple, Dict
 import os
 import requests
+import json
 from requests.auth import HTTPBasicAuth
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, csr_san_byte_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, header_info_get
 
 
 class CAhandler(object):
@@ -25,6 +26,7 @@ class CAhandler(object):
         self.auth = None
         self.profile_name = None
         self.cert_validity_days = 30
+        self.header_info_field = False
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -115,6 +117,18 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certificates_list() ended')
         return api_response
 
+    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+        """ load parameters """
+        self.logger.debug('_config_header_info()')
+
+        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+            try:
+                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+            except Exception as err_:
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+
+        self.logger.debug('_config_header_info() ended')
+
     def _config_key_load(self, config_dic: Dict[str, str]):
         """ load keyname """
         self.logger.debug('_config_key_load()')
@@ -174,6 +188,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
 
         config_dic = load_config(self.logger, 'CAhandler')
+
+        # load headerinfos
+        self._config_headerinfo_get(config_dic)
+
         if 'CAhandler' in config_dic:
             self._config_host_load(config_dic['CAhandler'])
             self._config_user_load(config_dic['CAhandler'])
@@ -361,6 +379,13 @@ class CAhandler(object):
             # prepare payload for api call
             data_dic = {'publicKey': csr_pubkey, 'profileName': self.profile_name, 'issuerName': self.ca_name, 'cn': csr_cn, 'notBefore': validfrom, 'notAfter': validto}
 
+            if self.header_info_field:
+                # parse profileid from http_header
+                profile_name = self._profile_name_get(csr=csr)
+                if profile_name:
+                    self.logger.info('CAhandler._enrollment_dic_create(): profile_name found in header_info: {0}'.format(profile_name))
+                    data_dic['profileName'] = profile_name
+
             # get SANs from csr as base64 encoded byte sequence
             # sans_base64 = csr_san_byte_get(self.logger, csr)
             # if sans_base64:
@@ -371,6 +396,27 @@ class CAhandler(object):
             data_dic = None
 
         return data_dic
+
+    def _profile_name_get(self, csr: str) -> str:
+        """ get profile id from csr """
+        self.logger.debug('CAhandler._profile_name_get({0})'.format(csr))
+        profile_name = None
+
+        # parse profileid from http_header
+        header_info = header_info_get(self.logger, csr=csr)
+        if header_info:
+            try:
+                header_info_dic = json.loads(header_info[-1]['header_info'])
+                if self.header_info_field in header_info_dic:
+                    for ele in header_info_dic[self.header_info_field].split(' '):
+                        if 'profile_name' in ele.lower():
+                            profile_name = ele.split('=')[1]
+                            break
+            except Exception as err:
+                self.logger.error('CAhandler._profile_name_get() could not parse profile_name: {0}'.format(err))
+
+        self.logger.debug('CAhandler._profile_name_get() ended with: {0}'.format(profile_name))
+        return profile_name
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
