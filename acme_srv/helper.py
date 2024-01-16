@@ -33,6 +33,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import load_pem_x509_certificate, ocsp
+from OpenSSL import crypto
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
@@ -269,6 +270,31 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
     return convert_byte_to_string(pubkey_str)
 
 
+def cert_san_pyopenssl_get(logger, certificate, recode=True):
+    """ get subject alternate names from certificate """
+    logger.debug('cert_san_get()')
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
+
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+    san = []
+    ext_count = cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = cert.get_extension(i)
+        if 'subjectAltName' in str(ext.get_short_name()):
+            # pylint: disable=c2801
+            san_list = ext.__str__().split(',')
+            for san_name in san_list:
+                san_name = san_name.rstrip()
+                san_name = san_name.lstrip()
+                san.append(san_name)
+
+    logger.debug('cert_san_get() ended')
+    return san
+
+
 def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) -> List[str]:
     """ get subject alternate names from certificate """
     logger.debug('cert_san_get({0})'.format(recode))
@@ -285,9 +311,47 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
             sans.append('IP:{0}'.format(san))
     except Exception as err:
         logger.error('cert_san_get(): Error: {0}'.format(err))
+        # we may add the routing to get the sanes via pyopenssl here if needed (sans = cert_san_pyopenssl_get(logger, certificate, recode=recode))
 
     logger.debug('cert_san_get() ended')
     return sans
+
+
+def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
+    """Get Subject Key Identifier from a certificate as a hex string."""
+    logger.debug('cert_ski_pyopenssl_cert()')
+
+    pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    # Get the SKI extension
+    ski = None
+    for i in range(cert.get_extension_count()):
+        ext = cert.get_extension(i)
+        if 'subjectKeyIdentifier' in str(ext.get_short_name()):
+            ski = ext
+    if ski:
+        # Get the SKI value and convert it to hex
+        ski_hex = ski.get_data()[2:].hex()
+    else:
+        logger.error("cert_ski_pyopenssl_get(): No SKI found in certificate")
+        ski_hex = None
+    logger.debug('cert_ski_pyopenssl_cert() ended with: {0}'.format(ski_hex))
+    return ski_hex
+
+
+def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
+    """ get subject key identifier from certificate """
+    logger.debug('cert_ski_get()')
+
+    cert = cert_load(logger, certificate, recode=True)
+    try:
+        ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
+        ski_value = ski.value.digest.hex()
+    except Exception as err:
+        logger.error('cert_ski_get(): Error: {0}'.format(err))
+        ski_value = cert_ski_pyopenssl_get(logger, certificate)
+    logger.debug('cert_ski_get() ended with: {0}'.format(ski_value))
+    return ski_value
 
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
@@ -373,17 +437,33 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     return subject
 
 
-def csr_pubkey_get(logger, csr):
+def csr_pubkey_get(logger, csr, encoding='pem'):
     """ get public key from certificate request """
     logger.debug('CAhandler.csr_pubkey_get()')
     csr_obj = csr_load(logger, csr)
     public_key = csr_obj.public_key()
-    pubkey_str = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
-    return convert_byte_to_string(pubkey_str)
+    if encoding == 'pem':
+        pubkey_str = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        pubkey = convert_byte_to_string(pubkey_str)
+    elif encoding == 'base64der':
+        pubkey_str = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        pubkey = b64_encode(logger, pubkey_str)
+
+    elif encoding == 'der':
+        pubkey = public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+    else:
+        pubkey = None
+    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey))
+    return pubkey
 
 
 def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
@@ -409,6 +489,29 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
 
     logger.debug('csr_san_get() ended with: {0}'.format(str(sans)))
     return sans
+
+
+def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:
+    """ get sans from CSR as base64 encoded byte squence"""
+    # Load the CSR
+    logger.debug('csr_san_byte_get()')
+
+    csr = csr_load(logger, csr)
+
+    # Get the SAN extension
+    san_extension = csr.extensions.get_extension_for_oid(x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+
+    # Get the SANs
+    sans = san_extension.value
+
+    # Serialize the SANs to a byte sequence
+    sans_bytes = sans.public_bytes()
+
+    # Encode the byte sequence as base64
+    sans_base64 = b64_encode(logger, sans_bytes)
+
+    logger.debug('csr_san_byte_get() ended')
+    return sans_base64
 
 
 def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:

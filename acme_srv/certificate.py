@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -30,6 +30,7 @@ class Certificate(object):
         self.tnauthlist_support = False
         self.cert_reusage_timeframe = 0
         self.enrollment_timeout = 5
+        self.cn2san_add = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -72,6 +73,12 @@ class Certificate(object):
             try:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
+                if self.cn2san_add:
+                    # add common name to SANs
+                    cert_cn = cert_cn_get(self.logger, certificate)
+                    if not san_list and cert_cn:
+                        san_list.append('DNS:{0}'.format(cert_cn))
+
                 identifier_status = self._identifer_status_list(identifiers, san_list)
             except Exception as err_:
                 # enough to set identifier_list as empty list
@@ -188,6 +195,10 @@ class Certificate(object):
         config_dic = load_config()
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
+
+        if 'CAhandler' in config_dic and config_dic.get('CAhandler', 'handler_file', fallback=None) == 'examples/ca_handler/asa_ca_handler.py':
+            self.cn2san_add = True
+            self.logger.debug('Certificate._config_load(): cn2san_add enabled')
 
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
