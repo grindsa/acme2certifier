@@ -101,7 +101,7 @@ class Renewalinfo(object):
         self.logger.debug('Renewalinfo.renewal_string_get()')
 
         # we need to workaround a strange issue in win-acme
-        url = url.replace(f'{self.server_name}{self.path_dic['renewalinfo'].rstrip('/')}', '')
+        url = url.replace(f'{self.server_name}{self.path_dic["renewalinfo"].rstrip("/")}', '')
         url = url.lstrip('/')
 
         # sanitize renewal_info string

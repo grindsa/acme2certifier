@@ -68,11 +68,11 @@ class Message(object):
 
         if 'kid' in content:
             self.logger.debug('kid: %s', content['kid'])
-            kid = content['kid'].replace(f'{self.server_name}{self.path_dic['acct_path']}', '')
+            kid = content['kid'].replace(f'{self.server_name}{self.path_dic["acct_path"]}', '')
             if '/' in kid:
                 kid = None
         elif 'jwk' in content and 'url' in content:
-            if content['url'] == f'{self.server_name}{self.path_dic['revocation_path']}':
+            if content['url'] == f'{self.server_name}{self.path_dic["revocation_path"]}':
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing
                 kid = self._name_rev_get(content)
             else:

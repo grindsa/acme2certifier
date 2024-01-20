@@ -54,7 +54,7 @@ class Challenge(object):
             challenge_dic[challenge['type']]['token'] = challenge['token']
             challenge_dic[challenge['type']]['type'] = challenge['type']
             challenge_dic[challenge['type']]['url'] = challenge['name']
-            challenge_dic[challenge['type']]['url'] = f'{self.server_name}{self.path_dic['chall_path']}{challenge['name']}'
+            challenge_dic[challenge['type']]['url'] = f"{self.server_name}{self.path_dic['chall_path']}{challenge['name']}"
             challenge_dic[challenge['type']]['name'] = challenge['name']
             if 'status__name' in challenge:
                 challenge_dic[challenge['type']]['status'] = challenge['status__name']
@@ -262,7 +262,7 @@ class Challenge(object):
         challenge_dic = {}
         if chid:
             challenge_dic['type'] = mtype
-            challenge_dic['url'] = f'{self.server_name}{self.path_dic['chall_path']}{challenge_name}'
+            challenge_dic['url'] = f'{self.server_name}{self.path_dic["chall_path"]}{challenge_name}'
             challenge_dic['token'] = token
             challenge_dic['status'] = 'pending'
             if mtype == 'tkauth-01':
@@ -308,7 +308,7 @@ class Challenge(object):
             challenge_dic['url'] = protected['url']
             response_dic['data'] = challenge_dic
             response_dic['header'] = {}
-            response_dic['header']['Link'] = f'<{self.server_name}{ self.path_dic['authz_path']}>;rel="up"'
+            response_dic['header']['Link'] = f'<{self.server_name}{self.path_dic["authz_path"]}>;rel="up"'
 
         self.logger.debug('Challenge._parse() ended with: %s', code)
         return (code, message, detail, response_dic)

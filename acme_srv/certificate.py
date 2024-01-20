@@ -143,7 +143,7 @@ class Certificate(object):
                     if uts <= certificate['expire_uts']:
                         cert = certificate['cert']
                         cert_raw = certificate['cert_raw']
-                        message = f'reused certificate from id: {certificate['id']}'
+                        message = f'reused certificate from id: {certificate["id"]}'
                         break
 
         self.logger.debug('Certificate._cert_reusage_check() ended with {%s', message)
@@ -390,7 +390,7 @@ class Certificate(object):
 
     def _enroll_and_store(self, certificate_name: str, csr: str, order_name: str = None) -> Tuple[str, str, str]:
         """ enroll and store certificate """
-        self.logger.debug('Certificate._enroll_and_store(%s, %s, %s)',certificate_name, order_name, csr)
+        self.logger.debug('Certificate._enroll_and_store(%s, %s, %s)', certificate_name, order_name, csr)
 
         detail = None
         error = None
@@ -810,7 +810,7 @@ class Certificate(object):
 
     def new_get(self, url: str) -> Dict[str, str]:
         """ get request """
-        certificate_name = string_sanitize(self.logger, url.replace(f'{self.server_name}{self.path_dic['cert_path']}', ''))
+        certificate_name = string_sanitize(self.logger, url.replace(f'{self.server_name}{self.path_dic["cert_path"]}', ''))
         self.logger.debug('Certificate.new_get(%s)', certificate_name)
 
         # fetch certificate dictionary from DB

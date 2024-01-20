@@ -77,10 +77,10 @@ class Housekeeping(object):
         """ format cliaccount report """
         self.logger.debug('Housekeeping._cliaccounts_format()')
         try:
-            print(f'\n{'Name'.ljust(15)}|{'Contact'.ljust(20)}|{'cliadm'.ljust(6)}|{'repadm'.ljust(6)}|{'certadm'.ljust(7)}|{'Created at'.ljust(20)}')
+            print(f"\n{'Name'.ljust(15)}|{'Contact'.ljust(20)}|{'cliadm'.ljust(6)}|{'repadm'.ljust(6)}|{'certadm'.ljust(7)}|{'Created at'.ljust(20)}")
             print('-' * 78)
             for account in sorted(result_list, key=lambda k: k['id']):
-                print(f'{account['name'][:15].ljust(15)}|{account['contact'][:20].ljust(20)}|{str(bool(account['cliadmin'])).ljust(6)}|{str(bool(account['reportadmin'])).ljust(6)}|{str(bool(account['certificateadmin'])).ljust(7)}|{account['created_at'].ljust(20)}')
+                print(f"{account['name'][:15].ljust(15)}|{account['contact'][:20].ljust(20)}|{str(bool(account['cliadmin'])).ljust(6)}|{str(bool(account['reportadmin'])).ljust(6)}|{str(bool(account['certificateadmin'])).ljust(7)}|{account['created_at'].ljust(20)}")
             print('\n')
         except Exception as err:
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
