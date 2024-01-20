@@ -630,7 +630,7 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
         proto = 'http'
 
     if include_path and 'PATH_INFO' in environ:
-        result = f'{proto}://{server_name}{html.escape(environ['PATH_INFO'])}'
+        result = f'{proto}://{server_name}{html.escape(environ["PATH_INFO"])}'
     else:
         result = f'{proto}://{server_name}'
     return result
@@ -1314,7 +1314,7 @@ def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
     # adjust headers and url in case we have an ipv6address
     if ipv6_chk(logger, url_dic['host']):
         headers['Host'] = url_dic['host']
-        url = f'{url_dic['proto']}://[{url_dic['host']}]/{url_dic['path']}'
+        url = f"{url_dic['proto']}://[{url_dic['host']}]/{url_dic['path']}"
 
     logger.debug('v6_adjust() ended')
     return (headers, url)

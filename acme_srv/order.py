@@ -384,7 +384,7 @@ class Order(object):
         validity_list = []
         for authz in authz_list:
             if 'name' in authz:
-                order_dic["authorizations"].append(f'{self.server_name}{self.path_dic['authz_path']}{authz['name']}')
+                order_dic["authorizations"].append(f'{self.server_name}{self.path_dic["authz_path"]}{authz["name"]}')
             if 'status__name' in authz:
                 if authz['status__name'] == 'valid':
                     validity_list.append(True)
@@ -459,15 +459,15 @@ class Order(object):
             if not error:
                 code = 201
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic['order_path']}{ order_name}'
+                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}'
                 response_dic['data'] = {}
                 response_dic['data']['identifiers'] = []
                 response_dic['data']['authorizations'] = []
                 response_dic['data']['status'] = 'pending'
                 response_dic['data']['expires'] = expires
-                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic['order_path']}{order_name}/finalize'
+                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}/finalize'
                 for auth_name, value in auth_dic.items():
-                    response_dic['data']['authorizations'].append(f'{self.server_name}{self.path_dic['authz_path']}{auth_name}')
+                    response_dic['data']['authorizations'].append(f'{self.server_name}{self.path_dic["authz_path"]}{auth_name}')
                     response_dic['data']['identifiers'].append(value)
             else:
                 code = 400
@@ -528,16 +528,16 @@ class Order(object):
             if code == 200:
                 # create response
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic['order_path']}{order_name}'
+                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}'
                 response_dic['data'] = self._lookup(order_name)
                 if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
                     # set retry header as cert issuane is not completed.
                     response_dic['header']['Retry-After'] = f'{self.retry_after}'
-                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic['order_path']}{order_name}/finalize'
+                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}/finalize'
                 # add the path to certificate if order-status is ready
                 # if certificate_name:
                 if certificate_name and 'status' in response_dic['data'] and response_dic['data']['status'] == 'valid':
-                    response_dic['data']['certificate'] = f'{self.server_name}{self.path_dic['cert_path']}{certificate_name}'
+                    response_dic['data']['certificate'] = f'{self.server_name}{self.path_dic["cert_path"]}{certificate_name}'
 
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}

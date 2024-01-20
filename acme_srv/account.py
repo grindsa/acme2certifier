@@ -734,7 +734,7 @@ class Account(object):
             if code == 201:
                 response_dic['data'] = {
                     'status': 'valid',
-                    'orders': f'{self.server_name}{self.path_dic['acct_path']}{message}/orders'
+                    'orders': f'{self.server_name}{self.path_dic["acct_path"]}{message}/orders'
                 }
                 if 'contact' in payload:
                     response_dic['data']['contact'] = payload['contact']
@@ -742,7 +742,7 @@ class Account(object):
                 response_dic['data'] = detail
 
             response_dic['header'] = {}
-            response_dic['header']['Location'] = f'{self.server_name}{self.path_dic['acct_path']}{message}'
+            response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["acct_path"]}{message}'
 
             # add exernal account binding
             if self.eab_check and 'externalaccountbinding' in payload:
