@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=C0209, E0611, E0401
 """ acme app main view """
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
@@ -54,20 +53,15 @@ def pretty_request(request):
         if not header.startswith('HTTP'):
             continue
         header = '-'.join([h.capitalize() for h in header[5:].lower().split('_')])
-        headers += '{}: {}\n'.format(header, value)
+        headers += f'{header}: {value}\n'
 
     return (
-        '{method} HTTP/1.1\n'
-        'Content-Length: {content_length}\n'
-        'Content-Type: {content_type}\n'
-        '{headers}\n\n'
-        '{body}'
-    ).format(
-        method=request.method,
-        content_length=request.META['CONTENT_LENGTH'],
-        content_type=request.META['CONTENT_TYPE'],
-        headers=headers,
-        body=request.body, )
+        f'{request.method} HTTP/1.1\n'
+        f'Content-Length: {request.META['CONTENT_LENGTH']}\n'
+        f'Content-Type: {request.META['CONTENT_TYPE']}\n'
+        f'{headers}\n\n'
+        f'{request.body}'
+    )
 
 
 def directory(request):

@@ -1,4 +1,4 @@
-# pylint: disable=c0209, c0302, e0401, r0913
+# pylint: disable=c0302, e0401, r0913
 # -*- coding: utf-8 -*-
 """ helper functions for acme2certifier """
 from __future__ import print_function
@@ -39,7 +39,7 @@ import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
 
 
-USER_AGENT = 'acme2certifier/{0}'.format(__version__)
+USER_AGENT = f'acme2certifier/{__version__}'
 
 
 def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
@@ -86,18 +86,18 @@ def build_pem_file(logger: logging.Logger, existing, certificate, wrap, csr=Fals
     """ construct pem_file """
     logger.debug('build_pem_file()')
     if csr:
-        pem_file = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
+        pem_file = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(convert_byte_to_string(certificate), 64)}\n-----END CERTIFICATE REQUEST-----\n'
     else:
         if existing:
             if wrap:
-                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(existing), textwrap.fill(convert_byte_to_string(certificate), 64))
+                pem_file = f'{existing}-----BEGIN CERTIFICATE-----\n{textwrap.fill(convert_byte_to_string(certificate), 64)}\n-----END CERTIFICATE-----\n'
             else:
-                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(existing), convert_byte_to_string(certificate))
+                pem_file = f'{convert_byte_to_string(existing)}-----BEGIN CERTIFICATE-----\n{convert_byte_to_string(certificate)}\n-----END CERTIFICATE-----\n'
         else:
             if wrap:
-                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(convert_byte_to_string(certificate), 64))
+                pem_file = f'-----BEGIN CERTIFICATE-----\n{textwrap.fill(convert_byte_to_string(certificate), 64)}\n-----END CERTIFICATE-----\n'
             else:
-                pem_file = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(convert_byte_to_string(certificate))
+                pem_file = f'-----BEGIN CERTIFICATE-----\n{convert_byte_to_string(certificate)}\n-----END CERTIFICATE-----\n'
     return pem_file
 
 
@@ -117,13 +117,13 @@ def ca_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impor
             spec.loader.exec_module(ca_handler_module)
             return ca_handler_module
         except Exception as err_:
-            logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: {0}'.format(err_))
+            logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: %s', err_)
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
         ca_handler_module = importlib.import_module('acme_srv.ca_handler')
     except Exception as err_:
-        logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: {0}'.format(err_))
+        logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: %s', err_)
         ca_handler_module = None
 
     return ca_handler_module
@@ -136,7 +136,7 @@ def config_check(logger: logging.Logger, config_dic: Dict):
     for section, section_dic in config_dic.items():
         for key, value in section_dic.items():
             if value.startswith('"') or value.endswith('"'):
-                logger.warning('config_check(): section {0} option: {1} contains " characters. Check if this is really needed!'.format(section, key))
+                logger.warning('config_check(): section %s option: %s contains " characters. Check if this is really needed!', section, key)
 
 
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
@@ -150,18 +150,18 @@ def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impo
             eab_handler_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(eab_handler_module)
         except Exception as err_:
-            logger.critical('Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: {0}'.format(err_))
+            logger.critical('Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: %s', err_)
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
                 eab_handler_module = None
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: {0}'.format(err_))
+                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
     else:
         if 'EABhandler' in config_dic:
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: {0}'.format(err_))
+                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
                 eab_handler_module = None
         else:
             logger.error('Helper.eab_handler_load(): EABhandler configuration missing in config file')
@@ -182,14 +182,15 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             hooks_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(hooks_module)
         except Exception as err_:
-            logger.critical('Helper.hooks_load(): loading Hooks configured in cfg failed with err: {0}'.format(err_))
+            logger.critical('Helper.hooks_load(): loading Hooks configured in cfg failed with err: %s', err_)
 
     return hooks_module
 
 
 def cert_load(logger: logging.Logger, certificate: str, recode: bool) -> x509.Certificate:
     """ load certificate object from pem _Format """
-    logger.debug('cert_load({0})'.format(recode))
+    logger.debug('cert_load(%s)', recode)
+
     if recode:
         pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
     else:
@@ -202,9 +203,9 @@ def cert_load(logger: logging.Logger, certificate: str, recode: bool) -> x509.Ce
 def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
     """ get date number form certificate """
     logger.debug('cert_dates_get()')
+
     issue_date = 0
     expiration_date = 0
-
     try:
         cert = cert_load(logger, certificate, recode=True)
         issue_date = date_to_uts_utc(cert.not_valid_before, _tformat='%Y-%m-%d %H:%M:%S')
@@ -213,7 +214,7 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
         issue_date = 0
         expiration_date = 0
 
-    logger.debug('cert_dates_get() ended with: {0}/{1}'.format(issue_date, expiration_date))
+    logger.debug('cert_dates_get() ended with: %s/%s', issue_date, expiration_date)
     return (issue_date, expiration_date)
 
 
@@ -229,7 +230,7 @@ def cert_cn_get(logger: logging.Logger, certificate: str) -> str:
         if attr.oid == x509.NameOID.COMMON_NAME:
             result = attr.value
             break
-    logger.debug('CAhandler.cert_cn_get() ended with: {0}'.format(result))
+    logger.debug('CAhandler.cert_cn_get() ended with: %s', result)
     return result
 
 
@@ -246,7 +247,7 @@ def cert_issuer_get(logger: logging.Logger, certificate: str) -> str:
 
     cert = cert_load(logger, certificate, recode=True)
     result = cert.issuer.rfc4514_string()
-    logger.debug('CAhandler.cert_issuer_get() ended with: {0}'.format(result))
+    logger.debug('CAhandler.cert_issuer_get() ended with: %s', result)
     return result
 
 
@@ -266,7 +267,7 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey_str))
+    logger.debug('CAhandler.cert_pubkey_get() ended with: %s', pubkey_str)
     return convert_byte_to_string(pubkey_str)
 
 
@@ -297,7 +298,7 @@ def cert_san_pyopenssl_get(logger, certificate, recode=True):
 
 def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) -> List[str]:
     """ get subject alternate names from certificate """
-    logger.debug('cert_san_get({0})'.format(recode))
+    logger.debug('cert_san_get(%s)', recode)
 
     cert = cert_load(logger, certificate, recode=recode)
     sans = []
@@ -305,12 +306,12 @@ def cert_san_get(logger: logging.Logger, certificate: str, recode: bool = True) 
         ext = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_ALTERNATIVE_NAME)
         sans_list = ext.value.get_values_for_type(x509.DNSName)
         for san in sans_list:
-            sans.append('DNS:{0}'.format(san))
+            sans.append(f'DNS:{san}')
         sans_list = ext.value.get_values_for_type(x509.IPAddress)
         for san in sans_list:
-            sans.append('IP:{0}'.format(san))
+            sans.append(f'IP:{san}')
     except Exception as err:
-        logger.error('cert_san_get(): Error: {0}'.format(err))
+        logger.error('cert_san_get(): Error: %s', err)
         # we may add the routing to get the sanes via pyopenssl here if needed (sans = cert_san_pyopenssl_get(logger, certificate, recode=recode))
 
     logger.debug('cert_san_get() ended')
@@ -335,7 +336,7 @@ def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
     else:
         logger.error("cert_ski_pyopenssl_get(): No SKI found in certificate")
         ski_hex = None
-    logger.debug('cert_ski_pyopenssl_cert() ended with: {0}'.format(ski_hex))
+    logger.debug('cert_ski_pyopenssl_cert() ended with: %s', ski_hex)
     return ski_hex
 
 
@@ -348,9 +349,9 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error('cert_ski_get(): Error: {0}'.format(err))
+        logger.error('cert_ski_get(): Error: %s', err)
         ski_value = cert_ski_pyopenssl_get(logger, certificate)
-    logger.debug('cert_ski_get() ended with: {0}'.format(ski_value))
+    logger.debug('cert_ski_get() ended with: %s', ski_value)
     return ski_value
 
 
@@ -364,7 +365,7 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     for extension in cert.extensions:
         extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
-    logger.debug('cert_extensions_get() ended with: {0}'.format(extension_list))
+    logger.debug('cert_extensions_get() ended with: %s', extension_list)
     return extension_list
 
 
@@ -373,10 +374,10 @@ def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = 
     logger.debug('cert_serial_get()')
     cert = cert_load(logger, certificate, recode=True)
     if hexformat:
-        serial_number = '{0:x}'.format(cert.serial_number)
+        serial_number = f'{cert.serial_number:x}'
     else:
         serial_number = cert.serial_number
-    logger.debug('cert_serial_get() ended with: {0}'.format(serial_number))
+    logger.debug('cert_serial_get() ended with: %s', serial_number)
     return serial_number
 
 
@@ -402,7 +403,8 @@ def convert_string_to_byte(value: str) -> bytes:
 
 def csr_load(logger: logging.Logger, csr: str) -> x509.CertificateSigningRequest:
     """ load certificate object from pem _Format """
-    logger.debug('cert_load({0})')
+    logger.debug('cert_load()')
+
     pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, csr), True, True))
     csr_data = x509.load_pem_x509_csr(pem_data)
 
@@ -414,7 +416,6 @@ def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
     logger.debug('CAhandler.csr_cn_get()')
 
     csr = csr_load(logger, csr_pem)
-
     # Extract the subject's common name
     common_name = None
     for attribute in csr.subject:
@@ -422,7 +423,7 @@ def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
             common_name = attribute.value
             break
 
-    logger.debug('CAhandler.csr_cn_get() ended with: {0}'.format(common_name))
+    logger.debug('CAhandler.csr_cn_get() ended with: %s', common_name)
     return common_name
 
 
@@ -433,7 +434,7 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     csr_obj = csr_load(logger, csr)
     subject = csr_obj.subject.rfc4514_string()
 
-    logger.debug('CAhandler.csr_dn_get() ended with: {0}'.format(subject))
+    logger.debug('CAhandler.csr_dn_get() ended with: %s', subject)
     return subject
 
 
@@ -462,7 +463,7 @@ def csr_pubkey_get(logger, csr, encoding='pem'):
         )
     else:
         pubkey = None
-    logger.debug('CAhandler.cert_pubkey_get() ended with: {0}'.format(pubkey))
+    logger.debug('CAhandler.cert_pubkey_get() ended with: %s', pubkey)
     return pubkey
 
 
@@ -479,15 +480,15 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
 
             sans_list = ext.value.get_values_for_type(x509.DNSName)
             for san in sans_list:
-                sans.append('DNS:{0}'.format(san))
+                sans.append(f'DNS:{san}')
             sans_list = ext.value.get_values_for_type(x509.IPAddress)
             for san in sans_list:
-                sans.append('IP:{0}'.format(san))
+                sans.append(f'IP:{san}')
 
         except Exception as err:
-            logger.error('csr_san_get(): Error: {0}'.format(err))
+            logger.error('csr_san_get(): Error: %s', err)
 
-    logger.debug('csr_san_get() ended with: {0}'.format(str(sans)))
+    logger.debug('csr_san_get() ended with: %s', str(sans))
     return sans
 
 
@@ -524,7 +525,7 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
     for extension in csr_obj.extensions:
         extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
-    logger.debug('csr_extensions_get() ended with: {0}'.format(extension_list))
+    logger.debug('csr_extensions_get() ended with: %s', extension_list)
     return extension_list
 
 
@@ -559,7 +560,7 @@ def decode_message(logger: logging.Logger, message: str) -> Tuple[str, str, Dict
         signature = jwstoken.objects['signature']
         result = True
     except Exception as err:
-        logger.error('decode_message() err: {0}'.format(err))
+        logger.error('decode_message() err: %s', err)
         error = str(err)
         protected = {}
         payload = {}
@@ -594,9 +595,9 @@ def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) ->
                     result = True
                     break
             except Exception:
-                logger.error('ERROR: fqdn_in_san_check() SAN split failed: {0}'.format(san))
+                logger.error('ERROR: fqdn_in_san_check() SAN split failed: %s', san)
 
-    logger.debug('fqdn_in_san_check() ended with: {}'.format(result))
+    logger.debug('fqdn_in_san_check() ended with: %s', result)
     return result
 
 
@@ -629,9 +630,9 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
         proto = 'http'
 
     if include_path and 'PATH_INFO' in environ:
-        result = '{0}://{1}{2}'.format(proto, server_name, html.escape(environ['PATH_INFO']))
+        result = f'{proto}://{server_name}{html.escape(environ['PATH_INFO'])}'
     else:
-        result = '{0}://{1}'.format(proto, server_name)
+        result = f'{proto}://{server_name}'
     return result
 
 
@@ -645,7 +646,7 @@ def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 
         result = dbstore.certificates_search('csr', csr, vlist)
     except Exception as err:
         result = []
-        logger.error('Helper.header_info_get(): error: {0}'.format(err))
+        logger.error('Helper.header_info_get(): error: %s', err)
 
     return list(result)
 
@@ -658,7 +659,7 @@ def load_config(logger: logging.Logger = None, mfilter: str = None, cfg_file: st
         else:
             cfg_file = os.path.dirname(__file__) + '/' + 'acme_srv.cfg'
     if logger:
-        logger.debug('load_config({1}:{0})'.format(mfilter, cfg_file))
+        logger.debug('load_config(%s:%s)', mfilter, cfg_file)
     config = configparser.ConfigParser(interpolation=None)
     config.optionxform = str
     config.read(cfg_file, encoding='utf8')
@@ -667,7 +668,7 @@ def load_config(logger: logging.Logger = None, mfilter: str = None, cfg_file: st
 
 def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
     """ split url into pieces """
-    logger.debug('parse_url({0})'.format(url))
+    logger.debug('parse_url(%s)', url)
     url_dic = {
         'proto': urlparse(url).scheme,
         'host': urlparse(url).netloc,
@@ -678,7 +679,7 @@ def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
 
 def encode_url(logger: logging.Logger, input_string: str) -> str:
     """ urlencoding """
-    logger.debug('encode_url({0})'.format(input_string))
+    logger.debug('encode_url(%s)', input_string)
 
     return quote(input_string)
 
@@ -729,7 +730,7 @@ def logger_info(logger: logging.Logger, addr: str, locator: str, dat_dic: Dict[s
         # remove token from challenge
         data_dic = _logger_challenges_modify(data_dic)
 
-    logger.info('{0} {1} {2}'.format(addr, locator, str(data_dic)))
+    logger.info('%s %s %s', addr, locator, str(data_dic))
 
 
 def logger_setup(debug: bool) -> logging.Logger:
@@ -757,7 +758,7 @@ def logger_setup(debug: bool) -> logging.Logger:
 def print_debug(debug: bool, text: str):
     """ little helper to print debug messages """
     if debug:
-        print('{0}: {1}'.format(datetime.datetime.now(), text))
+        print(f'{datetime.datetime.now()}: {text}')
 
 
 def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
@@ -768,12 +769,12 @@ def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
             jwkey = jwk.JWK(**pub_key)
             thumbprint = jwkey.thumbprint()
         except Exception as err:
-            logger.error('jwk_thumbprint_get(): error: {0}'.format(err))
+            logger.error('jwk_thumbprint_get(): error: %s', err)
             thumbprint = None
     else:
         thumbprint = None
 
-    logger.debug('jwk_thumbprint_get() ended with: {0}'.format(thumbprint))
+    logger.debug('jwk_thumbprint_get() ended with: %s', thumbprint)
     return thumbprint
 
 
@@ -781,7 +782,7 @@ def sha256_hash(logger: logging.Logger, string: str) -> str:
     """ hash string """
     logger.debug('sha256_hash()')
     result = hashlib.sha256(string.encode('utf-8')).digest()
-    logger.debug('sha256_hash() ended with {0} (base64-encoded)'.format(b64_encode(logger, result)))
+    logger.debug('sha256_hash() ended with %s (base64-encoded)', b64_encode(logger, result))
     return result
 
 
@@ -789,13 +790,13 @@ def sha256_hash_hex(logger: logging.Logger, string: str) -> str:
     """ hash string """
     logger.debug('sha256_hash_hex()')
     result = hashlib.sha256(string.encode('utf-8')).hexdigest()
-    logger.debug('sha256_hash_hex() ended with {0}'.format(result))
+    logger.debug('sha256_hash_hex() ended with %s', result)
     return result
 
 
 def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: bool = False) -> Tuple[bool, str]:
     """ check JWS """
-    logger.debug('signature_check({0})'.format(json_))
+    logger.debug('signature_check(%s)', json_)
 
     result = False
     error = None
@@ -808,7 +809,7 @@ def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: b
             else:
                 jwkey = jwk.JWK(**pub_key)
         except Exception as err:
-            logger.error('load key failed {0}'.format(err))
+            logger.error('load key failed %s', err)
             jwkey = None
             result = False
             error = str(err)
@@ -821,7 +822,7 @@ def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: b
                 jwstoken.verify(jwkey)
                 result = True
             except Exception as err:
-                logger.error('verify failed {0}'.format(err))
+                logger.error('verify failed %s', err)
                 error = str(err)
     else:
         error = 'No key specified.'
@@ -942,7 +943,7 @@ def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: n
 
 def proxy_check(logger: logging.Logger, fqdn: str, proxy_server_list: Dict[str, str]) -> str:
     """ check proxy server """
-    logger.debug('proxy_check({0})'.format(fqdn))
+    logger.debug('proxy_check(%s)', fqdn)
 
     # remove leading *.
     proxy_server_list_new = {k.replace('*.', ''): v for k, v in proxy_server_list.items()}
@@ -954,20 +955,20 @@ def proxy_check(logger: logging.Logger, fqdn: str, proxy_server_list: Dict[str, 
             if bool(regex_compiled.search(fqdn)):
                 # parameter is in - set flag accordingly and stop loop
                 proxy = proxy_server_list_new[regex]
-                logger.debug('proxy_check() match found: fqdn: {0}, regex: {1}'.format(fqdn, regex))
+                logger.debug('proxy_check() match found: fqdn: %s, regex: %s', fqdn, regex)
                 break
 
     if '*' in proxy_server_list_new.keys() and not proxy:
-        logger.debug('proxy_check() wildcard match found: fqdn: {0}'.format(fqdn))
+        logger.debug('proxy_check() wildcard match found: fqdn: %s', fqdn)
         proxy = proxy_server_list_new['*']
 
-    logger.debug('proxy_check() ended with {0}'.format(proxy))
+    logger.debug('proxy_check() ended with %s', proxy)
     return proxy
 
 
 def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> str:
     """ request by using an own dns resolver """
-    logger.debug('url_get_with_own_dns({0})'.format(url))
+    logger.debug('url_get_with_own_dns(%s)', url)
     # patch an own connection handler into URL lib
     # pylint: disable=W0212
     connection._orig_create_connection = connection.create_connection
@@ -977,7 +978,7 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
         result = req.text
     except Exception as err_:
         result = None
-        logger.error('url_get_with_own_dns error: {0}'.format(err_))
+        logger.error('url_get_with_own_dns error: %s', err_)
     # cleanup
     connection.create_connection = connection._orig_create_connection
     return result
@@ -991,7 +992,7 @@ def allowed_gai_family() -> socket.AF_INET:
 
 def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: Dict[str, str], verify: bool, timeout: int) -> str:
     """ http get with default dns server """
-    logger.debug('url_get_with_default_dns({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
+    logger.debug('url_get_with_default_dns(%s) vrf=%s, timout:%s', url, verify, timeout)
 
     # we need to tweak headers and url for ipv6 addresse
     (headers, url) = v6_adjust(logger, url)
@@ -1000,9 +1001,9 @@ def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: Dict[
         req = requests.get(url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list)
         result = req.text
     except Exception as err_:
-        logger.debug('url_get({0}): error'.format(err_))
+        logger.debug('url_get(%s): error', err_)
         # force fallback to ipv4
-        logger.debug('url_get({0}): fallback to v4'.format(url))
+        logger.debug('url_get(%s): fallback to v4', url)
         old_gai_family = urllib3_cn.allowed_gai_family
         try:
             urllib3_cn.allowed_gai_family = allowed_gai_family
@@ -1010,7 +1011,7 @@ def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: Dict[
             result = req.text
         except Exception as err:
             result = None
-            logger.error('url_get error: {0}'.format(err))
+            logger.error('url_get error: %s', err)
         urllib3_cn.allowed_gai_family = old_gai_family
 
     return result
@@ -1018,7 +1019,7 @@ def url_get_with_default_dns(logger: logging.Logger, url: str, proxy_list: Dict[
 
 def url_get(logger: logging.Logger, url: str, dns_server_list: List[str] = None, proxy_server=None, verify=True, timeout=20) -> str:
     """ http get """
-    logger.debug('url_get({0}) vrf={1}, timout:{2}'.format(url, verify, timeout))
+    logger.debug('url_get(%s) vrf=%s, timout:%s', url, verify, timeout)
     # pylint: disable=w0621
     # configure proxy servers if specified
     if proxy_server:
@@ -1030,13 +1031,13 @@ def url_get(logger: logging.Logger, url: str, dns_server_list: List[str] = None,
     else:
         result = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
 
-    logger.debug('url_get() ended with: {0}'.format(result))
+    logger.debug('url_get() ended with: %s', result)
     return result
 
 
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:
     """ dns query to get the TXt record """
-    logger.debug('txt_get({0}: {1})'.format(fqdn, dns_srv))
+    logger.debug('txt_get(%s: %s)', fqdn, dns_srv)
 
     # rewrite dns resolver if configured
     if dns_srv:
@@ -1048,8 +1049,8 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
         for rrecord in response:
             txt_record_list.append(rrecord.strings[0])
     except Exception as err_:
-        logger.error('txt_get() error: {0}'.format(err_))
-    logger.debug('txt_get() ended with: {0}'.format(txt_record_list))
+        logger.error('txt_get() error: %s', err_)
+    logger.debug('txt_get() ended with: %s', txt_record_list)
     return txt_record_list
 
 
@@ -1093,12 +1094,13 @@ def datestr_to_date(datestr: str, tformat: str = '%Y-%m-%dT%H:%M:%S') -> str:
 
 def proxystring_convert(logger: logging.Logger, proxy_server: str) -> Tuple[str, str, str]:
     """ convert proxy string """
-    logger.debug('proxystring_convert({0})'.format(proxy_server))
+    logger.debug('proxystring_convert(%s)', proxy_server)
+
     proxy_proto_dic = {'http': socks.PROXY_TYPE_HTTP, 'socks4': socks.PROXY_TYPE_SOCKS4, 'socks5': socks.PROXY_TYPE_SOCKS5}
     try:
         (proxy_proto, proxy) = proxy_server.split('://')
     except Exception:
-        logger.error('proxystring_convert(): error splitting proxy_server string: {0}'.format(proxy_server))
+        logger.error('proxystring_convert(): error splitting proxy_server string: %s', proxy_server)
         proxy = None
         proxy_proto = None
 
@@ -1106,7 +1108,7 @@ def proxystring_convert(logger: logging.Logger, proxy_server: str) -> Tuple[str,
         try:
             (proxy_addr, proxy_port) = proxy.split(':')
         except Exception:
-            logger.error('proxystring_convert(): error splitting proxy into host/port: {0}'.format(proxy))
+            logger.error('proxystring_convert(): error splitting proxy into host/port: %s', proxy)
             proxy_addr = None
             proxy_port = None
     else:
@@ -1117,25 +1119,25 @@ def proxystring_convert(logger: logging.Logger, proxy_server: str) -> Tuple[str,
         try:
             proto_string = proxy_proto_dic[proxy_proto]
         except Exception:
-            logger.error('proxystring_convert(): unknown proxy protocol: {0}'.format(proxy_proto))
+            logger.error('proxystring_convert(): unknown proxy protocol: %s', proxy_proto)
             proto_string = None
     else:
-        logger.error('proxystring_convert(): proxy_proto ({0}), proxy_addr ({1}) or proxy_port ({2}) missing'.format(proxy_proto, proxy_addr, proxy_port))
+        logger.error('proxystring_convert(): proxy_proto (%s), proxy_addr (%s) or proxy_port (%s) missing', proxy_proto, proxy_addr, proxy_port)
         proto_string = None
 
     try:
         proxy_port = int(proxy_port)
     except Exception:
-        logger.error('proxystring_convert(): unknown proxy port: {0}'.format(proxy_port))
+        logger.error('proxystring_convert(): unknown proxy port: %s', proxy_port)
         proxy_port = None
 
-    logger.debug('proxystring_convert() ended with {0}, {1}, {2}'.format(proto_string, proxy_addr, proxy_port))
+    logger.debug('proxystring_convert() ended with %s, %s, %s', proto_string, proxy_addr, proxy_port)
     return (proto_string, proxy_addr, proxy_port)
 
 
 def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy_server: str = None, sni: str = None) -> str:
     """ get server certificate from an ssl connection """
-    logger.debug('servercert_get({0}:{1})'.format(hostname, port))
+    logger.debug('servercert_get(%s:%s)', hostname, port)
 
     pem_cert = None
 
@@ -1167,17 +1169,17 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
     try:
         sock.connect((hostname, port))
         with context.wrap_socket(sock, server_hostname=sni) as sslsock:
-            logger.debug('servercert_get(): {0}:{1}:{2} version: {3}'.format(hostname, sni, port, sslsock.version()))
+            logger.debug('servercert_get(): %s:%s:%s version: %s', hostname, sni, port, sslsock.version())
             der_cert = sslsock.getpeercert(True)
             # from binary DER format to PEM
             if der_cert:
                 pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
     except Exception as err_:
-        logger.error('servercert_get() failed with: {0}'.format(err_))
+        logger.error('servercert_get() failed with: %s', err_)
         pem_cert = None
 
     if pem_cert:
-        logger.debug('servercert_get() ended with: {0}'.format(b64_encode(logger, convert_string_to_byte(pem_cert))))
+        logger.debug('servercert_get() ended with: %s', b64_encode(logger, convert_string_to_byte(pem_cert)))
     else:
         logger.debug('servercert_get() ended with: None')
     return pem_cert
@@ -1185,7 +1187,7 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
 
 def validate_csr(logger: logging.Logger, order_dic: Dict[str, str], _csr) -> bool:
     """ validate certificate signing request against order"""
-    logger.debug('validate_csr({0})'.format(order_dic))
+    logger.debug('validate_csr(%s)', order_dic)
     return True
 
 
@@ -1200,14 +1202,14 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
             contact = contact.replace('mailto:', '')
             contact = contact.lstrip()
             tmp_result = bool(re.search(pattern, contact))
-            logger.debug('# validate: {0} result: {1}'.format(contact, tmp_result))
+            logger.debug('# validate: %s result: %s', contact, tmp_result)
             if not tmp_result:
                 result = tmp_result
     else:
         contact_list = contact_list.replace('mailto:', '')
         contact_list = contact_list.lstrip()
         result = bool(re.search(pattern, contact_list))
-        logger.debug('# validate: {0} result: {1}'.format(contact_list, result))
+        logger.debug('# validate: %s result: %s', contact_list, result)
     return result
 
 
@@ -1235,7 +1237,7 @@ def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
             pem_data += line + "\n"
         if pem_data:
             cert_list.append(pem_data)
-    logger.debug('pembundle_to_list() returned {0} certificates'.format(len(cert_list)))
+    logger.debug('pembundle_to_list() returned %s certificates', cert_list)
     return cert_list
 
 
@@ -1268,7 +1270,7 @@ def certid_hex_get(logger: logging.Logger, renewal_info: str) -> Tuple[str, str]
     mda, certid_renewal = renewal_info_hex.split('0420', 1)
     mda = mda[4:]
 
-    logger.debug('certid_hex_get() endet with {0}'.format(certid_renewal))
+    logger.debug('certid_hex_get() endet with %s', certid_renewal)
     return mda, certid_renewal
 
 
@@ -1283,13 +1285,13 @@ def certid_check(logger: logging.Logger, renewal_info: str, certid_database: str
     _header, certid_renewal = renewal_info_hex.split('0420', 1)
     result = certid_renewal == certid_database
 
-    logger.debug('certid_check() ended with: {0}'.format(result))
+    logger.debug('certid_check() ended with: %s', result)
     return result
 
 
 def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:
     """  validate ip address """
-    logger.debug('ip_validate({0})'.format(ip_addr))
+    logger.debug('ip_validate(%s)', ip_addr)
 
     try:
         reverse_pointer = ipaddress.ip_address(ip_addr).reverse_pointer
@@ -1297,13 +1299,13 @@ def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:
     except ValueError:
         reverse_pointer = None
         invalid = True
-    logger.debug('ip_validate() ended with: {0}:{1}'.format(reverse_pointer, invalid))
+    logger.debug('ip_validate() ended with: %s:%s', reverse_pointer, invalid)
     return (reverse_pointer, invalid)
 
 
 def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
     """ corner case for v6 addresses """
-    logger.debug('v6_adjust({0})'.format(url))
+    logger.debug('v6_adjust(%s)', url)
 
     headers = {'Connection': 'close', 'Accept-Encoding': 'gzip', 'User-Agent': USER_AGENT}
 
@@ -1312,7 +1314,7 @@ def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
     # adjust headers and url in case we have an ipv6address
     if ipv6_chk(logger, url_dic['host']):
         headers['Host'] = url_dic['host']
-        url = '{0}://[{1}]/{2}'.format(url_dic['proto'], url_dic['host'], url_dic['path'])
+        url = f'{url_dic['proto']}://[{url_dic['host']}]/{url_dic['path']}'
 
     logger.debug('v6_adjust() ended')
     return (headers, url)
@@ -1320,7 +1322,7 @@ def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
 
 def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     """ check if an address is ipv6 """
-    logger.debug('ipv6_chk({0})'.format(address))
+    logger.debug('ipv6_chk(%s)', address)
 
     try:
         # we need to set a host header and braces for ipv6 headers and
@@ -1332,5 +1334,5 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     except Exception:
         result = False
 
-    logger.debug('ipv6_chk() ended with {0}'.format(result))
+    logger.debug('ipv6_chk() ended with %s', result)
     return result

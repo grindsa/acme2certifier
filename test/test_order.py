@@ -1066,7 +1066,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('acme_srv.order.DBstore.authorization_add')
     @patch('acme_srv.order.generate_random_string')
-    def test_106__auth_add(self, mock_name, mock_order_add):
+    def test_108__auth_add(self, mock_name, mock_order_add):
         """ test _auth_add() """
         mock_name.return_value = 'name'
         auth_dic = {}
@@ -1075,7 +1075,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_order_add.called)
 
     @patch('acme_srv.order.generate_random_string')
-    def test_107__auth_add(self, mock_name):
+    def test_109__auth_add(self, mock_name):
         """ test _auth_add() """
         mock_name.return_value = 'name'
         auth_dic = {}
@@ -1086,7 +1086,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.order.dbstore.authorization_update.called)
 
     @patch('acme_srv.order.generate_random_string')
-    def test_108__auth_add(self, mock_name):
+    def test_110__auth_add(self, mock_name):
         """ test _auth_add() """
         mock_name.return_value = 'name'
         auth_dic = {}
@@ -1097,37 +1097,37 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.order.dbstore.authorization_add.called)
         self.assertTrue(self.order.dbstore.authorization_update.called)
 
-    def test_109__header_info_lookup(self):
+    def test_111__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = {'foo1': 'bar1', 'foo2': 'bar2'}
         self.order.header_info_list = ['foo1', 'foo2']
         self.assertEqual('{"foo1": "bar1", "foo2": "bar2"}', self.order._header_info_lookup(header))
 
-    def test_110__header_info_lookup(self):
+    def test_112__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = {'foo1': 'bar1', 'foo2': 'bar2'}
         self.order.header_info_list = ['foo2']
         self.assertEqual('{"foo2": "bar2"}', self.order._header_info_lookup(header))
 
-    def test_111__header_info_lookup(self):
+    def test_113__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = {'foo1': 'bar1', 'foo2': 'bar2'}
         self.order.header_info_list = ['foo1']
         self.assertEqual('{"foo1": "bar1"}', self.order._header_info_lookup(header))
 
-    def test_112__header_info_lookup(self):
+    def test_114__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = {'foo1': 'bar1', 'foo2': 'bar2'}
         self.order.header_info_list = ['foo1', 'foo3']
         self.assertEqual('{"foo1": "bar1"}', self.order._header_info_lookup(header))
 
-    def test_113__header_info_lookup(self):
+    def test_115__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = None
         self.order.header_info_list = ['foo1', 'foo3']
         self.assertFalse(self.order._header_info_lookup(header))
 
-    def test_114__header_info_lookup(self):
+    def test_116__header_info_lookup(self):
         """ test _header_info_lookup() """
         header = {'foo1': 'bar1', 'foo2': 'bar2'}
         self.order.header_info_list = False
