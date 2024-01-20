@@ -760,7 +760,7 @@ class DBstore(object):
         self._db_open()
         if bool(exists):
             # update
-            self.logger.debug(f'parameter exists: name id: {data_dic['name']}')
+            self.logger.debug(f'parameter exists: name id: {data_dic["name"]}')
             self.cursor.execute('''UPDATE CAHANDLER SET name = :name, value1 = :value1, 'value2' = :value2 WHERE name = :name''', data_dic)
             rid = exists['id']
         else:
@@ -1168,7 +1168,7 @@ class DBstore(object):
         self._db_open()
         if bool(exists):
             # update
-            self.logger.debug(f'parameter exists: {data_dic['name']}')
+            self.logger.debug(f'parameter exists: {data_dic["name"]}')
             self.cursor.execute('''UPDATE HOUSEKEEPING SET name = :name, value = :value WHERE name = :name''', data_dic)
         else:
             # insert
