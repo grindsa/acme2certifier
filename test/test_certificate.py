@@ -1817,8 +1817,9 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((None, None, None, None), self.certificate._cert_reusage_check('csr'))
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._cert_reusage_check(): ex_cert_reusage', lcm.output)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_165_config_load(self, mock_load_cfg):
+    def test_165_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load empty dictionary """
         mock_load_cfg.return_value = {}
         self.certificate._config_load()
@@ -1840,8 +1841,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.certificate.ignore_post_hook_failure)
         self.assertFalse(self.certificate.ignore_success_hook_failure)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_167_config_load(self, mock_load_cfg):
+    def test_167_config_load(self, mock_load_cfg, mock_hand):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Order'] = {'tnauthlist_support': False}
@@ -1854,8 +1856,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_168_config_load(self, mock_load_cfg):
+    def test_168_config_load(self, mock_load_cfg, mock_hand):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Order'] = {'tnauthlist_support': True}
@@ -1902,7 +1905,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertTrue(self.certificate.cn2san_add)
 
-    @patch('importlib.import_module')
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
     def test_171_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load missing ca_handler """
@@ -1918,8 +1921,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_172_config_load(self, mock_load_cfg):
+    def test_172_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load missing ca_handler """
         parser = configparser.ConfigParser()
         parser['Directory'] = {'foo': 'bar', 'url_prefix': 'url_prefix'}
@@ -1933,7 +1937,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
-    @patch('importlib.import_module')
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
     def test_173_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load  ca_handler but no handler_file """
@@ -1951,8 +1955,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_174_config_load(self, mock_load_cfg):
+    def test_174_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load no cert_reusage_timeframe """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'foo': 'bar'}
@@ -1966,8 +1971,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_175_config_load(self, mock_load_cfg):
+    def test_175_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load cert_reusage_timeframe 120 """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'cert_reusage_timeframe': 1200}
@@ -1980,8 +1986,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_176_config_load(self, mock_load_cfg):
+    def test_176_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load cert_reusage_timeframe 0 """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'cert_reusage_timeframe': 0}
@@ -1994,8 +2001,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_177_config_load(self, mock_load_cfg):
+    def test_177_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load cert_reusage_timeframe text """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'cert_reusage_timeframe': 'aaa'}
@@ -2010,8 +2018,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_178_config_load(self, mock_load_cfg):
+    def test_178_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load enrollment_timeout 120 """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'enrollment_timeout': 120}
@@ -2024,8 +2033,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.load_config')
-    def test_179_config_load(self, mock_load_cfg):
+    def test_179_config_load(self, mock_load_cfg, mock_handler):
         """ test _config_load certificate text """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'enrollment_timeout': 'aaa'}
@@ -2040,9 +2050,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.hooks_load')
     @patch('acme_srv.certificate.load_config')
-    def test_180_config_load(self, mock_load_cfg, mock_hooks):
+    def test_180_config_load(self, mock_load_cfg, mock_hooks, mock_handler):
         """ test _config_load hooks_load() returns None """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'enrollment_timeout': 120}
@@ -2056,9 +2067,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.certificate.ignore_success_hook_failure)
         self.assertFalse(self.certificate.cn2san_add)
 
+    @patch('acme_srv.certificate.ca_handler_load')
     @patch('acme_srv.certificate.hooks_load')
     @patch('acme_srv.certificate.load_config')
-    def test_181_config_load(self, mock_load_cfg, mock_hooks):
+    def test_181_config_load(self, mock_load_cfg, mock_hooks, mock_handler):
         """ test _config_load hooks_load() returns module """
         parser = configparser.ConfigParser()
         parser['Certificate'] = {'enrollment_timeout': 120}

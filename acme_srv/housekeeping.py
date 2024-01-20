@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209
 """ Housekeeping class """
 from __future__ import print_function
 import csv
@@ -37,7 +36,7 @@ class Housekeeping(object):
         try:
             result = self.dbstore.accountlist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping._accountlist_get(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Housekeeping._accountlist_get(): %s', err_)
             result = None
         return result
 
@@ -47,7 +46,7 @@ class Housekeeping(object):
         try:
             result = self.dbstore.certificatelist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): %s', err_)
             result = None
         return result
 
@@ -68,7 +67,7 @@ class Housekeeping(object):
         try:
             result = self.dbstore.cliaccountlist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping._cliaccounts_list(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Housekeeping._cliaccounts_list(): %s', err_)
             result = None
         if result and not silent:
             self._cliaccounts_format(result)
@@ -78,14 +77,14 @@ class Housekeeping(object):
         """ format cliaccount report """
         self.logger.debug('Housekeeping._cliaccounts_format()')
         try:
-            print('\n{0}|{1}|{2}|{3}|{4}|{5}'.format('Name'.ljust(15), 'Contact'.ljust(20), 'cliadm'.ljust(6), 'repadm'.ljust(6), 'certadm'.ljust(7), 'Created at'.ljust(20)))
+            print(f'\n{'Name'.ljust(15)}|{'Contact'.ljust(20)}|{'cliadm'.ljust(6)}|{'repadm'.ljust(6)}|{'certadm'.ljust(7)}|{'Created at'.ljust(20)}')
             print('-' * 78)
             for account in sorted(result_list, key=lambda k: k['id']):
-                print('{0}|{1}|{2}|{3}|{4}|{5}'.format(account['name'][:15].ljust(15), account['contact'][:20].ljust(20), str(bool(account['cliadmin'])).ljust(6), str(bool(account['reportadmin'])).ljust(6), str(bool(account['certificateadmin'])).ljust(7), account['created_at'].ljust(20)))
+                print(f'{account['name'][:15].ljust(15)}|{account['contact'][:20].ljust(20)}|{str(bool(account['cliadmin'])).ljust(6)}|{str(bool(account['reportadmin'])).ljust(6)}|{str(bool(account['certificateadmin'])).ljust(7)}|{account['created_at'].ljust(20)}')
             print('\n')
         except Exception as err:
             self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
-            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): {0}'.format(err))
+            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): %s', err)
 
     def _report_get(self, payload: Dict[str, str]) -> Tuple[Dict[str, str], int, str, str]:
         """ create report """
@@ -130,7 +129,7 @@ class Housekeeping(object):
             message = self.error_msg_dic['unauthorized']
             detail = 'No permissions to download reports'
 
-        self.logger.debug('Housekeeping._clireport_get() returned with: {0}/{1}'.format(code, detail))
+        self.logger.debug('Housekeeping._clireport_get() returned with: %s/%s', code, detail)
         return (code, message, detail, response_dic)
 
     def _config_load(self):
@@ -240,7 +239,7 @@ class Housekeeping(object):
                 try:
                     data_dic.update(config_dic['permissions'])
                 except Exception as err:
-                    self.logger.error('acme2certifier  error in Housekeeping._data_dic_build(): {0}'.format(err))
+                    self.logger.error('acme2certifier  error in Housekeeping._data_dic_build(): %s', err)
 
             if 'jwk' in config_dic:
                 data_dic['jwk'] = json.dumps(config_dic['jwk'])
@@ -266,12 +265,12 @@ class Housekeeping(object):
             f_list = field.split('__')
             # items from selected list which do not have a table reference get prefix added
             if len(f_list) == 1:
-                new_field = '{0}.{1}'.format(prefix, field)
+                new_field = f'{prefix}.{field}'
             elif f_list[-2] == 'status' and len(f_list) >= 3:
                 # status fields have one reference more
-                new_field = '{0}.{1}.{2}'.format(f_list[-3], f_list[-2], f_list[-1])
+                new_field = f'{f_list[-3]}.{f_list[-2]}.{f_list[-1]}'
             else:
-                new_field = '{0}.{1}'.format(f_list[-2], f_list[-1])
+                new_field = f'{f_list[-2]}.{f_list[-1]}'
             field_dic[field] = new_field
 
         return field_dic
@@ -430,7 +429,7 @@ class Housekeeping(object):
 
             # append list to output
             csv_list.append(tmp_list)
-        self.logger.debug('Housekeeping._to_list() ended with {0} entries'.format(len(csv_list)))
+        self.logger.debug('Housekeeping._to_list() ended with %s entries', len(csv_list))
         return csv_list
 
     def accountreport_get(self, report_format: str = 'csv', report_name: str = None, nested: bool = False) -> List[str]:
@@ -445,18 +444,18 @@ class Housekeeping(object):
         account_list = self._convert_data(account_list)
 
         if account_list:
-            self.logger.debug('output to dump: {0}.{1}'.format(report_name, report_format))
+            self.logger.debug('output to dump: %s.%s', report_name, report_format)
             if report_format == 'csv':
                 self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
                 csv_list = self._to_list(field_list, account_list)
                 account_list = csv_list
                 if report_name:
-                    self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                    self._csv_dump(f'{report_name}.{report_format}', csv_list)
             elif report_format == 'json':
                 if nested:
                     account_list = self._to_acc_json(account_list)
                 if report_name:
-                    self._json_dump('{0}.{1}'.format(report_name, report_format), account_list)
+                    self._json_dump(f'{report_name}.{report_format}', account_list)
 
         return account_list
 
@@ -478,17 +477,17 @@ class Housekeeping(object):
         field_list.insert(8, 'certificate.expire_date')
 
         if cert_list:
-            self.logger.debug('Prepare output in: {0} format'.format(report_format))
+            self.logger.debug('Prepare output in: %s format', report_format)
             if report_format == 'csv':
                 self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
                 csv_list = self._to_list(field_list, cert_list)
                 cert_list = csv_list
                 if report_name:
-                    self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                    self._csv_dump(f'{report_name}.{report_format}', csv_list)
             elif report_format == 'json':
                 self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
                 if report_name:
-                    self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
+                    self._json_dump(f'{report_name}.{report_format}', cert_list)
             else:
                 self.logger.info('Housekeeping.certreport_get(): No dump just return report')
 
@@ -519,10 +518,10 @@ class Housekeeping(object):
                     if report_format == 'csv':
                         self.logger.debug('Housekeeping.certificates_cleanup(): Dump in csv-format')
                         csv_list = self._to_list(field_list, cert_list)
-                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
                     elif report_format == 'json':
                         self.logger.debug('Housekeeping.certificates_cleanup(): Dump in json-format')
-                        self._json_dump('{0}.{1}'.format(report_name, report_format), cert_list)
+                        self._json_dump(f'{report_name}.{report_format}', cert_list)
                     else:
                         self.logger.debug('Housekeeping.certificates_cleanup():  No dump just return report')
                 else:
@@ -554,13 +553,13 @@ class Housekeeping(object):
                     self.logger.error('acme2certifier error in Housekeeping.cli_usermgr(): data incomplete')
 
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Housekeeping.cli_usermgr(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Housekeeping.cli_usermgr(): %s', err_)
 
         return result
 
     def authorizations_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None):
         """ authorizations cleanup based on expiry date """
-        self.logger.debug('Housekeeping.authorization_invalidate({0})'.format(uts))
+        self.logger.debug('Housekeeping.authorization_invalidate(%s)', uts)
 
         with Authorization(self.debug, None, self.logger) as authorization:
             # get expired orders
@@ -576,10 +575,10 @@ class Housekeeping(object):
                     if report_format == 'csv':
                         self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in csv-format')
                         csv_list = self._to_list(field_list, authorization_list)
-                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
                     elif report_format == 'json':
                         self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in json-format')
-                        self._json_dump('{0}.{1}'.format(report_name, report_format), authorization_list)
+                        self._json_dump(f'{report_name}.{report_format}', authorization_list)
                     else:
                         self.logger.debug('Housekeeping.authorizations_invalidate():  No dump just return report')
                 else:
@@ -587,25 +586,25 @@ class Housekeeping(object):
 
     def dbversion_check(self, version: str = None):
         """ check database version """
-        self.logger.debug('Housekeeping.dbversion_check({0})'.format(version))
+        self.logger.debug('Housekeeping.dbversion_check(%s)', version)
 
         if version:
             try:
                 (result, script_name) = self.dbstore.dbversion_get()
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): %s', err_)
                 result = None
                 script_name = 'handler specific migration'
             if result != version:
-                self.logger.critical('acme2certifier database version mismatch in: version is {0} but should be {1}. Please run the "{2}" script'.format(result, version, script_name))
+                self.logger.critical('acme2certifier database version mismatch in: version is %s but should be %s. Please run the "%s" script', result, version, script_name)
             else:
-                self.logger.debug('acme2certifier database version: {0} is upto date'.format(version))
+                self.logger.debug('acme2certifier database version: %s is upto date', version)
         else:
             self.logger.critical('acme2certifier database version could not be verified in Housekeeping.dbversion_check()')
 
     def orders_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None) -> List[str]:
         """ orders cleanup based on expiry date"""
-        self.logger.debug('Housekeeping.orders_invalidate({0})'.format(uts))
+        self.logger.debug('Housekeeping.orders_invalidate(%s)', uts)
 
         with Order(self.debug, None, self.logger) as order:
             # get expired orders
@@ -621,10 +620,10 @@ class Housekeeping(object):
                     if report_format == 'csv':
                         self.logger.debug('Housekeeping.orders_invalidate(): Dump in csv-format')
                         csv_list = self._to_list(field_list, order_list)
-                        self._csv_dump('{0}.{1}'.format(report_name, report_format), csv_list)
+                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
                     elif report_format == 'json':
                         self.logger.debug('Housekeeping.orders_invalidate(): Dump in json-format')
-                        self._json_dump('{0}.{1}'.format(report_name, report_format), order_list)
+                        self._json_dump(f'{report_name}.{report_format}', order_list)
                     else:
                         self.logger.debug('Housekeeping.orders_invalidate():  No dump just return report')
                 else:

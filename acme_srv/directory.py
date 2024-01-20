@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ Directory class """
-# pylint: disable=c0209, e0401, r0913
+# pylint: disable=e0401, r0913
 from __future__ import print_function
 import uuid
 from typing import Dict
@@ -87,11 +87,11 @@ class Directory(object):
                 if version == self.dbversion:
                     d_dic['meta']['db_check'] = 'OK'
                 else:
-                    self.logger.error('acme2certifier database error: version mismatch: detected: {0}/ expected: {1}'.format(version, __dbversion__))
+                    self.logger.error('acme2certifier database error: version mismatch: detected: %s/ expected: %s', version, __dbversion__)
                     d_dic['meta']['db_check'] = 'NOK'
 
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Directory.dbversion_check(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Directory.dbversion_check(): %s', err_)
                 d_dic['meta']['db_check'] = 'NOK'
 
         # generate random key in json as recommended by LE

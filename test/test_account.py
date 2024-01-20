@@ -1285,7 +1285,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.account.eab_check)
         self.assertTrue(self.account.eab_handler)
 
-    @patch('importlib.import_module')
+    @patch('acme_srv.account.eab_handler_load')
     @patch('acme_srv.account.load_config')
     def test_127_config_load(self, mock_load_cfg, mock_imp):
         """ test _config_load account with contact_check_disable True """
@@ -1293,6 +1293,7 @@ class TestACMEHandler(unittest.TestCase):
         parser['EABhandler'] = {'foo': 'bar', 'eab_handler_file': 'foo'}
         mock_load_cfg.return_value = parser
         mock_imp.return_value = Mock()
+        self.account._config_load()
         self.account._config_load()
         self.assertFalse(self.account.inner_header_nonce_allow)
         self.assertFalse(self.account.ecc_only)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ Challenge class """
-# pylint: disable=C0209, r0913
+# pylint: disable=r0913
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
@@ -43,7 +43,7 @@ class Challenge(object):
         try:
             challenge_list = self.dbstore.challenges_search(key, value, vlist)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._challengelist_search(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._challengelist_search(): %s', err_)
             challenge_list = []
 
         challenge_dic = {}
@@ -54,7 +54,7 @@ class Challenge(object):
             challenge_dic[challenge['type']]['token'] = challenge['token']
             challenge_dic[challenge['type']]['type'] = challenge['type']
             challenge_dic[challenge['type']]['url'] = challenge['name']
-            challenge_dic[challenge['type']]['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge['name'])
+            challenge_dic[challenge['type']]['url'] = f'{self.server_name}{self.path_dic['chall_path']}{challenge['name']}'
             challenge_dic[challenge['type']]['name'] = challenge['name']
             if 'status__name' in challenge:
                 challenge_dic[challenge['type']]['status'] = challenge['status__name']
@@ -63,12 +63,12 @@ class Challenge(object):
         for challenge, challenge_items in challenge_dic.items():
             challenge_list.append(challenge_items)
 
-        self.logger.debug('Challenge._challengelist_search() ended with: {0}'.format(challenge_list))
+        self.logger.debug('Challenge._challengelist_search() ended with: %s', challenge_list)
         return challenge_list
 
     def _challenge_validate(self, pub_key: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ challenge validate """
-        self.logger.debug('Challenge._challenge_validate({0})'.format(challenge_name))
+        self.logger.debug('Challenge._challenge_validate(%s)', challenge_name)
 
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
         for _ele in range(0, 5):
@@ -81,31 +81,31 @@ class Challenge(object):
             elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
                 (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
             else:
-                self.logger.error('unknown challenge type "{0}". Setting check result to False'.format(challenge_dic['type']))
+                self.logger.error('unknown challenge type "%s". Setting check result to False', challenge_dic['type'])
                 result = False
                 invalid = True
             if result or invalid:
                 # break loop if we got any good or bad response
                 break
 
-        self.logger.debug('Challenge._challenge_validate() ended with: {0}/{1}'.format(result, invalid))
+        self.logger.debug('Challenge._challenge_validate() ended with: %s/%s', result, invalid)
         return (result, invalid)
 
     def _check(self, challenge_name: str, payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ challenge check """
-        self.logger.debug('Challenge._check({0})'.format(challenge_name))
+        self.logger.debug('Challenge._check(%s)', challenge_name)
 
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, ['type', 'status__name', 'token', 'authorization__name', 'authorization__type', 'authorization__value', 'authorization__token', 'authorization__order__account__name'])
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._check() lookup: {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._check() lookup: %s', err_)
             challenge_dic = {}
 
         if 'type' in challenge_dic and 'authorization__value' in challenge_dic and 'token' in challenge_dic and 'authorization__order__account__name' in challenge_dic:
             try:
                 pub_key = self.dbstore.jwk_load(challenge_dic['authorization__order__account__name'])
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Challenge._check() jwk: {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Challenge._check() jwk: %s', err_)
                 pub_key = None
 
             if pub_key:
@@ -117,7 +117,7 @@ class Challenge(object):
             result = False
             invalid = False
 
-        self.logger.debug('challenge._check() ended with: {0}/{1}'.format(result, invalid))
+        self.logger.debug('challenge._check() ended with: %s/%s', result, invalid)
         return (result, invalid)
 
     def _existing_challenge_validate(self, challenge_list: List[str]) -> Dict[str, str]:
@@ -134,11 +134,11 @@ class Challenge(object):
 
     def _info(self, challenge_name):
         """ get challenge details """
-        self.logger.debug('Challenge._info({0})'.format(challenge_name))
+        self.logger.debug('Challenge._info(%s)', challenge_name)
         try:
             challenge_dic = self.dbstore.challenge_lookup('name', challenge_name, vlist=('type', 'token', 'status__name', 'validated'))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._info(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._info(): %s', err_)
             challenge_dic = {}
 
         if 'status' in challenge_dic and challenge_dic['status'] == 'valid':
@@ -152,7 +152,7 @@ class Challenge(object):
             if 'validated' in challenge_dic:
                 challenge_dic.pop('validated')
 
-        self.logger.debug('Challenge._info({0}) ended'.format(challenge_name))
+        self.logger.debug('Challenge._info(%s) ended', challenge_name)
         return challenge_dic
 
     def _config_proxy_load(self, config_dic: Dict[str, str]):
@@ -163,7 +163,7 @@ class Challenge(object):
             try:
                 self.proxy_server_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug('Challenge._config_proxy_load() ended')
 
@@ -178,12 +178,12 @@ class Challenge(object):
                 try:
                     self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
                 except Exception as err_:
-                    self.logger.warning('Challenge._config_load() dns_server_list failed with error: {0}'.format(err_))
+                    self.logger.warning('Challenge._config_load() dns_server_list failed with error: %s', err_)
             if 'challenge_validation_timeout' in config_dic['Challenge']:
                 try:
                     self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
                 except Exception as err_:
-                    self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: {0}'.format(err_))
+                    self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
 
         self.logger.debug('Challenge._config_challenge_load() ended')
 
@@ -208,7 +208,7 @@ class Challenge(object):
 
     def _extensions_validate(self, cert: str, extension_value: str, fqdn: str) -> bool:
         """ validate extension """
-        self.logger.debug('Challenge._extensions_validate({0}/{1})'.format(extension_value, fqdn))
+        self.logger.debug('Challenge._extensions_validate(%s/%s)', extension_value, fqdn)
         result = False
         san_list = cert_san_get(self.logger, cert, recode=False)
         fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
@@ -222,12 +222,13 @@ class Challenge(object):
         else:
             self.logger.debug('fqdn check against san failed')
 
-        self.logger.debug('Challenge._extensions_validate() ended with: {0}'.format(result))
+        self.logger.debug('Challenge._extensions_validate() ended with: %s', result)
         return result
 
     def _name_get(self, url: str) -> str:
         """ get challenge """
-        self.logger.debug('Challenge.get_name({0})'.format(url))
+        self.logger.debug('Challenge.get_name(%s)', url)
+
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic['path'].replace(self.path_dic['chall_path'], '')
         if '/' in challenge_name:
@@ -236,7 +237,7 @@ class Challenge(object):
 
     def _new(self, authz_name: str, mtype: str, token: str = None, value: str = None) -> Dict[str, str]:
         """ new challenge """
-        self.logger.debug('Challenge._new({0}:{2}:{1})'.format(authz_name, mtype, value))
+        self.logger.debug('Challenge._new(%s:%s:%s)', authz_name, mtype, value)
 
         challenge_name = generate_random_string(self.logger, 12)
 
@@ -255,13 +256,13 @@ class Challenge(object):
         try:
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._new(): {0}, {2}:{1}'.format(err_, mtype, value))
+            self.logger.critical('acme2certifier database error in Challenge._new(): %s, %s:%s', err_, value, mtype)
             chid = None
 
         challenge_dic = {}
         if chid:
             challenge_dic['type'] = mtype
-            challenge_dic['url'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['chall_path'], challenge_name)
+            challenge_dic['url'] = f'{self.server_name}{self.path_dic['chall_path']}{challenge_name}'
             challenge_dic['token'] = token
             challenge_dic['status'] = 'pending'
             if mtype == 'tkauth-01':
@@ -275,7 +276,7 @@ class Challenge(object):
     def _parse(self, code: int, payload: Dict[str, str], protected: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
         # pylint: disable=R0913
         """ challenge parse """
-        self.logger.debug('Challenge._parse({0})'.format(challenge_name))
+        self.logger.debug('Challenge._parse(%s)', challenge_name)
 
         response_dic = {}
         message = None
@@ -307,28 +308,29 @@ class Challenge(object):
             challenge_dic['url'] = protected['url']
             response_dic['data'] = challenge_dic
             response_dic['header'] = {}
-            response_dic['header']['Link'] = '<{0}{1}>;rel="up"'.format(self.server_name, self.path_dic['authz_path'])
+            response_dic['header']['Link'] = f'<{self.server_name}{ self.path_dic['authz_path']}>;rel="up"'
 
-        self.logger.debug('Challenge._parse() ended with: {0}'.format(code))
+        self.logger.debug('Challenge._parse() ended with: %s', code)
         return (code, message, detail, response_dic)
 
     def _update(self, data_dic: Dict[str, str]):
         """ update challenge """
-        self.logger.debug('Challenge._update({0})'.format(data_dic))
+        self.logger.debug('Challenge._update(%s)', data_dic)
+
         try:
             self.dbstore.challenge_update(data_dic)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._update(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._update(): %s', err_)
         self.logger.debug('Challenge._update() ended')
 
     def _update_authz(self, challenge_name: str, data_dic: Dict[str, str]):
         """ update authorizsation based on challenge_name """
-        self.logger.debug('Challenge._update_authz({0})'.format(challenge_name))
+        self.logger.debug('Challenge._update_authz(%s)', challenge_name)
         try:
             # lookup autorization based on challenge_name
             authz_name = self.dbstore.challenge_lookup('name', challenge_name, ['authorization__name'])['authorization']
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._update_authz() lookup: {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._update_authz() lookup: %s', err_)
             authz_name = None
 
         if authz_name:
@@ -337,13 +339,14 @@ class Challenge(object):
             # update authorization
             self.dbstore.authorization_update(data_dic)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Challenge._update_authz() upd: {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Challenge._update_authz() upd: %s', err_)
 
         self.logger.debug('Challenge._update_authz() ended')
 
     def _validate(self, challenge_name: str, payload: Dict[str, str]) -> bool:
         """ validate challenge"""
-        self.logger.debug('Challenge._validate({0}: {1})'.format(challenge_name, payload))
+        self.logger.debug('Challenge._validate(%s: %s)', challenge_name, payload)
+
         # change state to processing
         self._update({'name': challenge_name, 'status': 'processing'})
         if self.challenge_validation_disable:
@@ -367,17 +370,17 @@ class Challenge(object):
             data_dic = {'name': challenge_name, 'keyauthorization': payload['keyAuthorization']}
             self._update(data_dic)
 
-        self.logger.debug('Challenge._validate() ended with:{0}'.format(challenge_check))
+        self.logger.debug('Challenge._validate() ended with:%s', challenge_check)
         return challenge_check
 
     def _validate_alpn_challenge(self, challenge_name: str, id_type: str, id_value: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate dns challenge """
-        self.logger.debug('Challenge._validate_alpn_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
+        self.logger.debug('Challenge._validate_alpn_challenge(%s:%s:%s)', challenge_name, id_value, token)
 
         if id_type == 'dns':
             # resolve name
             (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
-            self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+            self.logger.debug('fqdn_resolve() ended with: %s/%s', response, invalid)
             sni = id_value
         elif id_type == 'ip':
             (sni, invalid) = ip_validate(self.logger, id_value)
@@ -387,9 +390,9 @@ class Challenge(object):
 
         # we are expecting a certifiate extension which is the sha256 hexdigest of token in a byte structure
         # which is base64 encoded '0420' has been taken from acme_srv.sh sources
-        sha256_digest = sha256_hash_hex(self.logger, '{0}.{1}'.format(token, jwk_thumbprint))
-        extension_value = b64_encode(self.logger, bytearray.fromhex('0420{0}'.format(sha256_digest)))
-        self.logger.debug('computed value: {0}'.format(extension_value))
+        sha256_digest = sha256_hash_hex(self.logger, f'{token}.{jwk_thumbprint}')
+        extension_value = b64_encode(self.logger, bytearray.fromhex(f'0420{sha256_digest}'))
+        self.logger.debug('computed value: %s', extension_value)
 
         if not invalid:
             # check if we need to set a proxy
@@ -406,26 +409,27 @@ class Challenge(object):
         else:
             result = False
 
-        self.logger.debug('Challenge._validate_alpn_challenge() ended with: {0}/{1}'.format(result, invalid))
+        self.logger.debug('Challenge._validate_alpn_challenge() ended with: %s/%s', result, invalid)
         return (result, invalid)
 
     def _validate_dns_challenge(self, challenge_name: str, _type: str, fqdn: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate dns challenge """
-        self.logger.debug('Challenge._validate_dns_challenge({0}:{1}:{2})'.format(challenge_name, fqdn, token))
+        self.logger.debug('Challenge._validate_dns_challenge(%s:%s:%s)', challenge_name, fqdn, token)
 
         # handle wildcard domain
         fqdn = self._wcd_manipulate(fqdn)
 
         # rewrite fqdn to resolve txt record
-        fqdn = '_acme-challenge.{0}'.format(fqdn)
+        fqdn = f'_acme-challenge.{fqdn}'
 
         # compute sha256 hash
-        _hash = b64_url_encode(self.logger, sha256_hash(self.logger, '{0}.{1}'.format(token, jwk_thumbprint)))
+        _hash = b64_url_encode(self.logger, sha256_hash(self.logger, f'{token}.{jwk_thumbprint}'))
+
         # query dns
         txt_list = txt_get(self.logger, fqdn, self.dns_server_list)
 
         # compare computed hash with result from DNS query
-        self.logger.debug('response_got: {0} response_expected: {1}'.format(txt_list, _hash))
+        self.logger.debug('response_got: %s response_expected: %s', txt_list, _hash)
         if _hash in txt_list:
             self.logger.debug('validation successful')
             result = True
@@ -433,17 +437,17 @@ class Challenge(object):
             self.logger.debug('validation not successful')
             result = False
 
-        self.logger.debug('Challenge._validate_dns_challenge() ended with: {0}'.format(result))
+        self.logger.debug('Challenge._validate_dns_challenge() ended with: %s', result)
         return (result, False)
 
     def _validate_http_challenge(self, challenge_name: str, id_type: str, id_value: str, token: str, jwk_thumbprint: str) -> Tuple[bool, bool]:
         """ validate http challenge """
-        self.logger.debug('Challenge._validate_http_challenge({0}:{1}:{2})'.format(challenge_name, id_value, token))
+        self.logger.debug('Challenge._validate_http_challenge(%s:%s:%s)', challenge_name, id_value, token)
 
         if id_type == 'dns':
             # resolve name
             (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
-            self.logger.debug('fqdn_resolve() ended with: {0}/{1}'.format(response, invalid))
+            self.logger.debug('fqdn_resolve() ended with: %s/%s', response, invalid)
         elif id_type == 'ip':
             invalid = False
             (_sni, invalid) = ip_validate(self.logger, id_value)
@@ -456,11 +460,11 @@ class Challenge(object):
                 proxy_server = proxy_check(self.logger, id_value, self.proxy_server_list)
             else:
                 proxy_server = None
-            req = url_get(self.logger, 'http://{0}/.well-known/acme-challenge/{1}'.format(id_value, token), dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False, timeout=self.challenge_validation_timeout)
+            req = url_get(self.logger, f'http://{id_value}/.well-known/acme-challenge/{token}', dns_server_list=self.dns_server_list, proxy_server=proxy_server, verify=False, timeout=self.challenge_validation_timeout)
             if req:
                 response_got = req.splitlines()[0]
-                response_expected = '{0}.{1}'.format(token, jwk_thumbprint)
-                self.logger.debug('response_got: {0} response_expected: {1}'.format(response_got, response_expected))
+                response_expected = f'{token}.{jwk_thumbprint}'
+                self.logger.debug('response_got: %s response_expected: %s', response_got, response_expected)
                 if response_got == response_expected:
                     self.logger.debug('validation successful')
                     result = True
@@ -473,21 +477,21 @@ class Challenge(object):
         else:
             result = False
 
-        self.logger.debug('Challenge._validate_http_challenge() ended with: {0}/{1}'.format(result, invalid))
+        self.logger.debug('Challenge._validate_http_challenge() ended with: %s/%s', result, invalid)
         return (result, invalid)
 
     def _validate_tkauth_challenge(self, challenge_name: str, _type: str, tnauthlist: str, _token: str, _jwk_thumbprint: str, payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ validate tkauth challenge """
-        self.logger.debug('Challenge._validate_tkauth_challenge({0}:{1}:{2})'.format(challenge_name, tnauthlist, payload))
+        self.logger.debug('Challenge._validate_tkauth_challenge(%s:%s:%s)', challenge_name, tnauthlist, payload)
 
         result = True
         invalid = False
-        self.logger.debug('Challenge._validate_tkauth_challenge() ended with: {0}/{1}'.format(result, invalid))
+        self.logger.debug('Challenge._validate_tkauth_challenge() ended with: %s/%s', result, invalid)
         return (result, invalid)
 
     def _validate_tnauthlist_payload(self, payload: Dict[str, str], challenge_dic: Dict[str, str]) -> Tuple[int, str, str]:
         """ check payload in cae tnauthlist option has been set """
-        self.logger.debug('Challenge._validate_tnauthlist_payload({0})'.format(payload))
+        self.logger.debug('Challenge._validate_tnauthlist_payload(%s)', payload)
 
         code = 400
         message = None
@@ -513,22 +517,24 @@ class Challenge(object):
                 code = 200
         else:
             message = self.err_msg_dic['malformed']
-            detail = 'invalid challenge: {0}'.format(challenge_dic)
+            detail = f'invalid challenge: {challenge_dic}'
 
-        self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:{0}'.format(code))
+        self.logger.debug('Challenge._validate_tnauthlist_payload() ended with:%s', code)
         return (code, message, detail)
 
     def _wcd_manipulate(self, fqdn: str) -> str:
         """ wildcard domain handling """
-        self.logger.debug('Challenge._wc_manipulate() for fqdn: {0}'.format(fqdn))
+        self.logger.debug('Challenge._wc_manipulate() for fqdn: %s', fqdn)
+
         if fqdn.startswith('*.'):
             fqdn = fqdn[2:]
-        self.logger.debug('Challenge._wc_manipulate() ended with: {0}'.format(fqdn))
+        self.logger.debug('Challenge._wc_manipulate() ended with: %s', fqdn)
         return fqdn
 
     def challengeset_get(self, authz_name: str, _auth_status: str, token: str, tnauth: bool, id_type: str = 'dns', id_value: str = None) -> List[str]:
         """ get the challengeset for an authorization """
-        self.logger.debug('Challenge.challengeset_get() for auth: {0}:{1}'.format(authz_name, id_value))
+        self.logger.debug('Challenge.challengeset_get() for auth: %s:%s', authz_name, id_value)
+
         # check database if there are exsting challenges for a particular authorization
         challenge_list = self._challengelist_search('authorization__name', authz_name)
 
@@ -552,7 +558,8 @@ class Challenge(object):
     def get(self, url: str) -> Dict[str, str]:
         """ get challenge details based on get request """
         challenge_name = self._name_get(url)
-        self.logger.debug('Challenge.get({0})'.format(challenge_name))
+        self.logger.debug('Challenge.get(%s)', challenge_name)
+
         response_dic = {}
         response_dic['code'] = 200
         response_dic['data'] = self._info(challenge_name)
@@ -560,7 +567,8 @@ class Challenge(object):
 
     def new_set(self, authz_name: str, token: str, tnauth: bool = False, id_type: str = 'dns', value: str = None) -> List[str]:
         """ net challenge set """
-        self.logger.debug('Challenge.new_set({0}, {1})'.format(authz_name, value))
+        self.logger.debug('Challenge.new_set(%s, %s)', authz_name, value)
+
         challenge_list = []
 
         if tnauth:
@@ -579,9 +587,9 @@ class Challenge(object):
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
-                    self.logger.error('ERROR: Empty challenge returned for {0}'.format(challenge_type))
+                    self.logger.error('ERROR: Empty challenge returned for %s', challenge_type)
 
-        self.logger.debug('Challenge._new_set returned ({0})'.format(challenge_list))
+        self.logger.debug('Challenge._new_set returned (%s)', challenge_list)
         return challenge_list
 
     def parse(self, content: str) -> Dict[str, str]:
@@ -604,7 +612,7 @@ class Challenge(object):
                     else:
                         code = 400
                         message = self.err_msg_dic['malformed']
-                        detail = 'invalid challenge: {0}'.format(challenge_name)
+                        detail = f'invalid challenge: {challenge_name}'
                 else:
                     code = 400
                     message = self.err_msg_dic['malformed']
@@ -617,5 +625,5 @@ class Challenge(object):
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
-        self.logger.debug('challenge.parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('challenge.parse() returns: %s', json.dumps(response_dic))
         return response_dic
