@@ -8,7 +8,7 @@ The current implementation follows:
 
 - [draft-ietf-acme-authority-token-tnauthlist-08](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-tnauthlist-08)
 - [draft-ietf-acme-authority-token-07](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-07)
-- [ATIS-1000080](https://access.atis.org/apps/group_public/document.php?document_id=55537)
+- ATIS-1000080
 
 TNAuthList support is disabled by default and needs to be enabled in [acme_srv.cfg](acme_srv.md) by adding the parameter `tnauthlist_support: True` into the `Order` section of the configuration file.
 
