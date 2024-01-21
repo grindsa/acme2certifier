@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, e0401, r0913, w0613
+# pylint: disable=e0401, r0913, w0613
 """ exception hook class for testing only """
 from acme_srv.helper import load_config
 
@@ -33,18 +33,18 @@ class Hooks:
 
     def pre_hook(self, certificate_name, order_name, _csr) -> None:
         """ run before obtaining any certificates """
-        self.logger.debug('Hook.pre_hook({0}/{1})'.format(certificate_name, order_name))
+        self.logger.debug('Hook.pre_hook(%s/%s)', certificate_name, order_name)
         if self.raise_pre_hook_exception:
             raise SystemError('raise_pre_hook_exception')
 
     def post_hook(self, certificate_name, order_name, _csr, _error) -> None:
         """ run after *attempting* to obtain/renew certificates """
-        self.logger.debug('Hook.post_hook({0}/{1})'.format(certificate_name, order_name))
+        self.logger.debug('Hook.post_hook(%s/%s)', certificate_name, order_name)
         if self.raise_post_hook_exception:
             raise SystemError('raise_post_hook_exception')
 
     def success_hook(self, certificate_name, order_name, _csr, _certificate, _certificate_raw, _poll_identifier) -> None:
         """ run after each successful certificate enrollment/renewal """
-        self.logger.debug('Hook.success_hook({0}/{1})'.format(certificate_name, order_name))
+        self.logger.debug('Hook.success_hook(%s/%s)', certificate_name, order_name)
         if self.raise_success_hook_exception:
             raise SystemError('raise_success_hook_exception')

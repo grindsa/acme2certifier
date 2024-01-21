@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=E0401, R1705, C0209
+# pylint: disable=E0401, R1705
 """ wsgi based acme server """
 from __future__ import print_function
 import re
@@ -48,7 +48,7 @@ except Exception:
 
 def err_wrong_request_mothod(start_response):
     """ this is the error response for a wrong reqest method """
-    start_response('405 {0}'.format(HTTP_CODE_DIC[405]), [('Content-Type', CONTENT_TYPE_JSON)])
+    start_response(f'405 {HTTP_CODE_DIC[405]}', [('Content-Type', CONTENT_TYPE_JSON)])
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -114,7 +114,7 @@ def acct(environ, start_response):
 
         # create header
         headers = create_header(response_dic)
-        start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+        start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
         return [json.dumps(response_dic['data']).encode('utf-8')]
 
 
@@ -124,9 +124,9 @@ def acmechallenge_serve(environ, start_response):
         key_authorization = acmechallenge.lookup(environ['PATH_INFO'])
         if not key_authorization:
             key_authorization = 'NOT FOUND'
-            start_response('404 {0}'.format(HTTP_CODE_DIC[404]), [('Content-Type', 'text/html')])
+            start_response(f'404 {HTTP_CODE_DIC[404]}', [('Content-Type', 'text/html')])
         else:
-            start_response('200 {0}'.format(HTTP_CODE_DIC[200]), [('Content-Type', 'text/html')])
+            start_response(f'200 {HTTP_CODE_DIC[200]}', [('Content-Type', 'text/html')])
         # logging
         logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], {})
         return [key_authorization.encode('utf-8')]
@@ -148,7 +148,7 @@ def authz(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -168,7 +168,7 @@ def newaccount(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -197,7 +197,7 @@ def cert(environ, start_response):
             response_dic = certificate.new_post(request_body)
             # create header
             headers = create_header(response_dic, False)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -209,7 +209,7 @@ def cert(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -231,7 +231,7 @@ def chall(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -244,7 +244,7 @@ def chall(environ, start_response):
             # generate header
             headers = [('Content-Type', CONTENT_TYPE_JSON)]
             # create the response
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -260,7 +260,7 @@ def newnonce(environ, start_response):
     """ generate a new nonce """
     if environ['REQUEST_METHOD'] in ['HEAD', 'GET']:
         nonce = Nonce(DEBUG, LOGGER)
-        headers = [('Content-Type', 'text/plain'), ('Replay-Nonce', '{0}'.format(nonce.generate_and_add()))]
+        headers = [('Content-Type', 'text/plain'), ('Replay-Nonce', f'{nonce.generate_and_add()}')]
         status = '200 OK' if environ['REQUEST_METHOD'] == 'HEAD' else '204 No content'
         start_response(status, headers)
         return []
@@ -278,7 +278,7 @@ def neworders(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -298,7 +298,7 @@ def order(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -317,7 +317,7 @@ def renewalinfo(environ, start_response):
             response_dic = renewalinfo_.update(request_body)
             # create header
             headers = create_header(response_dic, False)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -329,7 +329,7 @@ def renewalinfo(environ, start_response):
             # create header
             headers = create_header(response_dic)
             # create the response
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -354,7 +354,7 @@ def revokecert(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -376,7 +376,7 @@ def trigger(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], response_dic)
@@ -399,7 +399,7 @@ def housekeeping(environ, start_response):
 
             # create header
             headers = create_header(response_dic)
-            start_response('{0} {1}'.format(response_dic['code'], HTTP_CODE_DIC[response_dic['code']]), headers)
+            start_response(f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers)
 
             # logging
             logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '****')
