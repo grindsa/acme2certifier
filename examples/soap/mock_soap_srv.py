@@ -181,7 +181,7 @@ def _csr_extract(logger, tmp_dir: str, csr: str) -> str:
 
     if csr:
         # dump csr into a file
-        _file_dump_binary(logger, f'{0}/file.p7b'.format(tmp_dir), b64_decode(logger, csr))
+        _file_dump_binary(logger, f'{tmp_dir}/file.p7b', b64_decode(logger, csr))
         openssl_cmd = _opensslcmd_csr_extract(logger, f'{tmp_dir}/file.p7b', f'{tmp_dir}/csr.der')
         rcode = subprocess.call(openssl_cmd)
 
