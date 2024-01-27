@@ -60,7 +60,7 @@ jobs:
         docker-compose up -d
 
     - name: "Sleep for 30s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 30s
 

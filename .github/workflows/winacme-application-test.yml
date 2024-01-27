@@ -63,7 +63,7 @@ jobs:
       run: |
         Start-Process powershell {python .\manage.py runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 
@@ -90,7 +90,7 @@ jobs:
         Start-Process powershell {python .\manage.py runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 

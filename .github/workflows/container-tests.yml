@@ -52,7 +52,7 @@ jobs:
         head -n 13 data/ca_handler.py
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -100,7 +100,7 @@ jobs:
         docker-compose restart
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -124,7 +124,7 @@ jobs:
         head -n 13 data/ca_handler.py
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -172,7 +172,7 @@ jobs:
         docker-compose restart
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -196,7 +196,7 @@ jobs:
         head -n 13 data/ca_handler.py
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -245,7 +245,7 @@ jobs:
         docker-compose restart
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"
@@ -269,7 +269,7 @@ jobs:
         head -n 13 data/ca_handler.py
         docker-compose logs
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
     - name: "Test if http://acme-srv/directory is accessable"

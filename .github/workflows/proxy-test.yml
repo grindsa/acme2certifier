@@ -29,7 +29,7 @@ jobs:
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -311,7 +311,7 @@ jobs:
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
