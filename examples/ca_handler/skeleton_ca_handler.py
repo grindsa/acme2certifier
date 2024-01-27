@@ -2,7 +2,7 @@
 """ skeleton for customized CA handler """
 from __future__ import print_function
 from typing import Tuple
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, header_info_get
 
 
@@ -34,7 +34,7 @@ class CAhandler(object):
 
     def _stub_func(self, parameter: str):
         """" load config from file """
-        self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
+        self.logger.debug('CAhandler._stub_func(%s)', parameter)
 
         self.logger.debug('CAhandler._stub_func() ended')
 
@@ -90,5 +90,5 @@ class CAhandler(object):
         cert_raw = None
         self._stub_func(payload)
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

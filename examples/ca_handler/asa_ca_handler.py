@@ -6,7 +6,7 @@ import os
 import json
 import requests
 from requests.auth import HTTPBasicAuth
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, header_info_get, csr_san_byte_get
 
 
@@ -48,10 +48,10 @@ class CAhandler(object):
             try:
                 content = api_response.json()
             except Exception as err_:
-                self.logger.error('CAhandler._api_get() returned error during json parsing: {0}'.format(err_))
+                self.logger.error('CAhandler._api_get() returned error during json parsing: %s', err_)
                 content = str(err_)
         except Exception as err_:
-            self.logger.error('CAhandler._api_get() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_get() returned error: %s', err_)
             code = 500
             content = str(err_)
 
@@ -69,12 +69,12 @@ class CAhandler(object):
                 try:
                     content = api_response.json()
                 except Exception as err_:
-                    self.logger.error('CAhandler._api_post() returned error during json parsing: {0}'.format(err_))
+                    self.logger.error('CAhandler._api_post() returned error during json parsing: %s', err_)
                     content = str(err_)
             else:
                 content = None
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_post() returned error: %s', err_)
             code = 500
             content = str(err_)
 
@@ -111,7 +111,7 @@ class CAhandler(object):
         """ list profiles """
         self.logger.debug('CAhandler._certificates_list()')
 
-        url = '{0}/list_certificates?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        url = f'{self.api_host}/list_certificates?issuerName={encode_url(self.logger, self.ca_name)}'
         _code, api_response = self._api_get(url)
 
         self.logger.debug('CAhandler._certificates_list() ended')
@@ -125,7 +125,7 @@ class CAhandler(object):
             try:
                 self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
             except Exception as err_:
-                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
 
         self.logger.debug('_config_header_info() ended')
 
@@ -217,7 +217,7 @@ class CAhandler(object):
 
         for ele in ['api_host', 'api_user', 'api_password', 'api_key', 'ca_name', 'profile_name']:
             if not getattr(self, ele):
-                self.logger.error('CAhandler._config_load(): {0} not set'.format(ele))
+                self.logger.error('CAhandler._config_load(): %s not set', ele)
 
         self._auth_set()
 
@@ -235,11 +235,11 @@ class CAhandler(object):
             if san_list:
                 (_type, san_value) = san_list[0].split(':')
                 cn = san_value
-                self.logger.info('CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: {0}'.format(san_value))
+                self.logger.info('CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s', san_value)
             else:
                 self.logger.error('CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found')
 
-        self.logger.debug('CAhandler._csr_cn_get() ended with: {0}'.format(cn))
+        self.logger.debug('CAhandler._csr_cn_get() ended with: %s', cn)
         return cn
 
     def _issuer_verify(self) -> str:
@@ -252,20 +252,20 @@ class CAhandler(object):
             if self.ca_name in api_response['issuers']:
                 error = None
             else:
-                error = 'CA {0} not found'.format(self.ca_name)
-                self.logger.error('CAhandler.enroll(): CA {0} not found'.format(self.ca_name))
+                error = f'CA {self.ca_name} not found'
+                self.logger.error('CAhandler.enroll(): CA %s not found', self.ca_name)
         else:
             error = 'Malformed response'
             self.logger.error('CAhandler.enroll(): "Malformed response. "issuers" key not found')
 
-        self.logger.debug('CAhandler._issuer_verify() ended with: {0}'.format(error))
+        self.logger.debug('CAhandler._issuer_verify() ended with: %s', error)
         return error
 
     def _issuers_list(self) -> Dict[str, str]:
         """ list issuers """
         self.logger.debug('CAhandler._list_issuers()')
 
-        url = '{0}/list_issuers'.format(self.api_host)
+        url = f'{self.api_host}/list_issuers'
         _code, api_response = self._api_get(url)
 
         self.logger.debug('CAhandler._list_issuers() ended')
@@ -275,7 +275,7 @@ class CAhandler(object):
         """ list profiles """
         self.logger.debug('CAhandler._profiles_list()')
 
-        url = '{0}/list_profiles?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        url = f'{self.api_host}/list_profiles?issuerName={encode_url(self.logger, self.ca_name)}'
         _code, api_response = self._api_get(url)
 
         self.logger.debug('CAhandler._profiles_list() ended')
@@ -283,20 +283,20 @@ class CAhandler(object):
 
     def _profile_verify(self) -> str:
         """ verify profile """
-        self.logger.debug('CAhandler._profile_verify({0})'.format(self.profile_name))
+        self.logger.debug('CAhandler._profile_verify(%s)', self.profile_name)
         api_response = self._profiles_list()
 
         if 'profiles' in api_response:
             if self.profile_name in api_response['profiles']:
                 error = None
             else:
-                error = 'Profile {0} not found'.format(self.profile_name)
-                self.logger.error('CAhandler.enroll(): Profile {0} not found'.format(self.profile_name))
+                error = f'Profile {self.profile_name} not found'
+                self.logger.error('CAhandler.enroll(): Profile %s not found', self.profile_name)
         else:
             error = 'Malformed response'
             self.logger.error('CAhandler.enroll(): "Malformed response. "profiles" key not found')
 
-        self.logger.debug('CAhandler._profile_verify() ended with: {0}'.format(error))
+        self.logger.debug('CAhandler._profile_verify() ended with: %s', error)
         return error
 
     def _validity_dates_get(self) -> Tuple[str, str]:
@@ -325,7 +325,7 @@ class CAhandler(object):
         """ get issuer chain """
         self.logger.debug('CAhandler._issuer_chain_get()')
 
-        url = '{0}/get_issuer_chain?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        url = f'{self.api_host}/get_issuer_chain?issuerName={encode_url(self.logger, self.ca_name)}'
         _code, api_response = self._api_get(url)
         if 'certs' in api_response:
             pem_chain = self._pem_cert_chain_generate(api_response['certs'])
@@ -340,13 +340,13 @@ class CAhandler(object):
         """ get certificate """
         self.logger.debug('CAhandler._cert_get()')
 
-        url = '{0}/issue_certificate'.format(self.api_host)
+        url = f'{self.api_host}/issue_certificate'
         code, api_response = self._api_post(url, data_dic)
 
         if code == 200 and api_response:
             cert = api_response
         else:
-            self.logger.error('CAhandler._cert_get(): enrollment failed: {0}/{1}'.format(code, api_response))
+            self.logger.error('CAhandler._cert_get(): enrollment failed: %s/%s', code, api_response)
             cert = None
 
         self.logger.debug('CAhandler._cert_get() ended')
@@ -357,7 +357,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_status_get()')
 
         data_dic = {'certificateFile': certificate}
-        url = '{0}/verify_certificate?issuerName={1}'.format(self.api_host, encode_url(self.logger, self.ca_name))
+        url = f'{self.api_host}/verify_certificate?issuerName={encode_url(self.logger, self.ca_name)}'
         code, api_response = self._api_post(url, data_dic)
         api_response['code'] = code
 
@@ -392,7 +392,7 @@ class CAhandler(object):
 
     def _profile_name_get(self, csr: str) -> str:
         """ get profile id from csr """
-        self.logger.debug('CAhandler._profile_name_get({0})'.format(csr))
+        self.logger.debug('CAhandler._profile_name_get(%s)', csr)
         profile_name = None
 
         # parse profileid from http_header
@@ -406,9 +406,9 @@ class CAhandler(object):
                             profile_name = ele.split('=')[1]
                             break
             except Exception as err:
-                self.logger.error('CAhandler._profile_name_get() could not parse profile_name: {0}'.format(err))
+                self.logger.error('CAhandler._profile_name_get() could not parse profile_name: %s', err)
 
-        self.logger.debug('CAhandler._profile_name_get() ended with: {0}'.format(profile_name))
+        self.logger.debug('CAhandler._profile_name_get() ended with: %s', profile_name)
         return profile_name
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
@@ -429,7 +429,7 @@ class CAhandler(object):
                 # parse profileid from http_header
                 profile_name = self._profile_name_get(csr=csr)
                 if profile_name:
-                    self.logger.info('CAhandler._enrollment_dic_create(): profile_name found in header_info: {0}'.format(profile_name))
+                    self.logger.info('CAhandler._enrollment_dic_create(): profile_name found in header_info: %s', profile_name)
                     self.profile_name = profile_name
 
             # verify profile
@@ -449,7 +449,7 @@ class CAhandler(object):
                 else:
                     error = 'Enrollment failed'
 
-        self.logger.debug('Certificate.enroll() ended with: {0}'.format(error))
+        self.logger.debug('Certificate.enroll() ended with: %s', error)
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
@@ -474,7 +474,7 @@ class CAhandler(object):
 
         cert_ski = cert_ski_get(self.logger, cert)    # get subjectKeyIdentifier from certificate
 
-        url = '{0}/revoke_certificate?issuerName={1}&certificateId={2}'.format(self.api_host, encode_url(self.logger, self.ca_name), cert_ski)
+        url = f'{self.api_host}/revoke_certificate?issuerName={encode_url(self.logger, self.ca_name)}&certificateId={cert_ski}'
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
         if content_dic:
@@ -497,5 +497,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

@@ -6,7 +6,7 @@ import time
 import json
 from typing import List, Tuple, Dict
 import requests
-# pylint: disable=C0209, E0401, R0913
+# pylint: disable=e0401, r0913
 from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
 
 
@@ -49,10 +49,10 @@ class CAhandler(object):
         try:
             api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_post() returned error: %s', err_)
             api_response = str(err_)
 
-        self.logger.debug('CAhandler._api_post() ended with: {0}'.format(api_response))
+        self.logger.debug('CAhandler._api_post() ended with: %s', api_response)
         return api_response
 
     def _ca_id_lookup(self) -> int:
@@ -73,8 +73,8 @@ class CAhandler(object):
 
         if not ca_id:
             # log error
-            self.logger.error('_ca_id_lookup(): no ca id found for {0}'.format(self.ca_name))
-        self.logger.debug('CAhandler._ca_id_lookup() ended with: {0}'.format(ca_id))
+            self.logger.error('_ca_id_lookup(): no ca id found for %s', self.ca_name)
+        self.logger.debug('CAhandler._ca_id_lookup() ended with: %s', ca_id)
         return ca_id
 
     def _ca_id_get(self, ca_list: Dict[str, str]) -> int:
@@ -92,7 +92,7 @@ class CAhandler(object):
                     else:
                         self.logger.error('ca_id.lookup() policyLinkId field is missing  ...')
 
-        self.logger.debug('CAhandler._ca_id_get() with {0}'.format(ca_id))
+        self.logger.debug('CAhandler._ca_id_get() with %s', ca_id)
         return ca_id
 
     def _ca_policylink_id_lookup(self) -> int:
@@ -100,7 +100,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_policylink_id_lookup()')
 
         # query CAs
-        ca_list = requests.get(self.api_host + '/policy/ca?entityRef=CONTAINER&entityId={0}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0'.format(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+        ca_list = requests.get(self.api_host + f'/policy/ca?entityRef=CONTAINER&entityId={self.tsg_info_dic["id"]}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         ca_id = None
         if 'ca' in ca_list:
             ca_id = self._ca_id_get(ca_list)
@@ -110,8 +110,8 @@ class CAhandler(object):
 
         if not ca_id:
             # log error
-            self.logger.error('CAhandler_ca_policylink_id_lookup(): no policylink id found for {0}'.format(self.ca_name))
-        self.logger.debug('CAhandler._ca_policylink_id_lookup() ended with: {0}'.format(ca_id))
+            self.logger.error('CAhandler_ca_policylink_id_lookup(): no policylink id found for %s', self.ca_name)
+        self.logger.debug('CAhandler._ca_policylink_id_lookup() ended with: %s', ca_id)
         return ca_id
 
     def _cert_bundle_get(self, cert_dic: Dict[str, str], count: int, cert_id: int, cert_raw: str, cert_bundle: str, issuer_loop: bool, error: str) -> Tuple[str, str, str, bool, int]:
@@ -121,27 +121,27 @@ class CAhandler(object):
             if 'der' in cert_dic['certificate']:
                 cert_raw = cert_dic['certificate']['der']
             else:
-                error = 'no der certificate returned for id {0}'.format(cert_id)
-                self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: {0}'.format(cert_id))
+                error = f'no der certificate returned for id {cert_id}'
+                self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: %s', cert_id)
 
         if 'pem' in cert_dic['certificate']:
-            cert_bundle = '{0}{1}'.format(cert_bundle, cert_dic['certificate']['pem'])
+            cert_bundle = f'{cert_bundle}{cert_dic["certificate"]["pem"]}'
         else:
-            error = 'no pem certificate returned for id {0}'.format(cert_id)
-            self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: {0}'.format(cert_id))
+            error = f'no pem certificate returned for id {cert_id}'
+            self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: %s', cert_id)
 
         if 'issuerInfo' in cert_dic['certificate']:
             if 'id' in cert_dic['certificate']['issuerInfo'] and cert_dic['certificate']['issuerInfo']['id'] != cert_id:
-                self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_dic['certificate']['issuerInfo']['id']))
+                self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: %s', cert_dic['certificate']['issuerInfo']['id'])
                 cert_id = cert_dic['certificate']['issuerInfo']['id']
                 issuer_loop = True
 
-        self.logger.debug('CAhandler._cert_bundle_get() ended with: {0}'.format(cert_id))
+        self.logger.debug('CAhandler._cert_bundle_get() ended with: %s', cert_id)
         return (error, cert_raw, cert_bundle, issuer_loop, cert_id)
 
     def _cert_bundle_build(self, cert_id: int) -> Tuple[str, str, str]:
         """ download cert and create bundle """
-        self.logger.debug('CAhandler._cert_bundle_build({0})'.format(cert_id))
+        self.logger.debug('CAhandler._cert_bundle_build(%s)', cert_id)
         cert_bundle = ''
         error = None
         cert_raw = None
@@ -152,14 +152,14 @@ class CAhandler(object):
             # set issuer loop to False to avoid ending in an endless loop
             issuer_loop = False
             count += 1
-            self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: {0}'.format(cert_id))
+            self.logger.debug('CAhandler._cert_bundle_build() fetch certificate for certid: %s', cert_id)
 
             cert_dic = requests.get(self.api_host + '/certificates/' + str(cert_id), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             if 'certificate' in cert_dic:
                 (error, cert_raw, cert_bundle, issuer_loop, cert_id) = self._cert_bundle_get(cert_dic, count, cert_id, cert_raw, cert_bundle, issuer_loop, error)
             else:
-                self.logger.error('CAhandler._cert_bundle_build(): invalid reponse returned for id: {0}'.format(cert_id))
-                error = 'invalid reponse returned for id: {0}'.format(cert_id)
+                self.logger.error('CAhandler._cert_bundle_build(): invalid reponse returned for id: %s', cert_id)
+                error = f'invalid reponse returned for id: {cert_id}'
 
         # we need this for backwards compability
         if cert_bundle == '':
@@ -170,14 +170,14 @@ class CAhandler(object):
 
     def _cert_list_fetch(self, url: str) -> List[str]:
         """ fetch certificate list and consider pagination """
-        self.logger.debug('CAhandler._cert_list_fetch({0})'.format(url))
+        self.logger.debug('CAhandler._cert_list_fetch(%s)', url)
 
         cert_list = []
         while url:
             try:
                 _tmp_cert_list = requests.get(url, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             except Exception as err_:
-                self.logger.error('CAhandler._cert_list_fetch() returned error: {0}'.format(str(err_)))
+                self.logger.error('CAhandler._cert_list_fetch() returned error: %s', str(err_))
                 _tmp_cert_list = []
 
             if 'certificates' in _tmp_cert_list:
@@ -189,12 +189,12 @@ class CAhandler(object):
             else:
                 url = None
 
-        self.logger.debug('CAhandler._cert_list_fetch() ended with {0} entries'.format(len(cert_list)))
+        self.logger.debug('CAhandler._cert_list_fetch() ended with %s entries', len(cert_list))
         return cert_list
 
     def _cert_list_lookup(self, csr_cn: str) -> Dict[str, str]:
         """ get certificates """
-        self.logger.debug('CAhandler._cert_list_lookup({0})'.format(csr_cn))
+        self.logger.debug('CAhandler._cert_list_lookup(%s)', csr_cn)
 
         try:
             if csr_cn:
@@ -203,7 +203,7 @@ class CAhandler(object):
                 url = self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
             cert_list = self._cert_list_fetch(url)
         except Exception as err_:
-            self.logger.error('CAhandler._cert_id_lookup() returned error: {0}'.format(str(err_)))
+            self.logger.error('CAhandler._cert_id_lookup() returned error: %s', str(err_))
             cert_list = []
 
         self.logger.debug('CAhandler._cert_list_lookup() ended')
@@ -226,7 +226,7 @@ class CAhandler(object):
 
     def _cert_id_lookup(self, csr_cn: str, san_list: List[str] = None) -> int:
         """ lookup cert id based on CN """
-        self.logger.debug('CAhandler._cert_id_lookup({0}:{1})'.format(csr_cn, san_list))
+        self.logger.debug('CAhandler._cert_id_lookup(%s:%s)', csr_cn, san_list)
 
         # get certificate list having the csr cn
         cert_list = self._cert_list_lookup(csr_cn)
@@ -236,11 +236,11 @@ class CAhandler(object):
             try:
                 cert_id = self._cert_id_get(cert_list, san_list)
             except Exception as err_:
-                self.logger.error('_cert_id_lookup(): response incomplete: {0}'.format(err_))
+                self.logger.error('_cert_id_lookup(): response incomplete: %s', err_)
         else:
-            self.logger.error('_cert_id_lookup(): no certificates found for {0}'.format(csr_cn))
+            self.logger.error('_cert_id_lookup(): no certificates found for %s', csr_cn)
 
-        self.logger.debug('CAhandler._cert_id_lookup() ended with: {0}'.format(cert_id))
+        self.logger.debug('CAhandler._cert_id_lookup() ended with: %s', cert_id)
         return cert_id
 
     def _config_api_access_check(self):
@@ -298,7 +298,7 @@ class CAhandler(object):
             try:
                 self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'api_user' in config_dic['CAhandler']:
             if self.credential_dic['api_user']:
                 self.logger.info('CAhandler._config_load() overwrite api_user')
@@ -314,7 +314,7 @@ class CAhandler(object):
             try:
                 self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'api_password' in config_dic['CAhandler']:
             if self.credential_dic['api_password']:
                 self.logger.info('CAhandler._config_load() overwrite api_password')
@@ -353,7 +353,7 @@ class CAhandler(object):
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug('CAhandler._config_proxy_load() ended')
 
@@ -365,7 +365,7 @@ class CAhandler(object):
             try:
                 self.request_delta_treshold = int(config_dic['CAhandler']['request_delta_treshold'])
             except Exception:
-                self.logger.error('CAhandler._config_load() could not load request_delta_treshold:{0}'.format(config_dic['CAhandler']['request_delta_treshold']))
+                self.logger.error('CAhandler._config_load() could not load request_delta_treshold:%s', config_dic['CAhandler']['request_delta_treshold'])
 
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
@@ -411,9 +411,9 @@ class CAhandler(object):
             else:
                 self.logger.error('_lastrequests_get(): response incomplete:')
         except Exception as err_:
-            self.logger.error('CAhandler._lastrequests_get() returned error: {0}'.format(str(err_)))
+            self.logger.error('CAhandler._lastrequests_get() returned error: %s', str(err_))
 
-        self.logger.debug('CAhandler._lastrequests_get() endet with {0}'.format(len(req_all)))
+        self.logger.debug('CAhandler._lastrequests_get() endet with %s', len(req_all))
         return req_all
 
     def _reqcn_lookup(self, req: Dict[str, str]) -> str:
@@ -429,7 +429,7 @@ class CAhandler(object):
                     req_cn = field.lower().replace('cn=', '')
                     break
 
-        self.logger.debug('CAhandler._reqcn_lookup() ended with: {0}'.format(req_cn))
+        self.logger.debug('CAhandler._reqcn_lookup() ended with: %s', req_cn)
         return req_cn
 
     def _reqid_from_last_requests(self, last_request_list: Dict[str, str], csr: str) -> int:
@@ -442,7 +442,7 @@ class CAhandler(object):
                 req_id = _req['requestId']
                 break
 
-        self.logger.debug('CAhandler._reqid_from_last_requests() ended with: {0}'.format(req_id))
+        self.logger.debug('CAhandler._reqid_from_last_requests() ended with: %s', req_id)
         return req_id
 
     def _reqid_lookup(self, csr: str, csr_cn: str, uts_n: int, unused_request_list: Dict[str, str], last_request_list: Dict[str, str]) -> int:
@@ -468,7 +468,7 @@ class CAhandler(object):
                 else:
                     req_id = self._reqid_from_last_requests(last_request_list, csr)
 
-        self.logger.debug('CAhandler._reqid_lookup() ended with: {0}'.format(req_id))
+        self.logger.debug('CAhandler._reqid_lookup() ended with: %s', req_id)
         return req_id
 
     def _csr_id_lookup(self, csr_cn: str, _csr_san_list: Dict[str, str], csr: str = None) -> int:
@@ -490,10 +490,10 @@ class CAhandler(object):
         try:
             req_id = self._reqid_lookup(csr, csr_cn, uts_n, unused_request_list, last_request_list)
         except Exception as err_:
-            self.logger.error('_csr_id_lookup(): response incomplete: {0}'.format(err_))
+            self.logger.error('_csr_id_lookup(): response incomplete: %s', err_)
             req_id = None
 
-        self.logger.debug('CAhandler._csr_id_lookup() ended with: {0}'.format(req_id))
+        self.logger.debug('CAhandler._csr_id_lookup() ended with: %s', req_id)
         return req_id
 
     def _login(self):
@@ -501,26 +501,26 @@ class CAhandler(object):
         self.logger.debug('CAhandler._login()')
         # check first if API is reachable
         api_response = requests.get(self.api_host, proxies=self.proxy, timeout=self.request_timeout)
-        self.logger.debug('api response code:{0}'.format(api_response.status_code))
+        self.logger.debug('api response code:%s', api_response.status_code)
         if api_response.ok:
             # all fine try to login
-            self.logger.debug('log in to {0} as user "{1}"'.format(self.api_host, self.credential_dic['api_user']))
+            self.logger.debug('log in to %s as user "%s"', self.api_host, self.credential_dic['api_user'])
             data = {'username': self.credential_dic['api_user'], 'password': self.credential_dic['api_password']}
             api_response = requests.post(url=self.api_host + '/token?grant_type=client_credentials', json=data, proxies=self.proxy, timeout=self.request_timeout)
             if api_response.ok:
                 json_dic = api_response.json()
                 if 'access_token' in json_dic:
-                    self.headers = {"Authorization": "Bearer {0}".format(json_dic['access_token'])}
+                    self.headers = {"Authorization": f"Bearer {json_dic['access_token']}"}
                     _username = json_dic.get('username', None)
                     _realms = json_dic.get('realms', None)
-                    self.logger.debug('login response:\n user: {0}\n token: {1}\n realms: {2}\n'.format(_username, json_dic['access_token'], _realms))
+                    self.logger.debug('login response:\n user: %s\n token: %s\n realms: %s\n', _username, json_dic['access_token'], _realms)
                 else:
                     self.logger.error('CAhandler._login(): No token returned. Aborting...')
             else:
-                self.logger.error('CAhandler._login() error during post: {0}'.format(api_response.status_code))
+                self.logger.error('CAhandler._login() error during post: %s', api_response.status_code)
         else:
             # If response code is not ok (200), print the resulting http error code with description
-            self.logger.error('CAhandler._login() error during get: {0}'.format(api_response.status_code))
+            self.logger.error('CAhandler._login() error during get: %s', api_response.status_code)
 
     def _request_import(self, csr: str) -> Dict[str, str]:
         """ import certificate request to NCLM """
@@ -529,7 +529,7 @@ class CAhandler(object):
         try:
             result = self._api_post(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/importrequest', data_dic)
         except Exception as err_:
-            self.logger.error('CAhandler._request_import() returned error: {0}'.format(str(err_)))
+            self.logger.error('CAhandler._request_import() returned error: %s', str(err_))
             result = None
         return result
 
@@ -539,13 +539,13 @@ class CAhandler(object):
         try:
             result = requests.get(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/unusedrequests', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._unusedrequests_get() returned error: {0}'.format(str(err_)))
+            self.logger.error('CAhandler._unusedrequests_get() returned error: %s', str(err_))
             result = None
         return result
 
     def _san_compare(self, csr_san: str, cert_san: str) -> bool:
         """ compare sans from csr with san in cert """
-        self.logger.debug('CAhandler._san_compare({0}, {1})'.format(csr_san, cert_san))
+        self.logger.debug('CAhandler._san_compare(%s, %s)', csr_san, cert_san)
         # convert csr_sans to lower case
         csr_san_lower = []
         for ele in csr_san:
@@ -556,7 +556,7 @@ class CAhandler(object):
         cert_san_lower = []
         for stype in cert_san:
             for san in cert_san[stype]:
-                cert_san_lower.append('{0}:{1}'.format(stype.lower(), san.lower()))
+                cert_san_lower.append(f'{stype.lower()}:{san.lower()}')
 
         result = False
 
@@ -564,23 +564,23 @@ class CAhandler(object):
         if sorted(csr_san_lower) == sorted(cert_san_lower):
             result = True
 
-        self.logger.debug('CAhandler._san_compare() ended with: {0}'.format(result))
+        self.logger.debug('CAhandler._san_compare() ended with: %s', result)
         return result
 
     def _template_list_get(self) -> Dict[str, str]:
         """ get list of templates """
-        self.logger.debug('CAhandler._template_id_lookup({0})'.format(self.tsg_info_dic['id']))
+        self.logger.debug('CAhandler._template_id_lookup(%s)', self.tsg_info_dic['id'])
         try:
             template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._template_id_lookup() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._template_id_lookup() returned error: %s', err_)
             template_list = []
 
         return template_list
 
     def _templates_enumerate(self, template_list: Dict[str, str]):
         """ get template id based on name """
-        self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
+        self.logger.debug('CAhandler._template_id_lookup() for template: %s', self.template_info_dic['name'])
 
         for template in template_list['template']['items']:
             if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
@@ -591,7 +591,7 @@ class CAhandler(object):
 
     def _template_id_lookup(self):
         """ get template id based on name """
-        self.logger.debug('CAhandler._template_id_lookup() for template: {0}'.format(self.template_info_dic['name']))
+        self.logger.debug('CAhandler._template_id_lookup() for template: %s', self.template_info_dic['name'])
 
         # get list of templates
         template_list = self._template_list_get()
@@ -600,17 +600,17 @@ class CAhandler(object):
         if 'template' in template_list and 'items' in template_list['template']:
             self._templates_enumerate(template_list)
         else:
-            self.logger.error('CAhandler._template_id_lookup() no templates found for filter: {0}...'.format(self.template_info_dic['name']))
+            self.logger.error('CAhandler._template_id_lookup() no templates found for filter: %s...', self.template_info_dic['name'])
 
-        self.logger.debug('CAhandler._template_id_lookup() ended with: {0}'.format(str(self.template_info_dic['id'])))
+        self.logger.debug('CAhandler._template_id_lookup() ended with: %s', str(self.template_info_dic['id']))
 
     def _tsg_id_lookup(self):
         """ get target system id based on name """
-        self.logger.debug('CAhandler._tsg_id_lookup() for tsg: {0}'.format(self.tsg_info_dic['name']))
+        self.logger.debug('CAhandler._tsg_id_lookup() for tsg: %s', self.tsg_info_dic['name'])
         try:
             tsg_list = requests.get(self.api_host + '/targetsystemgroups?freeText=' + str(self.tsg_info_dic['name']) + '&offset=0&limit=50&fetchPath=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._tsg_id_lookup() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._tsg_id_lookup() returned error: %s', err_)
             tsg_list = []
         if 'targetSystemGroups' in tsg_list:
             for tsg in tsg_list['targetSystemGroups']:
@@ -619,10 +619,10 @@ class CAhandler(object):
                         self.tsg_info_dic['id'] = tsg['id']
                         break
                 else:
-                    self.logger.error('CAhandler._tsg_id_lookup() incomplete response: {0}'.format(tsg))
+                    self.logger.error('CAhandler._tsg_id_lookup() incomplete response: %s', tsg)
         else:
-            self.logger.error('CAhandler._tsg_id_lookup() no target-system-groups found for filter: {0}...'.format(self.tsg_info_dic['name']))
-        self.logger.debug('CAhandler._tsg_id_lookup() ended with: {0}'.format(str(self.tsg_info_dic['id'])))
+            self.logger.error('CAhandler._tsg_id_lookup() no target-system-groups found for filter: %s...', self.tsg_info_dic['name'])
+        self.logger.debug('CAhandler._tsg_id_lookup() ended with: %s', str(self.tsg_info_dic['id']))
 
     def _cert_enroll(self, csr: str, csr_cn: str, csr_san_list: List[str], policylink_id: int) -> Tuple[str, str, str]:
         """ enroll operation """
@@ -648,8 +648,8 @@ class CAhandler(object):
         if cert_id:
             (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
         else:
-            error = 'certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list)
-            self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  {0}, {1}'.format(csr_cn, csr_san_list))
+            error = f'certifcate id lookup failed for:  {csr_cn}, {csr_san_list}'
+            self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  %s, %s', csr_cn, csr_san_list)
 
         return (error, cert_bundle, cert_raw)
 
@@ -680,10 +680,10 @@ class CAhandler(object):
                     # enroll operation
                     (error, cert_bundle, cert_raw) = self._cert_enroll(csr, csr_cn, csr_san_list, policylink_id)
                 else:
-                    error = 'enrollment aborted. policylink_id: {0}, tsg_id: {1}'.format(policylink_id, self.tsg_info_dic['id'])
-                    self.logger.error('CAhandler.eroll(): enrollment aborted. policylink_id: {0}, tsg_id: {1}'.format(policylink_id, self.tsg_info_dic['id']))
+                    error = f'enrollment aborted. policylink_id: {policylink_id}, tsg_id: {self.tsg_info_dic["id"]}'
+                    self.logger.error('CAhandler.eroll(): enrollment aborted. policylink_id: %s, tsg_id: %s', policylink_id, self.tsg_info_dic['id'])
             else:
-                error = 'CAhandler.eroll(): ID lookup for targetSystemGroup "{0}" failed.'.format(self.tsg_info_dic['name'])
+                error = f'CAhandler.eroll(): ID lookup for targetSystemGroup "{self.tsg_info_dic["name"]}" failed.'
         else:
             self.logger.error(self.error)
 
@@ -705,15 +705,16 @@ class CAhandler(object):
     def revoke(self, cert: str, rev_reason: str, rev_date: str) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
+
         # get serial from pem file and convert to formated hex
-        serial = '0{:x}'.format(cert_serial_get(self.logger, cert))
+        serial = f'0{cert_serial_get(self.logger, cert, hexformat=True)}'
         hex_serial = ':'.join(serial[i:i + 2] for i in range(0, len(serial), 2))
 
         # search for certificate
         try:
             cert_list = requests.get(self.api_host + '/certificates?freeText==' + str(hex_serial) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id']), headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler.revoke(): request get aborted with err: {0}'.format(err_))
+            self.logger.error('CAhandler.revoke(): request get aborted with err: %s', err_)
             cert_list = []
 
         err_dic = error_dic_get(self.logger)
@@ -726,7 +727,7 @@ class CAhandler(object):
                     code = 200
                     message = None
                 except Exception as err:
-                    self.logger.error('CAhandler.revoke(): _api_post got aborted with err: {0}'.format(err))
+                    self.logger.error('CAhandler.revoke(): _api_post got aborted with err: %s', err)
                     code = 500
                     message = err_dic['serverinternal']
                     detail = 'Revocation operation failed'
@@ -749,5 +750,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)
