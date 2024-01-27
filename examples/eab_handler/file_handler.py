@@ -3,7 +3,7 @@
 """ eab file handler """
 from __future__ import print_function
 import csv
-# pylint: disable=C0209, E0401
+# pylint: disable=E0401
 from acme_srv.helper import load_config
 
 
@@ -35,7 +35,7 @@ class EABhandler(object):
 
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
-        self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
+        self.logger.debug('EABhandler.mac_key_get(%s)', kid)
 
         mac_key = None
         if self.key_file and kid:
@@ -47,7 +47,7 @@ class EABhandler(object):
                             mac_key = row['eab_mac']
                             break
             except Exception as err:
-                self.logger.error('EABhandler.mac_key_get() error: {0}'.format(err))
+                self.logger.error('EABhandler.mac_key_get() error: %s', err)
 
-        self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))
+        self.logger.debug('EABhandler.mac_key_get() ended with: %s', bool(mac_key))
         return mac_key

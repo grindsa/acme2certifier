@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """ Nonce class """
-# pylint: disable=c0209
 from __future__ import print_function
 from typing import Dict
 from acme_srv.db_handler import DBstore
@@ -44,13 +43,13 @@ class Renewalinfo(object):
                 try:
                     self.renewaltreshold_pctg = float(config_dic['Renewalinfo']['renewaltreshold_pctg'])
                 except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: {0}'.format(err_))
+                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s', err_)
 
             if 'retry_after_timeout' in config_dic['Renewalinfo']:
                 try:
                     self.retry_after_timeout = int(config_dic['Renewalinfo']['retry_after_timeout'])
                 except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: {0}'.format(err_))
+                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s', err_)
 
     def _lookup(self, certid_hex: str) -> Dict[str, str]:
         """ lookup expiry dates based on renewal info """
@@ -59,7 +58,7 @@ class Renewalinfo(object):
         try:
             result_dic = self.dbstore.certificate_lookup('renewal_info', certid_hex, ('id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'created_at'))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Renewalinfo._lookup(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Renewalinfo._lookup(): %s', err_)
             result_dic = None
 
         return result_dic
@@ -102,13 +101,13 @@ class Renewalinfo(object):
         self.logger.debug('Renewalinfo.renewal_string_get()')
 
         # we need to workaround a strange issue in win-acme
-        url = url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo'].rstrip('/')), '')
+        url = url.replace(f'{self.server_name}{self.path_dic["renewalinfo"].rstrip("/")}', '')
         url = url.lstrip('/')
 
         # sanitize renewal_info string
         renewalinfo_string = string_sanitize(self.logger, url)
 
-        self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: {0}'.format(renewalinfo_string))
+        self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: %s', renewalinfo_string)
         return renewalinfo_string
 
     def get(self, url: str) -> Dict[str, str]:
@@ -130,7 +129,7 @@ class Renewalinfo(object):
                 # filter certificate and decode it
                 response_dic['data'] = rewalinfo_dic
                 # order status is processing - ratelimiting
-                response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
+                response_dic['header'] = {'Retry-After': f'{self.retry_after_timeout}'.format()}
             else:
                 response_dic['code'] = 404
                 response_dic['data'] = self.err_msg_dic['malformed']
@@ -142,7 +141,7 @@ class Renewalinfo(object):
 
     def update(self, content: str) -> Dict[str, str]:
         """ update renewalinfo request """
-        self.logger.debug('Renewalinfo.update({0})')
+        self.logger.debug('Renewalinfo.update()')
 
         # check message
         (code, _message, _detail, _protected, payload, _account_name) = self.message.check(content)

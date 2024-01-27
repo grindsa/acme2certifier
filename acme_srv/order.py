@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """ Order class """
-# pylint: disable=c0209
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
@@ -38,7 +37,7 @@ class Order(object):
         """ cose the connection at the end of the context """
 
     def _auth_add(self, oid: str, payload: Dict[str, str], auth_dic: Dict[str, str]) -> str:
-        self.logger.debug('Order._auth_add({0})'.format(oid))
+        self.logger.debug('Order._auth_add(%s)', oid)
 
         if oid:
             error = None
@@ -57,16 +56,17 @@ class Order(object):
                         auth['status'] = 'valid'
                         self.dbstore.authorization_update(auth)
                 except Exception as err_:
-                    self.logger.critical('acme2certifier database error in Order._add() authz: {0}'.format(err_))
+                    self.logger.critical('acme2certifier database error in Order._add() authz: %s', err_)
         else:
             error = self.error_msg_dic['malformed']
 
-        self.logger.debug('Order._auth_add() ended with {0}'.format(error))
+        self.logger.debug('Order._auth_add() ended with %s', error)
         return error
 
     def _add(self, payload: Dict[str, str], aname: str) -> Tuple[str, str, Dict[str, str], int]:
         """ add order request to database """
-        self.logger.debug('Order._add({0})'.format(aname))
+        self.logger.debug('Order._add(%s)', aname)
+
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.logger, 12)
@@ -91,7 +91,7 @@ class Order(object):
                 # add order to db
                 oid = self.dbstore.order_add(data_dic)
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Order._add() order: {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Order._add() order: %s', err_)
                 oid = None
 
             if not error:
@@ -111,7 +111,7 @@ class Order(object):
             try:
                 self.header_info_list = json.loads(config_dic['Order']['header_info_list'])
             except Exception as err_:
-                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
 
         self.logger.debug('Order._config_headerinfo_config_load() ended')
 
@@ -130,12 +130,12 @@ class Order(object):
                 try:
                     self.retry_after = int(config_dic['Order']['retry_after_timeout'])
                 except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse retry_after: {0}'.format(config_dic['Order']['retry_after_timeout']))
+                    self.logger.warning('Order._config_load(): failed to parse retry_after: %s', config_dic['Order']['retry_after_timeout'])
             if 'validity' in config_dic['Order']:
                 try:
                     self.validity = int(config_dic['Order']['validity'])
                 except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse validity: {0}'.format(config_dic['Order']['validity']))
+                    self.logger.warning('Order._config_load(): failed to parse validity: %s', config_dic['Order']['validity'])
 
         self.logger.debug('Order._config_orderconfig_load() ended')
 
@@ -153,7 +153,7 @@ class Order(object):
                 try:
                     self.authz_validity = int(config_dic['Authorization']['validity'])
                 except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse authz validity: {0}'.format(config_dic['Authorization']['validity']))
+                    self.logger.warning('Order._config_load(): failed to parse authz validity: %s', config_dic['Authorization']['validity'])
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
@@ -162,7 +162,8 @@ class Order(object):
 
     def _name_get(self, url: str) -> str:
         """ get ordername """
-        self.logger.debug('Order._name_get({0})'.format(url))
+        self.logger.debug('Order._name_get(%s)', url)
+
         url_dic = parse_url(self.logger, url)
         order_name = url_dic['path'].replace(self.path_dic['order_path'], '')
         if '/' in order_name:
@@ -172,7 +173,8 @@ class Order(object):
 
     def _identifiers_check(self, identifiers_list: List[str]) -> str:
         """ check validity of identifers in order """
-        self.logger.debug('Order._identifiers_check({0})'.format(identifiers_list))
+        self.logger.debug('Order._identifiers_check(%s)', identifiers_list)
+
         error = None
         allowed_identifers = ['dns', 'ip']
 
@@ -191,16 +193,16 @@ class Order(object):
         else:
             error = self.error_msg_dic['malformed']
 
-        self.logger.debug('Order._identifiers_check() done with {0}:'.format(error))
+        self.logger.debug('Order._identifiers_check() done with %s:', error)
         return error
 
     def _info(self, order_name: str) -> Dict[str, str]:
         """ list details of an order """
-        self.logger.debug('Order._info({0})'.format(order_name))
+        self.logger.debug('Order._info(%s)', order_name)
         try:
             result = self.dbstore.order_lookup('name', order_name)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Order._info(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Order._info(): %s', err_)
             result = None
         return result
 
@@ -218,7 +220,7 @@ class Order(object):
         if header_info_dic:
             result = json.dumps(header_info_dic)
 
-        self.logger.debug('Order._header_info_lookup() ended with: {0} keys in dic'.format(len(header_info_dic.keys())))
+        self.logger.debug('Order._header_info_lookup() ended with: %s keys in dic', len(header_info_dic.keys()))
         return result
 
     def _finalize(self, order_name: str, payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str]:
@@ -267,7 +269,8 @@ class Order(object):
 
     def _process(self, order_name: str, protected: Dict[str, str], payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str]:
         """ process order """
-        self.logger.debug('Order._process({0})'.format(order_name))
+        self.logger.debug('Order._process({%s)', order_name)
+
         certificate_name = None
         message = None
         detail = None
@@ -283,7 +286,7 @@ class Order(object):
                 try:
                     cert_dic = self.dbstore.certificate_lookup('order__name', order_name)
                 except Exception as err_:
-                    self.logger.critical('acme2certifier database error in Order._process(): {0}'.format(err_))
+                    self.logger.critical('acme2certifier database error in Order._process(): %s', err_)
                     cert_dic = {}
                 if cert_dic:
                     # we found a cert in the database
@@ -295,12 +298,12 @@ class Order(object):
             message = self.error_msg_dic['malformed']
             detail = 'url is missing in protected'
 
-        self.logger.debug('Order._process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        self.logger.debug('Order._process() ended with order:%s %s:%s:%s', order_name, code, message, detail)
         return (code, message, detail, certificate_name)
 
     def _csr_process(self, order_name: str, csr: str, header_info: str) -> Tuple[int, str, str]:
         """ process certificate signing request """
-        self.logger.debug('Order._csr_process({0})'.format(order_name))
+        self.logger.debug('Order._csr_process(%s)', order_name)
 
         order_dic = self._info(order_name)
 
@@ -327,18 +330,19 @@ class Order(object):
         else:
             code = 400
             message = self.error_msg_dic['unauthorized']
-            detail = 'order: {0} not found'.format(order_name)
+            detail = f'order: {order_name} not found'
 
-        self.logger.debug('Order._csr_process() ended with order:{0} {1}:{2}:{3}'.format(order_name, code, message, detail))
+        self.logger.debug('Order._csr_process() ended with order:%s %s:{%s:%s', order_name, code, message, detail)
         return (code, message, detail)
 
     def _update(self, data_dic: Dict[str, str]):
         """ update order based on ordername """
-        self.logger.debug('Order._update({0})'.format(data_dic))
+        self.logger.debug('Order._update(%s)', data_dic)
+
         try:
             self.dbstore.order_update(data_dic)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Order._update(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Order._update(): %s', err_)
 
     def _order_dic_create(self, tmp_dic: Dict[str, str]) -> Dict[str, str]:
         """ create order dictionary """
@@ -357,19 +361,19 @@ class Order(object):
             try:
                 order_dic['identifiers'] = json.loads(tmp_dic['identifiers'])
             except Exception:
-                self.logger.error('Order._order_dic_create(): error while parsing the identifier {0}'.format(tmp_dic['identifiers']))
+                self.logger.error('Order._order_dic_create(): error while parsing the identifier %s', tmp_dic['identifiers'])
 
         self.logger.debug('Order._order_dic_create() ended')
         return order_dic
 
     def _authz_list_lookup(self, order_name: str) -> List[str]:
         """ lookup authorization list """
-        self.logger.debug('Order._authz_list_lookup({0})'.format(order_name))
+        self.logger.debug('Order._authz_list_lookup(%s)', order_name)
 
         try:
             authz_list = self.dbstore.authorization_lookup('order__name', order_name, ['name', 'status__name'])
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Order._authz_list_lookup(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Order._authz_list_lookup(): %s', err_)
             authz_list = []
 
         self.logger.debug('Order._authz_list_lookup() ended')
@@ -380,7 +384,7 @@ class Order(object):
         validity_list = []
         for authz in authz_list:
             if 'name' in authz:
-                order_dic["authorizations"].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], authz['name']))
+                order_dic["authorizations"].append(f'{self.server_name}{self.path_dic["authz_path"]}{authz["name"]}')
             if 'status__name' in authz:
                 if authz['status__name'] == 'valid':
                     validity_list.append(True)
@@ -396,7 +400,7 @@ class Order(object):
 
     def _lookup(self, order_name: str) -> Dict[str, str]:
         """ sohw order details based on ordername """
-        self.logger.debug('Order._validity_list_create({0})'.format(order_name))
+        self.logger.debug('Order._validity_list_create(%s)', order_name)
         order_dic = {}
 
         tmp_dic = self._info(order_name)
@@ -417,16 +421,16 @@ class Order(object):
 
     def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
         """ invalidate orders """
-        self.logger.debug('Order.invalidate({0})'.format(timestamp))
+        self.logger.debug('Order.invalidate(%s)', timestamp)
         if not timestamp:
             timestamp = uts_now()
-            self.logger.debug('Order.invalidate(): set timestamp to {0}'.format(timestamp))
+            self.logger.debug('Order.invalidate(): set timestamp to %s', timestamp)
 
         field_list = ['id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact']
         try:
             order_list = self.dbstore.orders_invalid_search('expires', timestamp, vlist=field_list, operant='<=')
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Order._invalidate() search: {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Order._invalidate() search: %s', err_)
             order_list = []
         output_list = []
         for order in order_list:
@@ -438,9 +442,9 @@ class Order(object):
                 try:
                     self.dbstore.order_update(data_dic)
                 except Exception as err_:
-                    self.logger.critical('acme2certifier database error in Order._invalidate() upd: {0}'.format(err_))
+                    self.logger.critical('acme2certifier database error in Order._invalidate() upd: %s', err_)
 
-        self.logger.debug('Order.invalidate() ended: {0} orders identified'.format(len(output_list)))
+        self.logger.debug('Order.invalidate() ended: %s orders identified', len(output_list))
         return (field_list, output_list)
 
     def new(self, content: str) -> Dict[str, str]:
@@ -455,15 +459,15 @@ class Order(object):
             if not error:
                 code = 201
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}'
                 response_dic['data'] = {}
                 response_dic['data']['identifiers'] = []
                 response_dic['data']['authorizations'] = []
                 response_dic['data']['status'] = 'pending'
                 response_dic['data']['expires'] = expires
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}/finalize'
                 for auth_name, value in auth_dic.items():
-                    response_dic['data']['authorizations'].append('{0}{1}{2}'.format(self.server_name, self.path_dic['authz_path'], auth_name))
+                    response_dic['data']['authorizations'].append(f'{self.server_name}{self.path_dic["authz_path"]}{auth_name}')
                     response_dic['data']['identifiers'].append(value)
             else:
                 code = 400
@@ -473,7 +477,7 @@ class Order(object):
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Order.new() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Order.new() returns: %s', json.dumps(response_dic))
         return response_dic
 
     def _parse(self, protected: Dict[str, str], payload: Dict[str, str], header: str = None) -> Tuple[int, str, str, str, str]:
@@ -501,7 +505,7 @@ class Order(object):
             message = self.error_msg_dic['malformed']
             detail = 'url is missing in protected'
 
-        self.logger.debug('Order._parse() ended with code: {0}'.format(code))
+        self.logger.debug('Order._parse() ended with code: %s', code)
         return (code, message, detail, certificate_name, order_name)
 
     def parse(self, content: str, header: str = None) -> Dict[str, str]:
@@ -524,20 +528,20 @@ class Order(object):
             if code == 200:
                 # create response
                 response_dic['header'] = {}
-                response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['order_path'], order_name)
+                response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}'
                 response_dic['data'] = self._lookup(order_name)
                 if 'status' in response_dic['data'] and response_dic['data']['status'] == 'processing':
                     # set retry header as cert issuane is not completed.
-                    response_dic['header']['Retry-After'] = '{0}'.format(self.retry_after)
-                response_dic['data']['finalize'] = '{0}{1}{2}/finalize'.format(self.server_name, self.path_dic['order_path'], order_name)
+                    response_dic['header']['Retry-After'] = f'{self.retry_after}'
+                response_dic['data']['finalize'] = f'{self.server_name}{self.path_dic["order_path"]}{order_name}/finalize'
                 # add the path to certificate if order-status is ready
                 # if certificate_name:
                 if certificate_name and 'status' in response_dic['data'] and response_dic['data']['status'] == 'valid':
-                    response_dic['data']['certificate'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['cert_path'], certificate_name)
+                    response_dic['data']['certificate'] = f'{self.server_name}{self.path_dic["cert_path"]}{certificate_name}'
 
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Order.parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Order.parse() returns: %s', json.dumps(response_dic))
         return response_dic

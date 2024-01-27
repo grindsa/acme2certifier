@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209
+# pylint: disable=r0913
 """ message class """
 from __future__ import print_function
 import json
@@ -49,7 +49,7 @@ class Message(object):
         try:
             account_list = self.dbstore.account_lookup('jwk', json.dumps(content['jwk']))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Message._name_rev_get(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Message._name_rev_get(): %s', err_)
             account_list = []
         if account_list:
             if 'name' in account_list:
@@ -59,7 +59,7 @@ class Message(object):
         else:
             kid = None
 
-        self.logger.debug('Message._name_rev_get() ended with kid: {0}'.format(kid))
+        self.logger.debug('Message._name_rev_get() ended with kid: %s', kid)
         return kid
 
     def _name_get(self, content: Dict[str, str]) -> str:
@@ -67,19 +67,19 @@ class Message(object):
         self.logger.debug('Message._name_get()')
 
         if 'kid' in content:
-            self.logger.debug('kid: {0}'.format(content['kid']))
-            kid = content['kid'].replace('{0}{1}'.format(self.server_name, self.path_dic['acct_path']), '')
+            self.logger.debug('kid: %s', content['kid'])
+            kid = content['kid'].replace(f'{self.server_name}{self.path_dic["acct_path"]}', '')
             if '/' in kid:
                 kid = None
         elif 'jwk' in content and 'url' in content:
-            if content['url'] == '{0}{1}'.format(self.server_name, self.path_dic['revocation_path']):
+            if content['url'] == f'{self.server_name}{self.path_dic["revocation_path"]}':
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing
                 kid = self._name_rev_get(content)
             else:
                 kid = None
         else:
             kid = None
-        self.logger.debug('Message._name_get() returns: {0}'.format(kid))
+        self.logger.debug('Message._name_get() returns: %s', kid)
         return kid
 
     def _check(self, skip_nonce_check: bool, skip_signature_check: bool, content: str, protected: Dict[str, str], use_emb_key: bool) -> Tuple[int, str, str, str]:
@@ -114,13 +114,14 @@ class Message(object):
                 message = error
                 detail = error_detail
 
-        self.logger.debug('Message._check() ended with: {0}'.format(code))
+        self.logger.debug('Message._check() ended with: %s', code)
         return (code, message, detail, account_name)
 
     # pylint: disable=R0914
     def check(self, content: str, use_emb_key: bool = False, skip_nonce_check: bool = False) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str]:
         """ validate message """
         self.logger.debug('Message.check()')
+
         # disable signature check if paramter has been set
         if self.disable_dic['signature_check_disable']:
             self.logger.error('**** SIGNATURE_CHECK_DISABLE!!! Severe security issue ****')
@@ -139,7 +140,7 @@ class Message(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = error_detail
 
-        self.logger.debug('Message.check() ended with:{0}'.format(code))
+        self.logger.debug('Message.check() ended with:%s', code)
         return (code, message, detail, protected, payload, account_name)
 
     def cli_check(self, content: str) -> Tuple[int, str, str, Dict[str, str], Dict[str, str], str, Dict[str, str]]:
@@ -171,7 +172,7 @@ class Message(object):
             message = 'urn:ietf:params:acme:error:malformed'
             detail = error_detail
 
-        self.logger.debug('Message.check() ended with:{0}'.format(code))
+        self.logger.debug('Message.check() ended with:%s', code)
         return (code, message, detail, protected, payload, account_name, permissions)
 
     def prepare_response(self, response_dic: Dict[str, str], status_dic: Dict[str, str], add_nonce: bool = True) -> Dict[str, str]:
