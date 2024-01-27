@@ -58,7 +58,7 @@ jobs:
         docker-compose up &
 
     - name: "Sleep for 60s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 60s
 
@@ -70,7 +70,7 @@ jobs:
         docker start openxpki-docker_openxpki-server_1
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -82,7 +82,7 @@ jobs:
         docker exec -id openxpki-docker_openxpki-client_1 apt-get install -y libjson-pp-perl
 
     - name: "Sleep for 45s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 45s
 
@@ -385,7 +385,7 @@ jobs:
         docker-compose up &
 
     - name: "Sleep for 60s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 60s
 
@@ -397,7 +397,7 @@ jobs:
         docker start openxpki-docker_openxpki-server_1
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -409,7 +409,7 @@ jobs:
         docker exec -id openxpki-docker_openxpki-client_1 apt-get install -y libjson-pp-perl
 
     - name: "Sleep for 45s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 45s
 

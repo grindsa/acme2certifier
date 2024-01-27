@@ -34,7 +34,7 @@ jobs:
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -140,7 +140,7 @@ jobs:
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -149,7 +149,7 @@ jobs:
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -245,7 +245,7 @@ jobs:
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -274,7 +274,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -358,7 +358,7 @@ jobs:
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -367,7 +367,7 @@ jobs:
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -390,7 +390,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -621,7 +621,7 @@ jobs:
         # docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -768,7 +768,7 @@ jobs:
         docker run --name postgresdbsrv -v /tmp/pgsql/data:/var/lib/postgresql/data --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 
@@ -777,7 +777,7 @@ jobs:
         docker run -v /tmp/pgsql/a2c.psql:/tmp/a2c.psql -v /tmp/pgsql/pgpass:/root/.pgpass --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 10s
 

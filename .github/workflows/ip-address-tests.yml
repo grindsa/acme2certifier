@@ -42,7 +42,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 
@@ -116,7 +116,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 
@@ -190,7 +190,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 
@@ -266,7 +266,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2
+      uses: juliangruber/sleep-action@v2.0.0
       with:
         time: 5s
 
