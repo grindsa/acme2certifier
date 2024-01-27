@@ -132,7 +132,7 @@ class CAhandler(object):
         ca_key = None
         if db_result and 'private' in db_result:
             try:
-                private_key = f'-----BEGIN ENCRYPTED PRIVATE KEY-----\n{db_result['private']}\n-----END ENCRYPTED PRIVATE KEY-----'
+                private_key = f'-----BEGIN ENCRYPTED PRIVATE KEY-----\n{db_result["private"]}\n-----END ENCRYPTED PRIVATE KEY-----'
                 ca_key = serialization.load_pem_private_key(convert_string_to_byte(private_key), password=convert_string_to_byte(self.passphrase), backend=default_backend())
             except Exception as err_:
                 self.logger.error('CAhandler._ca_key_load() failed with error: %s', err_)

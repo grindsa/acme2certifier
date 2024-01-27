@@ -492,7 +492,7 @@ class CAhandler(object):
                 error = 'Request rejected by operator'
                 rejected = True
             else:
-                error = f'Unknown request status: {request_dic['status']}'
+                error = f'Unknown request status: {request_dic["status"]}'
         else:
             error = '"status" field not found in response.'
 
