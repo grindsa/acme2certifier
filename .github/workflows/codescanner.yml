@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@master
         with:
@@ -35,7 +35,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
@@ -67,7 +67,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
@@ -112,7 +112,7 @@ jobs:
   #  steps:
   #    # Checkout your code repository to scan
   #  - name: Checkout repository
-  #    uses: actions/checkout@v3
+  #    uses: actions/checkout@v4
   #    with:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.

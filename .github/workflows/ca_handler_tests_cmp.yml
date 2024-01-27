@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     #- name: "[ PREPARE ] patch docker file to ubuntu 22.04"
     #  run: |
@@ -103,7 +103,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -137,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] patch docker file to ubuntu 22.04"
       run: |
@@ -226,7 +226,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Retrieve Version from version.py
       run: |
@@ -373,7 +373,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -409,7 +409,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Retrieve Version from version.py
       run: |
@@ -522,7 +522,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
