@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -42,7 +42,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -116,7 +116,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -160,7 +160,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -190,7 +190,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 
@@ -234,7 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -266,7 +266,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 5s
 

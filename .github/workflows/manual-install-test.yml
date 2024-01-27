@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -137,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -199,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
@@ -279,7 +279,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -373,7 +373,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |

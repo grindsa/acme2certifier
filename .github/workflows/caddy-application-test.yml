@@ -18,7 +18,7 @@ jobs:
         ports: ['-p 80:80 -p 443:443', '-p 443:443']
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
@@ -40,7 +40,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -62,7 +62,7 @@ jobs:
         docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -99,7 +99,7 @@ jobs:
         ports: ['-p 80:80 -p 443:443', '-p 443:443']
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
@@ -123,7 +123,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -145,7 +145,7 @@ jobs:
         docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -182,7 +182,7 @@ jobs:
         ports: ['-p 80:80 -p 443:443', '-p 443:443']
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "Build docker-compose (nginx_wsgi)"
       working-directory: examples/Docker/
@@ -206,7 +206,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -228,7 +228,7 @@ jobs:
         docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -264,7 +264,7 @@ jobs:
         ports: ['-p 80:80 -p 443:443', '-p 443:443']
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "Build docker-compose (nginx_django)"
       working-directory: examples/Docker/
@@ -290,7 +290,7 @@ jobs:
         docker-compose logs
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -311,7 +311,7 @@ jobs:
         docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 

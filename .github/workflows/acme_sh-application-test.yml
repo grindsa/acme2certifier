@@ -19,7 +19,7 @@ jobs:
         keylength: [2048, 4096, ec-521]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
@@ -129,7 +129,7 @@ jobs:
         keylength: [2048, 4096, ec-521]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
@@ -141,7 +141,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -246,7 +246,7 @@ jobs:
         keylength: [2048, 4096, ec-521]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] Build docker-compose (nginx_django)"
       working-directory: examples/Docker/
@@ -258,7 +258,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
@@ -362,7 +362,7 @@ jobs:
         keylength: [2048, 4096, ec-521]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] Build docker-compose (nginx_django)"
       working-directory: examples/Docker/
@@ -375,7 +375,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: juliangruber/sleep-action@v2
       with:
         time: 10s
 
