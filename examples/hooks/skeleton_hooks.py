@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209, r0913, w0613
+# pylint: disable=r0913, w0613
 """ example hook class """
 
 

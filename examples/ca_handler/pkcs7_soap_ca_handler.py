@@ -2,7 +2,7 @@
 """ propritary soap_ca_handler """
 from __future__ import print_function
 import subprocess
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 import os
 import binascii
 import requests
@@ -22,7 +22,7 @@ from acme_srv.helper import load_config, b64_url_recode, b64_decode, b64_encode,
 
 def binary_read(logger, file_name):
     """ dump filename in binary format """
-    logger.debug('read_binary({0})'.format(file_name))
+    logger.debug('read_binary(%s)', file_name)
     # dump csr into file
     with open(file_name, 'rb') as reader:
         content = reader.read()
@@ -32,7 +32,8 @@ def binary_read(logger, file_name):
 
 def binary_write(logger, file_name, content):
     """ dump filename in binary format """
-    logger.debug('write_binary({0})'.format(file_name))
+    logger.debug('write_binary(%s)', file_name)
+
     # dump csr into file
     with open(file_name, 'wb') as writer:
         writer.write(content)
@@ -71,7 +72,7 @@ class CAhandler(object):
                 self.signing_script_dic[ele] = config_dic['CAhandler'][ele]
             else:
                 if value:
-                    self.logger.error('CAhandler._config_load(): {0} option is missing in config file'.format(ele))
+                    self.logger.error('CAhandler._config_load(): %s option is missing in config file', ele)
 
     def _self_signing_config_load(self, config_dic):
         """ load configuriation options for self signing """
@@ -82,7 +83,7 @@ class CAhandler(object):
                 with open(config_dic['CAhandler']['signing_cert'], 'rb') as open_file:
                     self.signing_cert = x509.load_pem_x509_certificate(open_file.read(), default_backend())
             else:
-                self.logger.error('CAhandler._config_load(): signing_cert {0} not found.'.format(config_dic['CAhandler']['signing_cert']))
+                self.logger.error('CAhandler._config_load(): signing_cert %s not found.', config_dic['CAhandler']['signing_cert'])
         else:
             self.logger.error('CAhandler._config_load(): signing_cert option is missing in config file')
 
@@ -95,7 +96,7 @@ class CAhandler(object):
                     self.signing_key = serialization.load_pem_private_key(
                         open_file.read(), password=self.password, backend=default_backend())
             else:
-                self.logger.error('CAhandler._config_load(): signing_key {0} not found.'.format(config_dic['CAhandler']['signing_key']))
+                self.logger.error('CAhandler._config_load(): signing_key %s not found.', config_dic['CAhandler']['signing_key'])
         else:
             self.logger.error('CAhandler._config_load(): signing_key option is missing in config file')
 
@@ -240,21 +241,21 @@ class CAhandler(object):
     def _soaprequest_build(self, pkcs7):
         """ build soap request payload """
         self.logger.debug('CAhandler._soaprequest_build()')
-        data = """
+        data = f"""
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:aur="http://monetplus.cz/services/kb/aurora">
 <soapenv:Header/>
 <soapenv:Body>
     <aur:RequestCertificate>
         <aur:request>
-            <aur:ProfileName>{0}</aur:ProfileName>
-            <aur:CertificateRequestRaw>{1}</aur:CertificateRequestRaw>
-            <aur:Email>{2}</aur:Email>
+            <aur:ProfileName>{self.profilename}</aur:ProfileName>
+            <aur:CertificateRequestRaw>{pkcs7}</aur:CertificateRequestRaw>
+            <aur:Email>{self.email}</aur:Email>
             <aur:ReturnCertificateCaChain>true</aur:ReturnCertificateCaChain>
         </aur:request>
     </aur:RequestCertificate>
 </soapenv:Body>
 </soapenv:Envelope>
-""".format(self.profilename, pkcs7, self.email)  # pylint: disable=c0209
+"""
         return data
 
     def _soaprequest_send(self, payload):
@@ -278,21 +279,21 @@ class CAhandler(object):
                     b64_cert_bundle = soap_dic[senvelope_field_name][sbody_field_name]['RequestCertificateResponse']['RequestCertificateResult']['IssuedCertificate']
                 except Exception:
                     self.logger.error('CAhandler._soaprequest_send() - XML Parsing error')
-                    self.logger.debug('CAhandler._soaprequest_send() xml2dict: {0}'.format(resp.text))
+                    self.logger.debug('CAhandler._soaprequest_send() xml2dict: %s', resp.text)
                     error = 'Parsing error'
             else:
-                self.logger.error('CAhandler._soaprequest_send(): http status_code {0}'.format(resp.status_code))
+                self.logger.error('CAhandler._soaprequest_send(): http status_code %s', resp.status_code)
                 error = 'Server error'
                 try:
                     soap_dic = xmltodict.parse(resp.text)
-                    self.logger.error('CAhandler._soaprequest_send() - faultcode: {0}'.format(soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultcode']))
-                    self.logger.error('CAhandler._soaprequest_send() - faultstring: {0}'.format(soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultstring']))
+                    self.logger.error('CAhandler._soaprequest_send() - faultcode: %s', soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultcode'])
+                    self.logger.error('CAhandler._soaprequest_send() - faultstring: %s', soap_dic[senvelope_field_name][sbody_field_name]['s:Fault']['faultstring'])
                 except Exception:
                     self.logger.error('CAhandler._soaprequest_send() - unkown error')
-                    self.logger.debug('CAhandler._soaprequest_send() unk: {0}'.format(resp.text))
+                    self.logger.debug('CAhandler._soaprequest_send() unk: %s', resp.text)
 
         except Exception as err:
-            self.logger.error('CAhandler._soaprequest_send(): {0}'.format(err))
+            self.logger.error('CAhandler._soaprequest_send(): %s', err)
             error = 'Connection error'
             payload = None  # lgtm [py/unused-local-variable]
             resp = None  # lgtm [py/unused-local-variable]
@@ -341,19 +342,19 @@ class CAhandler(object):
 
         for ele in signing_parameters:
             if ele not in self.signing_script_dic:
-                error = 'signing config incomplete: option {0} is missing'.format(ele)
+                error = f'signing config incomplete: option {ele} is missing'
                 break
             if ele == 'signing_csr_path':
                 if not os.path.isdir(self.signing_script_dic[ele]):
-                    error = 'signing_csr_path {0} does not exist or is not a directory'.format(ele)
+                    error = f'signing_csr_path {ele} does not exist or is not a directory'
                     break
 
-        self.logger.debug('CAhandler._pkcs7_signing_config_verify() returned with {0}'.format(error))
+        self.logger.debug('CAhandler._pkcs7_signing_config_verify() returned with %s', error)
         return error
 
     def _signing_command_build(self, csr_unsigned, csr_signed):
         """ build signing command """
-        self.logger.debug('CAhandler._signing_command_build({0})'.format(csr_unsigned))
+        self.logger.debug('CAhandler._signing_command_build(%s)', csr_unsigned)
 
         if 'signing_script' in self.signing_script_dic:
             if 'signing_user' in self.signing_script_dic:
@@ -372,7 +373,7 @@ class CAhandler(object):
         else:
             cmd_list = []
 
-        self.logger.debug('CAhandler._signing_command_build() ended with: {0}'.format(' '.join(cmd_list)))
+        self.logger.debug('CAhandler._signing_command_build() ended with: %s', ' '.join(cmd_list))
         return cmd_list
 
     def _pkcs7_sign_external(self, csr):
@@ -382,14 +383,14 @@ class CAhandler(object):
         # check external signing configuration
         signing_check = self._pkcs7_signing_config_verify()
         if signing_check:
-            self.logger.error('CAhandler._pkcs7_sign_external(): config incomplete: {0}'.format(signing_check))
+            self.logger.error('CAhandler._pkcs7_sign_external(): config incomplete: %s', signing_check)
             rcode = 'Config incomplete'
             pkcs7_bundle = None
         else:
             # define temporary filenames
             _fname = generate_random_string(self.logger, 12)
-            unsigned_filename = '{0}/{1}.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
-            signed_filename = '{0}/{1}_signed.der'.format(self.signing_script_dic['signing_csr_path'], _fname)
+            unsigned_filename = f'{self.signing_script_dic["signing_csr_path"]}/{_fname}.der'
+            signed_filename = f'{self.signing_script_dic["signing_csr_path"]}/{_fname}_signed.der'
 
             # build signing command
             signing_cmd = self._signing_command_build(unsigned_filename, signed_filename)
@@ -402,14 +403,14 @@ class CAhandler(object):
             if not rcode:
                 pkcs7_bundle = binary_read(self.logger, signed_filename)
             else:
-                self.logger.error('CAhandler._pkcs7_sign_external() aborted with error: {0}'.format(rcode))
+                self.logger.error('CAhandler._pkcs7_sign_external() aborted with error: %s', rcode)
                 pkcs7_bundle = None
 
             # delete temporary files
             for ele in (unsigned_filename, signed_filename):
                 if os.path.isfile(ele):
                     os.remove(ele)
-        self.logger.debug('CAhandler._pkcs7_sign_external() ended with error: {0}'.format(rcode))
+        self.logger.debug('CAhandler._pkcs7_sign_external() ended with error: %s', rcode)
         return (rcode, pkcs7_bundle)
 
     def enroll(self, csr):
@@ -438,7 +439,7 @@ class CAhandler(object):
             payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
             (error, b64_cert_bundle) = self._soaprequest_send(payload)
         else:
-            self.logger.error('CAhandler.enroll() aborted with error: {0}'.format(error))
+            self.logger.error('CAhandler.enroll() aborted with error: %s', error)
             b64_cert_bundle = None  # lgtm [py/unused-local-variable]
 
         if not error and b64_cert_bundle:
@@ -450,7 +451,7 @@ class CAhandler(object):
             cert_raw = self._certraw_get(certificate_list[0])
         else:
             if error:
-                self.logger.error('CAhandler.enroll() _soaprequest_send() aborted with error: {0}'.format(error))
+                self.logger.error('CAhandler.enroll() _soaprequest_send() aborted with error: %s', error)
             else:
                 self.logger.error('CAhandler.enroll() _soaprequest_send() did not return a bundle')
 
@@ -489,5 +490,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

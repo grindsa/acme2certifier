@@ -9,7 +9,7 @@ import os
 from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_get
 
 
@@ -85,34 +85,34 @@ class CAhandler(object):
         try:
             api_response = requests.post(url=url, json=data, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_post() returned error: %s', err_)
             api_response = str(err_)
 
         return api_response
 
     def _ca_get(self, filter_key: str = None, filter_value: str = None) -> Dict[str, str]:
         """ get list of CAs"""
-        self.logger.debug('_ca_get({0}:{1})'.format(filter_key, filter_value))
+        self.logger.debug('_ca_get(%s:%s)', filter_key, filter_value)
         params = {}
 
         if filter_key:
-            params['q'] = '{0}:{1}'.format(filter_key, filter_value)
+            params['q'] = f'{filter_key}:{filter_value}'
 
         if self.api_host:
             try:
                 api_response = requests.get(self.api_host + '/v1/cas', auth=self.auth, params=params, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
             except Exception as err_:
-                self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
+                self.logger.error('CAhandler._ca_get() returned error: %s', str(err_))
                 api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
         else:
             self.logger.error('CAhandler._ca_get(): api_host is misisng in configuration')
             api_response = {}
-        self.logger.debug('CAhandler._ca_get() ended with: {0}'.format(api_response))
+        self.logger.debug('CAhandler._ca_get() ended with: %s', api_response)
         return api_response
 
     def _ca_get_properties(self, filter_key: str, filter_value: str) -> Dict[str, str]:
         """ get properties for a single CAs"""
-        self.logger.debug('_ca_get_properties({0}:{1})'.format(filter_key, filter_value))
+        self.logger.debug('_ca_get_properties(%s:%s)', filter_key, filter_value)
         ca_list = self._ca_get(filter_key, filter_value)
         ca_dic = {}
         if 'status' in ca_list and 'message' in ca_list:
@@ -125,12 +125,12 @@ class CAhandler(object):
                     break
         if not ca_dic:
             ca_dic = {'status': 404, 'message': 'CA not found', 'statusMessage': 'Not Found'}
-        self.logger.debug('CAhandler._ca_get_properties() ended with: {0}'.format(ca_dic))
+        self.logger.debug('CAhandler._ca_get_properties() ended with: %s', ca_dic)
         return ca_dic
 
     def _cert_get(self, csr: str) -> Dict[str, str]:
         """ get certificate from CA """
-        self.logger.debug('CAhandler._cert_get({0})'.format(csr))
+        self.logger.debug('CAhandler._cert_get(%s)', csr)
         ca_dic = self._ca_get_properties('name', self.ca_name)
         cert_dic = {}
 
@@ -150,18 +150,18 @@ class CAhandler(object):
         if not cert_dic:
             cert_dic = ca_dic
 
-        self.logger.debug('CAhandler._cert_get() ended with: {0}'.format(cert_dic))
+        self.logger.debug('CAhandler._cert_get() ended with: %s', cert_dic)
         return cert_dic
 
     def _cert_get_properties(self, serial: str, ca_link: str) -> Dict[str, str]:
         """ get properties for a single cert """
-        self.logger.debug('_cert_get_properties({0}: {1})'.format(serial, ca_link))
+        self.logger.debug('_cert_get_properties(%s:%s)', serial, ca_link)
 
-        params = {'q': 'issuer-id:{0},serial-number:{1}'.format(ca_link, serial)}
+        params = {'q': f'issuer-id:{ca_link},serial-number:{serial}'}
         try:
             api_response = requests.get(self.api_host + '/v1/certificates', auth=self.auth, params=params, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._cert_get_properties() returned error: {0}'.format(str(err_)))
+            self.logger.error('CAhandler._cert_get_properties() returned error: %s', str(err_))
             api_response = {'status': 500, 'message': str(err_), 'statusMessage': 'Internal Server Error'}
         self.logger.debug('CAhandler._cert_get_properties() ended')
         return api_response
@@ -213,7 +213,7 @@ class CAhandler(object):
                 try:
                     self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
             if 'api_user' in config_dic['CAhandler']:
                 if self.api_user:
                     self.logger.info('CAhandler._config_load() overwrite api_user')
@@ -232,7 +232,7 @@ class CAhandler(object):
                 try:
                     self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_load() could not load passphrase_variable:%s', err)
             if 'api_password' in config_dic['CAhandler']:
                 if self.api_password:
                     self.logger.info('CAhandler._config_load() overwrite api_password_variable')
@@ -285,7 +285,7 @@ class CAhandler(object):
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug('_config_proxy_load() ended')
 
@@ -297,7 +297,7 @@ class CAhandler(object):
             try:
                 self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
             except Exception as err_:
-                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: {0}'.format(err_))
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
 
         self.logger.debug('_config_header_info() ended')
 
@@ -362,7 +362,7 @@ class CAhandler(object):
 
     def _loop_poll(self, request_url: str) -> Tuple[str, str, str, str]:
         """ poll request """
-        self.logger.debug('CAhandler._loop_poll({0})'.format(request_url))
+        self.logger.debug('CAhandler._loop_poll(%s)', request_url)
 
         error = None
         cert_bundle = None
@@ -387,16 +387,16 @@ class CAhandler(object):
             self.logger.error('CAhandler._loop_poll(): no request url specified')
             poll_identifier = request_url
 
-        self.logger.debug('CAhandler._loop_poll() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler._loop_poll() ended with error: %s', error)
         return (error, cert_bundle, cert_raw, poll_identifier)
 
     def _pem_list_cert_get(self, cert_dic: Dict[str, str]) -> Dict[str, str]:
         self.logger.debug('CAhandler._pem_list_cert_get()')
         if 'issuer' in cert_dic:
-            self.logger.debug('issuer found: {0}'.format(cert_dic['issuer']))
+            self.logger.debug('issuer found: %s', cert_dic['issuer'])
             ca_cert_dic = requests.get(cert_dic['issuer'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         else:
-            self.logger.debug('issuer found: {0}'.format(cert_dic['issuerCa']))
+            self.logger.debug('issuer found: %s', cert_dic['issuerCa'])
             ca_cert_dic = requests.get(cert_dic['issuerCa'], auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
 
         cert_dic = {}
@@ -440,7 +440,7 @@ class CAhandler(object):
         if pem_list:
             pem_file = ''
             for cert in pem_list:
-                pem_file = '{0}-----BEGIN CERTIFICATE-----\n{1}\n-----END CERTIFICATE-----\n'.format(pem_file, textwrap.fill(cert, 64))
+                pem_file = f'{pem_file}-----BEGIN CERTIFICATE-----\n{textwrap.fill(cert, 64)}\n-----END CERTIFICATE-----\n'
         else:
             pem_file = None
 
@@ -449,7 +449,7 @@ class CAhandler(object):
 
     def _profile_id_get(self, csr: str) -> str:
         """ get profile id from csr """
-        self.logger.debug('CAhandler._profile_id_get({0})'.format(csr))
+        self.logger.debug('CAhandler._profile_id_get(%s)', csr)
         profile_id = None
 
         # parse profileid from http_header
@@ -463,14 +463,14 @@ class CAhandler(object):
                             profile_id = ele.split('=')[1]
                             break
             except Exception as err:
-                self.logger.error('CAhandler._profile_id_get() could not parse profile_id: {0}'.format(err))
+                self.logger.error('CAhandler._profile_id_get() could not parse profile_id: %s', err)
 
-        self.logger.debug('CAhandler._profile_id_get() ended with: {0}'.format(profile_id))
+        self.logger.debug('CAhandler._profile_id_get() ended with: %s', profile_id)
         return profile_id
 
     def _request_poll(self, request_url: str) -> Tuple[str, str, str, str, bool]:
         """ poll request """
-        self.logger.debug('CAhandler._request_poll({0})'.format(request_url))
+        self.logger.debug('CAhandler._request_poll(%s)', request_url)
 
         error = None
         cert_bundle = None
@@ -481,7 +481,7 @@ class CAhandler(object):
         try:
             request_dic = requests.get(request_url, auth=self.auth, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err:
-            self.logger.error('CAhandler._request.poll() returned: {0}'.format(err))
+            self.logger.error('CAhandler._request.poll() returned: %s', err)
             request_dic = {}
 
         # check response
@@ -492,11 +492,11 @@ class CAhandler(object):
                 error = 'Request rejected by operator'
                 rejected = True
             else:
-                error = 'Unknown request status: {0}'.format(request_dic['status'])
+                error = f'Unknown request status: {request_dic["status"]}'
         else:
             error = '"status" field not found in response.'
 
-        self.logger.debug('CAhandler._request_poll() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler._request_poll() ended with error: %s', error)
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def _trigger_bundle_build(self, cert_raw: str, ca_dic: Dict[str, str]) -> Tuple[str, str]:
@@ -518,7 +518,7 @@ class CAhandler(object):
         else:
             error = 'serial number lookup via rest failed'
 
-        self.logger.debug('CAhandler._trigger_bundle_build() ended with:  {0}'.format(error))
+        self.logger.debug('CAhandler._trigger_bundle_build() ended with:  %s', error)
         return (error, cert_bundle)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
@@ -564,13 +564,13 @@ class CAhandler(object):
         if poll_identifier:
             (error, cert_bundle, cert_raw, poll_identifier, rejected) = self._request_poll(poll_identifier)
         else:
-            self.logger.debug('skipping cert: {0} as there is no poll_identifier'.format(cert_name))
+            self.logger.debug('skipping cert: %s as there is no poll_identifier', cert_name)
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = uts_to_date_utc(uts_now())) -> Tuple[int, str, str]:
         """ revoke certificate """
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        self.logger.debug('CAhandler.revoke(%s: %s)', rev_reason, rev_date)
 
         # get error message
         err_dic = error_dic_get(self.logger)
@@ -620,5 +620,5 @@ class CAhandler(object):
         else:
             error = 'No payload given'
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)
