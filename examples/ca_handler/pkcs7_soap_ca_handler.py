@@ -389,8 +389,8 @@ class CAhandler(object):
         else:
             # define temporary filenames
             _fname = generate_random_string(self.logger, 12)
-            unsigned_filename = f'{self.signing_script_dic['signing_csr_path']}/{_fname}.der'
-            signed_filename = f'{self.signing_script_dic['signing_csr_path']}/{_fname}_signed.der'
+            unsigned_filename = f'{self.signing_script_dic["signing_csr_path"]}/{_fname}.der'
+            signed_filename = f'{self.signing_script_dic["signing_csr_path"]}/{_fname}_signed.der'
 
             # build signing command
             signing_cmd = self._signing_command_build(unsigned_filename, signed_filename)

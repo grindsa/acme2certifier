@@ -100,7 +100,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._ca_policylink_id_lookup()')
 
         # query CAs
-        ca_list = requests.get(self.api_host + f'/policy/ca?entityRef=CONTAINER&entityId={self.tsg_info_dic['id']}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+        ca_list = requests.get(self.api_host + f'/policy/ca?entityRef=CONTAINER&entityId={self.tsg_info_dic["id"]}&allowedOnly=true&withTemplateById=0&enrollWithImportedCSR=true&csrHasPrivateKey=false&csrTemplateVersion=0', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         ca_id = None
         if 'ca' in ca_list:
             ca_id = self._ca_id_get(ca_list)
@@ -125,7 +125,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler._cert_bundle_build(): no der certificate returned for id: %s', cert_id)
 
         if 'pem' in cert_dic['certificate']:
-            cert_bundle = f'{cert_bundle}{cert_dic['certificate']['pem']}'
+            cert_bundle = f'{cert_bundle}{cert_dic["certificate"]["pem"]}'
         else:
             error = f'no pem certificate returned for id {cert_id}'
             self.logger.error('CAhandler._cert_bundle_build(): no pem certificate returned for id: %s', cert_id)
@@ -680,10 +680,10 @@ class CAhandler(object):
                     # enroll operation
                     (error, cert_bundle, cert_raw) = self._cert_enroll(csr, csr_cn, csr_san_list, policylink_id)
                 else:
-                    error = f'enrollment aborted. policylink_id: {policylink_id}, tsg_id: {self.tsg_info_dic['id']}'
+                    error = f'enrollment aborted. policylink_id: {policylink_id}, tsg_id: {self.tsg_info_dic["id"]}'
                     self.logger.error('CAhandler.eroll(): enrollment aborted. policylink_id: %s, tsg_id: %s', policylink_id, self.tsg_info_dic['id'])
             else:
-                error = f'CAhandler.eroll(): ID lookup for targetSystemGroup "{self.tsg_info_dic['name']}" failed.'
+                error = f'CAhandler.eroll(): ID lookup for targetSystemGroup "{self.tsg_info_dic["name"]}" failed.'
         else:
             self.logger.error(self.error)
 

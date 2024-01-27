@@ -48,7 +48,7 @@ class CAhandler(object):
         if 'data' in response and 'certificate' in response['data'] and 'chain' in response['data']:
             # create base65 encoded der file
             cert_raw = b64_encode(self.logger, cert_pem2der(response['data']['certificate']))
-            cert_bundle = f'{response['data']['certificate']}\n{response['data']['chain']}'
+            cert_bundle = f'{response["data"]["certificate"]}\n{response["data"]["chain"]}'
         else:
             error = 'Malformed response'
             self.logger.error('CAhandler._cert_bundle_create() returned malformed response: %s', response)
