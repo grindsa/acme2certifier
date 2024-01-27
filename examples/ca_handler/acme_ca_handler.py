@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """ generic ca handler for CAs supporting acme protocol """
 from __future__ import print_function
-# pylint: disable=C0209, E0401, W0105, R0914, W0212
+# pylint: disable= e0401, w0105, w0212
 import json
 import textwrap
 import base64
@@ -94,7 +94,7 @@ class CAhandler(object):
             try:
                 self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
             except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
+                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
 
         if 'eab_kid' in config_dic['CAhandler']:
             self.eab_kid = config_dic['CAhandler']['eab_kid']
@@ -120,20 +120,20 @@ class CAhandler(object):
 
     def _challenge_filter(self, authzr: messages.AuthorizationResource, chall_type: str = 'http-01') -> messages.ChallengeBody:
         """ filter authorization for challenge """
-        self.logger.debug('CAhandler._challenge_filter({0})'.format(chall_type))
+        self.logger.debug('CAhandler._challenge_filter(%s)', chall_type)
         result = None
         for challenge in authzr.body.challenges:
             if challenge.chall.to_partial_json()['type'] == chall_type:
                 result = challenge
                 break
         if not result:
-            self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type {0}'.format(chall_type))
+            self.logger.error('CAhandler._challenge_filter() ended. Could not find challenge of type %s', chall_type)
 
         return result
 
     def _challenge_store(self, challenge_name: str, challenge_content: str):
         """ store challenge into database """
-        self.logger.debug('CAhandler._challenge_store({0})'.format(challenge_name))
+        self.logger.debug('CAhandler._challenge_store(%s)', challenge_name)
 
         if challenge_name and challenge_content:
             data_dic = {'name': challenge_name, 'value1': challenge_content}
@@ -158,7 +158,7 @@ class CAhandler(object):
                 except Exception:
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
-                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: %s', san)
 
         # get common name and attach it to san_list
         cn_ = csr_cn_get(self.logger, csr)
@@ -195,12 +195,12 @@ class CAhandler(object):
         else:
             result = True
 
-        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
+        self.logger.debug('CAhandler._csr_check() ended with: %s', result)
         return result
 
     def _entry_check(self, entry: str, regex: str, check_result: bool) -> bool:
         """ check string against regex """
-        self.logger.debug('_entry_check({0}/{1}):'.format(entry, regex))
+        self.logger.debug('_entry_check(%s/%s):', entry, regex)
 
         if regex.startswith('*.'):
             regex = regex.replace('*.', '.')
@@ -210,13 +210,13 @@ class CAhandler(object):
             # parameter is in set flag accordingly and stop loop
             check_result = True
 
-        self.logger.debug('_entry_check() ended with: {0}'.format(check_result))
+        self.logger.debug('_entry_check() ended with: %s', format(check_result))
         return check_result
 
     def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
         """ check string against list """
-        self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
-        self.logger.debug('check against list: {0}'.format(list_))
+        self.logger.debug('CAhandler._list_check(%s:%s)', entry, toggle)
+        self.logger.debug('check against list: %s', list_)
 
         # default setting
         check_result = False
@@ -234,7 +234,7 @@ class CAhandler(object):
             # toggle result if this is a blacklist
             check_result = not check_result
 
-        self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
+        self.logger.debug('CAhandler._list_check() ended with: %s', check_result)
         return check_result
 
     def _challenge_info(self, authzr: messages.AuthorizationResource, user_key: josepy.jwk.JWKRSA):
@@ -251,7 +251,7 @@ class CAhandler(object):
                 try:
                     (chall_name, _token) = chall_content.split('.', 2)
                 except Exception:
-                    self.logger.error('CAhandler._challenge_info() challenge split failed: {0}'.format(chall_content))
+                    self.logger.error('CAhandler._challenge_info() challenge split failed: %s', chall_content)
 
             else:
                 challenge = self._challenge_filter(authzr, chall_type='sectigo-email-01')
@@ -264,12 +264,12 @@ class CAhandler(object):
                 self.logger.error('CAhandler._challenge_info() authzr is missing')
             challenge = None
 
-        self.logger.debug('CAhandler._challenge_info() ended with {0}'.format(chall_name))
+        self.logger.debug('CAhandler._challenge_info() ended with %s', chall_name)
         return (chall_name, chall_content, challenge)
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """ generate key """
-        self.logger.debug('CAhandler._key_generate({0})'.format(self.key_size))
+        self.logger.debug('CAhandler._key_generate(%s)', self.key_size)
         user_key = josepy.JWKRSA(
             key=rsa.generate_private_key(
                 public_exponent=65537,
@@ -282,7 +282,7 @@ class CAhandler(object):
 
     def _user_key_load(self) -> josepy.jwk.JWKRSA:
         """ enroll certificate  """
-        self.logger.debug('CAhandler._user_key_load({0})'.format(self.keyfile))
+        self.logger.debug('CAhandler._user_key_load(%s)', self.keyfile)
 
         if os.path.exists(self.keyfile):
             self.logger.debug('CAhandler.enroll() opening user_key')
@@ -296,9 +296,9 @@ class CAhandler(object):
                 with open(self.keyfile, "w", encoding='utf8') as keyf:
                     keyf.write(json.dumps(user_key.to_json()))
             except Exception as err:
-                self.logger.error('Error during key dumping: {0}'.format(err))
+                self.logger.error('Error during key dumping: %s', err)
 
-        self.logger.debug('CAhandler._user_key_load() ended with: {0}'.format(bool(user_key)))
+        self.logger.debug('CAhandler._user_key_load() ended with: %s', bool(user_key))
         return user_key
 
     def _order_authorization(self, acmeclient: client.ClientV2, order: messages.OrderResource, user_key: josepy.jwk.JWKRSA) -> bool:
@@ -322,7 +322,7 @@ class CAhandler(object):
                         self.logger.debug('CAhandler._order_authorization(): sectigo-email-01 challenge detected')
                         authz_valid = True
 
-        self.logger.debug('CAhandler._order_authorization() ended with: {0}'.format(authz_valid))
+        self.logger.debug('CAhandler._order_authorization() ended with: %s', authz_valid)
         return authz_valid
 
     def _order_issue(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str) -> Tuple[str, str, str]:
@@ -347,8 +347,8 @@ class CAhandler(object):
                 cert_bundle = str(order.fullchain_pem)
                 cert_raw = str(base64.b64encode(crypto.dump_certificate(crypto.FILETYPE_ASN1, crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle))), 'utf-8')
             else:
-                self.logger.error('CAhandler.enroll: Error getting certificate: {0}'.format(order.error))
-                error = 'Error getting certificate: {0}'.format(order.error)
+                self.logger.error('CAhandler.enroll: Error getting certificate: %s', order.error)
+                error = f'Error getting certificate: {order.error}'
 
         self.logger.debug('CAhandler.enroll() ended')
         return (error, cert_bundle, cert_raw)
@@ -361,7 +361,7 @@ class CAhandler(object):
         regr = acmeclient._regr_from_response(response)
         regr = acmeclient.query_registration(regr)
         if regr:
-            self.logger.info('CAhandler._account_lookup: found existing account: {0}'.format(regr.uri))
+            self.logger.info('CAhandler._account_lookup: found existing account: %s', regr.uri)
             self.account = regr.uri
             if self.url:
                 # remove url from string
@@ -372,11 +372,11 @@ class CAhandler(object):
 
     def _account_create(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, directory: messages.Directory) -> messages.RegistrationResource:
         """ register account """
-        self.logger.debug('CAhandler._account_create(): register new account with email: {0}'.format(self.email))
+        self.logger.debug('CAhandler._account_create(): register new account with email: %s', self.email)
 
         regr = None
         if self.email:
-            self.logger.debug('CAhandler.__account_register(): register new account with email: {0}'.format(self.email))
+            self.logger.debug('CAhandler.__account_register(): register new account with email: %s', self.email)
             if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
@@ -388,24 +388,24 @@ class CAhandler(object):
                 # register with email
                 reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
             regr = acmeclient.new_account(reg)
-            self.logger.debug('CAhandler.__account_register(): new account reqistered: {0}'.format(regr.uri))
+            self.logger.debug('CAhandler.__account_register(): new account reqistered: %s', regr.uri)
         else:
             self.logger.error('CAhandler.__account_register(): registration aborted. Email address is missing')
             regr = None
 
-        self.logger.debug('CAhandler._account_create() ended with: {0}'.format(bool(regr)))
+        self.logger.debug('CAhandler._account_create() ended with: %s', bool(regr))
         return regr
 
     def _account_register(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, directory: messages.Directory) -> messages.RegistrationResource:
         """ register account / check registration """
-        self.logger.debug('CAhandler._account_register({0})'.format(self.email))
+        self.logger.debug('CAhandler._account_register(%s)', self.email)
         try:
             # we assume that the account exist and need to query the account id
             reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
             response = acmeclient._post(directory['newAccount'], reg)
             regr = acmeclient._regr_from_response(response)
             regr = acmeclient.query_registration(regr)
-            self.logger.debug('CAhandler.__account_register(): found existing account: {0}'.format(regr.uri))
+            self.logger.debug('CAhandler.__account_register(): found existing account: %s', regr.uri)
         except Exception:
             regr = self._account_create(acmeclient, user_key, directory)
 
@@ -413,7 +413,7 @@ class CAhandler(object):
             if self.url and 'acct_path' in self.path_dic:
                 self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
-                self.logger.info('acme-account id is {0}. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups'.format(self.account))
+                self.logger.info('acme-account id is %s. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', self.account)
 
         return regr
 
@@ -430,14 +430,14 @@ class CAhandler(object):
             self.eab_hmac_key = response.json()['eab_hmac_key']
             self.logger.debug('CAhandler._zerossl_eab_get() ended successfully')
         else:
-            self.logger.error('CAhandler._zerossl_eab_get() failed: {0}'.format(response.text))
+            self.logger.error('CAhandler._zerossl_eab_get() failed: %s', response.text)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0915
         self.logger.debug('CAhandler.enroll()')
 
-        csr_pem = '-----BEGIN CERTIFICATE REQUEST-----\n{0}\n-----END CERTIFICATE REQUEST-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, csr)), 64))
+        csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'
 
         cert_bundle = None
         error = None
@@ -453,12 +453,12 @@ class CAhandler(object):
                 user_key = self._user_key_load()
                 net = client.ClientNetwork(user_key)
 
-                directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
+                directory = messages.Directory.from_json(net.get(f'{self.url}{self.path_dic["directory_path"]}').json())
                 acmeclient = client.ClientV2(directory, net=net)
                 reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
                 if self.account:
-                    regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                    regr = messages.RegistrationResource(uri=f"{self.url}{self.path_dic['acct_path']}{self.account}", body=reg)
                     self.logger.debug('CAhandler.enroll(): checking remote registration status')
                     regr = acmeclient.query_registration(regr)
                 else:
@@ -469,13 +469,13 @@ class CAhandler(object):
                     (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
                 elif not regr.body.status and regr.uri:
                     # this is an exisitng but not configured account. Throw error but continue enrolling
-                    self.logger.info('Existing but not configured ACME account: {0}'.format(regr.uri))
+                    self.logger.info('Existing but not configured ACME account: %s', regr.uri)
                     (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
                 else:
-                    self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
-                    error = 'Bad ACME account: {0}'.format(regr.body.error)
+                    self.logger.error('CAhandler.enroll: Bad ACME account: %s', regr.body.error)
+                    error = f'Bad ACME account: {regr.body.error}'
             except Exception as err:
-                self.logger.error('CAhandler.enroll: error: {0}'.format(err))
+                self.logger.error('CAhandler.enroll: error: %s', err)
                 error = str(err)
             finally:
                 del user_key
@@ -509,7 +509,7 @@ class CAhandler(object):
         detail = None
 
         try:
-            certpem = '-----BEGIN CERTIFICATE-----\n{0}\n-----END CERTIFICATE-----\n'.format(textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64))
+            certpem = f'-----BEGIN CERTIFICATE-----\n{textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64)}\n-----END CERTIFICATE-----\n'
             cert = josepy.ComparableX509(crypto.load_certificate(crypto.FILETYPE_PEM, certpem))
 
             if os.path.exists(self.keyfile):
@@ -517,7 +517,7 @@ class CAhandler(object):
             net = client.ClientNetwork(user_key)
 
             if user_key:
-                directory = messages.Directory.from_json(net.get('{0}{1}'.format(self.url, self.path_dic['directory_path'])).json())
+                directory = messages.Directory.from_json(net.get(f"{self.url}{self.path_dic['directory_path']}").json())
                 acmeclient = client.ClientV2(directory, net=net)
                 reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
 
@@ -525,7 +525,7 @@ class CAhandler(object):
                     self._account_lookup(acmeclient, reg, directory)
 
                 if self.account:
-                    regr = messages.RegistrationResource(uri="{0}{1}{2}".format(self.url, self.path_dic['acct_path'], self.account), body=reg)
+                    regr = messages.RegistrationResource(uri=f"{self.url}{self.path_dic['acct_path']}{self.account}", body=reg)
                     self.logger.debug('CAhandler.revoke() checking remote registration status')
                     regr = acmeclient.query_registration(regr)
 
@@ -536,18 +536,18 @@ class CAhandler(object):
                         code = 200
                         message = None
                     else:
-                        self.logger.error('CAhandler.enroll: Bad ACME account: {0}'.format(regr.body.error))
-                        detail = 'Bad ACME account: {0}'.format(regr.body.error)
+                        self.logger.error('CAhandler.enroll: Bad ACME account: %s', regr.body.error)
+                        detail = f'Bad ACME account: {regr.body.error}'
 
                 else:
                     self.logger.error('CAhandler.revoke(): could not find account key and lookup at acme-endpoint failed.')
                     detail = 'account lookup failed'
             else:
-                self.logger.error('CAhandler.revoke(): could not load user_key {0}'.format(self.keyfile))
+                self.logger.error('CAhandler.revoke(): could not load user_key %s', self.keyfile)
                 detail = 'Internal Error'
 
         except Exception as err:
-            self.logger.error('CAhandler.enroll: error: {0}'.format(err))
+            self.logger.error('CAhandler.enroll: error: %s', err)
             detail = str(err)
 
         finally:
@@ -564,5 +564,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

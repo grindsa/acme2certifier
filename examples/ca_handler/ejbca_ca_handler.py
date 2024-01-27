@@ -4,7 +4,7 @@ import os
 from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url
 
 
@@ -36,16 +36,16 @@ class CAhandler(object):
 
     def _cert_status_check(self, issuer_dn: str, cert_serial: str) -> Dict[str, str]:
         """ check certificate status """
-        self.logger.debug('CAhandler._cert_status_check({0}: {1})'.format(issuer_dn, cert_serial))
+        self.logger.debug('CAhandler._cert_status_check(%s: %s)', issuer_dn, cert_serial)
 
         # define path
-        path = "/ejbca/ejbca-rest-api/v1/certificate/{0}/{1}/revocationstatus".format(encode_url(self.logger, issuer_dn), cert_serial)
+        path = f"/ejbca/ejbca-rest-api/v1/certificate/{encode_url(self.logger, issuer_dn)}/{cert_serial}/revocationstatus"
 
         if self.api_host:
             try:
                 certstatus_response = self.session.get(self.api_host + path, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
             except Exception as err_:
-                self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
+                self.logger.error('CAhandler._ca_get() returned error: %s', str(err_))
                 certstatus_response = {'status': 'nok', 'error': str(err_)}
         else:
             self.logger.error('CAhandler._status_get(): api_host option is misisng in configuration')
@@ -75,7 +75,7 @@ class CAhandler(object):
                 try:
                     self.username = os.environ[config_dic['CAhandler']['username_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_authuser_load() could not load username_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_authuser_load() could not load username_variable:%s', err)
 
             if 'username' in config_dic['CAhandler']:
                 if self.username:
@@ -93,7 +93,7 @@ class CAhandler(object):
                 try:
                     self.enrollment_code = os.environ[config_dic['CAhandler']['enrollment_code_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_authuser_load() could not load enrollment_code_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_authuser_load() could not load enrollment_code_variable:%s', err)
 
             if 'enrollment_code' in config_dic['CAhandler']:
                 if self.enrollment_code:
@@ -112,7 +112,7 @@ class CAhandler(object):
                 try:
                     self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s', err)
 
             if 'cert_passphrase' in config_dic['CAhandler']:
                 if self.cert_passphrase:
@@ -169,29 +169,29 @@ class CAhandler(object):
         variable_dic = self.__dict__
         for ele in ['api_host', 'cert_profile_name', 'ee_profile_name', 'ca_name', 'username', 'enrollment_code']:
             if not variable_dic[ele]:
-                self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
+                self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "%s" is missing in configuration file.', ele)
         self.logger.debug('CAhandler._config_load() ended')
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
         """ generic wrapper for an API post call """
-        self.logger.debug('_api_post({0})'.format(url))
+        self.logger.debug('_api_post(%s)', url)
 
         try:
             api_response = self.session.post(url, json=data, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_post() returned error: %s', err_)
             api_response = str(err_)
 
         return api_response
 
     def _api_put(self, url: str) -> Dict[str, str]:
         """ generic wrapper for an API put call """
-        self.logger.debug('_api_put({0})'.format(url))
+        self.logger.debug('_api_put(%s)', url)
 
         try:
             api_response = self.session.put(url, proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
         except Exception as err_:
-            self.logger.error('CAhandler._api_put() returned error: {0}'.format(err_))
+            self.logger.error('CAhandler._api_put() returned error: %s', err_)
             api_response = str(err_)
 
         return api_response
@@ -204,7 +204,7 @@ class CAhandler(object):
             try:
                 api_response = self.session.get(self.api_host + '/ejbca/ejbca-rest-api/v1/certificate/status', proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
             except Exception as err_:
-                self.logger.error('CAhandler._ca_get() returned error: {0}'.format(str(err_)))
+                self.logger.error('CAhandler._ca_get() returned error: %s', str(err_))
                 api_response = {'status': 'nok', 'error': str(err_)}
         else:
             self.logger.error('CAhandler._status_get(): api_host parameter is misisng in configuration')
@@ -255,10 +255,10 @@ class CAhandler(object):
                 cert_raw = sign_response['certificate']
                 cert_bundle = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
                 for ca_cert in sign_response['certificate_chain']:
-                    cert_bundle = '{0}{1}'.format(cert_bundle, convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert))))
+                    cert_bundle = f'{cert_bundle}{convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert)))}'
             else:
                 error = 'Malformed response'
-                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+                self.logger.error('CAhandler.enroll(): Malformed Rest response: %s', sign_response)
 
         else:
             if 'error' in status_dic:
@@ -284,7 +284,7 @@ class CAhandler(object):
 
     def revoke(self, cert: str, rev_reason: str = 'UNSPECIFIED', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        self.logger.debug('CAhandler.revoke(%s: %s)', rev_reason, rev_date)
         code = None
         message = None
         detail = None
@@ -299,7 +299,7 @@ class CAhandler(object):
         if 'revoked' in certstatus_dic:
             if not certstatus_dic['revoked']:
                 # this is the revocation path
-                path = "/ejbca/ejbca-rest-api/v1/certificate/{0}/{1}/revoke?reason={2}".format(encode_url(self.logger, issuer_dn), cert_serial, rev_reason.upper())
+                path = f"/ejbca/ejbca-rest-api/v1/certificate/{encode_url(self.logger, issuer_dn)}/{cert_serial}/revoke?reason={rev_reason.upper()}"
                 revoke_response = self._api_put(self.api_host + path)
 
                 if 'revoked' in revoke_response and revoke_response['revoked']:
@@ -329,5 +329,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

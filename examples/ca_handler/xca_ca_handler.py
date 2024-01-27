@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_get
 
 
@@ -79,18 +79,18 @@ class CAhandler(object):
             stream_list.pop(0)
 
             for ele in stream_list:
-                oid = '2.5.{0}.{1}'.format(ele[0], ele[1])
+                oid = f'2.5.{ele[0]}.{ele[1]}'
                 if oid in oid_dic:
                     value_len = ele[3]
                     value = ele[4:4 + value_len]
                     dn_dic[oid_dic[oid]] = value.decode('utf-8')
 
-            self.logger.debug('CAhandler._asn1_stream_parse() ended: {0}'.format(bool(dn_dic)))
+            self.logger.debug('CAhandler._asn1_stream_parse() ended: %s', bool(dn_dic))
         return dn_dic
 
     def _ca_cert_load(self) -> Tuple[object, int]:
         """ load ca key from database """
-        self.logger.debug('CAhandler._ca_cert_load({0})'.format(self.issuing_ca_name))
+        self.logger.debug('CAhandler._ca_cert_load({%s)', self.issuing_ca_name)
 
         # query database for key
         self._db_open()
@@ -99,7 +99,7 @@ class CAhandler(object):
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except Exception:
-            self.logger.error('cert lookup failed: {0}'.format(self.cursor.fetchone()))
+            self.logger.error('cert lookup failed: %s', self.cursor.fetchone())
             db_result = {}
         self._db_close()
 
@@ -111,12 +111,12 @@ class CAhandler(object):
                 ca_cert = x509.load_der_x509_certificate(b64_decode(self.logger, db_result['cert']), backend=default_backend())
                 ca_id = db_result['id']
             except Exception as err_:
-                self.logger.error('CAhandler._ca_cert_load() failed with error: {0}'.format(err_))
+                self.logger.error('CAhandler._ca_cert_load() failed with error: %s', err_)
         return (ca_cert, ca_id)
 
     def _ca_key_load(self) -> object:
         """ load ca key from database """
-        self.logger.debug('CAhandler._ca_key_load({0})'.format(self.issuing_ca_key))
+        self.logger.debug('CAhandler._ca_key_load(%s)', self.issuing_ca_key)
 
         # query database for key
         self._db_open()
@@ -125,19 +125,19 @@ class CAhandler(object):
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except Exception as _err:
-            self.logger.error('key lookup failed: {0}'.format(self.cursor.fetchone()))
+            self.logger.error('key lookup failed: %s', self.cursor.fetchone())
             db_result = {}
         self._db_close()
 
         ca_key = None
         if db_result and 'private' in db_result:
             try:
-                private_key = '-----BEGIN ENCRYPTED PRIVATE KEY-----\n{0}\n-----END ENCRYPTED PRIVATE KEY-----'.format(db_result['private'])
+                private_key = f'-----BEGIN ENCRYPTED PRIVATE KEY-----\n{db_result['private']}\n-----END ENCRYPTED PRIVATE KEY-----'
                 ca_key = serialization.load_pem_private_key(convert_string_to_byte(private_key), password=convert_string_to_byte(self.passphrase), backend=default_backend())
             except Exception as err_:
-                self.logger.error('CAhandler._ca_key_load() failed with error: {0}'.format(err_))
+                self.logger.error('CAhandler._ca_key_load() failed with error: %s', err_)
         else:
-            self.logger.error('CAhandler._ca_key_load() failed to load key: {0}'.format(db_result))
+            self.logger.error('CAhandler._ca_key_load() failed to load key: %s', db_result)
 
         self.logger.debug('CAhandler._ca_key_load() ended')
         return ca_key
@@ -177,29 +177,29 @@ class CAhandler(object):
                     row_id = self.cursor.lastrowid
                     self._db_close()
                 else:
-                    self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: {}'.format(cert_dic))
+                    self.logger.error('CAhandler._cert_insert() aborted. wrong datatypes: %s', cert_dic)
             else:
-                self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: {}'.format(cert_dic))
+                self.logger.error('CAhandler._cert_insert() aborted. dataset incomplete: %s', cert_dic)
         else:
             self.logger.error('CAhandler._cert_insert() aborted. dataset empty')
 
-        self.logger.debug('CAhandler._cert_insert() ended with row_id: {0}'.format(row_id))
+        self.logger.debug('CAhandler._cert_insert() ended with row_id: %s', row_id)
         return row_id
 
     def _cert_search(self, column: str, value: str) -> Dict[str, str]:
         """ load ca key from database """
-        self.logger.debug('CAhandler._cert_search({0}:{1})'.format(column, value))
+        self.logger.debug('CAhandler._cert_search({%s:%s)', column, value)
 
         # query database for key
         self._db_open()
-        pre_statement = '''SELECT * from items WHERE type == 3 and {0} LIKE ?'''.format(column)
+        pre_statement = f'''SELECT * from items WHERE type == 3 and {column} LIKE ?'''
         self.cursor.execute(pre_statement, [value])
 
         cert_result = {}
         try:
             item_result = dict_from_row(self.cursor.fetchone())
         except Exception:
-            self.logger.error('CAhandler._cert_search(): item search failed: {0}'.format(self.cursor.fetchone()))
+            self.logger.error('CAhandler._cert_search(): item search failed: %s', self.cursor.fetchone())
             item_result = {}
 
         if item_result:
@@ -209,7 +209,7 @@ class CAhandler(object):
             try:
                 cert_result = dict_from_row(self.cursor.fetchone())
             except Exception:
-                self.logger.error('CAhandler._cert_search(): cert search failed: item: {0}'.format(item_id))
+                self.logger.error('CAhandler._cert_search(): cert search failed: item: %s', item_id)
 
         self._db_close()
         self.logger.debug('CAhandler._cert_search() ended')
@@ -220,7 +220,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_subject_generate()')
 
         if not bool(req.subject):
-            self.logger.info('rewrite CN to {0}'.format(request_name))
+            self.logger.info('rewrite CN to %s', request_name)
             subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)])
         else:
             subject = req.subject
@@ -247,7 +247,7 @@ class CAhandler(object):
 
         # set cert_validity
         if 'validity' in template_dic:
-            self.logger.info('take validity from template: {0}'.format(template_dic['validity']))
+            self.logger.info('take validity from template: %s', template_dic['validity'])
             # take validity from template
             cert_validity = template_dic['validity']
         else:
@@ -284,7 +284,7 @@ class CAhandler(object):
         cert_subject_hash = self._subject_name_hash_get(cert)
 
         # store certificate
-        self._store_cert(ca_id, request_name, '{:X}'.format(serial), convert_byte_to_string(b64_encode(self.logger, cert.public_bytes(serialization.Encoding.DER))), cert_subject_hash, issuer_subject_hash)
+        self._store_cert(ca_id, request_name, f'{serial:X}', convert_byte_to_string(b64_encode(self.logger, cert.public_bytes(serialization.Encoding.DER))), cert_subject_hash, issuer_subject_hash)
 
         cert_bundle = self._pemcertchain_generate(convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM)), convert_byte_to_string(ca_cert.public_bytes(serialization.Encoding.PEM)))
         cert_raw = convert_byte_to_string(b64_encode(self.logger, cert.public_bytes(serialization.Encoding.DER)))
@@ -299,7 +299,7 @@ class CAhandler(object):
 
         if self.xdb_file:
             if not os.path.exists(self.xdb_file):
-                error = 'xdb_file {0} does not exist'.format(self.xdb_file)
+                error = f'xdb_file {self.xdb_file} does not exist'
                 self.xdb_file = None
         else:
             error = 'xdb_file must be specified in config file'
@@ -308,10 +308,10 @@ class CAhandler(object):
             error = 'issuing_ca_name must be set in config file'
 
         if error:
-            self.logger.debug('CAhandler config error: {0}'.format(error))
+            self.logger.debug('CAhandler config error: %s', error)
 
         if not self.issuing_ca_key:
-            self.logger.debug('use self.issuing_ca_name as self.issuing_ca_key: {0}'.format(self.issuing_ca_name))
+            self.logger.debug('use self.issuing_ca_name as self.issuing_ca_key: %s', self.issuing_ca_name)
             self.issuing_ca_key = self.issuing_ca_name
 
         self.logger.debug('CAhandler._config_check() ended')
@@ -329,7 +329,7 @@ class CAhandler(object):
             try:
                 self.passphrase = os.environ[config_dic['CAhandler']['passphrase_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load passphrase_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load passphrase_variable:%s', err)
 
         if 'passphrase' in config_dic['CAhandler']:
             # overwrite passphrase specified in variable
@@ -385,13 +385,13 @@ class CAhandler(object):
                     row_id = self.cursor.lastrowid
                     self._db_close()
                 else:
-                    self.logger.error('CAhandler._csr_insert() aborted. wrong datatypes: {}'.format(csr_dic))
+                    self.logger.error('CAhandler._csr_insert() aborted. wrong datatypes: %s', csr_dic)
             else:
-                self.logger.error('CAhandler._csr_insert() aborted. dataset incomplete: {}'.format(csr_dic))
+                self.logger.error('CAhandler._csr_insert() aborted. dataset incomplete: %s', csr_dic)
         else:
             self.logger.error('CAhandler._csr_insert() aborted. dataset empty')
 
-        self.logger.debug('CAhandler._csr_insert() ended with row_id: {0}'.format(row_id))
+        self.logger.debug('CAhandler._csr_insert() ended with row_id: %s', row_id)
         return row_id
 
     def _csr_search(self, column: str, value: str) -> Dict[str, str]:
@@ -400,7 +400,7 @@ class CAhandler(object):
 
         # query database for key
         self._db_open()
-        pre_statement = '''SELECT * from view_requests WHERE {0} LIKE ?'''.format(column)
+        pre_statement = f'''SELECT * from view_requests WHERE {column} LIKE ?'''
         self.cursor.execute(pre_statement, [value])
 
         try:
@@ -408,7 +408,7 @@ class CAhandler(object):
         except Exception:
             db_result = {}
         self._db_close()
-        self.logger.debug('CAhandler._csr_search() ended with: {0}'.format(bool(db_result)))
+        self.logger.debug('CAhandler._csr_search() ended with: %s', bool(db_result))
         return db_result
 
     def _db_open(self):
@@ -456,15 +456,6 @@ class CAhandler(object):
                 if ele in eku_mapping_dic:
                     eku_list.append(eku_mapping_dic[ele])
 
-        # elif 'extendedKeyUsage' in csr_extensions_dic:
-        #    # eku usage in extention
-        #    try:
-        #        ekuc = csr_extensions_dic['extendedKeyUsage'].get_critical()
-        #    except Exception:
-        #        ekuc = False
-        #    # pylint: disable=C2801
-        #    eku_string = csr_extensions_dic['extendedKeyUsage'].__str__()
-
         else:
             # neither extension nor template
             eku_list = None
@@ -507,7 +498,7 @@ class CAhandler(object):
         # add subjectAltName(s)
         if 'subjectAltName' in csr_extensions_dic:
             # pylint: disable=C2801
-            self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: {0}'.format(csr_extensions_dic['subjectAltName'].__str__()))
+            self.logger.info('CAhandler._extension_list_generate(): adding subAltNames: %s', csr_extensions_dic['subjectAltName'].__str__())
             extension_list.append({'name': SubjectAlternativeName(csr_extensions_dic['subjectAltName'].value), 'critical': False})
 
         self.logger.debug('CAhandler._extension_list_generate() ended')
@@ -529,13 +520,13 @@ class CAhandler(object):
                     self.cursor.execute('''UPDATE ITEMS SET stamp = :stamp WHERE id = :stamp''', data_dic)
                     self._db_close()
                 else:
-                    self.logger.error('CAhandler._insert_insert() aborted. wrong datatypes: {}'.format(item_dic))
+                    self.logger.error('CAhandler._insert_insert() aborted. wrong datatypes: %s', item_dic)
             else:
-                self.logger.error('CAhandler._item_insert() aborted. dataset incomplete: {}'.format(item_dic))
+                self.logger.error('CAhandler._item_insert() aborted. dataset incomplete: %s', item_dic)
         else:
             self.logger.error('CAhandler._insert_insert() aborted. dataset empty')
 
-        self.logger.debug('CAhandler._item_insert() ended with row_id: {0}'.format(row_id))
+        self.logger.debug('CAhandler._item_insert() ended with row_id: %s', row_id)
         return row_id
 
     def _keyusage_generate(self, template_dic: Dict[str, str], _csr_extensions_dic: Dict[str, str] = None) -> Tuple[bool, Dict[str, str]]:
@@ -585,22 +576,22 @@ class CAhandler(object):
             self.logger.info('CAhandler._kue_generate() with 23')
             ku_dic = self._ku_dict_generate(23)
 
-        self.logger.debug('CAhandler._kue_generate() ended with: {0}'.format(ku_dic))
+        self.logger.debug('CAhandler._kue_generate() ended with: %s', ku_dic)
         return ku_dic
 
     def _ku_dict_generate(self, kuval: int = 0) -> Dict[str, str]:
-        self.logger.debug('CAhandler._ku_dict_generate({0})'.format(kuval))
+        self.logger.debug('CAhandler._ku_dict_generate(%s)', kuval)
 
         # generate and reverse key_usage_list
         key_usage_list = ['digital_signature', 'content_commitment', 'key_encipherment', 'data_encipherment', 'key_agreement', 'key_cert_sign', 'crl_sign', 'encipher_only', 'decipher_only']
         key_usage_dic = {'digital_signature': False, 'content_commitment': False, 'key_encipherment': False, 'data_encipherment': False, 'key_agreement': False, 'key_cert_sign': False, 'crl_sign': False, 'encipher_only': False, 'decipher_only': False}
 
-        kubin = '{0:b}'.format(kuval)[::-1]
+        kubin = f'{kuval:b}'[::-1]
         for idx, ele in enumerate(kubin):
             if ele == '1':
                 key_usage_dic[key_usage_list[idx]] = True
 
-        self.logger.debug('CAhandler._ku_dict_generate() ended with: {0}'.format(key_usage_dic))
+        self.logger.debug('CAhandler._ku_dict_generate() ended with: %s', key_usage_dic)
         return key_usage_dic
 
     def _pemcertchain_generate(self, ee_cert: str, issuer_cert: str = None) -> str:
@@ -608,7 +599,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pemcertchain_generate()')
 
         if issuer_cert:
-            pem_chain = '{0}{1}'.format(ee_cert, issuer_cert)
+            pem_chain = f'{ee_cert}{issuer_cert}'
         else:
             pem_chain = ee_cert
 
@@ -616,7 +607,7 @@ class CAhandler(object):
             cert_dic = self._cert_search('items.name', cert)
             if cert_dic and 'cert' in cert_dic:
                 ca_cert = x509.load_der_x509_certificate(b64_decode(self.logger, cert_dic['cert']), backend=default_backend())
-                pem_chain = '{0}{1}'.format(pem_chain, convert_byte_to_string(ca_cert.public_bytes(serialization.Encoding.PEM)))
+                pem_chain = f'{pem_chain}{convert_byte_to_string(ca_cert.public_bytes(serialization.Encoding.PEM))}'
 
         self.logger.debug('CAhandler._pemcertchain_generate() ended')
         return pem_chain
@@ -632,9 +623,9 @@ class CAhandler(object):
             try:
                 (_identifiier, request_name,) = san_list[0].split(':')
             except Exception:
-                self.logger.error('ERROR: CAhandler._request_name_get(): SAN split failed: {0}'.format(san_list))
+                self.logger.error('ERROR: CAhandler._request_name_get(): SAN split failed: %s', san_list)
 
-        self.logger.debug('CAhandler._requestname_get() ended with: {0}'.format(request_name))
+        self.logger.debug('CAhandler._requestname_get() ended with: %s', request_name)
         return request_name
 
     def _revocation_insert(self, rev_dic: Dict[str, str] = None) -> int:
@@ -650,17 +641,17 @@ class CAhandler(object):
                     row_id = self.cursor.lastrowid
                     self._db_close()
                 else:
-                    self.logger.error('CAhandler._revocation_insert() aborted. wrong datatypes: {}'.format(rev_dic))
+                    self.logger.error('CAhandler._revocation_insert() aborted. wrong datatypes: %s', rev_dic)
             else:
-                self.logger.error('CAhandler._revocation_insert() aborted. dataset incomplete: {}'.format(rev_dic))
+                self.logger.error('CAhandler._revocation_insert() aborted. dataset incomplete: %s', rev_dic)
         else:
             self.logger.error('CAhandler._revocation_insert() aborted. dataset empty')
 
-        self.logger.debug('CAhandler._revocation_insert() ended with row_id: {0}'.format(row_id))
+        self.logger.debug('CAhandler._revocation_insert() ended with row_id: %s', row_id)
         return row_id
 
     def _revocation_check(self, serial: str, ca_id: int, err_msg_dic: Dict[str, str] = None) -> Tuple[int, str, str]:
-        self.logger.debug('CAhandler.revoke({0}/{1})'.format(serial, ca_id))
+        self.logger.debug('CAhandler.revoke(%s/%s)', serial, ca_id)
 
         # check if certificate has alreay been revoked:
         if not self._revocation_search('serial', serial):
@@ -679,7 +670,7 @@ class CAhandler(object):
             message = err_msg_dic['alreadyrevoked']
             detail = 'Certificate has already been revoked'
 
-        self.logger.debug('CAhandler.revoke() ended with: {0}'.format(code))
+        self.logger.debug('CAhandler.revoke() ended with: %s', code)
         return (code, message, detail)
 
     def _revocation_search(self, column: str, value: str) -> Dict[str, str]:
@@ -687,7 +678,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._revocation_search()')
         # query database for key
         self._db_open()
-        pre_statement = '''SELECT * from revocations WHERE {0} LIKE ?'''.format(column)
+        pre_statement = f'''SELECT * from revocations WHERE {column} LIKE ?'''
         self.cursor.execute(pre_statement, [value])
 
         try:
@@ -730,12 +721,12 @@ class CAhandler(object):
                 asn1_stream = byte_stream[:pos]
                 utf_stream = byte_stream[pos:]
 
-        self.logger.debug('CAhandler._stream_split() ended: {0}:{1}'.format(bool(asn1_stream), bool(utf_stream)))
+        self.logger.debug('CAhandler._stream_split() ended: %s:%s', bool(asn1_stream), bool(utf_stream))
         return (asn1_stream, utf_stream)
 
     def _stub_func(self, parameter: str) -> str:
         """" load config from file """
-        self.logger.debug('CAhandler._stub_func({0})'.format(parameter))
+        self.logger.debug('CAhandler._stub_func(%s)', parameter)
         self.logger.debug('CAhandler._stub_func() ended')
         return parameter
 
@@ -755,19 +746,19 @@ class CAhandler(object):
         subject_name_list = []
 
         if 'organizationalUnitName' in dn_dic and dn_dic['organizationalUnitName']:
-            self.logger.info('rewrite OU to {0}'.format(dn_dic['organizationalUnitName']))
+            self.logger.info('rewrite OU to %s', dn_dic['organizationalUnitName'])
             subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATIONAL_UNIT_NAME, dn_dic['organizationalUnitName']))
         if 'organizationName' in dn_dic and dn_dic['organizationName']:
-            self.logger.info('rewrite O to {0}'.format(dn_dic['organizationName']))
+            self.logger.info('rewrite O to %s', dn_dic['organizationName'])
             subject_name_list.append(x509.NameAttribute(x509.NameOID.ORGANIZATION_NAME, dn_dic['organizationName']))
         if 'localityName' in dn_dic and dn_dic['localityName']:
-            self.logger.info('rewrite L to {0}'.format(dn_dic['localityName']))
+            self.logger.info('rewrite L to %s', dn_dic['localityName'])
             subject_name_list.append(x509.NameAttribute(x509.NameOID.LOCALITY_NAME, dn_dic['localityName']))
         if 'stateOrProvinceName' in dn_dic and dn_dic['stateOrProvinceName']:
-            self.logger.info('rewrite ST to {0}'.format(dn_dic['stateOrProvinceName']))
+            self.logger.info('rewrite ST to %s', dn_dic['stateOrProvinceName'])
             subject_name_list.append(x509.NameAttribute(x509.NameOID.STATE_OR_PROVINCE_NAME, dn_dic['stateOrProvinceName']))
         if 'countryName' in dn_dic and dn_dic['countryName']:
-            self.logger.info('rewrite C to {0}'.format(dn_dic['countryName']))
+            self.logger.info('rewrite C to %s', dn_dic['countryName'])
             subject_name_list.append(x509.NameAttribute(x509.NameOID.COUNTRY_NAME, dn_dic['countryName']))
 
         if subject_name_list:
@@ -778,7 +769,7 @@ class CAhandler(object):
 
     def _template_load(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         """ load template from database """
-        self.logger.debug('CAhandler._template_load({0})'.format(self.template_name))
+        self.logger.debug('CAhandler._template_load(%s)', self.template_name)
         # query database for template
         self._db_open()
         pre_statement = '''SELECT * from view_templates WHERE name LIKE ?'''
@@ -786,7 +777,7 @@ class CAhandler(object):
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except Exception:
-            self.logger.error('template lookup failed: {0}'.format(self.cursor.fetchone()))
+            self.logger.error('template lookup failed: %s', self.cursor.fetchone())
             db_result = {}
 
         # parse template
@@ -848,7 +839,7 @@ class CAhandler(object):
                 # convert list into a directory
                 template_dic = {item: parameter_list[index + 1] for index, item in enumerate(parameter_list) if index % 2 == 0}
 
-        self.logger.debug('CAhandler._utf_stream_parse() ended: {0}'.format(bool(template_dic)))
+        self.logger.debug('CAhandler._utf_stream_parse() ended: %s', bool(template_dic))
         return template_dic
 
     def _validity_calculate(self, template_dic: Dict[str, str] = None) -> int:
@@ -869,7 +860,7 @@ class CAhandler(object):
         else:
             cert_validity = 365
 
-        self.logger.debug('CAhandler._validity_calculate() ended with: {0}'.format(cert_validity))
+        self.logger.debug('CAhandler._validity_calculate() ended with: %s', cert_validity)
         return cert_validity
 
     def _xca_template_process(self, template_dic: Dict[str, str], csr_extensions_dic: Dict[str, str], cert: str, ca_cert: str) -> List[str]:
@@ -924,7 +915,7 @@ class CAhandler(object):
         # lookup http header information from request
         qset = header_info_get(self.logger, csr=csr)
         if qset:
-            self.logger.info('header_info: {0}'.format(qset[-1]['header_info']))
+            self.logger.info('header_info: %s', qset[-1]['header_info'])
 
         if not error:
             request_name = self._requestname_get(csr)
@@ -973,7 +964,7 @@ class CAhandler(object):
 
             serial = cert_serial_get(self.logger, cert)
             if serial:
-                serial = '{:X}'.format(serial)
+                serial = f'{serial:X}'
 
             if ca_id and serial:
                 (code, message, detail) = self._revocation_check(serial, ca_id, err_msg_dic)
@@ -998,5 +989,5 @@ class CAhandler(object):
         cert_raw = None
         self._stub_func(payload)
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)
