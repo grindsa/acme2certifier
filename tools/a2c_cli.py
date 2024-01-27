@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-# pylint: disable=c0209
 """ acme2certifier cli client """
 import logging
 import datetime
@@ -35,7 +34,7 @@ Type /help for available commands
 
 def csv_dump(logger, filename, content):
     """ dump content csv file """
-    logger.debug('csv_dump({0})'.format(filename))
+    logger.debug('csv_dump(%s)', filename)
     with open(filename, 'w', newline='', encoding='utf-8') as file_:
         writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
         writer.writerows(content)
@@ -50,14 +49,14 @@ def generate_random_string(logger, length):
 
 def file_dump(logger, filename, data_):
     """ dump content to  file """
-    logger.debug('file_dump({0})'.format(filename))
+    logger.debug('file_dump(%s)', filename)
     with open(filename, 'w', encoding='utf8') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
 
 
 def file_load(logger, filename):
     """ load file at once """
-    logger.debug('file_open({0})'.format(filename))
+    logger.debug('file_open(%s)', filename)
     with open(filename, encoding='utf8') as _file:
         lines = _file.read()
     return lines
@@ -102,33 +101,33 @@ class KeyOperations(object):
 
     def generate(self, filename):
         """ generate and store key """
-        self.logger.debug('KeyOperations.generate({0})'.format(filename))
+        self.logger.debug('KeyOperations.generate(%s)', filename)
         self.print('generating keys...', printreturn=False)
         key = jwk.JWK.generate(kty='RSA', size=2048, alg='RSA-OAEP-256', use='sig', kid=generate_random_string(self.logger, 12))
         public_key = key.export_public(as_dict=True)
         private_key = key.export_private(as_dict=True)
 
         try:
-            file_dump(self.logger, '{0}.pub'.format(filename), json.dumps(public_key, indent=4, sort_keys=True))
-            file_dump(self.logger, '{0}.private'.format(filename), json.dumps(private_key, indent=4, sort_keys=True))
+            file_dump(self.logger, f'{filename}.pub', json.dumps(public_key, indent=4, sort_keys=True))
+            file_dump(self.logger, f'{filename}.private', json.dumps(private_key, indent=4, sort_keys=True))
             self.print('done...', printreturn=False)
-            self.print('Keep the private key {0}.pub for yourself'.format(filename), printreturn=False)
-            self.print('Give the public key {0}.pub to your acme2certifier administrator'.format(filename))
+            self.print(f'Keep the private key {filename}.pub for yourself', printreturn=False)
+            self.print(f'Give the public key {filename}.pub to your acme2certifier administrator')
         except Exception as err_:
-            self.logger.error('KeyOperations.generate() failed with err: {0}'.format(err_))
-            self.print('Key generation failed with error: {0}'.format(err_))
+            self.logger.error('KeyOperations.generate() failed with err: %s', err_)
+            self.print('Key generation failed with error: %s', err_)
         return key
 
     def load(self, filename):
         """ load existing key """
-        self.logger.debug('KeyOperations.load({0})'.format(filename))
+        self.logger.debug('KeyOperations.load(%s)', filename)
         if os.path.exists(filename):
-            self.print('loading {0}'.format(filename), printreturn=False)
+            self.print(f'loading {filename}', printreturn=False)
             content = file_load(self.logger, filename)
             key = jwk.JWK.from_json(content)
             self.print('done...', printreturn=False)
         else:
-            self.print('Could not find {0}'.format(filename))
+            self.print(f'Could not find {filename}')
             key = None
         return key
 
@@ -140,13 +139,13 @@ class MessageOperations(object):
         self.logger = logger
         self.print = printcommand
 
-    def sign(self, key, data, type='Unknown'):
+    def sign(self, key, data, cli_type='Unknown'):
         """ sign message """
         self.logger.debug('MessageOperations.sign()')
         protected = {"typ": "JOSE+JSON",
                      "kid": key['kid'],
                      "alg": "RS256"}
-        plaintext = {"data": data, 'type': type,
+        plaintext = {"data": data, 'type': cli_type,
                      "exp": int(time.time()) + (5 * 60)}
         mjws = jws.JWS(payload=json_encode(plaintext))
         mjws.add_signature(key, None, json_encode(protected))
@@ -154,8 +153,8 @@ class MessageOperations(object):
 
     def send(self, server=None, message=None):
         """ send message """
-        self.logger.debug('MessageOperations.send({0})'.format(server))
-        req = requests.post('{0}/housekeeping'.format(server), data=message, timeout=20)
+        self.logger.debug(f'MessageOperations.send({server})')
+        req = requests.post(f'{server}/housekeeping', data=message, timeout=20)
         return req
 
 
@@ -208,16 +207,16 @@ class CommandLineInterface(object):
             if date_print:
                 now = datetime.datetime.now().strftime('%H:%M:%S')
                 if printreturn:
-                    print('{0} {1}\n'.format(now, text))
+                    print(f'{now} {text}\n')
                 else:
-                    print('{0} {1}'.format(now, text))
+                    print(f'{now} {text}')
             else:
                 print(text)
 
     def _command_check(self, command):
         """ check command """
         # pylint: disable=c0325
-        self.logger.debug('CommandLineInterface._commend_check(): {0}'.format(command))
+        self.logger.debug('CommandLineInterface._commend_check(): %s', command)
         if command in ('help', 'H'):
             self.help_print()
         elif command.startswith('server'):
@@ -237,24 +236,24 @@ class CommandLineInterface(object):
                 self._certificate_operations(command)
             else:
                 if command:
-                    self._cli_print('unknown command: "/{0}"'.format(command))
+                    self._cli_print(f'unknown command: "/{command}"')
                     self.help_print()
         else:
-            self._cli_print('Unknown command: "{0}'.format(command))
+            self._cli_print(f'Unknown command: "{command}"')
             self.help_print()
 
     def _certificate_operations(self, command):
-        self.logger.debug('CommandLineInterface._certificate_operations(): {0}'.format(command))
+        self.logger.debug('CommandLineInterface._certificate_operations(): %s', command)
 
     def _config_operations(self, command):
-        self.logger.debug('CommandLineInterface._config_operations(): {0}'.format(command))
-        self._cli_print('server: {0}'.format(self.server), printreturn=False)
-        self._cli_print('key: {0}'.format(self.key), printreturn=False)
-        self._cli_print('status: {0}'.format(self.status), printreturn=False)
+        self.logger.debug('CommandLineInterface._config_operations(): %s', command)
+        self._cli_print(f'server: {self.server}', printreturn=False)
+        self._cli_print(f'key: {self.key}', printreturn=False)
+        self._cli_print(f'status: {self.status}', printreturn=False)
 
     def _exec_cmd(self, cmdinput):
         """ execute command """
-        self.logger.debug('CommandLineInterface._exec_cmd(): {0}'.format(cmdinput))
+        self.logger.debug('CommandLineInterface._exec_cmd(): %s', cmdinput)
         cmdinput = cmdinput.rstrip()
         # skip empty commands
         if len(cmdinput) <= 1:
@@ -276,12 +275,12 @@ class CommandLineInterface(object):
 
     def _key_operations(self, command):
         """ key operations """
-        self.logger.debug('CommandLineInterface._key_operations({0})'.format(command))
+        self.logger.debug('CommandLineInterface._key_operations(%s)', command)
 
         try:
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete key-operations command: "{0}"'.format(command))
+            self._cli_print(f'incomplete key-operations command: "{command}"')
             _key = None  # lgtm [py/unused-local-variable]
             command = None
             argument = None  # lgtm [py/unused-local-variable]
@@ -293,7 +292,7 @@ class CommandLineInterface(object):
             elif command == 'load':
                 self.key = key.load(argument)
             else:
-                self._cli_print('unknown key command: "{0}"'.format(command))
+                self._cli_print(f'unknown key command: "{command}"')
 
             if self.server:
                 self.status = 'Configured'
@@ -305,7 +304,7 @@ class CommandLineInterface(object):
         try:
             (_key, command, argument) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete message-operations command: "{0}"'.format(command))
+            self._cli_print(f'incomplete message-operations command: "{command}"')
             _key = None  # lgtm [py/unused-local-variable]
             command = None
             argument = None  # lgtm [py/unused-local-variable]
@@ -326,7 +325,7 @@ class CommandLineInterface(object):
         try:
             (_key, command, filename) = command.split(' ', 2)
         except Exception:
-            self._cli_print('incomplete report-operations command: "{0}"'.format(command))
+            self._cli_print(f'incomplete report-operations command: "{command}"')
             command = None
             filename = None  # lgtm [py/unused-local-variable]
 
@@ -334,13 +333,13 @@ class CommandLineInterface(object):
             try:
                 (_filename, format_) = filename.lower().split('.', 2)
             except Exception:
-                self._cli_print('incomplete filename: "{0}"'.format(command))
+                self._cli_print(f'incomplete filename: "{command}"')
                 format_ = None
 
             if format_ in ('csv', 'json'):
                 self._report_generate(filename, format_, command)
             else:
-                self._cli_print('Unknown report format "{0}". Must be either "csv" or "json"'.format(format))
+                self._cli_print(f'Unknown report format "{format_}". Must be either "csv" or "json"')
 
     def _report_generate(self, filename, format_, command):
         """ generate report """
@@ -348,14 +347,14 @@ class CommandLineInterface(object):
 
         # process report request
         message = MessageOperations(self.logger, self._cli_print)
-        signed_message = message.sign(key=self.key, type='report', data={'name': command, 'format': format_})
+        signed_message = message.sign(key=self.key, cli_type='report', data={'name': command, 'format': format_})
         response = message.send(server=self.server, message=signed_message)
         if response.status_code == 200:
             if format_ == 'csv':
                 csv_dump(self.logger, filename, response.json())
             else:
                 file_dump(self.logger, filename, json.dumps(response.json(), indent=4, sort_keys=True))
-            self._cli_print('saving report to {0}'.format(filename))
+            self._cli_print(f'saving report to {filename}')
         else:
             if 'message' in response.json():
                 message = response.json()['message']
@@ -363,12 +362,12 @@ class CommandLineInterface(object):
                 message = response.json()['detail']
             else:
                 message = None
-            self._cli_print('ERROR: {0} - {1}'.format(response.status_code, message))
+            self._cli_print(f'ERROR: {response.status_code} - {message}')
 
     def _prompt_get(self):
         """ get prompt """
         self.logger.debug('CommandLineInterface._prompt_get()')
-        return '[{0}]:'.format(self.status)
+        return f'[{self.status}]:'
 
     def _quit(self):
         """ quit (whatever) """
@@ -377,7 +376,7 @@ class CommandLineInterface(object):
 
     def _server_set(self, server):
         """ configure server """
-        self.logger.debug('CommandLineInterface._server_set({0})'.format(server))
+        self.logger.debug('CommandLineInterface._server_set(%s)', server)
 
         (_command, url) = server.split(' ')
         if is_url(url):
@@ -387,7 +386,7 @@ class CommandLineInterface(object):
             else:
                 self.status = 'Key missing'
         else:
-            self._cli_print('{0} is not a valid url'.format(url))
+            self._cli_print(f'{url} is not a valid url')
 
     def help_print(self):
         """ help screen """

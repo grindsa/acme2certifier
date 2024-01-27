@@ -7,9 +7,8 @@ import json
 from typing import List, Tuple, Dict
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
-# pylint: disable=C0209, E0401, E0611
+# pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-# pylint: disable=E0401
 from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte
 
 
@@ -39,7 +38,7 @@ class CAhandler(object):
         """ check creadentials """
         self.logger.debug('CAhandler.__check_credentials()')
         auth_check = ca_server.check_credentials()
-        self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
+        self.logger.debug('CAhandler.__check_credentials() ended with %s', auth_check)
         return auth_check
 
     def _cert_bundle_create(self, ca_pem: str = None, cert_raw: str = None) -> Tuple[str, str, str]:
@@ -68,7 +67,7 @@ class CAhandler(object):
             try:
                 self.user = os.environ[config_dic['CAhandler']['user_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'user' in config_dic['CAhandler']:
             if self.user:
                 self.logger.info('CAhandler._config_load() overwrite user')
@@ -84,7 +83,7 @@ class CAhandler(object):
             try:
                 self.password = os.environ[config_dic['CAhandler']['password_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'password' in config_dic['CAhandler']:
             if self.password:
                 self.logger.info('CAhandler._config_load() overwrite password')
@@ -100,7 +99,7 @@ class CAhandler(object):
             try:
                 self.host = os.environ[config_dic['CAhandler']['host_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load host_variable:%s', err)
         if 'host' in config_dic['CAhandler']:
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
@@ -132,7 +131,7 @@ class CAhandler(object):
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug('CAhandler._config_proxy_load() ended')
 
@@ -180,7 +179,7 @@ class CAhandler(object):
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
-        self.logger.debug('CAhandler.enroll({0})'.format(self.template))
+        self.logger.debug('CAhandler.enroll(%s)', self.template)
         cert_bundle = None
         error = None
         cert_raw = None
@@ -203,7 +202,7 @@ class CAhandler(object):
                     # ca_pem = ca_pem.replace('\r\n', '\n')
                 except Exception as err_:
                     ca_pem = None
-                    self.logger.error('ca_server.get_chain() failed with error: {0}'.format(err_))
+                    self.logger.error('ca_server.get_chain() failed with error: %s', err_)
 
                 try:
                     cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
@@ -211,7 +210,7 @@ class CAhandler(object):
                     cert_raw = cert_raw.replace('\r\n', '\n')
                 except Exception as err_:
                     cert_raw = None
-                    self.logger.error('ca_server.get_cert() failed with error: {0}'.format(err_))
+                    self.logger.error('ca_server.get_cert() failed with error: %s', err_)
 
                 # create bundle
                 (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
@@ -257,5 +256,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

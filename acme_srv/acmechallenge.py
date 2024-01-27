@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """ acmechallenge class """
-# pylint: disable=C0209
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
 
@@ -28,10 +27,10 @@ class Acmechallenge(object):
         key_authorization = None
         if path_info:
             token = path_info.replace('/.well-known/acme-challenge/', '')
-            self.logger.info('Acmechallenge.lookup() token: {0}'.format(token))
+            self.logger.info('Acmechallenge.lookup() token: %s', token)
             challenge_dic = self.dbstore.cahandler_lookup('name', token)
             if challenge_dic and 'value1' in challenge_dic:
                 key_authorization = challenge_dic['value1']
 
-        self.logger.debug('Acmechallenge.lookup() ended with: {0}'.format(key_authorization))
+        self.logger.debug('Acmechallenge.lookup() ended with: %s', key_authorization)
         return key_authorization

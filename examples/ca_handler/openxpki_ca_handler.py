@@ -6,7 +6,7 @@ import os
 from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get
 from acme_srv.db_handler import DBstore
 
@@ -48,10 +48,10 @@ class CAhandler(object):
         if 'data' in response and 'certificate' in response['data'] and 'chain' in response['data']:
             # create base65 encoded der file
             cert_raw = b64_encode(self.logger, cert_pem2der(response['data']['certificate']))
-            cert_bundle = '{0}\n{1}'.format(response['data']['certificate'], response['data']['chain'])
+            cert_bundle = f'{response["data"]["certificate"]}\n{response["data"]["chain"]}'
         else:
             error = 'Malformed response'
-            self.logger.error('CAhandler._cert_bundle_create() returned malformed response: {0}'.format(response))
+            self.logger.error('CAhandler._cert_bundle_create() returned malformed response: %s', response)
 
         return (error, cert_bundle, cert_raw)
 
@@ -64,7 +64,7 @@ class CAhandler(object):
         if 'poll_identifier' in result and result['poll_identifier']:
             cert_identifier = result['poll_identifier']
 
-        self.logger.debug('CAhandler._cert_identifier_get() ended with: {0}'.format(cert_identifier))
+        self.logger.debug('CAhandler._cert_identifier_get() ended with: %s', cert_identifier)
         return cert_identifier
 
     def _config_server_load(self, config_dic):
@@ -95,7 +95,7 @@ class CAhandler(object):
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
                 except Exception as err:
-                    self.logger.debug('CAhandler._config_server_load(): failed to load ca_bundle option: {0}'.format(err))
+                    self.logger.debug('CAhandler._config_server_load(): failed to load ca_bundle option: %s', err)
                     self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
             if 'cert_profile_name' in config_dic['CAhandler']:
@@ -105,7 +105,7 @@ class CAhandler(object):
                 try:
                     self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
                 except Exception as err:
-                    self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: {0}'.format(err))
+                    self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: %s', err)
                     self.polling_timeout = 0
 
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
@@ -117,7 +117,7 @@ class CAhandler(object):
                 try:
                     self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
                 except Exception as err:
-                    self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:{0}'.format(err))
+                    self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s', err)
 
             if 'cert_passphrase' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
@@ -162,7 +162,7 @@ class CAhandler(object):
         variable_dic = self.__dict__
         for ele in ['host', 'cert_profile_name', 'endpoint_name']:
             if not variable_dic[ele]:
-                self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "{0}" is missing in configuration file.'.format(ele))
+                self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "%s" is missing in configuration file.', ele)
         self.logger.debug('CAhandler._config_load() ended')
 
     def _enroll(self, data_dic: Dict[str, str]) -> Tuple[str, str, str, str]:
@@ -188,11 +188,11 @@ class CAhandler(object):
             elif 'result' in sign_response and 'state' in sign_response['result'] and sign_response['result']['state'].upper() == 'PENDING':
                 # request to be approved by operator
                 poll_indentifier = sign_response['result']['data']['transaction_id']
-                self.logger.info('CAhandler.enroll(): Request pending. Transaction_id: {0} Workflow_id: {1}'.format(poll_indentifier, sign_response['result']['id']))
+                self.logger.info('CAhandler.enroll(): Request pending. Transaction_id: %s Workflow_id: %s', poll_indentifier, sign_response['result']['id'])
             else:
                 # ernoll failed
                 error = 'Malformed response'
-                self.logger.error('CAhandler.enroll(): Malformed Rest response: {0}'.format(sign_response))
+                self.logger.error('CAhandler.enroll(): Malformed Rest response: %s', sign_response)
                 break_loop = True
 
             if break_loop:
@@ -202,7 +202,7 @@ class CAhandler(object):
                 # sleep
                 time.sleep(10)
 
-        self.logger.debug('CAhandler._enroll() ended: Poll_identifier: {0}'.format(poll_indentifier))
+        self.logger.debug('CAhandler._enroll() ended: Poll_identifier: %s', poll_indentifier)
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
     def _rpc_post(self, path: str, data_dic: Dict[str, str]) -> Dict[str, str]:
@@ -213,7 +213,7 @@ class CAhandler(object):
             response = self.session.post(self.host + path, data=data_dic, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
 
         except Exception as err_:
-            self.logger.error('CAhandler._rpc_post() returned an error: {0}'.format(err_))
+            self.logger.error('CAhandler._rpc_post() returned an error: %s', err_)
             response = {}
 
         self.logger.debug('CAhandler._rpc_post() ended.')
@@ -237,14 +237,14 @@ class CAhandler(object):
                 code = 400
                 message = self.err_msg_dic['serverinternal']
                 detail = 'Revocation failed'
-                self.logger.error('CAhandler._revoke() failed with: {0}'.format(revocation_response))
+                self.logger.error('CAhandler._revoke() failed with: %s', revocation_response)
 
         else:
             code = 400
             message = self.err_msg_dic['serverinternal']
             detail = 'Incomplete configuration'
 
-        self.logger.debug('CAhandler._revoke() ended with: {0} {1}'.format(code, detail))
+        self.logger.debug('CAhandler._revoke() ended with: %s %s', code, detail)
         return (code, message, detail)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
@@ -294,7 +294,7 @@ class CAhandler(object):
 
     def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        self.logger.debug('CAhandler.revoke(%s: %s)', rev_reason, rev_date)
         code = None
         message = None
         detail = None
@@ -323,5 +323,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

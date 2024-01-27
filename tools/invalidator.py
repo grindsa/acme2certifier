@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """ database updater """
-# pylint: disable=C0209, E0401, C0413
+# pylint: disable=E0401, C0413
 import sys
 sys.path.insert(0, '..')
 sys.path.insert(1, '.')
@@ -20,10 +20,10 @@ if __name__ == '__main__':
     with Housekeeping(DEBUG, LOGGER) as housekeeping:
 
         # manual order invalidation
-        order_list = housekeeping.orders_invalidate(report_format='csv', report_name='orders_invalidate_{0}'.format(SUFFIX))
+        order_list = housekeeping.orders_invalidate(report_format='csv', report_name=f'orders_invalidate_{SUFFIX}')
 
         # manual authorization invalidation
-        authorization_list = housekeeping.authorizations_invalidate(report_format='csv', report_name='authorization_expire_{0}'.format(SUFFIX))
+        authorization_list = housekeeping.authorizations_invalidate(report_format='csv', report_name=f'authorization_expire_{SUFFIX}')
 
         # update issue_uts and expire_uts in certificates table
         housekeeping.certificate_dates_update()
