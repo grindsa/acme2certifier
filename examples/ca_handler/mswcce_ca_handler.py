@@ -3,9 +3,9 @@
 from __future__ import print_function
 import os
 import json
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 
-# pylint: disable=E0401, E0611, C0209
+# pylint: disable=e0401, e0611
 from examples.ca_handler.ms_wcce.target import Target
 from examples.ca_handler.ms_wcce.request import Request
 
@@ -52,7 +52,7 @@ class CAhandler(object):
             try:
                 self.host = os.environ[config_dic['CAhandler']['host_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load host_variable:%s', err)
         if 'host' in config_dic['CAhandler']:
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
@@ -68,7 +68,7 @@ class CAhandler(object):
             try:
                 self.user = os.environ[config_dic['CAhandler']['user_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'user' in config_dic['CAhandler']:
             if self.user:
                 self.logger.info('CAhandler._config_load() overwrite user')
@@ -78,7 +78,7 @@ class CAhandler(object):
             try:
                 self.password = os.environ[config_dic['CAhandler']['password_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'password' in config_dic['CAhandler']:
             if self.password:
                 self.logger.info('CAhandler._config_load() overwrite password')
@@ -104,7 +104,7 @@ class CAhandler(object):
         try:
             self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
         except Exception as err_:
-            self.logger.warning('CAhandler._config_load() use_kerberos failed with error: {0}'.format(err_))
+            self.logger.warning('CAhandler._config_load() use_kerberos failed with error: %s', err_)
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -118,7 +118,7 @@ class CAhandler(object):
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
@@ -144,7 +144,7 @@ class CAhandler(object):
             with open(bundle, 'r', encoding='utf-8') as fso:
                 file_ = fso.read()
         except Exception as err_:
-            self.logger.error('CAhandler._file_load(): could not load {0}. Error: {1}'.format(bundle, err_))
+            self.logger.error('CAhandler._file_load(): could not load %s. Error: %s', bundle, err_)
         return file_
 
     def request_create(self) -> Request:
@@ -170,7 +170,7 @@ class CAhandler(object):
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via MS-WCCE"""
-        self.logger.debug("CAhandler.enroll({0})".format(self.template))
+        self.logger.debug("CAhandler.enroll(%s)", self.template)
         cert_bundle = None
         error = None
         cert_raw = None
@@ -198,7 +198,7 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("\r\n", "\n")
         except Exception as err_:
             cert_raw = None
-            self.logger.error("ca_server.get_cert() failed with error: {0}".format(err_))
+            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
 
         if cert_raw:
             if ca_pem:
@@ -247,5 +247,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug("CAhandler.trigger() ended with error: {0}".format(error))
+        self.logger.debug("CAhandler.trigger() ended with error: %s", error)
         return (error, cert_bundle, cert_raw)

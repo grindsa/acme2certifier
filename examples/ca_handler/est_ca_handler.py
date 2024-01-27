@@ -11,7 +11,7 @@ from requests_pkcs12 import Pkcs12Adapter
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 
-# pylint: disable=C0209, E0401
+# pylint: disable=e0401
 from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check
 
 
@@ -54,7 +54,7 @@ class CAhandler(object):
                     response = self.session.get(self.est_host + '/cacerts', auth=HTTPBasicAuth(self.est_user, self.est_password), verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except Exception as err_:
-                self.logger.error('CAhandler._cacerts_get() returned an error: {0}'.format(err_))
+                self.logger.error('CAhandler._cacerts_get() returned an error: %s', err_)
                 error = err_
                 pem = None
         else:
@@ -62,7 +62,7 @@ class CAhandler(object):
             error = None
             pem = None
 
-        self.logger.debug('CAhandler._cacerts_get() ended with err: {0}'.format(error))
+        self.logger.debug('CAhandler._cacerts_get() ended with err: %s', error)
         return (error, pem)
 
     def _cert_bundle_create(self, error: str, ca_pem: str, cert_raw: str) -> Tuple[str, str, str]:
@@ -76,7 +76,7 @@ class CAhandler(object):
             cert_raw = cert_raw.replace('-----END CERTIFICATE-----\n', '')
             cert_raw = cert_raw.replace('\n', '')
         else:
-            self.logger.error('CAhandler.enroll() _simpleenroll error: {0}'.format(error))
+            self.logger.error('CAhandler.enroll() _simpleenroll error: %s', error)
 
         self.logger.debug('CAhandler._cert_bundle_create()')
         return (error, cert_bundle, cert_raw)
@@ -89,7 +89,7 @@ class CAhandler(object):
             try:
                 self.est_host = os.environ[config_dic['CAhandler']['est_host_variable']] + '/.well-known/est'
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load est_host_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load est_host_variable:%s', err)
         if 'est_host' in config_dic['CAhandler']:
             if self.est_host:
                 self.logger.info('CAhandler._config_load() overwrite est_host')
@@ -106,7 +106,7 @@ class CAhandler(object):
             try:
                 self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s', err)
         if 'cert_passphrase' in config_dic['CAhandler']:
             if self.cert_passphrase:
                 self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
@@ -141,7 +141,7 @@ class CAhandler(object):
             try:
                 self.est_user = os.environ[config_dic['CAhandler']['est_user_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load est_user_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load est_user_variable:%s', err)
         if 'est_user' in config_dic['CAhandler']:
             if self.est_user:
                 self.logger.info('CAhandler._config_load() overwrite est_user')
@@ -157,7 +157,7 @@ class CAhandler(object):
             try:
                 self.est_password = os.environ[config_dic['CAhandler']['est_password_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load est_password:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load est_password:%s', err)
         if 'est_password' in config_dic['CAhandler']:
             if self.est_password:
                 self.logger.info('CAhandler._config_load() overwrite est_password')
@@ -183,7 +183,7 @@ class CAhandler(object):
             try:
                 self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
             except Exception:
-                self.logger.error('CAhandler._config_load() could not load request_timeout:{0}'.format(config_dic['CAhandler']['request_timeout']))
+                self.logger.error('CAhandler._config_load() could not load request_timeout:%s', config_dic['CAhandler']['request_timeout'])
                 self.request_timeout = 20
 
         self.logger.debug('CAhandler._config_load() ended')
@@ -201,7 +201,7 @@ class CAhandler(object):
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: {0}'.format(err_))
+                self.logger.warning('Challenge._config_load() proxy_server_list failed with error: %s', err_)
 
         self.logger.debug('CAhandler._config_proxy_load() ended')
 
@@ -276,11 +276,11 @@ class CAhandler(object):
             # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except Exception as err_:
-            self.logger.error('CAhandler._simpleenroll() returned an error: {0}'.format(err_))
+            self.logger.error('CAhandler._simpleenroll() returned an error: %s', err_)
             error = str(err_)
             pem = None
 
-        self.logger.debug('CAhandler._simpleenroll() ended with err: {0}'.format(error))
+        self.logger.debug('CAhandler._simpleenroll() ended with err: %s', error)
         return (error, pem)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
@@ -304,7 +304,7 @@ class CAhandler(object):
                     error = 'no CA certificates found'
                     self.logger.error('CAhandler.enroll(): no CA certificates found')
             else:
-                self.logger.error('CAhandler.enroll() _cacerts_get error: {0}'.format(error))
+                self.logger.error('CAhandler.enroll() _cacerts_get error: %s', error)
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, None)
@@ -340,5 +340,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)
