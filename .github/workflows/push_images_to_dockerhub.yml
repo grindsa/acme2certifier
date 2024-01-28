@@ -11,7 +11,7 @@ jobs:
   #update_docker_hub_description:
   #  runs-on: ubuntu-latest
   #  steps:
-  #  - uses: actions/checkout@v3
+  #  - uses: actions/checkout@v4
   #  - name: Docker Hub Description
   #    uses: peter-evans/dockerhub-description@v2
   #    env:
@@ -32,7 +32,7 @@ jobs:
         id: acme2certifier_ver  # The step ID to refer to later.
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Retrieve Version from version.py"
         run: |
@@ -103,7 +103,7 @@ jobs:
     steps:
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "[ PREPARE ] setup openssl ca_handler"
         run: |
@@ -155,7 +155,7 @@ jobs:
     steps:
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "[ PREPARE ] setup openssl ca_handler and django config"
         run: |
@@ -172,7 +172,7 @@ jobs:
           docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-django
 
       - name: "[ PREPARE ] Sleep for 10s"
-        uses: juliangruber/sleep-action@v1
+        uses: grindsa/sleep-action@node20
         with:
           time: 5s
 
@@ -218,7 +218,7 @@ jobs:
     steps:
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "[ PREPARE ] setup openssl ca_handler"
         run: |
@@ -270,7 +270,7 @@ jobs:
     steps:
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "[ PREPARE ] setup openssl ca_handler and django config"
         run: |

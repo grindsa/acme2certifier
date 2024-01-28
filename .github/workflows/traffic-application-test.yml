@@ -19,7 +19,7 @@ jobs:
         challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "get runner information"
       run: |
@@ -72,7 +72,7 @@ jobs:
         docker-compose up -d
 
     - name: "Sleep for 30s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 30s
 

@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -54,7 +54,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -143,7 +143,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -190,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -232,7 +232,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -279,7 +279,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] get runner ip"
       run: |
@@ -323,7 +323,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
