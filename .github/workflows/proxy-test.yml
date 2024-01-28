@@ -15,7 +15,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: "[ PREPARE ] create network"
       run: |
@@ -27,7 +27,7 @@ jobs:
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -192,7 +192,7 @@ jobs:
     steps:
 
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Retrieve Version from version.py
       run: |
@@ -236,7 +236,7 @@ jobs:
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v1
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 

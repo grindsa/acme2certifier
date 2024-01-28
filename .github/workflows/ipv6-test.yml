@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "[ PREPARE ] Build docker-compose (nginx_wsgi)"
       working-directory: examples/Docker/
       run: |
@@ -159,7 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "[ PREPARE ] Build docker-compose (apache2_django)"
       working-directory: examples/Docker/
       run: |
@@ -232,7 +232,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "[ PREPARE ] Build docker-compose (nginx_django)"
       working-directory: examples/Docker/
       run: |
