@@ -39,7 +39,7 @@ jobs:
         docker logs acme-srv
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -86,7 +86,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -166,7 +166,7 @@ jobs:
         docker logs acme-srv
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -213,7 +213,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -284,7 +284,7 @@ jobs:
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -315,7 +315,7 @@ jobs:
         docker logs acme-srv
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -362,7 +362,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -432,7 +432,7 @@ jobs:
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -463,7 +463,7 @@ jobs:
         docker logs acme-srv
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -511,7 +511,7 @@ jobs:
         docker-compose logs
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -677,7 +677,7 @@ jobs:
         sudo rm -rf $PWD/acme-sh/*
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -779,7 +779,7 @@ jobs:
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -860,7 +860,7 @@ jobs:
         sudo rm -rf $PWD/acme-sh/*
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -1025,7 +1025,7 @@ jobs:
         sudo rm -rf $PWD/acme-sh/*
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -1134,7 +1134,7 @@ jobs:
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -1144,7 +1144,7 @@ jobs:
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -1218,7 +1218,7 @@ jobs:
         sudo rm -rf $PWD/acme-sh/*
 
     - name: "[ PREPARE ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 

@@ -48,7 +48,7 @@ jobs:
       run: |
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -98,7 +98,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -119,7 +119,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -128,7 +128,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -137,7 +137,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -203,7 +203,7 @@ jobs:
       run: |
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -255,7 +255,7 @@ jobs:
         sudo microk8s.kubectl get pods -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -276,7 +276,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -285,7 +285,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -294,7 +294,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -360,7 +360,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -410,7 +410,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-acme-srv.yml
         sudo microk8s.kubectl get pods -n cert-manager-acme
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -430,7 +430,7 @@ jobs:
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-http-01.yml
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -439,7 +439,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -448,7 +448,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -514,7 +514,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/dnsmasq.yml
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -568,7 +568,7 @@ jobs:
         sudo microk8s.kubectl get pods -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -589,7 +589,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -599,7 +599,7 @@ jobs:
         sudo microk8s.kubectl describe challenge
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -608,7 +608,7 @@ jobs:
         sudo microk8s.kubectl describe ClusterIssuer acme2certifier
         sudo microk8s.kubectl describe challenge
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -695,7 +695,7 @@ jobs:
         sudo microk8s.kubectl get pods -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -721,7 +721,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -731,7 +731,7 @@ jobs:
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 30s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 
@@ -741,7 +741,7 @@ jobs:
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 
@@ -751,7 +751,7 @@ jobs:
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 
@@ -772,7 +772,7 @@ jobs:
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-dns-01.yml
 
     - name: "[ WAIT ] Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 20s
 
@@ -781,7 +781,7 @@ jobs:
         sudo microk8s.kubectl describe issuer acme2certifier -n cert-manager-acme
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
     - name: "[ WAIT ] Sleep for 30s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 
@@ -791,7 +791,7 @@ jobs:
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 
@@ -801,7 +801,7 @@ jobs:
         sudo microk8s.kubectl describe challenge -n cert-manager-acme
 
     - name: "[ WAIT ] Sleep for 60s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 60s
 

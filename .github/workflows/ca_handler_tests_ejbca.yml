@@ -43,7 +43,7 @@ jobs:
         docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v $(pwd)/examples/Docker/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
 
     - name: "Sleep for 180s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 180s
 
@@ -75,7 +75,7 @@ jobs:
         CAID: ${{ env.CAID }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 
@@ -220,7 +220,7 @@ jobs:
         docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data -v $(pwd)/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
 
     - name: "Sleep for 180s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 180s
 
@@ -253,7 +253,7 @@ jobs:
         CAID: ${{ env.CAID }}
 
     - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 10s
 

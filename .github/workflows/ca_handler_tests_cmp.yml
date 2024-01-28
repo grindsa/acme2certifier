@@ -103,7 +103,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -226,7 +226,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -373,7 +373,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
@@ -522,7 +522,7 @@ jobs:
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.0
+      uses: grindsa/sleep-action@node20
       with:
         time: 5s
 
