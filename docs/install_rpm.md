@@ -17,6 +17,8 @@ $ sudo yum update -y
 $ sudo yum -y localinstall /tmp/acme2certifier/acme2certifier-0.23.1-1.0.noarch.rpm
 ```
 
+In case you install on Redhat 8.x you need to upgrade the [python3-jwcrypto package](https://jwcrypto.readthedocs.io/en/latest/) to version 0.8 or higher. A backport of the package being part of [RHEL9](https://rockylinux.pkgs.org/9/rockylinux-appstream-aarch64/python3-jwcrypto-0.8-4.el9.noarch.rpm.html) can be found in the [the a2c rpm repository](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/python3-jwcrypto-0.8-4.el8.noarch.rpm)
+
 4. Copy NGINX configuration file
 
 ```bash
