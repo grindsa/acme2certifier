@@ -1152,7 +1152,10 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             error = 'type object argument after ** must be a mapping, not str'
         else:
             error = 'jwcrypto.jwk.JWK() argument after ** must be a mapping, not str'
-        self.assertEqual((False, error), self.signature_check(self.logger, message, mkey))
+
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((False, error), self.signature_check(self.logger, message, mkey))
+        self.assertIn('ERROR:test_a2c:No jwkey extracted', lcm.output)
 
     def test_151_helper_signature_check(self):
         """ sucessful validation invalid key """
