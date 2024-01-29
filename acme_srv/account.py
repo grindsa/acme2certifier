@@ -257,7 +257,7 @@ class Account(object):
 
     def _eab_kid_get(self, protected: str) -> str:
         """ get key identifier for eab validation """
-        self.logger.debug('_eab_kid_get()')
+        self.logger.debug('Account._eab_kid_get()')
         # load protected into json format
         protected_dic = json.loads(b64decode_pad(self.logger, protected))
         # extract kid
@@ -266,12 +266,12 @@ class Account(object):
         else:
             eab_key_id = None
 
-        self.logger.debug('_eab_kid_get() ended with: %s', eab_key_id)
+        self.logger.debug('Account._eab_kid_get() ended with: %s', eab_key_id)
         return eab_key_id
 
     def _eab_verify(self, payload: Dict[str, str]) -> Tuple[int, str, str]:
         """" check for external account binding """
-        self.logger.debug('_eab_check()')
+        self.logger.debug('Account._eab_verify()')
 
         # get key identifier
         eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
@@ -298,12 +298,12 @@ class Account(object):
             message = self.err_msg_dic['unauthorized']
             detail = 'eab kid lookup failed'
 
-        self.logger.debug('_eab_check() ended with: %s', code)
+        self.logger.debug('Account._eab_verify() ended with: %s', code)
         return (code, message, detail)
 
     def _eab_check(self, protected: Dict[str, str], payload: Dict[str, str]) -> Tuple[int, str, str]:
         """" check for external account binding """
-        self.logger.debug('_eab_check()')
+        self.logger.debug('Account._eab_check()')
 
         if self.eab_handler and protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
             # compare JWK from protected (outer) header if jwk included in payload of external account binding
@@ -336,7 +336,8 @@ class Account(object):
         else:
             sig_check = False
             error = None
-        self.logger.debug('Account._eab_signature_verify() ended with: %s', sig_check)
+
+        self.logger.debug('Account._eab_signature_verify() ended with: %s: %s', sig_check, error)
         return (sig_check, error)
 
     def _header_url_compare(self, outer_protected: Dict[str, str], inner_protected: Dict[str, str]) -> Tuple[int, str, str]:
