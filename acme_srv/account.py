@@ -299,7 +299,7 @@ class Account(object):
             message = self.err_msg_dic['unauthorized']
             detail = 'eab kid lookup failed'
 
-        self.logger.debug('_eab_check() ended with: {0}'.format(code))
+        self.logger.debug('Account._eab_verify() ended with: {0}'.format(code))
         return (code, message, detail)
 
     def _eab_check(self, protected: Dict[str, str], payload: Dict[str, str]) -> Tuple[int, str, str]:
@@ -337,6 +337,7 @@ class Account(object):
         else:
             sig_check = False
             error = None
+
         self.logger.debug('Account._eab_signature_verify() ended with: {0}'.format(sig_check))
         return (sig_check, error)
 
