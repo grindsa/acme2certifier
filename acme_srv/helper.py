@@ -701,8 +701,10 @@ def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: b
         # load key
         try:
             if json_:
+                logger.debug('signature_check(): load key from json')
                 jwkey = jwk.JWK.from_json(pub_key)
             else:
+                logger.debug('signature_check(): load plain json')
                 jwkey = jwk.JWK(**pub_key)
         except Exception as err:
             logger.error('load key failed {0}'.format(err))
@@ -720,9 +722,14 @@ def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: b
             except Exception as err:
                 logger.error('verify failed {0}'.format(err))
                 error = str(err)
+        else:
+            logger.error('No jwkey extracted')
+            # error = 'No jwkey extracted'
     else:
+        logger.error('No pubkey specified.')
         error = 'No key specified.'
 
+    logger.debug('signature_check() ended with: %s, %s', result, error)
     return (result, error)
 
 
