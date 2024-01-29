@@ -100,4 +100,5 @@ class Signature(object):
         if content and mac_key:
             (result, error) = signature_check(self.logger, content, mac_key, json_=True)
 
+        self.logger.debug('Signature.signature_check() ended with: %s:%s', result, error)
         return (result, error)
