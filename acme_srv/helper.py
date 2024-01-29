@@ -828,7 +828,6 @@ def signature_check(logger: logging.Logger, message: str, pub_key: str, json_: b
                 error = str(err)
         else:
             logger.error('No jwkey extracted')
-            # error = 'No jwkey extracted'
     else:
         logger.error('No pubkey specified.')
         error = 'No key specified.'

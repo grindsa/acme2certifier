@@ -240,7 +240,7 @@ class Account(object):
 
     def _eab_jwk_compare(self, protected: Dict[str, str], payload: Dict[str, str]) -> bool:
         """ compare jwk from outer header with jwk in eab playload """
-        self.logger.debug('_eab_jwk_compare()')
+        self.logger.debug('Account._eab_jwk_compare()')
         result = False
         if 'jwk' in protected:
             # convert outer jwk into string for better comparison
