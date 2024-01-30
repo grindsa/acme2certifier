@@ -156,7 +156,7 @@ class DBstore(object):
             if 'replaced' not in data_dic:
                 data_dic['replaced'] = exists['replaced']
 
-            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier, replaced = :replaced, header_info = :header_info WHERE name = :name''', data_dic)
+            self.cursor.execute('''UPDATE Certificate SET cert = :cert, cert_raw = :cert_raw, issue_uts = :issue_uts, expire_uts = :expire_uts, renewal_info = :renewal_info, poll_identifier = :poll_identifier, replaced = :replaced, header_info = :header_info, serial = :serial, aki = :aki WHERE name = :name''', data_dic)
         self._db_close()
         rid = dict_from_row(exists)['id']
         self.logger.debug('_certificate_update() ended with: %s', rid)
@@ -282,7 +282,7 @@ class DBstore(object):
         ''')
         self.logger.debug('create certificate')
         self.cursor.execute('''
-            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text,  "header_info" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
+            CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text,  "header_info" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "aki" text, "serial" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
         ''')
         self.cursor.execute('''
             CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -381,6 +381,12 @@ class DBstore(object):
         if 'header_info' not in certificate_column_list:
             self.logger.info('alter certificate table - add header_info')
             self.cursor.execute('''ALTER TABLE certificate ADD COLUMN header_info text''')
+        if 'aki' not in certificate_column_list:
+            self.logger.info('alter certificate table - add aki')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN aki text''')
+        if 'serial' not in certificate_column_list:
+            self.logger.info('alter certificate table - add serial')
+            self.cursor.execute('''ALTER TABLE certificate ADD COLUMN serial text''')
 
     def _db_update_challenge(self):
         """ alter challenge table """
@@ -863,7 +869,10 @@ class DBstore(object):
                 data_dic['renewal_info'] = exists['renewal_info']
             if 'header_info' not in data_dic:
                 data_dic['header_info'] = exists['header_info']
-
+            if 'aki' not in data_dic:
+                data_dic['aki'] = exists['aki']
+            if 'serial' not in data_dic:
+                data_dic['serial'] = exists['serial']
             rid = self._certificate_update(data_dic, exists)
         else:
             rid = self._certificate_insert(data_dic)
@@ -964,7 +973,6 @@ class DBstore(object):
                             WHERE {column} {operant} ?'''
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
-
         cert_list = []
         for row in rows:
             lookup = dict_from_row(row)
