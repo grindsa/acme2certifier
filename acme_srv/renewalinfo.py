@@ -4,7 +4,7 @@ from __future__ import print_function
 from typing import Dict
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now
+from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now, cert_serial_get, cert_aki_get
 
 
 class Renewalinfo(object):
@@ -50,6 +50,23 @@ class Renewalinfo(object):
                     self.retry_after_timeout = int(config_dic['Renewalinfo']['retry_after_timeout'])
                 except Exception as err_:
                     self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s', err_)
+
+    def _cert_table_update(self):
+        """ add serial and aki to certificate table """
+        self.logger.debug('Renewalinfo._cert_table_update()')
+
+        certificate_list = self.dbstore.certificates_search('serial', None, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'serial', 'aki'])
+
+        update_cnt = 0
+        for cert in certificate_list:
+            if cert['cert_raw']:
+                serial = cert_serial_get(self.logger, cert['cert_raw'], hexformat=True)
+                aki = cert_aki_get(self.logger, cert['cert_raw'])
+                data_dic = {'serial': serial, 'aki': aki, 'name': cert['name'], 'cert_raw': cert['cert_raw'], 'cert': cert['cert']}
+                self.dbstore.certificate_add(data_dic)
+                update_cnt += 1
+
+        self.logger.debug('Renewalinfo._cert_table_update(%s) - done', update_cnt)
 
     def _lookup(self, certid_hex: str) -> Dict[str, str]:
         """ lookup expiry dates based on renewal info """
@@ -113,6 +130,9 @@ class Renewalinfo(object):
     def get(self, url: str) -> Dict[str, str]:
         """ get renewal information """
         self.logger.debug('Renewalinfo.get()')
+
+        # shousekeeping - add serial and aki to certificate table
+        self._cert_table_update()
 
         # parse renewalinfo
         renewalinfo_string = self.renewalinfo_string_get(url)
