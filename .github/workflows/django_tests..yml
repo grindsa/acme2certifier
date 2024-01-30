@@ -12,8 +12,6 @@ jobs:
   apache_django_mariadb:
     name: "apache_django_mariadb"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -112,8 +110,6 @@ jobs:
   apache_django_psql:
     name: "apache_django_psql"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -222,8 +218,6 @@ jobs:
   nginx_django_mariadb:
     name: "nginx_django_mariadb"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -329,8 +323,6 @@ jobs:
   nginx_django_psql:
     name: "nginx_django_psql"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -446,8 +438,6 @@ jobs:
   nginx_django_rpm_sqlite:
     name: "nginx_django_rpm_sqlite"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -571,8 +561,6 @@ jobs:
   nginx_django_rpm_mariadb:
     name: "nginx_django_rpm_mariadb"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -713,8 +701,6 @@ jobs:
   nginx_django_rpm_psql:
     name: "nginx_django_rpm_psql"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
