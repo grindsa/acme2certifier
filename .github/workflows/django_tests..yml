@@ -543,7 +543,7 @@ jobs:
     - name: "Retrieve rpms from SBOM repo"
       run: |
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/*.rpm  data
+        cp /tmp/sbom/rpm-repo/RPMs/*el9*.rpm  data
       env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
@@ -703,7 +703,7 @@ jobs:
     - name: "Retrieve rpms from SBOM repo"
       run: |
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/*.rpm  data
+        cp /tmp/sbom/rpm-repo/RPMs/*el9*.rpm  data
       env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
@@ -870,7 +870,7 @@ jobs:
     - name: "Retrieve rpms from SBOM repo"
       run: |
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/*.rpm  data
+        cp /tmp/sbom/rpm-repo/RPMs/*el9*.rpm  data
       env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
