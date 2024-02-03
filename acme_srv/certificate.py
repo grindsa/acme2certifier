@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get
+from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get, cert_san_get, cert_extensions_get, hooks_load, uts_now, uts_to_date_utc, date_to_uts_utc, load_config, csr_san_get, csr_extensions_get, cert_dates_get, ca_handler_load, error_dic_get, string_sanitize, pembundle_to_list, certid_asn1_get, cert_serial_get, cert_aki_get
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
@@ -653,8 +653,10 @@ class Certificate(object):
         self.logger.debug('Certificate._store_cert(%s)', certificate_name)
 
         renewal_info_hex = self._renewal_info_get(certificate)
+        serial = cert_serial_get(self.logger, raw, hexformat=True)
+        aki = cert_aki_get(self.logger, raw)
 
-        data_dic = {'cert': certificate, 'name': certificate_name, 'cert_raw': raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts, 'poll_identifier': poll_identifier, 'renewal_info': renewal_info_hex}
+        data_dic = {'cert': certificate, 'name': certificate_name, 'cert_raw': raw, 'issue_uts': issue_uts, 'expire_uts': expire_uts, 'poll_identifier': poll_identifier, 'renewal_info': renewal_info_hex, 'serial': serial, 'aki': aki}
         try:
             cert_id = self.dbstore.certificate_add(data_dic)
         except Exception as err_:
