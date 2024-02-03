@@ -126,7 +126,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: acme_sh_apache2_wsgi-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
@@ -256,7 +256,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: acme_sh_apache2_django-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
@@ -385,7 +385,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: acme_sh_nginx_wsgi-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
@@ -516,7 +516,7 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: acme_sh_nginx_django-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
