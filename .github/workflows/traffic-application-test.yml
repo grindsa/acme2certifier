@@ -72,7 +72,7 @@ jobs:
         docker-compose up -d
 
     - name: "Sleep for 30s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 30s
 
