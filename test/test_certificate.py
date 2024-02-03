@@ -45,25 +45,37 @@ class TestACMEHandler(unittest.TestCase):
         mock_name.return_value = 'bar'
         self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr', 'header_info'))
 
+    @patch('acme_srv.certificate.cert_aki_get')
+    @patch('acme_srv.certificate.cert_serial_get')
     @patch('acme_srv.certificate.Certificate._renewal_info_get')
-    def test_002_certificate__store_cert(self, mock_renew):
+    def test_002_certificate__store_cert(self, mock_renew, mock_serial, mock_aki):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.return_value = 'bar'
         mock_renew.return_value = 'renewal_info'
+        mock_serial.return_value = 'serial'
+        mock_aki.return_value = 'aki'
         self.assertEqual('bar', self.certificate._store_cert('cert_name', 'cert', 'raw'))
         self.assertTrue(mock_renew.called)
+        self.assertTrue(mock_serial.called)
+        self.assertTrue(mock_aki.called)
 
+    @patch('acme_srv.certificate.cert_aki_get')
+    @patch('acme_srv.certificate.cert_serial_get')
     @patch('acme_srv.certificate.generate_random_string')
-    def test_003_certificate_store_csr(self, mock_name):
+    def test_003_certificate_store_csr(self, mock_name, mock_serial, mock_aki):
         """ test Certificate.store_csr() with an exception store_csr """
         self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add')
         mock_name.return_value = 'bar'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('bar', self.certificate.store_csr('order_name', 'csr', 'header_info'))
         self.assertIn('CRITICAL:test_a2c:Database error in Certificate.store_csr(): exc_cert_add', lcm.output)
+        self.assertFalse(mock_serial.called)
+        self.assertFalse(mock_aki.called)
 
+    @patch('acme_srv.certificate.cert_aki_get')
+    @patch('acme_srv.certificate.cert_serial_get')
     @patch('acme_srv.certificate.Certificate._renewal_info_get')
-    def test_004_certificate__store_cert(self, mock_renew):
+    def test_004_certificate__store_cert(self, mock_renew, mock_serial, mock_aki):
         """ test Certificate.store_cert() and check if we get something back """
         self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add')
         mock_renew.return_value = 'renewal_info'
@@ -71,6 +83,8 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.certificate._store_cert('cert_name', 'cert', 'raw'))
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add', lcm.output)
         self.assertTrue(mock_renew.called)
+        self.assertTrue(mock_serial.called)
+        self.assertTrue(mock_aki.called)
 
     def test_005_certificate__info(self):
         """ test Certificate.new_get() """
@@ -1582,8 +1596,10 @@ class TestACMEHandler(unittest.TestCase):
         timestamp = 159624000
         self.assertEqual((False, {'name': 'certname', 'cert': None, 'foo': 'bar'}), self.certificate._invalidation_check(cert_entry, timestamp))
 
+    @patch('acme_srv.certificate.cert_aki_get')
+    @patch('acme_srv.certificate.cert_serial_get')
     @patch('acme_srv.certificate.Certificate._renewal_info_get')
-    def test_143_certificate_poll(self, mock_renew):
+    def test_143_certificate_poll(self, mock_renew, mock_serial, mock_aki):
         """ test Certificate.poll - dbstore.order_update() raises an exception  """
         self.certificate.dbstore.order_update.side_effect = Exception('exc_cert_poll')
         ca_handler_module = importlib.import_module('examples.ca_handler.skeleton_ca_handler')
@@ -1594,6 +1610,8 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.poll('certificate_name', 'poll_identifier', 'csr', 'order_name')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll', lcm.output)
         self.assertTrue(mock_renew.called)
+        self.assertTrue(mock_serial.called)
+        self.assertTrue(mock_aki.called)
 
     def test_144_certificate_poll(self):
         """ test Certificate.poll - dbstore.order_update() raises an exception  and certreq rejected """
@@ -1605,8 +1623,10 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate.poll('certificate_name', 'poll_identifier', 'csr', 'order_name')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll', lcm.output)
 
+    @patch('acme_srv.certificate.cert_aki_get')
+    @patch('acme_srv.certificate.cert_serial_get')
     @patch('acme_srv.certificate.Certificate._renewal_info_get')
-    def test_145_certificate__store_cert(self, mock_renew):
+    def test_145_certificate__store_cert(self, mock_renew, mock_serial, mock_aki):
         """ test Certificate.store_cert() - dbstore.certificate_add raises an exception  """
         self.certificate.dbstore.certificate_add.side_effect = Exception('exc_cert_add')
         mock_renew.return_value = 'renewal_info'
@@ -1614,6 +1634,8 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._store_cert('cert_name', 'cert', 'raw')
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add', lcm.output)
         self.assertTrue(mock_renew.called)
+        self.assertTrue(mock_serial.called)
+        self.assertTrue(mock_aki.called)
 
     def test_146_certificate__store_cert_error(self):
         """ test Certificate.store_cert_error() - dbstore.certificate_add raises an exception  """
