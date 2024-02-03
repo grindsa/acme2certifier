@@ -273,10 +273,10 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: %s', result)
         return result
 
-    def certificates_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operator=None) -> QuerySet[Certificate]:
+    def certificates_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operant=None) -> QuerySet[Certificate]:
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificates_search(%s:%s)', mkey, value)
-        mkey = self._modify_key(mkey, operator)
+        mkey = self._modify_key(mkey, operant)
         return Certificate.objects.filter(**{mkey: value}).values(*vlist)
 
     def challenge_lookup(self, mkey: str, value: str, vlist: List[str] = ('type', 'token', 'status__name')) -> Dict[str, str]:
