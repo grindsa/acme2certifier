@@ -57,7 +57,7 @@ class Renewalinfo(object):
 
         if '.' in renewalinfo_string:
             # draft-ietf-acme-ari-02
-            (serial, aki) = self._serial_aki_get(self.logger, renewalinfo_string)
+            (serial, aki) = self._serial_aki_get(renewalinfo_string)
             # lookup database for certificate data
             cert_dic = self._draft02_lookup(serial, aki)
 
@@ -74,11 +74,15 @@ class Renewalinfo(object):
         """ add serial and aki to certificate table """
         self.logger.debug('Renewalinfo._cert_table_update()')
 
-        certificate_list = self.dbstore.certificates_search('serial', None, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'serial', 'aki'])
+        try:
+            certificate_list = self.dbstore.certificates_search('serial', None, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'serial', 'aki'])
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Renewalinfo._cert_table_update(): %s', err_)
+            certificate_list = []
 
         update_cnt = 0
         for cert in certificate_list:
-            if cert['cert_raw']:
+            if 'cert_raw' in cert and cert['cert_raw'] and 'name' in cert and 'cert' in cert:
                 serial = cert_serial_get(self.logger, cert['cert_raw'], hexformat=True)
                 aki = cert_aki_get(self.logger, cert['cert_raw'])
                 data_dic = {'serial': serial, 'aki': aki, 'name': cert['name'], 'cert_raw': cert['cert_raw'], 'cert': cert['cert']}
@@ -111,7 +115,7 @@ class Renewalinfo(object):
                     cert_dic = cert
                     break
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Renewalinfo._lookup(): %s', err_)
+            self.logger.critical('acme2certifier database error in Renewalinfo._draft02_lookup(): %s', err_)
 
         self.logger.debug('Renewalinfo._draft02_lookup() ended with: %s', bool(cert_dic))
         return cert_dic
@@ -171,9 +175,9 @@ class Renewalinfo(object):
         self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: %s', renewalinfo_string)
         return renewalinfo_string
 
-    def _serial_aki_get(self, logger: object, renewalinfo_string: str) -> (str, str):
+    def _serial_aki_get(self, renewalinfo_string: str) -> (str, str):
         """ get serial and aki from renewalinfo string """
-        logger.debug('Renewalinfo._serial_aki_get()')
+        self.logger.debug('Renewalinfo._serial_aki_get()')
 
         # split renewalinfo_string
         renewalinfo_list = renewalinfo_string.split('.')
@@ -185,6 +189,7 @@ class Renewalinfo(object):
             serial = None
             aki = None
 
+        self.logger.debug('Renewalinfo._serial_aki_get() - serial: %s, aki: %s', serial, aki=aki)
         return (serial, aki)
 
     def get(self, url: str) -> Dict[str, str]:
