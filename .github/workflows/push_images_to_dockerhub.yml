@@ -172,7 +172,7 @@ jobs:
           docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-django
 
       - name: "[ PREPARE ] Sleep for 10s"
-        uses: grindsa/sleep-action@node20
+        uses: juliangruber/sleep-action@v2.0.3
         with:
           time: 5s
 

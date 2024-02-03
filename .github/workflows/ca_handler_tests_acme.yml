@@ -34,7 +34,7 @@ jobs:
         docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
@@ -115,7 +115,7 @@ jobs:
         docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:devel
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
@@ -208,7 +208,7 @@ jobs:
         docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
@@ -314,7 +314,7 @@ jobs:
         docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:devel
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
