@@ -54,7 +54,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -143,7 +143,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -232,7 +232,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -323,7 +323,7 @@ jobs:
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
