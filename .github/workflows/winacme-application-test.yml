@@ -89,7 +89,7 @@ jobs:
 
     - name: "[ PREPARE ] Download win-acme"
       run: |
-        Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.6.1571/win-acme.v2.2.6.1571.x64.trimmed.zip -OutFile win-acme.zip
+        Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.7.1621/win-acme.v2.2.7.1621.x64.trimmed.zip -OutFile win-acme.zip
         Expand-Archive .\win-acme.zip
         mkdir win-acme\certs
         dir win-acme\*
@@ -158,7 +158,7 @@ jobs:
         cp acme_srv\acme_srv.cfg ${{ github.workspace }}\artifact\upload
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
         name: win-acme.tar.gz
