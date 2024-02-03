@@ -66,7 +66,7 @@ I am not a professional developer. Keep this in mind while laughing about my cod
 - ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant server implementation including
   - Support [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html): TLS Application‑Layer Protocol Negotiation (ALPN) Challenge Extension
   - Support [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html): Certificates for IP addresses
-  - Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+  - Support [draft-ietf-acme-ari-02](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/02/) and [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/01/): Renewal Information (ARI) Extension
   - Support [TNAuthList identifiers](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-tnauthlist-13): [TNAuthList profile](docs/tnauthlist.md) of ACME Authority Token
   - Support [tkauth-01](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09) ACME Challenges Using an Authority Token
   - [Certificate polling](docs/poll.md) and [Call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA
