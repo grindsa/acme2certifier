@@ -154,6 +154,7 @@ jobs:
 
     - name: "Install dnsmasq"
       run: |
+        sudo apt-get update
         sudo apt-get install -y dnsmasq
         sudo systemctl disable systemd-resolved
         sudo systemctl stop systemd-resolved
@@ -567,6 +568,7 @@ jobs:
 
     - name: "Install dnsmasq"
       run: |
+        sudo apt-get update
         sudo apt-get install -y dnsmasq
         sudo systemctl disable systemd-resolved
         sudo systemctl stop systemd-resolved
