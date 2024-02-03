@@ -97,7 +97,7 @@ jobs:
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -257,7 +257,7 @@ jobs:
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -512,7 +512,7 @@ jobs:
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
@@ -705,7 +705,7 @@ jobs:
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
 
     - name: "[ PREPARE ] Sleep for 5s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 

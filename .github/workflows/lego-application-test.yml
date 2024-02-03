@@ -112,7 +112,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
@@ -200,7 +200,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
@@ -288,7 +288,7 @@ jobs:
         docker-compose logs
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: grindsa/sleep-action@node20
+      uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
