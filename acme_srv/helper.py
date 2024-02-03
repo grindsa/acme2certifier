@@ -195,7 +195,7 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
     try:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
-    except Exception as err:
+    except Exception as _err:
         aki_value = cert_aki_pyopenssl_get(logger, certificate)
     logger.debug('cert_aki_get() ended with: %s', aki_value)
     return aki_value
@@ -208,16 +208,16 @@ def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
     pem_data = convert_string_to_byte(build_pem_file(logger, None, b64_url_recode(logger, certificate), True))
     cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
     # Get the AKI extension
-    ski = None
+    aki = None
     for i in range(cert.get_extension_count()):
         ext = cert.get_extension(i)
-        if 'subjectKeyIdentifier' in str(ext.get_short_name()):
+        if 'authorityKeyIdentifier' in str(ext.get_short_name()):
             aki = ext
     if aki:
         # Get the SKI value and convert it to hex
-        aki_hex = aki.get_data()[2:].hex()
+        aki_hex = aki.get_data()[4:].hex()
     else:
-        logger.error("cert_ski_pyopenssl_get(): No SKI found in certificate")
+        logger.error("cert_ski_pyopenssl_get(): No AKI found in certificate")
         aki_hex = None
     logger.debug('cert_ski_pyopenssl_cert() ended with: %s', aki_hex)
     return aki_hex
