@@ -26,6 +26,8 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/Name:           acme2certifier/Name:           acme2certifier-min/g"  examples/install_scripts/rpm/acme2certifier.spec
+          sudo sed -i "s/%{buildroot}%{dest_dir}\/%{name}\/examples/%{buildroot}%{dest_dir}\/%{projname}\/examples/g"  examples/install_scripts/rpm/acme2certifier.spec
           git config --global user.email "grindelsack@gmail.com"
           git config --global user.name "rpm update"
           git add examples/nginx
@@ -45,7 +47,8 @@ jobs:
           sudo mkdir -p data/nginx/conf.d
           sudo chmod -R 777 data
           sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          ls -la ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
@@ -136,7 +139,7 @@ jobs:
         run: |
           git reset --hard HEAD~1
           mkdir -p examples/install_scripts/rpm/packages
-          cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
+          cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
           cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
           ls -la examples/install_scripts/rpm/packages
 
@@ -155,12 +158,14 @@ jobs:
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+          # docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          # docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
+          # sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          # sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          # docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          cp examples/install_scripts/rpm/acme2certifier.spec ${{ github.workspace }}/artifact/
+          # sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz  acme2certifier.spec
 
       - name: "[ * ] uploading artificates"
         uses: actions/upload-artifact@v3
