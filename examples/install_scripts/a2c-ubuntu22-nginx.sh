@@ -13,6 +13,7 @@ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl
 # 3 install needed python modules
 echo "## Install missing pythom modules"
 sudo pip3 install -r requirements.txt
+sudo pip3 install pyopenssl --upgrade
 
 # 8 create data directory
 echo "## Create directory structure required by acme2certifier"
