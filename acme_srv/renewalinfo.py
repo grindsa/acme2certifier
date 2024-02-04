@@ -197,7 +197,10 @@ class Renewalinfo(object):
         self.logger.debug('Renewalinfo.get()')
 
         # shousekeeping - add serial and aki to certificate table
-        self._cert_table_update()
+        if not self.dbstore.hkparameter_get('cert_aki_serial_update'):
+            self._cert_table_update()
+            self.logger.debug('Renewalinfo.get() - update housekeeping')
+            self.dbstore.hkparameter_add({'name': 'cert_aki_serial_update', 'value': True})
 
         # parse renewalinfo string
         renewalinfo_string = self._renewalinfo_string_get(url)
