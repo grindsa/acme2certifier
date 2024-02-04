@@ -6,6 +6,7 @@
 #   - execute this script with "sh ./examples/install_scripts/a2c-ubuntu22-apache2.sh"
 
 # 1 install needed packages
+sudo apt-get update
 sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
 
 # 2 check if mod wsgi got activated
@@ -13,6 +14,7 @@ apache2ctl -M | grep -i wsgi
 
 # 4 install needed python modules
 sudo pip3 install -r requirements.txt
+sudo pip3 install pyopenssl --upgrade
 
 # 5 configure apache2
 sudo cp examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
