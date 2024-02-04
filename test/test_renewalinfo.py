@@ -347,28 +347,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_serial.called)
         self.assertFalse(mock_aki.called)
 
+    def test_034_draft02_lookup(self):
+        """ test _draft02_lookup() """
+        self.renewalinfo.dbstore.certificates_search.return_value = [{'foo': 'bar01', 'aki': 'aki01'}, {'foo': 'bar02', 'aki': 'aki02'}]
+        self.assertFalse(self.renewalinfo._draft02_lookup('serial', 'aki03'))
+
     @patch('acme_srv.renewalinfo.cert_aki_get')
     @patch('acme_srv.renewalinfo.cert_serial_get')
-    def test_034_cert_table_update(self, mock_serial, mock_aki):
+    def test_035_cert_table_update(self, mock_serial, mock_aki):
         """ test _cert_table_update() """
-        self.renewalinfo.dbstore.certificates_search.return_value = Exception('certificates_search')
+        self.renewalinfo.dbstore.certificates_search.side_effect = Exception('certificates_search')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.renewalinfo._cert_table_update())
         self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._cert_table_update(): certificates_search', lcm.output)
         self.assertFalse(mock_serial.called)
         self.assertFalse(mock_aki.called)
 
-    def test_035_draft02_lookup(self):
-        """ test _draft02_lookup() """
-        self.renewalinfo.dbstore.certificates_search.return_value = [{'foo': 'bar01', 'aki': 'aki01'}, {'foo': 'bar02', 'aki': 'aki02'}]
-        self.assertFalse(self.renewalinfo._draft02_lookup('serial', 'aki03'))
-
     def test_036_draft02_lookup(self):
         """ test _draft02_lookup() """
         self.renewalinfo.dbstore.certificates_search.return_value = [{'foo': 'bar01', }, {'foo': 'bar02', 'aki': 'aki02'}]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.renewalinfo._draft02_lookup('serial', 'aki03'))
-        self.assertIn("CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): 'aki'", lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): certificates_search', lcm.output)
 
     def test_037_draft02_lookup(self):
         """ test _draft02_lookup() """
