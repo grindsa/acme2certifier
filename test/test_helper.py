@@ -2182,7 +2182,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(mock_aki.called)
 
     @patch('OpenSSL.crypto.load_certificate')
-    def test_281_aki_get(self, mock_load):
+    def test_285_aki_get(self, mock_load):
         """ test cert_aki_get() """
         cert = 'cert'
         mock_load.get_extension_count.return_value = 2
