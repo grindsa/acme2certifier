@@ -5,6 +5,22 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.33
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Features and Improvements**:
+
+- Support [draft-ietf-acme-ari-02](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/02): Renewal Information (ARI) Extension
+- First version of [Insta ASA CA handler](docs/asa.md)
+- [winacme renewal-info workaround](https://github.com/grindsa/acme2certifier/issues/127)
+- better logging to ease troubleshootnig of eab
+- code refactoring to improve [f-string handling](https://pylint.pycqa.org/en/latest/user_guide/messages/convention/consider-using-f-string.html)
+
 # Changes in 0.32
 
 **Features and Improvements**:
@@ -56,7 +72,7 @@ and pick the appropriate release branch.
 **Features and Improvements**:
 
 - Support [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html): Certificates for IP addresses
-- Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+- Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/01): Renewal Information (ARI) Extension
 - Interoperability testing with [Caddy](https://caddyserver.com/docs/automatic-https) as part of regular regression
 
 # Changes in 0.28
