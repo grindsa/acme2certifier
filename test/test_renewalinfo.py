@@ -174,8 +174,20 @@ class TestACMEHandler(unittest.TestCase):
         """ test get() """
         mock_renget.return_value = {'foo': 'bar'}
         mock_renstr_get.return_value = 'mock_renstr_get'
+        self.renewalinfo.dbstore.hkparameter_get.return_value = None
         self.assertEqual({'code': 200, 'data': {'foo': 'bar'}, 'header': {'Retry-After': '86400'}}, self. renewalinfo.get('url'))
         self.assertTrue(mock_update.called)
+
+    @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
+    @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_string_get')
+    @patch('acme_srv.renewalinfo.Renewalinfo._cert_table_update')
+    def test_021_get(self, mock_update, mock_renstr_get, mock_renget):
+        """ test get() """
+        mock_renget.return_value = {'foo': 'bar'}
+        mock_renstr_get.return_value = 'mock_renstr_get'
+        self.renewalinfo.dbstore.hkparameter_get.return_value = {'foo': 'bar'}
+        self.assertEqual({'code': 200, 'data': {'foo': 'bar'}, 'header': {'Retry-After': '86400'}}, self. renewalinfo.get('url'))
+        self.assertFalse(mock_update.called)
 
     @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
     @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_string_get')
@@ -183,6 +195,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_022_get(self, mock_update, mock_renstr_get, mock_renget):
         """ test get() """
         mock_renget.return_value = None
+        self.renewalinfo.dbstore.hkparameter_get.return_value = None
         self.assertEqual({'code': 404, 'data': 'urn:ietf:params:acme:error:malformed'}, self. renewalinfo.get('url'))
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_renstr_get.called)
