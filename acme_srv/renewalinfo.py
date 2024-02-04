@@ -189,7 +189,7 @@ class Renewalinfo(object):
             serial = None
             aki = None
 
-        self.logger.debug('Renewalinfo._serial_aki_get() - serial: %s, aki: %s', serial, aki=aki)
+        self.logger.debug('Renewalinfo._serial_aki_get() - serial: %s, aki: %s', serial, aki)
         return (serial, aki)
 
     def get(self, url: str) -> Dict[str, str]:
