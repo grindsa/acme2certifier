@@ -376,7 +376,7 @@ class TestACMEHandler(unittest.TestCase):
                 bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
                 fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
                 t+eRUDECE+0UnjyeCjTn3EU="""
-        self.assertEqual('a', self.cert_serial_get(self.logger, cert, hexformat=True))
+        self.assertEqual('0a', self.cert_serial_get(self.logger, cert, hexformat=True))
 
     def test_044_helper_cert_issuer_get(self):
         """ test cert_issuer_get """

@@ -411,6 +411,8 @@ def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = 
     cert = cert_load(logger, certificate, recode=True)
     if hexformat:
         serial_number = f'{cert.serial_number:x}'
+        # add leading zero if needed
+        serial_number = serial_number.zfill(len(serial_number) + len(serial_number) % 2)
     else:
         serial_number = cert.serial_number
     logger.debug('cert_serial_get() ended with: %s', serial_number)
