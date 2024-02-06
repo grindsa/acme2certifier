@@ -7,7 +7,7 @@ and pick the appropriate release branch.
 
 # Changes in 0.33.1
 
-**Bugfixes**
+**Bugfixes**:
 
 - [132](https://github.com/grindsa/acme2certifier/issues/132) - returning serial numbers in hex-format with leading zero
 
