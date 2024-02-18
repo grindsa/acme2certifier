@@ -34,6 +34,10 @@ case "$1" in
       yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
     fi
 
+    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+    head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf
+    echo "}" >> /etc/nginx/nginx.conf
+
     chown -R nginx.nginx /opt/acme2certifier/volume/
     ls -la /opt/acme2certifier/
     ls -la /opt/acme2certifier/volume
