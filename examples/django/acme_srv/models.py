@@ -116,7 +116,7 @@ class Certificate(models.Model):
 
 class Housekeeping(models.Model):
     """ housekeeping """
-    name = models.CharField(max_length=15, unique=True)
+    name = models.CharField(max_length=30, unique=True)
     value = models.CharField(max_length=30, blank=True)
     modified_at = models.DateTimeField('value', auto_now_add=True, null=True)
 
