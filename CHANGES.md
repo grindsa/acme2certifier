@@ -7,6 +7,19 @@ and pick the appropriate release branch.
 
 # Changes in 0.33.1
 
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Bugfixes**:
+
+- [134](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping" -> value too long for "name" field
+- [135](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping dbversion ist set back to 0.23.1 after container restart
+
+# Changes in 0.33.1
+
 **Bugfixes**:
 
 - [132](https://github.com/grindsa/acme2certifier/issues/132) - returning serial numbers in hex-format with leading zero
