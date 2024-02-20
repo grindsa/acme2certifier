@@ -200,6 +200,19 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_renstr_get.called)
 
+    @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_get')
+    @patch('acme_srv.renewalinfo.Renewalinfo._renewalinfo_string_get')
+    @patch('acme_srv.renewalinfo.Renewalinfo._cert_table_update')
+    def test_016_get(self, mock_update, mock_renstr_get, mock_renget):
+        """ test get() """
+        mock_renget.side_effect = Exception('renewalinfo_get')
+        self.renewalinfo.dbstore.hkparameter_get.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual({'code': 400, 'data': 'urn:ietf:params:acme:error:malformed'}, self. renewalinfo.get('url'))
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_renstr_get.called)
+        self.assertIn('ERROR:test_a2c:Renewalinfo.get() - error: renewalinfo_get', lcm.output)
+
     @patch('acme_srv.message.Message.check')
     def test_016_update(self, mock_mcheck):
         """ test update() """
