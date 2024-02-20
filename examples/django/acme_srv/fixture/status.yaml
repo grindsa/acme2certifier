@@ -34,4 +34,4 @@
     pk: 1
     fields:
         name: dbversion
-        value: 0.33.1
+        value: 0.33.2
