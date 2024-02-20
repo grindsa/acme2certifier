@@ -1200,7 +1200,11 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
     context.options |= ssl.PROTOCOL_TLS_CLIENT
     context.set_alpn_protocols(["acme-tls/1"])
     # reject insecure ssl version
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    try:
+        # this does not work on RH8
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+    except Exception:
+        pass
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1
     context.options |= ssl.OP_NO_TLSv1_1
