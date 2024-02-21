@@ -43,6 +43,10 @@ case "$1" in
       yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
     fi
 
+    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+    head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf
+    echo "}" >> /etc/nginx/nginx.conf
+
     cd /opt/acme2certifier
     python3 manage.py makemigrations
     python3 manage.py migrate
