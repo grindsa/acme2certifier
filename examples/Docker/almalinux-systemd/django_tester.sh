@@ -18,7 +18,7 @@ case "$1" in
 
     yum -y install epel-release
     yum -y localinstall /tmp/acme2certifier/*.rpm
-    yum -y install python3-PyMySQL python3-psycopg2 python3-pyyaml python3-mysqlclient
+    yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
 
     yes | cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
     yes | cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
