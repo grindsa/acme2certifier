@@ -363,9 +363,9 @@ class Certificate(object):
         if self.hooks:
             try:
                 self.hooks.pre_hook(certificate_name, order_name, csr)
-                self.logger.debug('Certificate._enroll_and_store(): pre_hook successful')
+                self.logger.debug('Certificate._pre_hooks_process(): pre_hook successful')
             except Exception as err:
-                self.logger.error('Certificate._enroll_and_store(): pre_hook exception: %s', err)
+                self.logger.error('Certificate._pre_hooks_process(): pre_hook exception: %s', err)
                 if not self.ignore_pre_hook_failure:
                     hook_error = (None, 'pre_hook_error', str(err))
 
@@ -379,9 +379,9 @@ class Certificate(object):
         if self.hooks:
             try:
                 self.hooks.post_hook(certificate_name, order_name, csr, error)
-                self.logger.debug('Certificate._enroll_and_store(): post_hook successful')
+                self.logger.debug('Certificate._pre_hooks_process(): post_hook successful')
             except Exception as err:
-                self.logger.error('Certificate._enroll_and_store(): post_hook exception: %s', err)
+                self.logger.error('Certificate._pre_hooks_process(): post_hook exception: %s', err)
                 if not self.ignore_post_hook_failure:
                     hook_error = (None, 'post_hook_error', str(err))
 
