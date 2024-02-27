@@ -16,7 +16,7 @@
 | `CAhandler` | `handler_file` | path and name of ca_handler file to be loaded. If not specified `acme_srv/ca_handler.py` will be loaded | examples/ca_handler/openssl_handler.py | `acme_srv/ca_handler.py`|
 | `Certificate` | `revocation_reason_check_disable` | disable the check of revocation reason | True/False | False|
 | `Certificate` | `cert_reusage_timeframe` | in case a csr will be resend within this timeframe (in seconds) the  certificate already stored in the database will be returned and no enrollment will be triggered| Integer |0 (disabled)|
-| `Certificate` | `enrollment_timeout` | timeout in second for asynchronous ca_handler threat| Integer |5|
+| `Certificate` | `enrollment_timeout` | timeout in seconds for asynchronous ca_handler threat| Integer |5|
 | `Challenge` | `challenge_validation_disable` | disable challenge validation via http or dns. THIS IS A SEVERE SECURITY ISSUE! Please enable for testing/debugging purposes only. | True/False | False|
 | `Challenge` | `challenge_validation_timeout` | Timeout in seconds for challenge validation | Integer | 10 |
 | `Challenge` | `dns_server_list` | Use own dns servers for name resolution during challenge verification| ["ip1", "ip2"] | []|

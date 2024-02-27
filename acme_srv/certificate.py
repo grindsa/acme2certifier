@@ -335,18 +335,18 @@ class Certificate(object):
 
     def _enrollerror_handler(self, error: str, poll_identifier: str, order_name: str, certificate_name: str) -> Tuple[None, str, str]:
         """ store error message for later analysis """
-        self.logger.error('Certificate._enroll_and_store(%s)', error)
+        self.logger.debug('Certificate._enrollerror_handler(%s)', error)
 
         result = None
         detail = None
         try:
             if not poll_identifier:
-                self.logger.debug('Certificate._enroll_and_store(): invalidating order as there is no certificate and no poll_identifier: %s/%s', error, order_name)
+                self.logger.debug('Certificate._enrollerror_handler(): invalidating order as there is no certificate and no poll_identifier: %s/%s', error, order_name)
                 self._order_update({'name': order_name, 'status': 'invalid'})
             self._store_cert_error(certificate_name, error, poll_identifier)
         except Exception as err_:
             result = None
-            self.logger.critical('acme2certifier database error in Certificate._enroll_and_store() _store_cert_error: %s', err_)
+            self.logger.critical('acme2certifier database error in Certificate._enrollerror_handler() _store_cert_error: %s', err_)
 
         # cover polling cases
         if poll_identifier:
@@ -354,7 +354,7 @@ class Certificate(object):
         else:
             error = self.err_msg_dic['serverinternal']
 
-        self.logger.error('Certificate._enroll_and_store() ended with: %s', result)
+        self.logger.debug('Certificate._enrollerror_handler() ended with: %s', result)
         return (result, error, detail)
 
     def _pre_hooks_process(self, certificate_name: str, order_name: str, csr: str) -> List[str]:
