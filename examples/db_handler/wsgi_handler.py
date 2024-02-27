@@ -1310,7 +1310,7 @@ class DBstore(object):
 
     def orders_invalid_search(self, column: str, string: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'), operant='LIKE') -> List[str]:
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.orders_search(column:%s, pattern:%s)', column, string)
+        self.logger.debug('DBStore.orders_invalid_search(column:%s, pattern:%s)', column, string)
         self._db_open()
 
         pre_statement = f'''SELECT
@@ -1338,5 +1338,5 @@ class DBstore(object):
             order_list.append(result)
 
         self._db_close()
-        self.logger.debug('DBStore.orders_search() ended')
+        self.logger.debug('DBStore.orders_invalid_search() ended')
         return order_list
