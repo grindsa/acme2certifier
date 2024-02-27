@@ -48,6 +48,7 @@ class DBstore(object):
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
         self._db_open()
+        result = None
         try:
             pre_statement = f'SELECT * from account WHERE {column} LIKE ?'
             self.cursor.execute(pre_statement, [string])
@@ -312,6 +313,7 @@ class DBstore(object):
         self.dbs = sqlite3.connect(self.db_name)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
+        # self.cursor.execute('''PRAGMA journal_mode=WAL''')
         # self.logger.debug('DBStore._db_open() ended')
 
     def _db_update_account(self):
