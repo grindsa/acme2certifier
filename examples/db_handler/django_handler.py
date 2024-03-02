@@ -33,12 +33,12 @@ class DBstore(object):
         """ init """
         self.logger = logger
 
-    def _account_getinstance(self, aname: str) -> QuerySet[Account]:
+    def _account_getinstance(self, aname: str) -> QuerySet:
         """ get account instance """
         self.logger.debug('DBStore._account_getinstance(%s)', aname)
         return Account.objects.get(name=aname)
 
-    def _authorization_getinstance(self, name: str) -> QuerySet[Authorization]:
+    def _authorization_getinstance(self, name: str) -> QuerySet:
         """ get authorization instance """
         self.logger.debug('DBStore._authorization_getinstance(%s)', name)
         return Authorization.objects.get(name=name)
@@ -53,12 +53,12 @@ class DBstore(object):
         self.logger.debug('DBStore._modify_key() ended with: %s', mkey)
         return mkey
 
-    def _order_getinstance(self, value: str = id, mkey: id = 'id') -> QuerySet[Order]:
+    def _order_getinstance(self, value: str = id, mkey: id = 'id') -> QuerySet:
         """ get order instance """
         self.logger.debug('DBStore._order_getinstance(%s:%s)', mkey, value)
         return Order.objects.get(**{mkey: value})
 
-    def _status_getinstance(self, value: str, mkey: str = 'id') -> QuerySet[Status]:
+    def _status_getinstance(self, value: str, mkey: str = 'id') -> QuerySet:
         """ get account instance """
         self.logger.debug('DBStore._status_getinstance(%s:%s)', mkey, value)
         return Status.objects.get(**{mkey: value})
@@ -100,7 +100,7 @@ class DBstore(object):
         self.logger.debug('acct_id(%s)', obj.id)
         return obj.id
 
-    def accountlist_get(self) -> Tuple[List[str], QuerySet[Account]]:
+    def accountlist_get(self) -> Tuple[List[str], QuerySet]:
         """ accountlist_get """
         self.logger.debug('DBStore.accountlist_get()')
         vlist = [
@@ -130,13 +130,13 @@ class DBstore(object):
         self.logger.debug('auth_id(%s)', obj.id)
         return obj.id
 
-    def authorization_lookup(self, mkey: str, value: str, vlist: List[str] = ('type', 'value')) -> QuerySet[Authorization]:
+    def authorization_lookup(self, mkey: str, value: str, vlist: List[str] = ('type', 'value')) -> QuerySet:
         """ search account for a given id """
         self.logger.debug('authorization_lookup(%s:%s:%s)', mkey, value, vlist)
         authz_list = Authorization.objects.filter(**{mkey: value}).values(*vlist)[::1]
         return authz_list
 
-    def authorizations_expired_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant: str = 'LIKE') -> QuerySet[Authorization]:
+    def authorizations_expired_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant: str = 'LIKE') -> QuerySet:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.authorizations_invalid_search(column:%s, pattern:%s)', mkey, value)
 
@@ -244,12 +244,12 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_account_check() ended with: %s', result)
         return result
 
-    def certificate_delete(self, mkey: str, value: str) -> QuerySet[Certificate]:
+    def certificate_delete(self, mkey: str, value: str) -> QuerySet:
         """ delete certificate from table """
         self.logger.debug('DBStore.certificate_delete(%s:%s)', mkey, value)
         Certificate.objects.filter(**{mkey: value}).delete()
 
-    def certificatelist_get(self) -> Tuple[List[str], List[QuerySet[Certificate]]]:
+    def certificatelist_get(self) -> Tuple[List[str], List[QuerySet]]:
         """ certificatelist_get """
         self.logger.debug('DBStore.certificatelist_get()')
         vlist = [
@@ -273,7 +273,7 @@ class DBstore(object):
         self.logger.debug('DBStore.certificate_lookup() ended with: %s', result)
         return result
 
-    def certificates_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operant=None) -> QuerySet[Certificate]:
+    def certificates_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operant=None) -> QuerySet:
         """ search certificate based on "something" """
         self.logger.debug('DBStore.certificates_search(%s:%s)', mkey, value)
         mkey = self._modify_key(mkey, operant)
@@ -295,7 +295,7 @@ class DBstore(object):
             result = None
         return result
 
-    def challenges_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'type', 'cert', 'status__name', 'token')) -> QuerySet[Challenge]:
+    def challenges_search(self, mkey: str, value: str, vlist: List[str] = ('name', 'type', 'cert', 'status__name', 'token')) -> QuerySet:
         """ search challenges based on "something" """
         self.logger.debug('DBStore.challenges_search(%s:%s)', mkey, value)
         return Challenge.objects.filter(**{mkey: value}).values(*vlist)
@@ -433,7 +433,7 @@ class DBstore(object):
         obj, _created = Order.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
         obj.save()
 
-    def orders_invalid_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE') -> QuerySet[Order]:
+    def orders_invalid_search(self, mkey: str, value: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'acccount__contact'), operant='LIKE') -> QuerySet:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_search(column:%s, pattern:%s)', mkey, value)
         mkey = self._modify_key(mkey, operant)
