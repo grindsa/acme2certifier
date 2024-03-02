@@ -336,6 +336,7 @@ class Account(object):
         else:
             sig_check = False
             error = None
+
         self.logger.debug('Account._eab_signature_verify() ended with: %s: %s', sig_check, error)
         return (sig_check, error)
 

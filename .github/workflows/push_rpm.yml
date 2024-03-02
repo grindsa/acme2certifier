@@ -1,0 +1,175 @@
+name: build and upload rpm
+on:
+  push:
+    branches:
+      - "min"
+jobs:
+
+   build_and_upload_rpm:
+    name: build_and_upload_rpm
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: "[ PREPARE ] Retrieve Version from version.py"
+        run: |
+          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+      - run: echo "APP tag is ${{ env.APP_NAME }}"
+      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+      - name: "[ PREPARE ] update version number in spec file"
+        run: |
+          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/Name:           acme2certifier/Name:           acme2certifier-min/g"  examples/install_scripts/rpm/acme2certifier.spec
+          sudo sed -i "s/%{buildroot}%{dest_dir}\/%{name}\/examples/%{buildroot}%{dest_dir}\/%{projname}\/examples/g"  examples/install_scripts/rpm/acme2certifier.spec
+          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.name "rpm update"
+          git add examples/nginx
+          git commit -a -m "rpm update"
+
+      - name: build RPM package
+        id: rpm_build
+        uses: grindsa/rpmbuild@alma9
+        with:
+          spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+      - name: "[ PREPARE ] setup environment for alma installation"
+        run: |
+          docker network create acme
+          sudo mkdir -p data/volume
+          sudo mkdir -p data/acme2certifier
+          sudo mkdir -p data/nginx/conf.d
+          sudo chmod -R 777 data
+          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+          ls -la ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
+          sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
+          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
+
+      - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+        run: |
+          mkdir -p data/acme_ca
+          sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+          sudo touch data/acme_srv.cfg
+          sudo chmod 777 data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+          sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+          sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+          sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+          sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+          sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+          sudo echo "profile_id: 101" >> data/acme_srv.cfg
+        env:
+          NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+          NCM_API_USER: ${{ secrets.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+          NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+          NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+      - name: "[ PREPARE ] Almalinux instance"
+        run: |
+          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+          docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+
+      - name: "[ PREPARE ] Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+      - name: "[ TEST ] create client directories"
+        run: |
+          mkdir -p acme-sh
+
+      - name: "[ TEST ] http://acme-srv/directory is accessable"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+      - name: "[ TEST ] https://acme-srv/directory is accessable"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+      - name: "[ TEST ] prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+      - name: "[ HTTP ] acme.sh using http01 challenge"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "[ HTTP ] acme.sh using tls-alpn01 challenge"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "[ HTTP ] revoke via acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+
+      - name: "[ HTTPS ] register via https"
+        run: |
+          docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+
+      - name: "[ HTTPS ] acme.sh using http01 challenge"
+        run: |
+          docker exec -i acme-sh acme.sh --server https://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
+
+      - name: "[ HTTPS ] acme.sh using tls-alpn01 challenge"
+        run: |
+          docker exec -i acme-sh acme.sh --server https://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --insecure --debug 3 --output-insecure --force
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "[ HTTPS ] revoke via acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server https://acme-srv --revoke -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure
+
+      - run: echo "srpm path ${{ steps.rpm_build.outputs.source_rpm_path }}"
+      - run: echo "srpm name ${{ steps.rpm_build.outputs.source_rpm_path }}"
+      - run: echo "rpm path  ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
+      - run: echo "rpm name acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm"
+
+      - name: "[ FINALIZE ] copy rpm"
+        run: |
+          git reset --hard HEAD~1
+          mkdir -p examples/install_scripts/rpm/packages
+          cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
+          cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
+          ls -la examples/install_scripts/rpm/packages
+
+      - name: "[ FINALIZE ] cleanup before commit"
+        run: |
+          sudo rm -rf rpmbuild
+          sudo rm -rf acme-sh
+          sudo rm -rf data
+          sudo rm -rf *.pem
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: rpm update
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          # docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          # docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
+          # sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          # sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          # docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          cp examples/install_scripts/rpm/acme2certifier.spec ${{ github.workspace }}/artifact/
+          # sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz  acme2certifier.spec
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v3
+        if: ${{ failure() }}
+        with:
+          name: rpm_wsgi_upgrade_nginx.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/

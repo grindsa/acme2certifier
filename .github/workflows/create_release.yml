@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - "master"
+      - "tbd"
 
 name: Create Release
 
@@ -58,7 +58,7 @@ jobs:
       - name: build RPM package
         id: rpm_build
         if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: grindsa/rpmbuild@alma9
+        uses: grindsa/rpmbuild@master
         with:
           spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
