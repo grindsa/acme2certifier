@@ -28,13 +28,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/cn_dump_hooks.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "save_path: volume/hooks" >> examples/Docker/data/acme_srv.cfg
@@ -45,6 +50,11 @@ jobs:
         docker-compose logs
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Test http://acme-srv/directory is accessable again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -60,7 +70,10 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        sudo chmod 777 certbot/archive/certbot/chain1.pem
+        sudo cp certbot/archive/certbot/chain1.pem chain1.pem
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -73,12 +86,13 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ ENROLL ] lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ CHECK ] compare checksums to validate hook file content"
       working-directory: examples/Docker/data/hooks
@@ -140,13 +154,21 @@ jobs:
         mkdir acmme-sh
         mkdir lego
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo mkdir -p data/acme_ca/hooks
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_id: 101" >> data/acme_srv.cfg
+        sudo mkdir -p data/acme_ca/hooks
         sudo chmod -R 777 data/acme_ca/hooks
         sudo echo -e "\n\n[Hooks]" >> data/acme_srv.cfg
         sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/cn_dump_hooks.py" >> data/acme_srv.cfg
@@ -154,6 +176,11 @@ jobs:
         sudo echo "$HOOKS_CHECKSUM" > data/acme_ca/hooks/checksums.sha256
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -174,7 +201,10 @@ jobs:
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        sudo chmod 777 certbot/archive/certbot/chain1.pem
+        sudo cp certbot/archive/certbot/chain1.pem chain1.pem
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -187,12 +217,12 @@ jobs:
     - name: "[ ENROLL] acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ ENROLL ] lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ CHECK ] compare checksums to validate hook file content"
       working-directory: data/acme_ca/hooks
@@ -235,13 +265,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/exception_test_hooks.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "raise_pre_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
@@ -253,6 +288,11 @@ jobs:
         docker-compose logs
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Test http://acme-srv/directory is accessable again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -268,7 +308,8 @@ jobs:
     - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
       run: |
@@ -299,7 +340,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
       run: |
@@ -331,7 +372,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
       run: |
@@ -344,7 +385,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
       run: |
@@ -421,13 +462,21 @@ jobs:
         mkdir acmme-sh
         mkdir lego
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo mkdir -p data/acme_ca/hooks
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_id: 101" >> data/acme_srv.cfg
+        sudo mkdir -p data/acme_ca/hooks
         sudo chmod -R 777 data/acme_ca/hooks
         sudo echo -e "\n\n[Hooks]" >> data/acme_srv.cfg
         sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/exception_test_hooks.py" >> data/acme_srv.cfg
@@ -436,6 +485,11 @@ jobs:
         sudo echo "raise_success_hook_exception: False" >> data/acme_srv.cfg
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -460,7 +514,8 @@ jobs:
     - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
       run: |
@@ -487,7 +542,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
       run: |
@@ -515,7 +570,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
       run: |
@@ -526,7 +581,7 @@ jobs:
     - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
       run: |
