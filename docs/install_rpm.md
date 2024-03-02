@@ -23,11 +23,18 @@ In case you install on Redhat 8.x you need to upgrade following packages
 - [python3-dns](https://www.dnspython.org/) to version 2.1 or higher.
 - [python3-jwcrypto package](https://jwcrypto.readthedocs.io/en/latest/) to version 0.8 or higher.
 
-Backports of these packages being part of RHEL9 can be found in the [the a2c rpm repository](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/)
+Backports of these packages being part of RHEL9 can be found in the [the a2c rpm repository](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8)
 
-- [rpm-repo/RPMs/python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
-- [python3-dns-2.1.0-6.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/python3-dns-2.1.0-6.el8.noarch.rpm)
-- [python3-jwcrypto-0.8-4.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/python3-jwcrypto-0.8-4.el8.noarch.rpm)
+- [python3-cryptography-36.0.1-4.el8.x86_64.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-cryptography-36.0.1-4.el8.x86_64.rpm)
+- [python3-dns-2.1.0-6.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-dns-2.1.0-6.el8.noarch.rpm)
+- [python3-jwcrypto-0.8-4.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-jwcrypto-0.8-4.el8.noarch.rpm)
+
+
+Depending on your packages would be needed as well:
+ - [python3-impacket-0.11.0-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-1.el8.noarch.rpm) for the [MS wcce handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md)
+ - [python3-ntlm-auth-1.5.0-2.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-ntlm-auth-1.5.0-2.el8.noarch.rpm) for the [MS wes handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mscertsrv.md)
+ - [python3-requests-pkcs12-1.16-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-requests_ntlm-1.1.0-14.el8.noarch.rpm) for the [EST](https://github.com/grindsa/acme2certifier/blob/master/docs/est.md) and [Ejbca](https://github.com/grindsa/acme2certifier/blob/master/docs/ejbca.md) handler
+
 
 4. Copy NGINX configuration file
 
