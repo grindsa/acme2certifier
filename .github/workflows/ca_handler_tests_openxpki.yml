@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [ devel ]
   schedule:
-    # * is a special character in YAML so you have to quote this string
+    # * is a special character in YAML so you have to quote the string
     - cron:  '0 2 * * 6'
 
 jobs:
@@ -340,6 +340,10 @@ jobs:
   openxpki_ca_handler_tests_rpm:
     name: " openxpki_ca_handler_tests_rpm"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
     steps:
 
     - name: "checkout GIT"
@@ -456,6 +460,14 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
     - name: "setup a2c with est_ca_handler"
       run: |
         sudo touch data/acme_srv.cfg
@@ -470,9 +482,11 @@ jobs:
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
-    - name: "prepare Almalinux instance"
+    - name: "[ PREPARE ] Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "[ RUN ] Execute install scipt"
@@ -510,7 +524,6 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "est_host: https://openxpki:8443" >> data/acme_srv.cfg
-        # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/acme_srv.cfg
         sudo echo "est_client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.p12" >> data/acme_srv.cfg
         sudo echo "cert_passphrase: Test1234" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
@@ -661,10 +674,6 @@ jobs:
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    #- name: "revoke HTTP-01 single domain certbot"
-    #  run: |
-    #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
-
     - name: "enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
@@ -683,11 +692,16 @@ jobs:
         docker logs openxpki-docker_openxpki-client_1 > ${{ github.workspace }}/artifact/openxpki_client.log
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
+        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data openxpki_server.log openxpki_client.log acme-srv.log acme-sh
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: openxpki_rpm.tar.gz
+        name: openxpki_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/

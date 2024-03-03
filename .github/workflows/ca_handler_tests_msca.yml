@@ -1,4 +1,4 @@
-name: CA handler tests - Microsoft CA
+name: CA handler tests - MicrosoftCA
 
 on:
   push:
@@ -317,6 +317,38 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "[ PREPARE ] get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Install dnsmasq"
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dnsmasq
+        sudo systemctl disable systemd-resolved
+        sudo systemctl stop systemd-resolved
+        sudo mkdir -p dnsmasq
+        sudo cp .github/dnsmasq.conf dnsmasq/
+        sudo chmod -R 777 dnsmasq/dnsmasq.conf
+        sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
+        sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        cat dnsmasq/dnsmasq.conf
+        sudo cp dnsmasq/dnsmasq.conf /etc/
+        sudo systemctl enable dnsmasq
+        sudo systemctl start dnsmasq
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+        WES_HOST: ${{ secrets.WES_HOST }}
+
+    - name: "[ PREPARE ] test dns resulution"
+      run: |
+        host $WES_HOST 127.0.0.1
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
@@ -359,9 +391,32 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
+    - name: "[ PREPARE ] ssh environment on ramdisk"
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "[ PREPARE ] establish SSH connection"
+      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 443:$WES_IP:443 -g ping -c 180 $WES_IP &
+      env:
+        SSH_USER: ${{ secrets.CMP_SSH_USER }}
+        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
+        WES_IP: ${{ secrets.WES_IP }}
+
+    - name: "[ PREPARE ] Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ ENROLL ] acme.sh"
@@ -399,12 +454,16 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: wse.${{ matrix.authscheme }}.tar.gz
+        name: wes_handler_tests.${{ matrix.authscheme }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   wcce_handler_ntlm_tests_rpm:
     name: "wcce_handler_ntlm_tests_rpm"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -444,6 +503,14 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
     - name: "[ PREPARE ] prepare acme_srv.cfg with ms_wcce_ca_handler"
       run: |
         mkdir -p data/acme_ca
@@ -472,24 +539,26 @@ jobs:
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-    - name: "[ RUN ] Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "[ PREPARE ] create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
+        mkdir acme-sh
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ PREPARE ] ssh environment on ramdisk "
@@ -540,8 +609,11 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo rm -rf data/*.rpm
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
@@ -549,12 +621,16 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: wcce_ntlm_rpm.tar.gz
+        name: wcce_ntlm_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   wcce_handler_krb_tests_rpm:
     name: "wcce_handler_krb_tests_rpm"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -629,7 +705,7 @@ jobs:
     - name: "Retrieve rpms from SBOM repo"
       run: |
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/*impacket*.rpm  data
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
       env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
@@ -665,24 +741,26 @@ jobs:
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-    - name: "[ RUN ] Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "[ PREPARE ] create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
+        mkdir acme-sh
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ PREPARE ] ssh environment on ramdisk "
@@ -734,9 +812,11 @@ jobs:
         sudo tail -n 200 /var/log/syslog
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        rm data/*impacket*.rpm
+        sudo rm -rf data/*.rpm
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
@@ -744,7 +824,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: wcce_handler_krb_tests_rpm.tar.gz
+        name: wcce_handler_krb_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   wes_handler_tests_rpm:
@@ -754,6 +834,7 @@ jobs:
       fail-fast: false
       matrix:
         authscheme: ['ntlm']
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -764,6 +845,32 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Install dnsmasq"
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dnsmasq
+        sudo systemctl disable systemd-resolved
+        sudo systemctl stop systemd-resolved
+        sudo mkdir -p dnsmasq
+        sudo cp .github/dnsmasq.conf dnsmasq/
+        sudo chmod -R 777 dnsmasq/dnsmasq.conf
+        sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
+        sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        cat dnsmasq/dnsmasq.conf
+        sudo cp dnsmasq/dnsmasq.conf /etc/
+        sudo systemctl enable dnsmasq
+        sudo systemctl start dnsmasq
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+        WES_HOST: ${{ secrets.WES_HOST }}
+
+    - name: "[ PREPARE ] test dns resulution"
+      run: |
+        host $WES_HOST 127.0.0.1
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+
 
     - name: Retrieve Version from version.py
       run: |
@@ -797,7 +904,7 @@ jobs:
     - name: "Retrieve rpms from SBOM repo"
       run: |
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/*ntlm*.rpm  data
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
       env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
@@ -825,24 +932,50 @@ jobs:
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-    - name: "[ RUN ] Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "[ PREPARE ] create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
+        mkdir acme-sh
+
+    - name: "[ RUN ] Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
+    - name: "[ PREPARE ] ssh environment on ramdisk"
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "[ PREPARE ] establish SSH connection"
+      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 443:$WES_IP:443 -g ping -c 180 $WES_IP &
+      env:
+        SSH_USER: ${{ secrets.CMP_SSH_USER }}
+        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
+        WES_IP: ${{ secrets.WES_IP }}
+
+    - name: "[ PREPARE ] Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "[ ENROLL ] acme.sh"
@@ -869,8 +1002,11 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo rm -rf data/*.rpm
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
@@ -878,5 +1014,5 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: wes_rpm.tar.gz
+        name: wes_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
