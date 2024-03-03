@@ -1,5 +1,5 @@
 <!-- markdownlint-disable  MD013 MD014 MD029 -->
-<!-- wiki-title RPM installation on Alma Linux 9 -->
+<!-- wiki-title RPM installation on alma Linux 9 -->
 # RPM installation on AlmaLinux/Redhat EL/CentOS Stream 9
 
 1. Download the latest [RPM package](https://github.com/grindsa/acme2certifier/releases).
