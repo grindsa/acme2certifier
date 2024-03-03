@@ -29,7 +29,6 @@ Backports of these packages being part of RHEL9 can be found in the [the a2c rpm
 - [python3-dns-2.1.0-6.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-dns-2.1.0-6.el8.noarch.rpm)
 - [python3-jwcrypto-0.8-4.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-jwcrypto-0.8-4.el8.noarch.rpm)
 
-
 Depending on your ca_handler you may need additional modules:
 
 - [python3-impacket-0.11.0-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-1.el8.noarch.rpm) when using [MS wcce handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md)
