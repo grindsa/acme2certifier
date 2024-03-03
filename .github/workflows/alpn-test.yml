@@ -1,4 +1,4 @@
-name: TLS-ALPN-01 challenge tests
+name: tls-alpn-01 challenge tests
 
 on:
   push:
@@ -75,6 +75,10 @@ jobs:
   alpn_apache2_wsgi_rpm:
     name: "alpn_apache2_wsgi_rpm"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -111,6 +115,14 @@ jobs:
         mkdir acmme-sh
         mkdir lego
 
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
     - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
       run: |
         mkdir -p data/acme_ca
@@ -120,7 +132,9 @@ jobs:
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "[ RUN ] Execute install scipt"
@@ -151,13 +165,16 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log # acme-sh
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: alpn-rpm.tar.gz
+        name: alpn-rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
