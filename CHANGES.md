@@ -8,9 +8,9 @@ and pick the appropriate release branch.
 # Changes in 0.33.3
 
 **Features and Improvements**:
+
 - some smaller modifications run flawless on Redhat8 and derivates
 - Workflows to test rpm-deployment on RHEL8 and RHEL9
-
 
 # Changes in 0.33.2
 
