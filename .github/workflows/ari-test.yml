@@ -25,6 +25,11 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
@@ -53,8 +58,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -124,8 +129,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -194,8 +199,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -266,8 +271,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -365,8 +370,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -484,8 +489,8 @@ jobs:
     - name: "[ RENEW ] HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --ari-enable --no-random-sleep 2> ari.txt
-        cat ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
         sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
