@@ -3,9 +3,6 @@ on:
   push:
     branches:
       - "devel"
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 4 * * 6'
 jobs:
   instance_start:
     name: instance_start
