@@ -28,9 +28,6 @@ jobs:
       run: |
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
     - name: "setup a2c with xca_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/xca
@@ -56,6 +53,11 @@ jobs:
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
+
+    - name: "[ WAIT ] Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessable again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -111,9 +113,6 @@ jobs:
     - name: "create letsencrypt and lego folder"
       run: |
         mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "setup a2c with xca_ca_handler"
       run: |
@@ -202,9 +201,6 @@ jobs:
       run: |
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
     - name: "setup a2c with xca_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/xca
@@ -288,17 +284,9 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
     - name: "create letsencrypt and lego folder"
       run: |
         mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "setup a2c with xca_ca_handler"
       run: |
