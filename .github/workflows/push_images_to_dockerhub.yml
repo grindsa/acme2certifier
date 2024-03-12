@@ -120,8 +120,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['nginx']
-        dbhandler: ['django']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
       - name: "Get current version"
@@ -277,8 +277,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['nginx']
-        dbhandler: ['django']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
       - name: "Get current version"
