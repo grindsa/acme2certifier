@@ -110,6 +110,9 @@ class Renewalinfo(object):
         cert_dic = {}
         try:
             cert_list = self.dbstore.certificates_search('serial', serial, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
+            if not cert_list and serial.startswith('0'):
+                # cover cornercase where serial is padded with leading zeros
+                cert_list = self.dbstore.certificates_search('serial', serial.lstrip('0'), operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
             for cert in cert_list:
                 if cert['aki'] == aki:
                     cert_dic = cert
@@ -206,17 +209,24 @@ class Renewalinfo(object):
         renewalinfo_string = self._renewalinfo_string_get(url)
 
         # get renewal information
-        rewalinfo_dic = self._renewalinfo_get(renewalinfo_string)
+        try:
+            rewalinfo_dic = self._renewalinfo_get(renewalinfo_string)
+            if rewalinfo_dic:
+                rc_code = 200
+            else:
+                rc_code = 404
+        except Exception as err_:
+            self.logger.error('Renewalinfo.get() - error: %s', err_)
+            rewalinfo_dic = {}
+            rc_code = 400
 
-        response_dic = {}
+        response_dic = {'code': rc_code}
         if rewalinfo_dic:
-            response_dic['code'] = 200
             # filter certificate and decode it
             response_dic['data'] = rewalinfo_dic
             # order status is processing - ratelimiting
             response_dic['header'] = {'Retry-After': f'{self.retry_after_timeout}'.format()}
         else:
-            response_dic['code'] = 404
             response_dic['data'] = self.err_msg_dic['malformed']
 
         return response_dic
