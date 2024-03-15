@@ -9,26 +9,44 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  ap_wsgi_async_enrollment_cert_reusage:
-    name: ap_wsgi_async_enrollment_cert_reusage
+  async_enrollment_cert_reusage:
+    name: async_enrollment_cert_reusage
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "create folders"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo chmod 777 examples/Docker/data/ca_handler.py
         sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
@@ -42,55 +60,64 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
-    - name: "[ VERIFY ] Check timeout"
+    - name: "Check timeout"
       working-directory: examples/Docker/
       run: |
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ VERIFY ] Check certificate reusage"
+    - name: "Check certificate reusage"
       working-directory: examples/Docker/
       run: |
         docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
 
-    - name: "[ ENROL] lego"
+    - name: "enroll lego"
       run: |
-        mkdir lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 150 --http run
 
-    - name: "[ VERIFY ] Check timeout"
+    - name: "Check timeout"
       working-directory: examples/Docker/
       run: |
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
 
-    - name: "[ REGISTER ] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] certbot"
+    - name: "Enroll certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
 
-    - name: "[ VERIFY ] Check timeout"
+    - name: "Check timeout"
       working-directory: examples/Docker/
       run: |
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
@@ -106,111 +133,8 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: ap_wsgi_async_enrollment_cert_reusage.tar.gz
+        name: async_enrollment_cert_reusage-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
-  ap_django_async_enrollment_cert_reusage:
-    name: ap_django_async_enrollment_cert_reusage
-    runs-on: ubuntu-latest
-    steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
-
-    - name: "Build docker-compose (apache2_django)"
-      working-directory: examples/Docker/
-      run: |
-        sed -i "s/wsgi/django/g" .env
-        sudo mkdir -p data
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup openssl ca_handler"
-      run: |
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo chmod 777 examples/Docker/data/ca_handler.py
-        sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
-        sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(30)/g" examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 300/g" examples/Docker/data/acme_srv.cfg
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
-
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-
-    - name: "[ VERIFY ] Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "[ VERIFY ] Check certificate reusage"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
-
-    - name: "[ ENROL] lego"
-      run: |
-        mkdir lego
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
-
-    - name: "[ VERIFY ] Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
-    - name: "[ REGISTER ] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-
-    - name: "[ VERIFY ] Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
-
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
-
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: ap_django_async_enrollment_cert_reusage.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
-
 
   rpm_wsgi_async_enrollment_cert_reusage:
     name: "rpm_wsgi_async_enrollment_cert_reusage"

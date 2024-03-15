@@ -12,12 +12,18 @@ jobs:
   proxy_tests:
     name: "proxy_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2']
+        dbhandler: ['wsgi', 'django']
+
     steps:
 
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -43,38 +49,45 @@ jobs:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WES_HOST: ${{ secrets.WES_HOST }}
 
-    - name: "[ PREPARE ] test dns resulution"
+    - name: "test dns resulution"
       run: |
         host $WES_HOST 127.0.0.1
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
 
-    - name: "[ PREPARE ] create network"
+    - name: "create network"
       run: |
         docker network create acme
 
-    - name: "[ PREPARE ] proxy container"
+    - name: "proxy container"
       run: |
         docker pull mosajjal/pproxy:latest
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "setup openssl ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
@@ -85,38 +98,46 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh - http challenge validation"
+    - name: "Enroll acme.sh - http challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker logs proxy | grep http | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ ENROLL ] acme.sh - alpn challenge validation"
+    - name: "Enroll acme.sh - alpn challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker logs proxy | grep http | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup certifier ca_handler for proxy usage"
+    - name: "setup certifier ca_handler for proxy usage"
       run: |
         sudo cp examples/ca_handler/certifier_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
@@ -132,7 +153,12 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ ENROLL ] via certifier ca_handler"
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Enroll via certifier ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
@@ -142,19 +168,19 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] patch est_ca handler for testrfc7030.com"
+    - name: "patch est_ca handler for testrfc7030.com"
       run: |
         sudo apt-get install curl openssl patch
         sudo cp examples/ca_handler/est_ca_handler.py examples/Docker/data/ca_handler.py
         # sudo patch examples/Docker/data/ca_handler.py .github/est_handler.patch
 
-    - name: "[ PREPARE ] setup using http-basic-auth for proxy usage"
+    - name: "setup using http-basic-auth for proxy usage"
       run: |
         sudo mkdir -p examples/Docker/data/est
         sudo chmod -R 777 examples/Docker/data/est
@@ -178,17 +204,22 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ ENROLL ] via EST using http-basic-auth"
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Enroll via EST using http-basic-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    #- name: "[ PREPARE ] setup using tls-client-auth"
+    #- name: "setup using tls-client-auth"
     #  run: |
     #    sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
     #    sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
@@ -200,18 +231,18 @@ jobs:
     #    docker-compose restart
     #    docker-compose logs
 
-    # - name: "[ ENROLL ] via est using tls-client-auth"
+    # - name: "Enroll via est using tls-client-auth"
     #  run: |
     #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
     #    # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    #- name: "[ CHECK ] proxy logs"
+    #- name: "Check proxy logs"
     #  run: |
     #    docker logs proxy | grep http | grep -- "->"
     #    docker stop proxy
     #    docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup nclm ca_handler for proxy usage"
+    - name: "setup nclm ca_handler for proxy usage"
       run: |
         sudo cp examples/ca_handler/nclm_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
@@ -228,18 +259,23 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ ENROLL ] via nclm ca_handler"
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Enroll via nclm ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep http | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup msca ca_handler for proxy usage"
+    - name: "setup msca ca_handler for proxy usage"
       run: |
         sudo cp examples/ca_handler/mscertsrv_ca_handler.py examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
@@ -257,7 +293,7 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ PREPARE ] ssh environment on ramdisk"
+    - name: "ssh environment on ramdisk"
       run: |
         sudo mkdir -p /tmp/rd
         sudo mount -t tmpfs -o size=5M none /tmp/rd
@@ -268,25 +304,25 @@ jobs:
         SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
-    - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 443:$WES_IP:443 -g ping -c 180 $WES_IP &
+    - name: "establish SSH connection"
+      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 443:$WES_IP:443 -g ping -c 120 $WES_IP &
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
         SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         WES_IP: ${{ secrets.WES_IP }}
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "[ ENROLL ] via msca ca_handler"
+    - name: "Enroll via msca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile acme.sh/acme-sh.acme/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy
@@ -309,7 +345,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: proxy.tar.gz
+        name: proxy-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -325,7 +361,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -351,7 +387,7 @@ jobs:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WES_HOST: ${{ secrets.WES_HOST }}
 
-    - name: "[ PREPARE ] test dns resulution"
+    - name: "test dns resulution"
       run: |
         host $WES_HOST 127.0.0.1
       env:
@@ -376,7 +412,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -393,12 +429,12 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] proxy container"
+    - name: "proxy container"
       run: |
         docker pull mosajjal/pproxy:latest
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -408,7 +444,7 @@ jobs:
         echo PROXY_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proxy) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.PROXY_IP }}"
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "setup openssl ca_handler"
       run: |
         sudo mkdir -p data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
@@ -416,7 +452,7 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/${{ env.PROXY_IP }}:8080\", \"acme-sh.\$\": \"http\:\/\/${{ env.PROXY_IP }}:8080\"}/g" data/acme_srv.cfg
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
@@ -430,35 +466,35 @@ jobs:
     - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh - http challenge validation"
+    - name: "Enroll acme.sh - http challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker logs proxy | grep http | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ ENROLL ] acme.sh - alpn challenge validation"
+    - name: "Enroll acme.sh - alpn challenge validation"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn -d acme-sh. --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker logs proxy | grep http | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler and proxy usage"
+    - name: "Prepare acme_srv.cfg with certifier_ca_handler and proxy usage"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -494,13 +530,13 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "[ PREPARE ] setup esthandler using http-basic-auth"
+    - name: "setup esthandler using http-basic-auth"
       run: |
         sudo mkdir -p data/acme_ca
         sudo chmod -R 777 data/acme_ca
@@ -527,17 +563,17 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL ] via EST using http-basic-auth"
+    - name: "Enroll via EST using http-basic-auth"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    #- name: "[ PREPARE ] setup using tls-client-auth"
+    #- name: "setup using tls-client-auth"
     #  run: |
     #    sudo head -n -4 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
     #    sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
@@ -551,18 +587,18 @@ jobs:
     #  run: |
     #    docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    #- name: "[ ENROLL ] via est using tls-client-auth"
+    #- name: "Enroll via est using tls-client-auth"
     #  run: |
     #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    #- name: "[ CHECK ] proxy logs"
+    #- name: "Check proxy logs"
     #  run: |
     #    docker logs proxy | grep socks5 | grep -- "->"
 
-    - name: "[ PREPARE ] setup using nclm_ca_handler"
+    - name: "setup using nclm_ca_handler"
       run: |
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with nclm_ca_handler"
+    - name: "Prepare acme_srv.cfg with nclm_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -590,17 +626,17 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL ] via nclm_ca_handler"
+    - name: "Enroll via nclm_ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
         docker stop proxy
         docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    #- name: "[ CHECK ] proxy logs"
+    #- name: "Check proxy logs"
     #  run: |
     #    docker logs proxy | grep socks5 | grep -- "->"
 
-    - name: "[ PREPARE ] ssh environment on ramdisk"
+    - name: "ssh environment on ramdisk"
       run: |
         sudo mkdir -p /tmp/rd
         sudo mount -t tmpfs -o size=5M none /tmp/rd
@@ -611,7 +647,7 @@ jobs:
         SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
-    - name: "[ PREPARE ] establish SSH connection"
+    - name: "establish SSH connection"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 443:$WES_IP:443 -g ping -c 180 $WES_IP &
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
@@ -619,12 +655,12 @@ jobs:
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         WES_IP: ${{ secrets.WES_IP }}
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "[ PREPARE ] setup msca ca_handler for proxy usage"
+    - name: "setup msca ca_handler for proxy usage"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -650,13 +686,13 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL ] via msca ca_handler"
+    - name: "Enroll via msca ca_handler"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force &
         # sleep 45
         # openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ CHECK ] proxy logs"
+    - name: "Check proxy logs"
       run: |
         docker logs proxy | grep socks5 | grep -- "->"
         docker stop proxy

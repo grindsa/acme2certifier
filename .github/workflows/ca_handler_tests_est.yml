@@ -1,4 +1,5 @@
 name: CA handler tests - EST handler
+# Clientauth tests are not working on testrfc7030 and are done insed openxpi wf
 
 on:
   push:
@@ -12,31 +13,42 @@ jobs:
   est_handler_tests:
     name: "est_handler_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] create network"
+    - name: "create folders"
       run: |
-        docker network create acme
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
+        docker network create acme
         docker-compose up -d
         docker-compose logs
-
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir acme-sh
-        mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
     - name: "[ PREPARE ] setup esthandler using http-basic-auth"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo mkdir -p examples/Docker/data/est
         sudo chmod -R 777 examples/Docker/data/est
         sudo touch $HOME/.rnd
@@ -60,69 +72,28 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] via EST using http-basic-auth"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        # openssl verify -CAfile examples/Docker/data/est/ca_bundle.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+    # - name: "Enroll acme-sh"
+    #   run: |
+    #   docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-
-    # Clientauth tests are not working on testrfc7030 and are done insed openxpi wf
-    #- name: "[ PREPARE ] delete lego and acme.sh"
-    #  run: |
-    #    sudo rm -rf lego/*
-    #    sudo rm -rf acme-sh/*
-
-    #- name: "[ PREPARE ] setup using tls-client-auth"
-    #  run: |
-    #    sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-    #    sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "est_client_key: volume/est/est_client_key.pem" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "est_client_cert: volume/est/est_client_cert.pem" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "ca_bundle: volume/est/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-    #    cd examples/Docker/
-    #    docker-compose restart
-    #    docker-compose logs
-
-    #- name: "[ ENROLL ] via est using tls-client-auth"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-
-    #- name: "[ PREPARE ] delete lego and acme.sh"
-    #  run: |
-    #    sudo rm -rf lego/*
-    #    sudo rm -rf acme-sh/*
-
-    #- name: "[ PREPARE ] setup using tls-client-auth via pkcs12"
-    #  run: |
-    #    sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-    #    sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "est_host: https://testrfc7030.com:9443" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "est_client_cert: volume/est/est_client_cert.p12" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "cert_passphrase: Test1234" >> examples/Docker/data/acme_srv.cfg
-    #    sudo echo "ca_bundle: volume/est/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-    #    cd examples/Docker/
-    #    docker-compose restart
-    #    docker-compose logs
-
-    #- name: "[ ENROLL ] via est using tls-client-auth"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -137,7 +108,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: est.tar.gz
+        name: est-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   est_handler_tests_rpm:
@@ -247,54 +218,6 @@ jobs:
       run: |
         sudo rm -rf lego/*
         sudo rm -rf acme-sh/*
-
-    # Clientauth tests are not working on testrfc7030 and are done insed openxpi wf
-    #- name: "[ PREPARE ] setup using tls-client-auth"
-    #  run: |
-    #    sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-    #    sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
-    #    sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
-    #    sudo echo "est_client_key: volume/acme_ca/est_client_key.pem" >> data/acme_srv.cfg
-    #    sudo echo "est_client_cert: volume/acme_ca/est_client_cert.pem" >> data/acme_srv.cfg
-    #    sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
-
-    #- name: "[ PREPARE  ] reconfigure est ca-handler "
-    #  run: |
-    #    docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
-
-    #- name: "[ ENROLL ] via est using tls-client-auth"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-
-    #- name: "[ PREPARE ] delete lego and acme.sh"
-    #  run: |
-    #    sudo rm -rf lego/*
-    #    sudo rm -rf acme-sh/*
-
-    #- name: "[ PREPARE ] setup using tls-client-auth"
-    #  run: |
-    #    sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-    #    sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/acme_srv.cfg
-    #    sudo echo "est_host: https://testrfc7030.com:9443" >> data/acme_srv.cfg
-    #    sudo echo "est_client_cert: volume/acme_ca/est_client_cert.p12" >> data/acme_srv.cfg
-    #    sudo echo "cert_passphrase: Test1234" >> data/acme_srv.cfg
-    #    sudo echo "ca_bundle: False" >> data/acme_srv.cfg
-
-    #- name: "[ PREPARE  ] reconfigure est ca-handler "
-    #  run: |
-    #    docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
-
-    #- name: "[ ENROLL ] via est using tls-client-auth"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

@@ -9,42 +9,51 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  cmp_handler_tests_keycert:
-    name: "cmp_handler_tests_keycert"
+  cmp_handler_tests:
+    name: "cmp_handler_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    #- name: "[ PREPARE ] patch docker file to ubuntu 22.04"
-    #  run: |
-    #    sudo sed -i "s/FROM ubuntu:20.04/FROM ubuntu:22.04/g" examples/Docker/apache2/wsgi/Dockerfile
+    - name: "create folders"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
       run: |
-        mkdir certbot
-        mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with cmp_ca_handler"
-      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_bundle.pem
         sudo touch examples/Docker/data/ra_cert.pem
         sudo touch examples/Docker/data/ra_key.pem
@@ -75,15 +84,22 @@ jobs:
         CMP_RA_CERT: ${{ secrets.CMP_RA_CERT }}
         CMP_TRUSTED: ${{ secrets.CMP_TRUSTED }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ PREPARE ] ssh environment on ramdisk"
+    - name: "Create ssh environment on ramdisk"
       run: |
         sudo mkdir -p /tmp/rd
         sudo mount -t tmpfs -o size=5M none /tmp/rd
@@ -94,7 +110,7 @@ jobs:
         SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
-    - name: "[ PREPARE ] establish SSH connection"
+    - name: "Establish SSH connection"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g ping -c 180 $CMP_HOST &
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
@@ -102,72 +118,23 @@ jobs:
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: " Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
+    - name: "[ PREPARE ] setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-        cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
-
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: cmpkeycert.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
-
-  cmp_handler_tests_refpsk:
-    name: "cmp_handler_tests_refpsk"
-    runs-on: ubuntu-latest
-    steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
-
-    - name: "[ PREPARE ] patch docker file to ubuntu 22.04"
-      run: |
-        sudo sed -i "s/FROM ubuntu:20.04/FROM ubuntu:22.04/g" examples/Docker/apache2/wsgi/Dockerfile
-
-    - name: "[ PREPARE ] get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
-
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with cmp_ca_handler"
-      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_bundle.pem
         sudo touch examples/Docker/data/ra_cert.pem
         sudo chmod 777 examples/Docker/data/*.pem
@@ -198,39 +165,18 @@ jobs:
         CMP_REF: ${{ secrets.CMP_REF }}
         CMP_SECRET: ${{ secrets.CMP_SECRET }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ PREPARE ] ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g ping -c 180 $CMP_HOST &
-      env:
-        SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
-        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
-        CMP_HOST: ${{ secrets.CMP_HOST }}
-
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 5s
+        time: 10s
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
@@ -252,11 +198,11 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: cmprefpsk.tar.gz
+        name: cmp_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  cmp_handler_tests_keycert_cmp:
-    name: "cmp_handler_tests_keycert_cmp"
+  rpm_cmp_handler_tests_keycert:
+    name: "rpm_cmp_handler_tests_keycert"
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -402,11 +348,11 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: cmpkeycert.tar_rpm.gz
+        name: rpm_cmp_handler_tests_keycert.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  cmp_handler_tests_refpsk_cmp:
-    name: "cmp_handler_tests_refpsk_cmp"
+  rpm_cmp_handler_tests_refpsk:
+    name: "rpm_cmp_handler_tests_refpsk"
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -552,5 +498,5 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: cmprefpsk.tar_rpm.gz
+        name: rpm_cmp_handler_tests_refpsk.tar_rpm.gz
         path: ${{ github.workspace }}/artifact/upload/

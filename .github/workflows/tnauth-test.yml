@@ -12,23 +12,36 @@ jobs:
   tnauth_tests:
     name: "tnauth_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
@@ -38,17 +51,28 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "[ CURL ] install curl and socat and test connction"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Install curl and socat and test connction"
       run: |
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
 
-    - name: "[ ACME.SH ] install acme.sh"
+    - name: "Install acme.sh"
       run: |
         mkdir /tmp/acme_sh
         curl -kL https://github.com/grindsa/acme.sh/archive/tnauth_list_support.tar.gz | tar xz -C /tmp/acme_sh --strip-components=1
 
-    - name: "[ ACME.SH ] enroll certificate using tnauth identifier"
+    - name: "Enroll certificate using tnauth identifier"
       run: |
         cd /tmp/acme_sh
         /tmp/acme_sh/acme.sh --server http://127.0.0.1:22280 --accountemail grindsa@tnauth.acme --issue -d cert.acme.local --tnauth 123456 --spctoken 1234 --standalone --force --debug 2
@@ -66,9 +90,8 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: tnauth.tar.gz
+        name: tnauth-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
 
   tnauth_rpm_tests:
     name: "tnauth_rpm_tests"
