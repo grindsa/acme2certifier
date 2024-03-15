@@ -12,11 +12,23 @@ jobs:
   ejb_ca_tests:
     name: "ejbca_hander_handler_tests docker image"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "create folders"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -31,12 +43,6 @@ jobs:
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
       env:
         EJBCA_IP: ${{ env.RUNNER_IP }}
-
-    - name: "[ PREPARE ] create acme-sh, letsencrypt and lego folders"
-      run: |
-        mkdir certbot
-        mkdir lego
-        mkdir acme-sh
 
     - name: "Instanciate ejbca server"
       run: |
@@ -97,17 +103,25 @@ jobs:
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: "Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker-compose up -d
         docker-compose logs
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
     - name: "setup a2c with ejbca_ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -127,8 +141,16 @@ jobs:
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "prepare acme.sh container"
       run: |
@@ -183,7 +205,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: ejbca.tar.gz
+        name: ejbca-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   ejbca_ca_handler_tests_rpm:

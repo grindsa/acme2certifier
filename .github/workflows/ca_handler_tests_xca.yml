@@ -9,31 +9,44 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  xca_handler_no_tmpl_tests:
-    name: "xca_handler_no_tmpl_tests"
+  xca_handler_tests:
+    name: "xca_handler_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "Create letsencrypt and lego folder"
       run: |
+        mkdir acme-sh
         mkdir certbot
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with xca_ca_handler"
+    - name: "Setup a2c with xca_ca_handler - no template"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
         sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
@@ -57,15 +70,22 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
-        sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -74,15 +94,15 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Key Encipherment"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke via acme.sh"
+    - name: "Revoke via acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -91,11 +111,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke HTTP-01 single domain certbot"
+    - name: "Revoke certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
@@ -104,53 +124,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke HTTP-01 single domain lego"
+    - name: "Revoke lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-        cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
-
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: xca_handler_no_tmpl_tests.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
-
-  xca_handler_tmpl_tests:
-    name: "xca_handler_tmpl_tests"
-    runs-on: ubuntu-latest
-    steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
-
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with xca_ca_handler"
+    - name: "Setup a2c with xca_ca_handler - with template"
       run: |
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
@@ -175,15 +153,18 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -191,15 +172,16 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "revoke via acme.sh"
+    - name: "Revoke via acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
+        sudo rm -rf certbot/*
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -207,11 +189,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "revoke HTTP-01 single domain certbot"
+    - name: "Revoke certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
@@ -219,7 +201,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "revoke HTTP-01 single domain lego"
+    - name: "Revoke lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
@@ -239,7 +221,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: xca_handler_tmpl_tests.tar.gz
+        name: xca_handler-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   xca_handler_no_tmpl_tests_rpm:

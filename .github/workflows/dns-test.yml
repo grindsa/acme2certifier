@@ -12,27 +12,39 @@ jobs:
   dns_challenge_tests:
     name: "dns_challenge_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        # sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler_dns.cfg examples/Docker/data/acme_srv.cfg
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_server_list: [\"DNS-IP\"]/g" examples/Docker/data/acme_srv.cfg
@@ -40,10 +52,18 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
         sudo cp .github/dns_test.sh acme-sh/
@@ -52,7 +72,7 @@ jobs:
         docker exec -i acme-sh mv /acme.sh/dns_test.sh /root/.acme.sh/dnsapi/
         docker exec -i acme-sh chmod +x /root/.acme.sh/dnsapi/dns_test.sh
 
-    - name: "[ PREPARE ] set DNS server"
+    - name: "Set DNS server"
       run: |
         cd examples/Docker/
         docker-compose stop
@@ -61,32 +81,32 @@ jobs:
         docker-compose start
         docker-compose logs
 
-    - name: "[ ENROLL ] acme.sh - single domain"
+    - name: "Enroll acme.sh - single domain"
       run: |
         docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
 
-    - name: "[ ENROLL ] acme.sh - two domains"
+    - name: "Enroll acme.sh - two domains"
       run: |
         docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
 
-    - name: "[ ENROLL ] acme.sh - single wildcard domain"
+    - name: "Enroll acme.sh - single wildcard domain"
       run: |
         docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
 
-    - name: "[ ENROLL ] acme.sh - double wildcard domain"
+    - name: "Enroll acme.sh - double wildcard domain"
       run: |
         docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
 
-    - name: "[ ENROLL ] acme.sh - domain and wildcard domain"
+    - name: "Enroll acme.sh - domain and wildcard domain"
       run: |
         docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
 
-    - name: "[ Test ] check TXT record exists"
+    - name: "Check TXT record exists"
       if: ${{ failure() }}
       run: |
         docker exec -i acme-sh ps -a
@@ -113,7 +133,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: eab.tar.gz
+        name: dns_challenge_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
