@@ -969,7 +969,8 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
         'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
         'ordernotready': 'urn:ietf:params:acme:error:orderNotReady',
         'ratelimited': 'urn:ietf:params:acme:error:rateLimited',
-        'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
+        'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason',
+        'rejectedidentifier': 'urn:ietf:params:acme:error:rejectedIdentifier'}
 
     return error_dic
 
@@ -1203,7 +1204,7 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
     try:
         # this does not work on RH8
         context.minimum_version = ssl.TLSVersion.TLSv1_2
-    except Exception:
+    except Exception: # pragma: no cover
         pass
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1
@@ -1260,6 +1261,46 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
         logger.debug('# validate: %s result: %s', contact_list, result)
     return result
 
+def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
+    """ validate identifier """
+    logger.debug('validate_identifier()')
+
+    if identifier:
+        if type == 'dns':
+            result = validate_fqdn(logger, identifier)
+        elif type == 'ip':
+            result = validate_ip(logger, identifier)
+        elif type == 'tnauthlist' and tnauthlist_support:
+            result = True
+        else:
+            result = False
+
+    logger.debug('validate_identifier() ended with: %s', result)
+    return result
+
+def validate_ip(logger: logging.Logger, ip: str) -> bool:
+    """ validate ip address """
+    logger.debug('validate_ip()')
+    try:
+        ipaddress.ip_address(ip)
+        result = True
+    except ValueError:
+        result = False
+    logger.debug('validate_ip() ended with: %s', result)
+    return result
+
+def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
+    """ validate fqdn """
+    logger.debug('validate_fqdn()')
+
+    result = False
+    regex = r"^(([a-z0-9]\-*[a-z0-9]*){1,63}\.?){1,255}$"
+    p = re.compile(regex)
+    if(re.search(p, fqdn)):
+        result = True
+
+    logger.debug('validate_fqdn() ended with: %s', result)
+    return result
 
 def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
     """ exception handler """
