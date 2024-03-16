@@ -101,7 +101,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_orderadd.return_value = ('urn:ietf:params:acme:error:malformed', None, None, None)
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'could not process order'}}, self.order.new(message))
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 400, 'data': {'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Could not process order'}}, self.order.new(message))
         self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
@@ -124,10 +124,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_orderadd.return_value = (None, 'foo_order', {'foo_auth1': {u'type': u'dns', u'value': u'acme1.nclm-samba.local'}, 'foo_auth2': {u'type': u'dns', u'value': u'acme2.nclm-samba.local'}}, 'expires')
         mock_nnonce.return_value = 'new_nonce'
         message = '{"foo" : "bar"}'
-        if sys.version_info[0] < 3:
-            self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme2.nclm-samba.local'}, {'type': 'dns', 'value': 'acme1.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth2', 'http://tester.local/acme/authz/foo_auth1'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
-        else:
-            self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme1.nclm-samba.local'}, {'type': 'dns', 'value': 'acme2.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth1', 'http://tester.local/acme/authz/foo_auth2'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+        self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [{'type': 'dns', 'value': 'acme1.nclm-samba.local'}, {'type': 'dns', 'value': 'acme2.nclm-samba.local'}], 'authorizations': ['http://tester.local/acme/authz/foo_auth1', 'http://tester.local/acme/authz/foo_auth2'], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
 
     @patch('acme_srv.nonce.Nonce.generate_and_add')
     @patch('acme_srv.order.Order._add')
@@ -139,6 +136,18 @@ class TestACMEHandler(unittest.TestCase):
         mock_orderadd.return_value = (None, 'foo_order', {}, 'expires')
         message = '{"foo" : "bar"}'
         self.assertEqual({'header': {'Location': 'http://tester.local/acme/order/foo_order', 'Replay-Nonce': 'new_nonce'}, 'code': 201, 'data': {'status': 'pending', 'identifiers': [], 'authorizations': [], 'finalize': 'http://tester.local/acme/order/foo_order/finalize', 'expires': 'expires'}}, self.order.new(message))
+
+    @patch('acme_srv.nonce.Nonce.generate_and_add')
+    @patch('acme_srv.order.Order._add')
+    @patch('acme_srv.message.Message.check')
+    def test_010_order_new(self, mock_mcheck, mock_orderadd, mock_nnonce):
+        """ Order.new() failed bcs of db_add failed """
+        mock_mcheck.return_value = (200, None, None, 'protected', {"status" : "foo"}, 'account_name')
+        mock_orderadd.return_value = ('urn:ietf:params:acme:error:rejectedIdentifier', None, None, None)
+        mock_nnonce.return_value = 'new_nonce'
+        message = '{"foo" : "bar"}'
+        self.assertEqual({'header': {'Replay-Nonce': 'new_nonce'}, 'code': 403, 'data': {'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'Some of the requested identifiers got rejected'}}, self.order.new(message))
+        self.assertTrue(mock_nnonce.called)
 
     @patch('acme_srv.order.Order._info')
     def test_010_order__lookup(self, mock_oinfo):
@@ -497,7 +506,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_054_order__identifiers_check(self):
         """ order identifers check with tnauthlist identifier and support True """
         self.order.tnauthlist_support = True
-        self.assertEqual(None, self.order._identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+        self.assertEqual(None, self.order._identifiers_check([{'type': 'TNAuthList', 'value': 'value'}, {'type': 'dns', 'value': 'foo.bar.local'}]))
 
     def test_055_order__identifiers_check(self):
         """ order identifers check with tnauthlist identifier and support True """
@@ -518,6 +527,30 @@ class TestACMEHandler(unittest.TestCase):
         """ order identifers check with correct identifer in list and tnauthsupport true"""
         self.order.tnauthlist_support = True
         self.assertEqual(None, self.order._identifiers_check([{'type': 'dns', 'value': 'value'}]))
+
+    @patch('acme_srv.order.validate_identifier')
+    def test_059_order__identifiers_check(self, mock_vali):
+        """ order identifers check with correct identifer """
+        mock_vali.side_effect = [True]
+        self.assertEqual(None, self.order._identifiers_check([{'type': 'dns', 'value': 'value'}]))
+
+    @patch('acme_srv.order.validate_identifier')
+    def test_060_order__identifiers_check(self, mock_vali):
+        """ order identifers check with correct identifer """
+        mock_vali.side_effect = [False]
+        self.assertEqual('urn:ietf:params:acme:error:rejectedIdentifier', self.order._identifiers_check([{'type': 'dns', 'value': 'value'}]))
+
+    @patch('acme_srv.order.validate_identifier')
+    def test_060_order__identifiers_check(self, mock_vali):
+        """ order identifers check with correct identifer """
+        mock_vali.side_effect = [True, False]
+        self.assertEqual('urn:ietf:params:acme:error:rejectedIdentifier', self.order._identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
+
+    @patch('acme_srv.order.validate_identifier')
+    def test_061_order__identifiers_check(self, mock_vali):
+        """ order identifers check with correct identifer """
+        mock_vali.side_effect = [False, True]
+        self.assertEqual('urn:ietf:params:acme:error:rejectedIdentifier', self.order._identifiers_check([{'type': 'dns', 'value': 'value'}, {'type': 'dns', 'value': 'value'}]))
 
     def test_059_order__process(self):
         """ Order.prcoess() without url in protected header """

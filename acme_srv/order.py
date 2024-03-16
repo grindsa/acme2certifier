@@ -3,7 +3,7 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, error_dic_get
+from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, error_dic_get, validate_identifier
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -188,6 +188,10 @@ class Order(object):
                     if identifier['type'].lower() not in allowed_identifers:
                         error = self.error_msg_dic['unsupportedidentifier']
                         break
+                    else:
+                        if not validate_identifier(self.logger, identifier['type'].lower(), identifier['value'], self.tnauthlist_support):
+                            error = self.error_msg_dic['rejectedidentifier']
+                            break
                 else:
                     error = self.error_msg_dic['malformed']
         else:
@@ -469,10 +473,15 @@ class Order(object):
                 for auth_name, value in auth_dic.items():
                     response_dic['data']['authorizations'].append(f'{self.server_name}{self.path_dic["authz_path"]}{auth_name}')
                     response_dic['data']['identifiers'].append(value)
+            elif error == self.error_msg_dic['rejectedidentifier']:
+                code = 403
+                message = error
+                detail = 'Some of the requested identifiers got rejected'
             else:
                 code = 400
                 message = error
-                detail = 'could not process order'
+                detail = 'Could not process order'
+
         # prepare/enrich response
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
