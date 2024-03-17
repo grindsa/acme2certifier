@@ -1265,6 +1265,7 @@ def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnau
     """ validate identifier """
     logger.debug('validate_identifier()')
 
+    result = False
     if identifier:
         if type == 'dns':
             result = validate_fqdn(logger, identifier)
@@ -1272,8 +1273,6 @@ def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnau
             result = validate_ip(logger, identifier)
         elif type == 'tnauthlist' and tnauthlist_support:
             result = True
-        else:
-            result = False
 
     logger.debug('validate_identifier() ended with: %s', result)
     return result
