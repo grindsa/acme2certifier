@@ -1204,7 +1204,7 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
     try:
         # this does not work on RH8
         context.minimum_version = ssl.TLSVersion.TLSv1_2
-    except Exception: # pragma: no cover
+    except Exception:  # pragma: no cover
         pass
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1
@@ -1261,6 +1261,7 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
         logger.debug('# validate: %s result: %s', contact_list, result)
     return result
 
+
 def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
     """ validate identifier """
     logger.debug('validate_identifier()')
@@ -1277,6 +1278,7 @@ def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnau
     logger.debug('validate_identifier() ended with: %s', result)
     return result
 
+
 def validate_ip(logger: logging.Logger, ip: str) -> bool:
     """ validate ip address """
     logger.debug('validate_ip()')
@@ -1288,6 +1290,7 @@ def validate_ip(logger: logging.Logger, ip: str) -> bool:
     logger.debug('validate_ip() ended with: %s', result)
     return result
 
+
 def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     """ validate fqdn """
     logger.debug('validate_fqdn()')
@@ -1295,11 +1298,12 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     result = False
     regex = r"^(([a-z0-9]\-*[a-z0-9]*){1,63}\.?){1,255}$"
     p = re.compile(regex)
-    if(re.search(p, fqdn)):
+    if re.search(p, fqdn):
         result = True
 
     logger.debug('validate_fqdn() ended with: %s', result)
     return result
+
 
 def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
     """ exception handler """
