@@ -166,6 +166,14 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
     - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
@@ -261,6 +269,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
@@ -271,5 +280,5 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: dns_challenge_tests_rpm.tar.gz
+        name: dns-rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
