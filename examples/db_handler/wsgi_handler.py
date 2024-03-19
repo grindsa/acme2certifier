@@ -285,7 +285,7 @@ class DBstore(object):
             CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text,  "header_info" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "aki" text, "serial" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
         ''')
         self.cursor.execute('''
-            CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.cursor.execute('''
             CREATE TRIGGER [UpdateLastTime]
@@ -421,7 +421,7 @@ class DBstore(object):
         if self.cursor.fetchone()[0] != 1:
             self.logger.info('create housekeeping table and trigger')
             self.cursor.execute('''
-                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
             self.cursor.execute('''
                 CREATE TRIGGER [UpdateLastTime]
@@ -434,6 +434,17 @@ class DBstore(object):
                     update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
                 END
             ''')
+        else:
+            self.cursor.execute('''PRAGMA table_info(housekeeping)''')
+            for column in self.cursor.fetchall():
+                if column[1] == 'name' and column[2].lower() == 'varchar(15)':
+                    self.logger.info('alter housekeeping table  - change size of the name field to 30')
+                    self.cursor.execute('''ALTER TABLE housekeeping RENAME TO tmp_hk''')
+                    self.cursor.execute('''
+                        CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                    ''')
+                    self.cursor.execute('''INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk''')
+                    self.cursor.execute('''DROP TABLE tmp_hk''')
 
     def _db_update_orders(self):
         """ alter orders table """
