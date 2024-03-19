@@ -323,7 +323,7 @@ and pick the appropriate release branch.
 **Features**:
 
 - [Generic ACME protocol handler](docs/acme_ca.md)
-- CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
+- CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn)
 - wsgi_db_handler: allow DB file path configuration
 - allow setting config file location via environment variable
 

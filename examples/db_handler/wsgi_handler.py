@@ -48,6 +48,7 @@ class DBstore(object):
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
         self._db_open()
+        result = None
         try:
             pre_statement = f'SELECT * from account WHERE {column} LIKE ?'
             self.cursor.execute(pre_statement, [string])
@@ -285,7 +286,7 @@ class DBstore(object):
             CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text,  "header_info" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "aki" text, "serial" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
         ''')
         self.cursor.execute('''
-            CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         ''')
         self.cursor.execute('''
             CREATE TRIGGER [UpdateLastTime]
@@ -312,6 +313,7 @@ class DBstore(object):
         self.dbs = sqlite3.connect(self.db_name)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
+        # self.cursor.execute('''PRAGMA journal_mode=WAL''')
         # self.logger.debug('DBStore._db_open() ended')
 
     def _db_update_account(self):
@@ -421,7 +423,7 @@ class DBstore(object):
         if self.cursor.fetchone()[0] != 1:
             self.logger.info('create housekeeping table and trigger')
             self.cursor.execute('''
-                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
             ''')
             self.cursor.execute('''
                 CREATE TRIGGER [UpdateLastTime]
@@ -434,6 +436,17 @@ class DBstore(object):
                     update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
                 END
             ''')
+        else:
+            self.cursor.execute('''PRAGMA table_info(housekeeping)''')
+            for column in self.cursor.fetchall():
+                if column[1] == 'name' and column[2].lower() == 'varchar(15)':
+                    self.logger.info('alter housekeeping table  - change size of the name field to 30')
+                    self.cursor.execute('''ALTER TABLE housekeeping RENAME TO tmp_hk''')
+                    self.cursor.execute('''
+                        CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+                    ''')
+                    self.cursor.execute('''INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk''')
+                    self.cursor.execute('''DROP TABLE tmp_hk''')
 
     def _db_update_orders(self):
         """ alter orders table """
@@ -1308,7 +1321,7 @@ class DBstore(object):
 
     def orders_invalid_search(self, column: str, string: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'), operant='LIKE') -> List[str]:
         """ search order table for a certain key/value pair """
-        self.logger.debug('DBStore.orders_search(column:%s, pattern:%s)', column, string)
+        self.logger.debug('DBStore.orders_invalid_search(column:%s, pattern:%s)', column, string)
         self._db_open()
 
         pre_statement = f'''SELECT
@@ -1336,5 +1349,5 @@ class DBstore(object):
             order_list.append(result)
 
         self._db_close()
-        self.logger.debug('DBStore.orders_search() ended')
+        self.logger.debug('DBStore.orders_invalid_search() ended')
         return order_list
