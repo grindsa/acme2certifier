@@ -81,7 +81,7 @@ jobs:
 
     - name: "[ REGISTER] certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -106,7 +106,7 @@ jobs:
 
     - name: "[ REGISTER] acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
     - name: "[ ENROLL] acme.sh"
       run: |
@@ -126,10 +126,10 @@ jobs:
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
-    #    sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -236,7 +236,7 @@ jobs:
 
     - name: "[ REGISTER] certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -261,7 +261,7 @@ jobs:
 
     - name: "[ REGISTER] acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
     - name: "[ ENROLL] acme.sh"
       run: |
@@ -281,10 +281,10 @@ jobs:
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
-    #    sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
+        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -413,7 +413,7 @@ jobs:
 
     - name: "[ REGISTER] certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
     - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
@@ -438,7 +438,7 @@ jobs:
 
     - name: "[ REGISTER] acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
     - name: "[ ENROLL] acme.sh"
       run: |
@@ -458,10 +458,10 @@ jobs:
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    #- name: "[ ENROLL ] lego"
-    #  run: |
-    #    docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
-    #    sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+    - name: "[ ENROLL ] lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
