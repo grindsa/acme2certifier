@@ -9,8 +9,8 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  certmgr_http01_apwsgi:
-    name: "apache2 wsgi - certmgr http01 challenge tests"
+  certmgr_http01_tests:
+    name: certmgr_http01_tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -133,6 +133,7 @@ jobs:
         sudo cp .github/k8s-cert-mgr-http-01.yml data
         sudo chmod -R 777 data/k8s-cert-mgr-http-01.yml
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-http-01.yml
+        sudo sed -i "s/k8.acme.dynamop.de/k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de/g" data/k8s-cert-mgr-http-01.yml
         sudo microk8s.kubectl apply -f data/k8s-cert-mgr-http-01.yml
 
     - name: "Sleep for 20s"
@@ -178,12 +179,12 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: cert-manager-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: cert-certmgr_http01-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
-  certmgr_dns01_apwsgi:
-    name: "apache2 wsgi - certmgr dns01 challenge tests"
+  certmgr_dns01_tests:
+    name: certmgr_dns01_tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -276,6 +277,7 @@ jobs:
         sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-dns-01.yml
         sudo sed -i "s/CF_TOKEN/${{ secrets.CF_TOKEN }}/g" data/k8s-cert-mgr-dns-01.yml
         sudo sed -i "s/MY_EMAIL/${{ secrets.EMAIL }}/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/k8.acme.dynamop.de/k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de/g" data/k8s-cert-mgr-dns-01.yml
 
     - name: "Deploy cert-manager and trigger enrollment"
       run: |
@@ -326,7 +328,7 @@ jobs:
       run: |
         sudo microk8s.kubectl delete -f data/k8s-cert-mgr-dns-01.yml
         sudo sed -i "s/commonName: k8.acme.dynamop.de/commonName: '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/- k8.acme.dynamop.de/- '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/- k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de/- k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de\n    - '*.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
 
     - name: "Deploy cert-manager and trigger enrollment"
       run: |
@@ -384,6 +386,6 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: cert-manager-dns-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: certmgr_dns01-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
