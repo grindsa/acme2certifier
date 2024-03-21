@@ -110,6 +110,9 @@ class Renewalinfo(object):
         cert_dic = {}
         try:
             cert_list = self.dbstore.certificates_search('serial', serial, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
+            if not cert_list and serial.startswith('0'):
+                # cover cornercase where serial is padded with leading zeros
+                cert_list = self.dbstore.certificates_search('serial', serial.lstrip('0'), operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
             for cert in cert_list:
                 if cert['aki'] == aki:
                     cert_dic = cert
