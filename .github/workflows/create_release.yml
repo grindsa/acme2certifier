@@ -31,6 +31,20 @@ jobs:
       - run: echo "APP tag is ${{ env.APP_NAME }}"
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
+      - name: Retrieve dbversion numbers from version.py and fixture.xml
+        run: |
+          echo DB_VERSION=$(cat acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
+
+      - run: echo "db verion is ${{ env.DB_VERSION }}"
+      - run: echo "fixture verion is ${{ env.FIXTURE_VERSION }}"
+
+      - name: Check fixture version
+        if: env.DB_VERSION != env.FIXTURE_VERSION
+        run: |
+          echo "Fixture version is not equal to db version"
+          exit 1
+
       - name: Create Release
         id: create_release
         if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME

@@ -790,7 +790,7 @@ class Certificate(object):
             twrv = ThreadWithReturnValue(target=self._enroll_and_store, args=(certificate_name, csr, order_name))
             twrv.start()
             enroll_result = twrv.join(timeout=self.enrollment_timeout)
-            self.logger.debug('Certificate.enroll_and_store() ThreadWithReturnValue ended', certificate_name, order_name)
+            self.logger.debug('Certificate.enroll_and_store() ThreadWithReturnValue ended')
             if enroll_result:
                 try:
                     (result, error, detail) = enroll_result

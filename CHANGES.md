@@ -5,6 +5,13 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.33.3
+
+**Features and Improvements**:
+
+- some smaller modifications run flawless on Redhat8 and derivates
+- Workflows to test rpm-deployment on RHEL8 and RHEL9
+
 # Changes in 0.33.2
 
 **Upgrade notes**:
