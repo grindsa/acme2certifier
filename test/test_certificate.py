@@ -946,7 +946,7 @@ class TestACMEHandler(unittest.TestCase):
         csr = 'csr'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((None, 'error', 'poll_identifier'), self.certificate._enroll_and_store(certificate_name, csr))
-        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._enroll_and_store() _store_cert_error: ex_cert_error_store', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:acme2certifier database error in Certificate._enrollerror_handler() _store_cert_error: ex_cert_error_store', lcm.output)
         self.assertIn('ERROR:test_a2c:acme2certifier enrollment error: error', lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertFalse(mock_oupd.called)
