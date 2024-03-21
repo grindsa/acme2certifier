@@ -26,6 +26,7 @@ class Order(object):
         self.retry_after = 600
         self.tnauthlist_support = False
         self.sectigo_sim = False
+        self.identifier_limit = 20
         self.header_info_list = []
 
     def __enter__(self):
@@ -136,6 +137,10 @@ class Order(object):
                     self.validity = int(config_dic['Order']['validity'])
                 except Exception:
                     self.logger.warning('Order._config_load(): failed to parse validity: %s', config_dic['Order']['validity'])
+            try:
+                self.identifier_limit = int(config_dic.get('Order', 'identifier_limit', fallback=20))
+            except Exception:
+                self.logger.warning('Order._config_load(): failed to parse identifier_limit: %s', config_dic['Order']['identifier_limit'])
 
         self.logger.debug('Order._config_orderconfig_load() ended')
 
@@ -171,9 +176,9 @@ class Order(object):
         self.logger.debug('Order._name_get() ended')
         return order_name
 
-    def _identifiers_check(self, identifiers_list: List[str]) -> str:
-        """ check validity of identifers in order """
-        self.logger.debug('Order._identifiers_check(%s)', identifiers_list)
+    def _identifiers_allowed(self, identifiers_list: List[str]) -> bool:
+        """ check if identifiers are allowed """
+        self.logger.debug('Order._identifiers_allowed()')
 
         error = None
         allowed_identifers = ['dns', 'ip']
@@ -182,18 +187,31 @@ class Order(object):
         if self.tnauthlist_support:
             allowed_identifers.append('tnauthlist')
 
-        if identifiers_list and isinstance(identifiers_list, list):
-            for identifier in identifiers_list:
-                if 'type' in identifier:
-                    if identifier['type'].lower() not in allowed_identifers:
-                        error = self.error_msg_dic['unsupportedidentifier']
-                        break
-                    else:
-                        if not validate_identifier(self.logger, identifier['type'].lower(), identifier['value'], self.tnauthlist_support):
-                            error = self.error_msg_dic['rejectedidentifier']
-                            break
+        for identifier in identifiers_list:
+            if 'type' in identifier:
+                # pylint: disable=R1723
+                if identifier['type'].lower() not in allowed_identifers:
+                    error = self.error_msg_dic['unsupportedidentifier']
+                    break
                 else:
-                    error = self.error_msg_dic['malformed']
+                    if not validate_identifier(self.logger, identifier['type'].lower(), identifier['value'], self.tnauthlist_support):
+                        error = self.error_msg_dic['rejectedidentifier']
+                        break
+            else:
+                error = self.error_msg_dic['malformed']
+
+        self.logger.debug('Order._identifiers_allowed() ended with: %s', error)
+        return error
+
+    def _identifiers_check(self, identifiers_list: List[str]) -> str:
+        """ check validity of identifers in order """
+        self.logger.debug('Order._identifiers_check(%s)', identifiers_list)
+
+        if identifiers_list and isinstance(identifiers_list, list):
+            if len(identifiers_list) > self.identifier_limit:
+                error = self.error_msg_dic['rejectedidentifier']
+            else:
+                error = self._identifiers_allowed(identifiers_list)
         else:
             error = self.error_msg_dic['malformed']
 
