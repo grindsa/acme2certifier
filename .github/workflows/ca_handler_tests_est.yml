@@ -93,6 +93,11 @@ jobs:
       run: |
         docker run -i -v $PWD/lego/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Enroll acme-sh"
       run: |
          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
@@ -212,6 +217,11 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         # openssl verify -CAfile data/acme_ca/ca_bundle.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Enroll lego"
       run: |
