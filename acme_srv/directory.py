@@ -53,7 +53,7 @@ class Directory(object):
         self.home = config_dic.get('Directory', 'home', fallback='https://github.com/grindsa/acme2certifier')
 
         try:
-            self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback= False)
+            self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback=False)
         except Exception as err_:
             self.logger.error('Directory._config_load() suppress_product_information not set: %s', err_)
 
@@ -86,7 +86,6 @@ class Directory(object):
         else:
             if self.home != 'https://github.com/grindsa/acme2certifier':
                 d_dic['meta']['home'] = self.home
-
 
         # add terms of service
         if self.tos_url:
