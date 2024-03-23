@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -101,6 +102,7 @@ jobs:
         sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ssh_host: $SSH_HOST:$SSH_PORT" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -114,6 +116,8 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -326,6 +330,7 @@ jobs:
     name: "msca_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
