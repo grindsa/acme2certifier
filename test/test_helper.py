@@ -2226,6 +2226,10 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """ test validate_fqdn() """
         self.assertFalse(self.validate_fqdn(self.logger, 'foo@bar.local'))
 
+    def test_294_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertTrue(self.validate_fqdn(self.logger, '*.bar.local'))
+
     def test_294_validate_ip(self):
         """ test validate_ip() """
         self.assertTrue(self.validate_ip(self.logger, '10.0.0.1'))
