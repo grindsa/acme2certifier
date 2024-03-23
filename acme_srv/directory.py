@@ -17,6 +17,8 @@ class Directory(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.supress_version = False
+        self.suppress_product_information = False
+        self.home = 'https://github.com/grindsa/acme2certifier'
         self.tos_url = None
         self.version = __version__
         self.dbversion = __dbversion__
@@ -48,6 +50,13 @@ class Directory(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.url_prefix = config_dic['Directory']['url_prefix']
 
+        self.home = config_dic.get('Directory', 'home', fallback='https://github.com/grindsa/acme2certifier')
+
+        try:
+            self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback= False)
+        except Exception as err_:
+            self.logger.error('Directory._config_load() suppress_product_information not set: %s', err_)
+
         self.logger.debug('Directory._config_load() ended')
 
     def directory_get(self) -> Dict[str, str]:
@@ -62,16 +71,22 @@ class Directory(object):
             'revokeCert': self.server_name + self.url_prefix + '/acme/revokecert',
             'keyChange': self.server_name + self.url_prefix + '/acme/key-change',
             'renewalInfo': self.server_name + self.url_prefix + '/acme/renewal-info',
-            'meta': {
-                'home': 'https://github.com/grindsa/acme2certifier',
-                'author': 'grindsa <grindelsack@gmail.com>',
-                'name': 'acme2certifier'
-            },
+            'meta': {}
         }
 
-        # show version information in meta tags if not disabled....
-        if not self.supress_version:
-            d_dic['meta']['version'] = self.version
+        if not self.suppress_product_information:
+            d_dic['meta'] = {
+                'home': self.home,
+                'author': 'grindsa <grindelsack@gmail.com>',
+                'name': 'acme2certifier'
+            }
+            # show version information in meta tags if not disabled....
+            if not self.supress_version:
+                d_dic['meta']['version'] = self.version
+        else:
+            if self.home != 'https://github.com/grindsa/acme2certifier':
+                d_dic['meta']['home'] = self.home
+
 
         # add terms of service
         if self.tos_url:
@@ -96,6 +111,7 @@ class Directory(object):
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
+
         return d_dic
 
     def servername_get(self) -> str:
