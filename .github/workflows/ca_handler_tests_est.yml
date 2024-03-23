@@ -14,6 +14,7 @@ jobs:
     name: "est_handler_tests"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -122,6 +123,7 @@ jobs:
     name: "est_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
