@@ -13,6 +13,7 @@ jobs:
     name: async_enrollment_cert_reusage
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -140,6 +141,7 @@ jobs:
     name: "rpm_wsgi_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -198,8 +200,8 @@ jobs:
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800/g" data/acme_srv.cfg
-        sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/acme_srv.cfg
+        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
 
     - name: "[ PREPARE ] Almalinux instance"
@@ -257,6 +259,7 @@ jobs:
     name: "rpm_django_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -358,8 +361,8 @@ jobs:
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
         sudo chmod 777 data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800/g" data/volume/acme_srv.cfg
-        sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
 
     - name: "[ PREPARE ] Almalinux instance"

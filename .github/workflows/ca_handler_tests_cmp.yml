@@ -13,6 +13,7 @@ jobs:
     name: "cmp_handler_tests"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']

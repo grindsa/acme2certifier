@@ -198,9 +198,9 @@ class CAhandler(object):
 
         try:
             if csr_cn:
-                url = self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
+                url = self.api_host + '/certificates?freeText==' + str(csr_cn) + '&stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&limit=500&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
             else:
-                url = self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
+                url = self.api_host + '/certificates?stateCurrent=false&stateHistory=false&stateWaiting=false&stateManual=false&stateUnattached=false&expiresAfter=%22%22&expiresBefore=%22%22&sortAttribute=createdAt&limit=500&sortOrder=desc&containerId=' + str(self.tsg_info_dic['id'])
             cert_list = self._cert_list_fetch(url)
         except Exception as err_:
             self.logger.error('CAhandler._cert_id_lookup() returned error: %s', str(err_))

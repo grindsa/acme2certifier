@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -101,6 +102,8 @@ jobs:
         sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ssh_host: $SSH_HOST:$SSH_PORT" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -113,6 +116,8 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -137,13 +142,14 @@ jobs:
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
     - name: "Establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 445:$WCCE_HOST:445 -L 88:$WCCE_HOST:88 -L 443:$WES_IP:443 -g ping -c 300 $WCCE_HOST &
+      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 445:$WCCE_HOST:445 -L 88:$WCCE_HOST:88 -L 443:$WES_IP:443 -g ping -c 300 $CMP_HOST &
       env:
         SSH_USER: ${{ secrets.WCCE_SSH_USER }}
         SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
         SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
         WES_IP: ${{ secrets.WES_IP }}
+        CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -191,6 +197,7 @@ jobs:
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "use_kerberos: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -255,6 +262,8 @@ jobs:
         sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "WCCE_HOST: $WCCE_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -277,11 +286,6 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    #- name: "Enroll acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-    #    openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
     - name: "Register certbot"
       run: |
         sudo rm -rf certbot/
@@ -296,6 +300,11 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+
+    - name: "Enroll acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -321,6 +330,7 @@ jobs:
     name: "msca_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -424,6 +434,7 @@ jobs:
         sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
         sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WCCE_USER: ${{ secrets.WCCE_USER }}
@@ -474,13 +485,14 @@ jobs:
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
     - name: "Establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 445:$WCCE_HOST:445 -L 88:$WCCE_HOST:88 -L 443:$WES_IP:443 -g ping -c 300 $WCCE_HOST &
+      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 445:$WCCE_HOST:445 -L 88:$WCCE_HOST:88 -L 443:$WES_IP:443 -g ping -c 300 $CMP_HOST &
       env:
         SSH_USER: ${{ secrets.WCCE_SSH_USER }}
         SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
         SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
         WES_IP: ${{ secrets.WES_IP }}
+        CMP_HOST: ${{ secrets.CMP_HOST }}
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -525,6 +537,7 @@ jobs:
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "use_kerberos: True" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WCCE_USER: ${{ secrets.WCCE_USER }}
@@ -581,6 +594,8 @@ jobs:
         sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
         sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -600,11 +615,6 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    #- name: "Enroll acme.sh"
-    #  run: |
-    #    docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-    #    openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
     - name: "Register certbot"
       run: |
         sudo rm -rf certbot/*
@@ -619,6 +629,11 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
+
+    - name: "Enroll acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
