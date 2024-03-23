@@ -58,7 +58,8 @@ jobs:
         sudo echo "tsg_name: $NCLM_TSG_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCLM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 45/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 40" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -152,7 +153,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: nclm.tar.gz
+        name: nclm_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -221,7 +222,8 @@ jobs:
         sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCLM_CA_NAME" >> data/acme_srv.cfg
         sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 30/g" data/acme_srv.cfg
+        sudo echo "request_timeout: 40" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/acme_srv.cfg
 
       env:
         NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
