@@ -1301,6 +1301,13 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     if re.search(p, fqdn):
         result = True
 
+    if not result:
+        logger.debug('validate_fqdn(): invalid fqdn. Check for wildcard : %s', fqdn)
+        regex = r"^\*\.[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        p = re.compile(regex)
+        if re.search(p, fqdn):
+            result = True
+
     logger.debug('validate_fqdn() ended with: %s', result)
     return result
 
