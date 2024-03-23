@@ -713,6 +713,7 @@ jobs:
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
@@ -896,6 +897,7 @@ jobs:
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
@@ -1061,6 +1063,7 @@ jobs:
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
@@ -1254,6 +1257,7 @@ jobs:
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
