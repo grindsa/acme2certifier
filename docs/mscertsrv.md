@@ -80,3 +80,27 @@ template: <name>
 - ca_bundle - CA certificate bundle in pem format needed to validate the server certificate
 - auth_method - authentication method (either "basic" or "ntlm")
 - template - certificate template used for enrollment
+
+## Passing a template from client to server
+
+The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a template name to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+
+```config
+[Order]
+...
+header_info_list: ["HTTP_USER_AGENT"]
+```
+
+The acme-client can then specify the temmplate name as part of its user-agent string.
+
+Example for acme.sh:
+
+```bash
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent template=foo --debug 3 --output-insecure
+```
+
+Example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
+```
