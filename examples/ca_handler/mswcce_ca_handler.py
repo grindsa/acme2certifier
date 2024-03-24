@@ -15,7 +15,8 @@ from acme_srv.helper import (
     convert_byte_to_string,
     convert_string_to_byte,
     proxy_check,
-    build_pem_file
+    build_pem_file,
+    header_info_get
 )
 
 
@@ -34,6 +35,7 @@ class CAhandler(object):
         self.ca_name = None
         self.ca_bundle = False
         self.use_kerberos = False
+        self.header_info_field = None
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -43,6 +45,18 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """close the connection at the end of the context"""
+
+    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+        """ load parameters """
+        self.logger.debug('_config_header_info()')
+
+        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+            try:
+                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+            except Exception as err_:
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
+
+        self.logger.debug('_config_header_info() ended')
 
     def _config_host_load(self, config_dic: Dict[str, str]):
         """ load host variable """
@@ -132,6 +146,7 @@ class CAhandler(object):
             self._config_host_load(config_dic)
             self._config_credentials_load(config_dic)
             self._config_parameters_load(config_dic)
+            self._config_headerinfo_get(config_dic)
 
         self._config_proxy_load(config_dic)
 
@@ -168,6 +183,27 @@ class CAhandler(object):
         self.logger.debug('CAhandler.request_create() ended')
         return request
 
+    def _template_name_get(self, csr: str) -> str:
+        """ get templaate from csr """
+        self.logger.debug('CAhandler._template_name_get(%s)', csr)
+        template_name = None
+
+        # parse profileid from http_header
+        header_info = header_info_get(self.logger, csr=csr)
+        if header_info:
+            try:
+                header_info_dic = json.loads(header_info[-1]['header_info'])
+                if self.header_info_field in header_info_dic:
+                    for ele in header_info_dic[self.header_info_field].split(' '):
+                        if 'template' in ele.lower():
+                            template_name = ele.split('=')[1]
+                            break
+            except Exception as err:
+                self.logger.error('CAhandler._template_name_get() could not parse template: %s', err)
+
+        self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
+        return template_name
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler.enroll(%s)", self.template)
@@ -178,6 +214,12 @@ class CAhandler(object):
         if not (self.host and self.user and self.password and self.template):
             self.logger.error("Config incomplete")
             return ("Config incomplete", None, None, None)
+
+        # lookup http header information from request
+        if self.header_info_field:
+            user_template = self._template_name_get(csr)
+            if user_template:
+                self.template = user_template
 
         # create request
         request = self.request_create()

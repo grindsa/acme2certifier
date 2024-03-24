@@ -221,7 +221,9 @@ class CAhandler(object):
 
         # lookup http header information from request
         if self.header_info_field:
-            self.template = self._template_name_get(csr)
+            user_template = self._template_name_get(csr)
+            if user_template:
+                self.template = user_template
 
         if self.host and self.user and self.password and self.template:
             # setup certserv
