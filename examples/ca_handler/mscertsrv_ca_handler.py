@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get
 
 
 class CAhandler(object):
@@ -24,6 +24,7 @@ class CAhandler(object):
         self.ca_bundle = False
         self.template = None
         self.proxy = None
+        self.header_info_field = False
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -58,6 +59,18 @@ class CAhandler(object):
             error = 'cert bundling failed'
 
         return (error, cert_bundle, cert_raw)
+
+    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+        """ load parameters """
+        self.logger.debug('_config_header_info()')
+
+        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+            try:
+                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+            except Exception as err_:
+                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
+
+        self.logger.debug('_config_header_info() ended')
 
     def _config_user_load(self, config_dic: Dict[str, str]):
         """ load username """
@@ -146,6 +159,7 @@ class CAhandler(object):
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
+            self._config_headerinfo_get(config_dic)
 
         # load proxy config
         self._config_proxy_load(config_dic)
@@ -177,12 +191,37 @@ class CAhandler(object):
         self.logger.debug('Certificate._pkcs7_to_pem() ended')
         return result
 
+    def _template_name_get(self, csr: str) -> str:
+        """ get templaate from csr """
+        self.logger.debug('CAhandler._template_name_get(%s)', csr)
+        template_name = None
+
+        # parse profileid from http_header
+        header_info = header_info_get(self.logger, csr=csr)
+        if header_info:
+            try:
+                header_info_dic = json.loads(header_info[-1]['header_info'])
+                if self.header_info_field in header_info_dic:
+                    for ele in header_info_dic[self.header_info_field].split(' '):
+                        if 'template' in ele.lower():
+                            template_name = ele.split('=')[1]
+                            break
+            except Exception as err:
+                self.logger.error('CAhandler._template_name_get() could not parse template: %s', err)
+
+        self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
+        return template_name
+
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll(%s)', self.template)
         cert_bundle = None
         error = None
         cert_raw = None
+
+        # lookup http header information from request
+        if self.header_info_field:
+            self.template = self._template_name_get(csr)
 
         if self.host and self.user and self.password and self.template:
             # setup certserv
