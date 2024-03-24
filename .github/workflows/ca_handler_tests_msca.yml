@@ -197,6 +197,7 @@ jobs:
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "use_kerberos: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -227,6 +228,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: Check for kerberos connection"
       working-directory: examples/Docker/
@@ -238,15 +240,32 @@ jobs:
         sudo rm -rf certbot/
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Ernoll certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem certbot/live/certbot/cert.pem
-
-    - name: "Enroll lego"
+    - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll acme.sh with template in acme_srv.cfg (WebServer)"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "Setup a2c with mscertsrv_ca_handler"
       run: |
@@ -263,6 +282,7 @@ jobs:
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "WCCE_HOST: $WCCE_HOST" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -291,20 +311,42 @@ jobs:
         sudo rm -rf certbot/
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem certbot/live/certbot/cert.pem
-
-    - name: "Enroll lego"
+    - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
-    - name: "Enroll acme.sh"
+    - name: "Enroll acme.sh with template in acme_srv.cfg (WebServer)"
       run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -518,7 +560,7 @@ jobs:
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with ms_wcce_ca_handler"
+    - name: "Setup a2c with ms_wcce_ca_handler (Kerboros)"
       run: |
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
@@ -537,6 +579,7 @@ jobs:
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "use_kerberos: True" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
@@ -560,25 +603,37 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
     - name: "Register certbot"
       run: |
-        sudo rm -rf certbot/*
+        sudo rm -rf certbot/
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem certbot/live/certbot/cert.pem
-
-    - name: "Enroll lego"
+    - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll acme.sh with template in acme_srv.cfg (WebServer)"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.acme --http run
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "Setup a2c with mscertsrv_ca_handler"
       run: |
@@ -595,6 +650,7 @@ jobs:
         sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
@@ -617,23 +673,45 @@ jobs:
 
     - name: "Register certbot"
       run: |
-        sudo rm -rf certbot/*
+        sudo rm -rf certbot/
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem certbot/live/certbot/cert.pem
-
-    - name: "Enroll lego"
+    - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
-    - name: "Enroll acme.sh"
+    - name: "Enroll acme.sh with template in acme_srv.cfg (WebServer)"
       run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.acme --http run
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker restart acme-sh
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
