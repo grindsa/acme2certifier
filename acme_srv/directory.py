@@ -9,6 +9,9 @@ from .helper import load_config
 from .db_handler import DBstore
 
 
+GH_HOME = 'https://github.com/grindsa/acme2certifier'
+
+
 class Directory(object):
     """ class for directory handling """
 
@@ -18,7 +21,7 @@ class Directory(object):
         self.dbstore = DBstore(debug, self.logger)
         self.supress_version = False
         self.suppress_product_information = False
-        self.home = 'https://github.com/grindsa/acme2certifier'
+        self.home = GH_HOME
         self.tos_url = None
         self.version = __version__
         self.dbversion = __dbversion__
@@ -50,7 +53,7 @@ class Directory(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.url_prefix = config_dic['Directory']['url_prefix']
 
-        self.home = config_dic.get('Directory', 'home', fallback='https://github.com/grindsa/acme2certifier')
+        self.home = config_dic.get('Directory', 'home', fallback=GH_HOME)
 
         try:
             self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback=False)
@@ -84,7 +87,7 @@ class Directory(object):
             if not self.supress_version:
                 d_dic['meta']['version'] = self.version
         else:
-            if self.home != 'https://github.com/grindsa/acme2certifier':
+            if self.home != GH_HOME:
                 d_dic['meta']['home'] = self.home
 
         # add terms of service
