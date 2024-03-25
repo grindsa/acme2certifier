@@ -517,7 +517,6 @@ class CAhandler(object):
         """ get expiry date of certificate """
         self.logger.debug('CAhandler._cert_expiry_get()')
 
-        # cert.not_valid_after - datetime.datetime.utcnow()
         expiry_date = cert.not_valid_after
 
         self.logger.debug('CAhandler._cert_expiry_get() ended')
@@ -531,7 +530,6 @@ class CAhandler(object):
         if self.issuer_dict['issuing_ca_cert']:
             ca_list.append(self.issuer_dict['issuing_ca_cert'])
 
-        # ca_cert.not_valid_after - datetime.datetime.utcnow()
         expiry_days = 0
         cert = None
 
@@ -540,7 +538,7 @@ class CAhandler(object):
                 if os.path.exists(ca_cert):
                     with open(ca_cert, 'rb') as fso:
                         ca_cert = x509.load_pem_x509_certificate(fso.read(), backend=default_backend())
-                        _tmp_expiry_days = (self._cert_expiry_get(ca_cert) - datetime.datetime.utcnow()).days
+                        _tmp_expiry_days = (self._cert_expiry_get(ca_cert) - datetime.datetime.now()).days
                         if not expiry_days or _tmp_expiry_days < expiry_days:
                             self.logger.debug('CAhandler._cacert_expiry_get(): set expiry_days to {0}'.format(_tmp_expiry_days))
                             expiry_days = _tmp_expiry_days
@@ -556,7 +554,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certexpiry_date_default()')
 
         # default cert validity is taken from config
-        cert_validity = datetime.datetime.utcnow() + datetime.timedelta(days=self.cert_validity_days)
+        cert_validity = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=self.cert_validity_days)
 
         self.logger.debug('CAhandler._certexpiry_date_default() ended')
         return cert_validity
@@ -588,7 +586,7 @@ class CAhandler(object):
 
         # sign csr
         builder = x509.CertificateBuilder()
-        builder = builder.not_valid_before(datetime.datetime.utcnow())
+        builder = builder.not_valid_before(datetime.datetime.now(datetime.timezone.utc))
         builder = builder.not_valid_after(cert_validity)
         builder = builder.issuer_name(ca_cert.subject)
         builder = builder.subject_name(subject)
