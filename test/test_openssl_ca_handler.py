@@ -1510,7 +1510,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.return_value = 'cert1'
         mock_exp.return_value = datetime.datetime(2024, 12, 31, 5, 0, 1)
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.return_value = True
         self.cahandler.ca_cert_chain_list = ['cacert1']
         self.assertEqual((366, 'cert1'), self.cahandler._cacert_expiry_get())
@@ -1524,7 +1524,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.side_effect = ['cert1', 'cert2']
         mock_exp.side_effect = [datetime.datetime(2024, 12, 31, 5, 0, 1), datetime.datetime(2024, 11, 30, 5, 0, 1)]
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.return_value = True
         self.cahandler.ca_cert_chain_list = ['cacert1', 'cacert2']
         self.assertEqual((335, 'cert2'), self.cahandler._cacert_expiry_get())
@@ -1538,7 +1538,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.side_effect = ['cert1', 'cert2']
         mock_exp.side_effect = [datetime.datetime(2024, 10, 30, 5, 0, 1), datetime.datetime(2024, 12, 31, 5, 0, 1)]
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.return_value = True
         self.cahandler.ca_cert_chain_list = ['cacert1', 'cacert2']
         self.assertEqual((304, 'cert1'), self.cahandler._cacert_expiry_get())
@@ -1552,7 +1552,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.side_effect = ['cert1', 'issuing_ca_cert']
         mock_exp.side_effect = [datetime.datetime(2024, 12, 31, 5, 0, 1), datetime.datetime(2024, 11, 30, 5, 0, 1)]
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.return_value = True
         self.cahandler.ca_cert_chain_list = ['cacert1']
         self.cahandler.issuer_dict = {'issuing_ca_cert' : 'issuing_ca_cert'}
@@ -1567,7 +1567,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.side_effect = ['cert1', 'issuing_ca_cert']
         mock_exp.side_effect = [datetime.datetime(2024, 10, 30, 5, 0, 1), datetime.datetime(2024, 12, 31, 5, 0, 1)]
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.return_value = True
         self.cahandler.ca_cert_chain_list = ['cacert1']
         self.cahandler.issuer_dict = {'issuing_ca_cert' : 'issuing_ca_cert'}
@@ -1582,7 +1582,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test _cacert_expiry_get() """
         mock_certload.side_effect = ['cert1', 'cert2']
         mock_exp.side_effect = [datetime.datetime(2024, 12, 31, 5, 0, 1), datetime.datetime(2024, 11, 30, 5, 0, 1)]
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_exists.side_effect = [True, False]
         self.cahandler.ca_cert_chain_list = ['cacert1', 'cacert2']
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1598,7 +1598,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.openssl_ca_handler.datetime')
     def test_145__certexpiry_date_default(self, mock_now):
         """ test _certexpiry_date_default() """
-        mock_now.datetime.utcnow.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
+        mock_now.datetime.now.return_value = datetime.datetime(2023, 12, 31, 5, 0, 1)
         mock_now.timedelta.return_value = datetime.timedelta(days=2)
         self.assertEqual(datetime.datetime(2024, 1, 2, 5, 0, 1), self.cahandler._certexpiry_date_default())
 
