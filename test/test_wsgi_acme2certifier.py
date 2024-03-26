@@ -586,6 +586,7 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'url_prefix/directory'}
         result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
         result_func = json.loads(self.application(environ, Mock())[0])
+        print(result_func)
         del(result_func['meta']['version'])
         self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
         self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
