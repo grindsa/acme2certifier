@@ -23,7 +23,7 @@ class JsonResponse(HttpResponse):
             json_dumps_params = {}
 
         if 'status' in kwargs and kwargs['status'] > 201:
-            kwargs.setdefault('content_type', 'problem+json')
+            kwargs.setdefault('content_type', 'application/problem+json')
         else:
             kwargs.setdefault('content_type', 'application/json')
 
