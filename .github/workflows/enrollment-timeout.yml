@@ -12,6 +12,12 @@ jobs:
   async_enrollment_cert_reusage:
     name: "async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -237,6 +243,7 @@ jobs:
     name: "rpm_wsgi_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -297,8 +304,9 @@ jobs:
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800/g" data/acme_srv.cfg
         sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/acme_srv.cfg
+        sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
         sudo cp examples/ca_handler/certifier_ca_handler.py data/acme_ca/ca_handler.py
         sudo sed -i "s/        self.logger.debug('Certificate.enroll() ended')/        time.sleep(22)\\n        self.logger.debug('Certificate.enroll() ended')/g" data/acme_ca/ca_handler.py
         sudo sed -i "s/        self.logger.debug('CAhandler.enroll() ended')/        time.sleep(22)\\n        self.logger.debug('CAhandler.enroll() ended')/g" data/acme_ca/ca_handler.py
@@ -364,6 +372,7 @@ jobs:
     name: "rpm_django_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -466,8 +475,9 @@ jobs:
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
         sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800/g" data/volume/acme_srv.cfg
         sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
         sudo cp examples/ca_handler/certifier_ca_handler.py data/volume/ca_handler.py
         sudo sed -i "s/        self.logger.debug('Certificate.enroll() ended')/        time.sleep(22)\\n        self.logger.debug('Certificate.enroll() ended')/g" data/volume/ca_handler.py
         sudo sed -i "s/        self.logger.debug('CAhandler.enroll() ended')/        time.sleep(22)\\n        self.logger.debug('CAhandler.enroll() ended')/g" data/volume/ca_handler.py
@@ -477,6 +487,7 @@ jobs:
         NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
