@@ -313,8 +313,6 @@ class DBstore(object):
         self.dbs = sqlite3.connect(self.db_name)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
-        # self.cursor.execute('''PRAGMA journal_mode=WAL''')
-        # self.logger.debug('DBStore._db_open() ended')
 
     def _db_update_account(self):
         """ update account table """
