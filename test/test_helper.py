@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -95,6 +95,9 @@ class TestACMEHandler(unittest.TestCase):
         self.url_get_with_own_dns = url_get_with_own_dns
         self.uts_to_date_utc = uts_to_date_utc
         self.validate_email = validate_email
+        self.validate_ip = validate_ip
+        self.validate_fqdn = validate_fqdn
+        self.validate_identifier = validate_identifier
         self.validate_csr = validate_csr
         self.sha256_hash = sha256_hash
         self.sha256_hash_hex = sha256_hash_hex
@@ -1814,7 +1817,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             'unsupportedidentifier': 'urn:ietf:params:acme:error:unsupportedIdentifier',
             'ordernotready': 'urn:ietf:params:acme:error:orderNotReady',
             'ratelimited': 'urn:ietf:params:acme:error:rateLimited',
-            'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason'}
+            'badrevocationreason': 'urn:ietf:params:acme:error:badRevocationReason',
+            'rejectedidentifier': 'urn:ietf:params:acme:error:rejectedIdentifier'}
         self.assertEqual(result, self.error_dic_get(self.logger))
 
     def test_238_logger_nonce_modify(self):
@@ -2190,6 +2194,111 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertFalse(self.cert_aki_pyopenssl_get(self.logger, cert))
         self.assertIn('ERROR:test_a2c:cert_ski_pyopenssl_get(): No AKI found in certificate', lcm.output)
 
+    def test_286_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertTrue(self.validate_fqdn(self.logger, 'foo.bar.com'))
+
+    def test_287_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, '-foo.bar.com'))
+
+    def test_288_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, 'foo.bar.com/foo'))
+
+    def test_289_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, 'foo.bar.com#foo'))
+
+    def test_290_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, 'foo.bar.com?foo=foo'))
+
+    def test_291_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, '2a01:c22:b0cf:600:74be:80a7:4feb:bfe8'))
+
+    def test_292_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, 'foo.bar.com:8080'))
+
+    def test_293_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertFalse(self.validate_fqdn(self.logger, 'foo@bar.local'))
+
+    def test_294_validate_fqdn(self):
+        """ test validate_fqdn() """
+        self.assertTrue(self.validate_fqdn(self.logger, '*.bar.local'))
+
+    def test_294_validate_ip(self):
+        """ test validate_ip() """
+        self.assertTrue(self.validate_ip(self.logger, '10.0.0.1'))
+
+    def test_295_validate_ip(self):
+        """ test validate_ip() """
+        self.assertTrue(self.validate_ip(self.logger, '2a01:c22:b0cf:600:74be:80a7:4feb:bfe8'))
+
+    def test_296_validate_ip(self):
+        """ test validate_ip() """
+        self.assertFalse(self.validate_ip(self.logger, 'foo.bar.local'))
+
+    def test_297_validate_ip(self):
+        """ test validate_ip() """
+        self.assertFalse(self.validate_ip(self.logger, 'foo@bar.local'))
+
+    def test_298_validate_ip(self):
+        """ test validate_ip() """
+        self.assertFalse(self.validate_ip(self.logger, '301.0.0.1'))
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_299_validate_identifier(self, mock_ip, mock_fqdn):
+        """ test validate_identifier """
+        mock_fqdn.return_value = 'dns'
+        mock_ip.return_value = 'ip'
+        self.assertEqual('dns', self.validate_identifier(self.logger, 'dns', 'foo.bar.com'))
+        self.assertTrue(mock_fqdn.called)
+        self.assertFalse(mock_ip.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_300_validate_identifier(self, mock_ip, mock_fqdn):
+        """ test validate_identifier """
+        mock_fqdn.return_value = 'dns'
+        mock_ip.return_value = 'ip'
+        self.assertEqual('ip', self.validate_identifier(self.logger, 'ip', 'ip'))
+        self.assertFalse(mock_fqdn.called)
+        self.assertTrue(mock_ip.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_301_validate_identifier(self, mock_ip, mock_fqdn):
+        """ test validate_identifier """
+        mock_fqdn.return_value = 'dns'
+        mock_ip.return_value = 'ip'
+        self.assertFalse(self.validate_identifier(self.logger, 'unk', 'ip'))
+        self.assertFalse(mock_fqdn.called)
+        self.assertFalse(mock_ip.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_302_validate_identifier(self, mock_ip, mock_fqdn):
+        """ test validate_identifier """
+        mock_fqdn.return_value = 'dns'
+        mock_ip.return_value = 'ip'
+        self.assertFalse(self.validate_identifier(self.logger, 'tnauthlist', 'ip'))
+        self.assertFalse(mock_fqdn.called)
+        self.assertFalse(mock_ip.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_303_validate_identifier(self, mock_ip, mock_fqdn):
+        """ test validate_identifier """
+        mock_fqdn.return_value = 'dns'
+        mock_ip.return_value = 'ip'
+        self.assertTrue(self.validate_identifier(self.logger, 'tnauthlist', 'ip', True))
+        self.assertFalse(mock_fqdn.called)
+        self.assertFalse(mock_ip.called)
 
 if __name__ == '__main__':
     unittest.main()
