@@ -16,6 +16,9 @@ jobs:
       fail-fast: false
       matrix:
         ports: ['-p 80:80 -p 443:443', '-p 443:443']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
