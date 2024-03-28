@@ -1,4 +1,4 @@
-name: Application Tests - Caddy
+name: Application Tests - Certbot
 
 on:
   push:
@@ -9,16 +9,16 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  caddy_container_tests:
-    name: "caddy_container_tests"
+
+  certbot_apache2_wsgi:
+    name: "certbot_apache2_wsgi"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ports: ['-p 80:80 -p 443:443', '-p 443:443']
+        keylength: [2048, 4096]
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
-
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -53,7 +53,6 @@ jobs:
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -75,40 +74,58 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Create caddy folder and copy configuratation files"
+    - name: "[ PREPARE ] create letsencrypt folder"
       run: |
-        mkdir caddy
-        cp .github/Caddyfile caddy/
-        cp .github/acme2certifier_cabundle.pem caddy
+        mkdir certbot
 
-    - name: "Enroll certificate with Caddy"
+    - name: "[ REGISTER] certbot"
       run: |
-        docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Check for logs indicating successful enrollment"
+    - name: "[ ENROLL ] HTTP-01 single domain certbot"
       run: |
-        docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
-        docker logs caddy 2>&1 | grep "certificate obtained successfully"
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo chmod 777 certbot/archive/certbot/chain1.pem
+        sudo cp certbot/archive/certbot/chain1.pem chain1.pem
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+
+    - name: "[ RENEW ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --force-renew --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+
+    - name: "[ REVOKE ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+
+    - name: "[ ENROLL ] HTTP-01 2x domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+
+    - name: "[ RENEW ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --force-renew  --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+
+    - name: "[ REVOKE ] HTTP-01 single domain certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot. --cert-name certbot
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp caddy/ ${{ github.workspace }}/artifact/caddy/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
-        docker logs caddy 2> ${{ github.workspace }}/artifact/caddy.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log caddy.log data caddy
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data certbot
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: caddy_container_tests-${{ github.run_id }}.${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: certbot_key-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
