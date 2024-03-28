@@ -37,10 +37,7 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "Setup a2c with certifier_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -77,11 +74,11 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] HTTP-01 single domain acme.sh"
+    - name: "Enroll HTTP-01 single domain acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
@@ -90,7 +87,7 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ RENEW ] HTTP-01 single domain acme.sh"
+    - name: "Renew HTTP-01 single domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
@@ -101,14 +98,14 @@ jobs:
         fi
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ REVOKE ] HTTP-01 single domain acme.sh"
+    - name: "RevokeHTTP-01 single domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure
 
-    - name: "[ ENROLL ] HTTP-01 2x domain acme.sh"
+    - name: "Enroll HTTP-01 2x domain acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --keylength ${{ matrix.keylength }} --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
@@ -116,7 +113,7 @@ jobs:
         fi
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ RENEW ] HTTP-01 2x domain acme.sh"
+    - name: "Renew HTTP-01 2x domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
@@ -127,14 +124,14 @@ jobs:
         fi
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ REVOKE ] HTTP-01 2x domain acme.sh"
+    - name: "Revoke HTTP-01 2x domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
 
-    - name: "[ DEACTIVATE ] acme.sh"
+    - name: "Decativate acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --deactivate-account --debug 2 --output-insecure
 
