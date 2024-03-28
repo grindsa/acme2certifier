@@ -259,7 +259,7 @@ jobs:
         sudo cp .github/acme2certifier.pem data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/django_settings.py data/settings.py
         sudo cp examples/ca_handler/certifier_ca_handler.py data/ca_handler.py
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
         sudo touch data/acme_srv.cfg
