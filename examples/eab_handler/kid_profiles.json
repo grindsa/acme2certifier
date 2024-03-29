@@ -1,0 +1,28 @@
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "profile_id": ["profile_1", "profile_2", "profile_3"],
+      "allowed_domains": ["www.example.com", "www.example.org", "*.example.fi"],
+      "ca_name": "example_ca",
+      "api_user": "api_user",
+      "api_password": "api_password"
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "profile_id": "profile_2",
+      "allowed_domains": ["*.example.fi"],
+      "ca_name": "example_ca_2",
+      "api_user": "api_user_2",
+      "api_password": "api_password_2"
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+  }
+}
