@@ -12,11 +12,16 @@ jobs:
   tnauth_tests:
     name: "tnauth_tests"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
@@ -24,11 +29,12 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -50,7 +56,18 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ CURL ] install curl and socat and test connction"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "install curl and socat and test connction"
       run: |
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
@@ -79,7 +96,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: tnauth.tar.gz
+        name: tnauth-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -113,7 +130,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -129,7 +146,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -151,21 +168,21 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ CURL ] install curl and socat and test connction"
+    - name: "install curl and socat and test connction"
       run: |
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280

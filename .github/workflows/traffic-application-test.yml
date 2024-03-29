@@ -17,6 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -29,19 +32,26 @@ jobs:
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
     - run: echo "runner hostname is ${{ env.RUNNER_HOSTNAME }}"
 
-    - name: "Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -61,6 +71,17 @@ jobs:
         NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "setup and instanciate traefik"
       run: |
@@ -97,6 +118,6 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: traffic-${{ matrix.challenge_type }}.tar.gz
+        name: traffic-${{ matrix.challenge_type }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
