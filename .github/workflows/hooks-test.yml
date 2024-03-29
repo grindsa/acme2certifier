@@ -11,24 +11,39 @@ jobs:
   hooks_test:
     name: "hooks_test"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
-        sudo mkdir -p data/hooks
-        sudo chmod -R 777 data/hooks
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
+        sudo mkdir -p examples/Docker/data/hooks
+        sudo chmod -R 777 examples/Docker/data/hooks
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -55,18 +70,26 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] create letsencrypt folder"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create letsencrypt folder"
       run: |
         mkdir certbot
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo chmod 777 certbot/archive/certbot/chain1.pem
@@ -74,26 +97,26 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    - name: "[ CHECK ] compare checksums to validate hook file content"
+    - name: "Check compare checksums to validate hook file content"
       working-directory: examples/Docker/data/hooks
       run: |
         sha256sum -c checksums.sha256
@@ -111,7 +134,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: hooks.tar.gz
+        name: hooks-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   hooks_test_rpm:
@@ -144,7 +167,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -152,7 +175,7 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "create letsencrypt and lego folder"
       run: |
         mkdir acmme-sh
         mkdir lego
@@ -165,7 +188,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -193,25 +216,25 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo chmod 777 certbot/archive/certbot/chain1.pem
@@ -219,25 +242,25 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    - name: "[ CHECK ] compare checksums to validate hook file content"
+    - name: "Check compare checksums to validate hook file content"
       working-directory: data/acme_ca/hooks
       run: |
         sha256sum -c checksums.sha256
@@ -265,24 +288,37 @@ jobs:
   hooks_exception_handling:
     name: "hooks_exception_handling"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
-        sudo mkdir -p data/hooks
-        sudo chmod -R 777 data/hooks
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
+        sudo mkdir -p examples/Docker/data/hooks
+        sudo chmod -R 777 examples/Docker/data/hooks
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -310,24 +346,32 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
+    - name: "Enroll acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
+    - name: "reconfigure hook handler to trigger pre hook exception "
       run: |
         sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
@@ -340,25 +384,25 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to pre-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to pre-hook exception "
       if: steps.prehookfailure.outcome != 'failure'
       run: |
         echo "prehookfailure outcome is ${{steps.prehookfailure.outcome }}"
         exit 1
 
-    - name: "[ PREPARE  ] reconfigure a2c to ignore pre-hook failures "
+    - name: "reconfigure a2c to ignore pre-hook failures "
       run: |
         sudo echo "ignore_pre_hook_failure: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
         docker-compose restart
 
-    - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
+    - name: "Enroll acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
+    - name: "reconfigure hook handler to trigger success hook exception "
       run: |
         sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
@@ -372,25 +416,25 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to success-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to success-hook exception "
       if: steps.successhookfailure.outcome != 'failure'
       run: |
         echo "successhookfailure outcome is ${{steps.successhookfailure.outcome }}"
         exit 1
 
-    - name: "[ PREPARE  ] reconfigure a2c to ignore success-hook failures "
+    - name: "reconfigure a2c to ignore success-hook failures "
       run: |
         sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
         docker-compose restart
 
-    - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
+    - name: "Enroll acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
+    - name: "reconfigure hook handler to trigger post hook exception "
       run: |
         sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
@@ -398,12 +442,12 @@ jobs:
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
         docker-compose restart
 
-    - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
+    - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
+    - name: "reconfigure a2c to detect success-hook failures "
       run: |
         sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
@@ -416,7 +460,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to post-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to post-hook exception "
       if: steps.posthookfailure.outcome != 'failure'
       run: |
         echo "posthookfailure outcome is ${{steps.posthookfailure.outcome }}"
@@ -435,7 +479,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: hooks_exception_handling.tar.gz
+        name: hooks_exception_handling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   hooks_exception_handling_rpm:
@@ -468,7 +512,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -476,7 +520,7 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "create letsencrypt and lego folder"
       run: |
         mkdir acmme-sh
         mkdir lego
@@ -489,7 +533,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -518,14 +562,14 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
@@ -533,21 +577,21 @@ jobs:
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ ENROLL] acme.sh - *_pre_hook_failure not configured "
+    - name: "Enroll acme.sh - *_pre_hook_failure not configured "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger pre hook exception "
+    - name: "reconfigure hook handler to trigger pre hook exception "
       run: |
         sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" data/acme_srv.cfg
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
@@ -558,23 +602,23 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to pre-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to pre-hook exception "
       if: steps.prehookfailure.outcome != 'failure'
       run: |
         echo "prehookfailure outcome is ${{steps.prehookfailure.outcome }}"
         exit 1
 
-    - name: "[ PREPARE  ] reconfigure a2c to ignore pre-hook failures "
+    - name: "reconfigure a2c to ignore pre-hook failures "
       run: |
         sudo echo "ignore_pre_hook_failure: True" >> data/acme_srv.cfg
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
+    - name: "Enroll acme.sh - ignore pre_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger success hook exception "
+    - name: "reconfigure hook handler to trigger success hook exception "
       run: |
         sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" data/acme_srv.cfg
         sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" data/acme_srv.cfg
@@ -586,34 +630,34 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to success-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to success-hook exception "
       if: steps.successhookfailure.outcome != 'failure'
       run: |
         echo "successhookfailure outcome is ${{steps.successhookfailure.outcome }}"
         exit 1
 
-    - name: "[ PREPARE  ] reconfigure a2c to ignore success-hook failures "
+    - name: "reconfigure a2c to ignore success-hook failures "
       run: |
         sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" data/acme_srv.cfg
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
+    - name: "Enroll acme.sh - ignore sucess_hook_failures "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure hook handler to trigger post hook exception "
+    - name: "reconfigure hook handler to trigger post hook exception "
       run: |
         sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" data/acme_srv.cfg
         sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" data/acme_srv.cfg
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
+    - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE  ] reconfigure a2c to detect success-hook failures "
+    - name: "reconfigure a2c to detect success-hook failures "
       run: |
         sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" data/acme_srv.cfg
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
@@ -624,7 +668,7 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
-    - name: "[ CHECK ] result - acme.sh enrollment failed due to post-hook exception "
+    - name: "Check result - acme.sh enrollment failed due to post-hook exception "
       if: steps.posthookfailure.outcome != 'failure'
       run: |
         echo "posthookfailure outcome is ${{steps.posthookfailure.outcome }}"
