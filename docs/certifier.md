@@ -87,13 +87,13 @@ The acme-client can then specify the profileID as part of its user-agent string.
 Example for acme.sh:
 
 ```bash
-docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profileID=101 --debug 3 --output-insecure
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profile_id=101 --debug 3 --output-insecure
 ```
 
 Example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent profileID=101 -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent profile_id=101 -d <fqdn> --http run
 ```
 
 ## CA policy configuration

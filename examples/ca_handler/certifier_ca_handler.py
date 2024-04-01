@@ -592,6 +592,7 @@ class CAhandler(object):
             # no profiling - parse profileid from http_header
             hil_profile_id = header_info_lookup(self.logger, csr, self.header_info_field, 'profile_id')
             if hil_profile_id:
+                self.logger.debug('CAhandler._profile_check(): setting profile_id to %s', hil_profile_id)
                 self.profile_id = hil_profile_id
 
         self.logger.debug('CAhandler._profile_check() ended with %s', error)
