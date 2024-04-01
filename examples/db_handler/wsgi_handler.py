@@ -175,7 +175,8 @@ class DBstore(object):
                             orders.id as order__id,
                             orders.name as order__name,
                             orders.status_id as order__status_id,
-                            account.name as order__account__name
+                            account.name as order__account__name,
+                            account.eab_kid as order__account__eab_kid
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
