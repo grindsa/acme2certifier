@@ -495,28 +495,28 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "Enroll acme.sh with profileID 101"
+    - name: "Enroll acme.sh with profile_id 101"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --useragent profileID=101 --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --useragent profile_id=101 --debug 3 --output-insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
-    - name: "Enroll lego with profileID 101"
+    - name: "Enroll lego with profile_id 101"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profileID=101 -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_id=101 -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
-    - name: "Enroll acme.sh with profileID 102"
+    - name: "Enroll acme.sh with profile_id 102"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --renew --force -d acme-sh.acme --standalone --useragent profileID=102 --debug 3 --output-insecure
+        docker exec -i acme-sh acme.sh --server http://acme-srv --renew --force -d acme-sh.acme --standalone --useragent profile_id=102 --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
-    - name: "Enroll lego with profileID 102"
+    - name: "Enroll lego with profile_id 102"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profileID=102 -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_id=102 -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
