@@ -2344,7 +2344,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_info.return_value = [{'foo': '{"header_info_field": "foo1=value1 foo2=value2"}'}]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
-        self.assertIn("ERROR:test_a2c:header_info_lookup() could not parse header_info_field: 'header_info'", lcm.output)
+        self.assertIn('ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field', lcm.output)
 
     @patch('acme_srv.helper.header_info_get')
     def test_312_header_info_lookup(self, mock_info):
@@ -2360,8 +2360,17 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_info.return_value = 'bump'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
-        self.assertIn("ERROR:test_a2c:header_info_lookup() could not parse header_info_field: string indices must be integers, not 'str'", lcm.output)
+        self.assertIn('ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field', lcm.output)
 
+    @patch('acme_srv.helper.json.loads')
+    @patch('acme_srv.helper.header_info_get')
+    def test_314_header_info_lookup(self, mock_info, mock_json):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'header_info': 'foo1=value1 foo2=value2'}]
+        mock_json.side_effect = Exception('mock_json')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+        self.assertIn('ERROR:test_a2c:header_info_lookup() could not parse header_info_field: mock_json', lcm.output)
 
 if __name__ == '__main__':
     unittest.main()

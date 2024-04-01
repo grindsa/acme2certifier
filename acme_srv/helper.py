@@ -695,24 +695,37 @@ def header_info_field_validate(logger, csr: str, header_info_field: str, value: 
     return value_to_set, error
 
 
+def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:
+    """ jsonify header info"""
+    logger.debug('header_info_json_parse()')
+
+    header_info_dic = {}
+    try:
+        if isinstance(header_info, list) and 'header_info' in header_info[-1]:
+            header_info_dic = json.loads(header_info[-1]['header_info'])
+    except Exception as err:
+        logger.error('header_info_lookup() could not parse header_info_field: %s', err)
+
+    logger.debug('header_info_json_parse() ended with: %s', bool(header_info_dic))
+    return header_info_dic
+
+
 def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
     """ lookup header info """
     logger.debug('header_info_lookup(%s)', key)
 
     result = None
     header_info = header_info_get(logger, csr=csr)
+
     if header_info:
-        try:
-            header_info_dic = json.loads(header_info[-1]['header_info'])
-            if header_info_field in header_info_dic:
-                for ele in header_info_dic[header_info_field].split(' '):
-                    if key in ele.lower():
-                        result = ele.split('=', 1)[1]
-                        break
-            else:
-                logger.error('header_info_lookup() header_info_field not found: %s', header_info_field)
-        except Exception as err:
-            logger.error('header_info_lookup() could not parse header_info_field: %s', err)
+        header_info_dic = header_info_jsonify(logger, header_info)
+        if header_info_field in header_info_dic:
+            for ele in header_info_dic[header_info_field].split(' '):
+                if key in ele.lower():
+                    result = ele.split('=', 1)[1]
+                    break
+        else:
+            logger.error('header_info_lookup() header_info_field not found: %s', header_info_field)
 
     logger.debug('header_info_lookup(%s) ended with: %s', key, result)
     return result
@@ -1306,17 +1319,17 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
     return result
 
 
-def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
+def validate_identifier(logger: logging.Logger, id_type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
     """ validate identifier """
     logger.debug('validate_identifier()')
 
     result = False
     if identifier:
-        if type == 'dns':
+        if id_type == 'dns':
             result = validate_fqdn(logger, identifier)
-        elif type == 'ip':
+        elif id_type == 'ip':
             result = validate_ip(logger, identifier)
-        elif type == 'tnauthlist' and tnauthlist_support:
+        elif id_type == 'tnauthlist' and tnauthlist_support:
             result = True
 
     logger.debug('validate_identifier() ended with: %s', result)

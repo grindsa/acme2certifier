@@ -8,6 +8,7 @@ import re
 from acme_srv.helper import load_config, csr_cn_get, csr_san_get
 from typing import List, Tuple, Dict
 
+
 class EABhandler(object):
     """ EAB file handler """
 
