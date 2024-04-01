@@ -674,6 +674,50 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     return result
 
 
+def header_info_field_validate(logger, csr: str, header_info_field: str, value: str, value_list: List[str]) -> Tuple[str, str]:
+    """ select value from list"""
+    logger.debug('header_info_field_validate(%s)', value)
+
+    value_to_set = None
+    error = None
+    # get header info
+    header_info_value = header_info_lookup(logger, csr, header_info_field, value)
+    if header_info_value:
+        if header_info_value in value_list:
+            value_to_set = header_info_value
+        else:
+            error = f'{value} "{header_info_value}" is not allowed'
+    else:
+        # header not set, use first value from list
+        value_to_set = value_list[0]
+
+    logger.debug('header_info_field_validate(%s) ended with %s/%s', value, value_to_set, error)
+    return value_to_set, error
+
+
+def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
+    """ lookup header info """
+    logger.debug('header_info_lookup(%s)', key)
+
+    result = None
+    header_info = header_info_get(logger, csr=csr)
+    if header_info:
+        try:
+            header_info_dic = json.loads(header_info[-1]['header_info'])
+            if header_info_field in header_info_dic:
+                for ele in header_info_dic[header_info_field].split(' '):
+                    if key in ele.lower():
+                        result = ele.split('=', 1)[1]
+                        break
+            else:
+                logger.error('header_info_lookup() header_info_field not found: %s', header_info_field)
+        except Exception as err:
+            logger.error('header_info_lookup() could not parse header_info_field: %s', err)
+
+    logger.debug('header_info_lookup(%s) ended with: %s', key, result)
+    return result
+
+
 def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 'name', 'header_info')) -> List[str]:
     """ lookup header information """
     logger.debug('header_info_get()')
