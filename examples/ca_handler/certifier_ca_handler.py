@@ -590,7 +590,9 @@ class CAhandler(object):
             # we need to cover cases where profiling is enabled but no profile_id is defined in json
         elif self.header_info_field:
             # no profiling - parse profileid from http_header
-            self.profile_id = header_info_lookup(self.logger, csr, self.header_info_field, 'profile_id')
+            hil_profile_id = header_info_lookup(self.logger, csr, self.header_info_field, 'profile_id')
+            if hil_profile_id:
+                self.profile_id = hil_profile_id
 
         self.logger.debug('CAhandler._profile_check() ended with %s', error)
         return error
