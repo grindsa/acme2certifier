@@ -12,23 +12,35 @@ jobs:
   eab_apache2_wsgi:
     name: "eab_apache2_wsgi"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
         docker network create acme
         docker-compose up -d
         docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup openssl ca_handler"
       run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -52,30 +64,38 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] create letsencrypt folder"
+    - name: "Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "create letsencrypt folder"
       run: |
         mkdir certbot
 
-    - name: "[ FAIL ] certbot without eab-credentials"
+    - name: "Fail - certbot without eab-credentials"
       id: certbotfail
       continue-on-error: true
       run: |
          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ CHECK ] certbot result "
+    - name: "Check certbot result "
       if: steps.certbotfail.outcome != 'failure'
       run: |
         echo "certbot outcome is ${{steps.certbotfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo chmod 777 certbot/archive/certbot/chain1.pem
@@ -83,47 +103,47 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ FAIL] acme.sh"
+    - name: "Fail - acme.sh"
       id: acmeshfail
       continue-on-error: true
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ CHECK ] acme.sh result "
+    - name: "Check acme.sh result "
       if: steps.acmeshfail.outcome != 'failure'
       run: |
         echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ FAIL ] lego"
+    - name: "Fail - lego"
       id: legofail
       continue-on-error: true
       run: |
         mkdir lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
-    - name: "[ CHECK ] lego result "
+    - name: "Check lego result "
       if: steps.legofail.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -139,9 +159,8 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: eab-${{ matrix.keylength }}.tar.gz
+        name: eab-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
 
   eab_wsgi_rpm:
     name: "eab_wsgi_rpm"
@@ -173,18 +192,13 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
         sudo chmod -R 777 data
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
@@ -194,7 +208,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -218,37 +232,41 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ FAIL ] certbot without eab-credentials"
+    - name: "create letsencrypt folder"
+      run: |
+        mkdir certbot
+
+    - name: "Fail - certbot without eab-credentials"
       id: certbotfail
       continue-on-error: true
       run: |
          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ CHECK ] certbot result "
+    - name: "Check certbot result "
       if: steps.certbotfail.outcome != 'failure'
       run: |
         echo "certbot outcome is ${{steps.certbotfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo chmod 777 certbot/archive/certbot/chain1.pem
@@ -256,47 +274,47 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ FAIL] acme.sh"
+    - name: "Fail - acme.sh"
       id: acmeshfail
       continue-on-error: true
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ CHECK ] acme.sh result "
+    - name: "Check acme.sh result "
       if: steps.acmeshfail.outcome != 'failure'
       run: |
         echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ FAIL ] lego"
+    - name: "Fail - lego"
       id: legofail
       continue-on-error: true
       run: |
         mkdir lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
-    - name: "[ CHECK ] lego result "
+    - name: "Check lego result "
       if: steps.legofail.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -330,7 +348,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -358,7 +376,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data/volume
@@ -373,7 +391,7 @@ jobs:
         sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
 
-    - name: "[ PREPARE ] create lego folder"
+    - name: "create lego folder"
       run: |
         mkdir lego
 
@@ -385,7 +403,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup a2c with certifier_ca_handler"
+    - name: "setup a2c with certifier_ca_handler"
       run: |
         mkdir -p data/volume/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
@@ -409,14 +427,14 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
@@ -426,23 +444,27 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ FAIL ] certbot without eab-credentials"
+    - name: "create letsencrypt folder"
+      run: |
+        mkdir certbot
+
+    - name: "Fail - certbot without eab-credentials"
       id: certbotfail
       continue-on-error: true
       run: |
          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ CHECK ] certbot result "
+    - name: "Check certbot result "
       if: steps.certbotfail.outcome != 'failure'
       run: |
         echo "certbot outcome is ${{steps.certbotfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=bWFjXzAy
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo chmod 777 certbot/archive/certbot/chain1.pem
@@ -450,47 +472,47 @@ jobs:
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < chain1.pem
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ FAIL] acme.sh"
+    - name: "Fail - acme.sh"
       id: acmeshfail
       continue-on-error: true
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ CHECK ] acme.sh result "
+    - name: "Check acme.sh result "
       if: steps.acmeshfail.outcome != 'failure'
       run: |
         echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
         exit 1
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key bWFjXzAy --debug 3
+        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ FAIL ] lego"
+    - name: "Fail - lego"
       id: legofail
       continue-on-error: true
       run: |
         mkdir lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
 
-    - name: "[ CHECK ] lego result "
+    - name: "Check lego result "
       if: steps.legofail.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail.outcome }}"
         exit 1
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac bWFjXzAy -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
     - name: "[ * ] collecting test logs"
@@ -516,6 +538,3 @@ jobs:
       with:
         name: eab_django_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
-
-
