@@ -139,6 +139,49 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                 logger.warning('config_check(): section %s option: %s contains " characters. Check if this is really needed!', section, key)
 
 
+def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('_config_eab_profile_load()')
+
+    eab_profiling = False
+    eab_handler = None
+
+    try:
+        eab_profiling = config_dic.getboolean('CAhandler', 'eab_profiling', fallback=False)
+    except Exception as err:
+        logger.warning('CAhandler._config_eab_profile_load() failed with error: %s', err)
+        eab_profiling = False
+
+    if eab_profiling:
+        if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
+            # load eab_handler according to configuration
+            eab_handler_module = eab_handler_load(logger, config_dic)
+            if not eab_handler_module:
+                logger.critical('CAhandler._config_load(): EABHandler could not get loaded')
+            else:
+                eab_handler = eab_handler_module.EABhandler
+        else:
+            logger.critical('CAhandler._config_load(): EABHandler configuration incomplete')
+
+    logger.debug('_config_profile_load() ended')
+    return eab_profiling, eab_handler
+
+
+def config_headerinfo_get(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('config_headerinfo_get()')
+
+    header_info_field = None
+    if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+        try:
+            header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+        except Exception as err_:
+            logger.warning('Helper.config_headerinfo_get() header_info_list failed with error: %s', err_)
+
+    logger.debug('config_headerinfo_get() ended')
+    return header_info_field
+
+
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """ load and return eab_handler """
     logger.debug('Helper.eab_handler_load()')

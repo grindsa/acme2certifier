@@ -14,7 +14,7 @@ from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIden
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_get
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_lookup, header_info_field_validate, config_headerinfo_get, config_eab_profile_load
 
 
 DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
@@ -38,6 +38,9 @@ class CAhandler(object):
         self.cert_validity_days = 365
         self.ca_cert_chain_list = []
         self.template_name = None
+        self.header_info_field = None
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -351,6 +354,11 @@ class CAhandler(object):
 
         if 'template_name' in config_dic['CAhandler']:
             self.template_name = config_dic['CAhandler']['template_name']
+
+        # load profiling
+        self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
+        # load header info
+        self.header_info_field = config_headerinfo_get(self.logger, config_dic)
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """
@@ -903,6 +911,88 @@ class CAhandler(object):
 
         return extension_list
 
+    def _eab_profile_string_check(self, key, value):
+        self.logger.debug('CAhandler._eab_profile_string_check(): string: key: %s, value: %s', key, value)
+
+        if hasattr(self, key):
+            self.logger.debug('CAhandler._eab_profile_string_check(): setting attribute: %s to %s', key, value)
+            setattr(self, key, value)
+        else:
+            self.logger.error('CAhandler._eab_profile_string_check(): ignore string attribute: key: %s value: %s', key, value)
+
+        self.logger.debug('CAhandler._eab_profile_string_check() ended')
+
+    def _eab_profile_list_check(self, eab_handler, csr, key, value):
+        self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
+
+        result = None
+        if hasattr(self, key):
+            new_value, error = header_info_field_validate(self.logger, csr, self.header_info_field, key, value)
+            if new_value:
+                self.logger.debug('CAhandler._eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
+                setattr(self, key, new_value)
+            else:
+                result = error
+        elif key == 'allowed_domainlist':
+            # check if csr contains allowed domains
+            error = eab_handler.allowed_domains_check(csr, value)
+            if error:
+                result = error
+        else:
+            self.logger.error('CAhandler._eab_profile_list_check(): ignore list attribute: key: %s value: %s', key, value)
+
+        self.logger.debug('CAhandler._eab_profile_list_check() ended with: %s', result)
+        return result
+
+    def _eab_profile_check(self, csr: str, handler_hifield: str) -> str:
+        """ check eab profile"""
+        self.logger.debug('CAhandler._eab_profile_check()')
+
+        result = None
+        with self.eab_handler(self.logger) as eab_handler:
+            eab_profile_dic = eab_handler.eab_profile_get(csr)
+            for key, value in eab_profile_dic.items():
+                if isinstance(value, str):
+                    self._eab_profile_string_check(key, value)
+                elif isinstance(value, list):
+                    result = self._eab_profile_list_check(eab_handler, csr, key, value)
+                    if result:
+                        break
+
+            # we need to cover cases where profiling is enabled but no profile_id is defined in json
+            if self.header_info_field and handler_hifield not in eab_profile_dic:
+                hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
+                if hil_value:
+                    setattr(self, handler_hifield, hil_value)
+
+        self.logger.debug('CAhandler._eab_profile_check() ended with: %s', result)
+        return result
+
+    def _profile_check(self, csr: str) -> str:
+        """ check profile """
+        self.logger.debug('CAhandler._profile_check()')
+        error = None
+
+        # handler specific header info field
+        handler_hifield = "template_name"
+
+        if self.eab_profiling:
+            if self.eab_handler:
+                error = self._eab_profile_check(csr, handler_hifield)
+                # we need to cover cases where handler_value is enabled but nothing is defined in json
+            elif self.header_info_field:
+                # no profiling - parse profileid from http_header
+                hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
+                if hil_value:
+                    self.logger.debug('CAhandler._profile_check(): setting %s to %s', handler_hifield, hil_value)
+                    # self.template_name = hil_value
+                    setattr(self, handler_hifield, hil_value)
+            else:
+                self.logger.error('CAhandler._profile_check(): eab_profiling enabled but no handler defined')
+
+        self.logger.debug('CAhandler._profile_check() ended with %s', error)
+        return error
+
     def enroll(self, csr: str = None) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0914, R0915
@@ -912,10 +1002,8 @@ class CAhandler(object):
         cert_raw = None
         error = self._config_check()
 
-        # lookup http header information from request
-        qset = header_info_get(self.logger, csr=csr)
-        if qset:
-            self.logger.info('header_info: %s', qset[-1]['header_info'])
+        if not error:
+            error = self._profile_check(csr)
 
         if not error:
             request_name = self._requestname_get(csr)
