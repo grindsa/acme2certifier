@@ -678,40 +678,23 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_prof.called)
         self.assertFalse(mock_lookup.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._loop_poll')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get')
-    def test_067_enroll(self, mock_certget, mock_loop, mock_prof, mock_lookup):
+    def test_067_enroll(self, mock_certget, mock_loop, mock_prof):
         """ CAhandler.enroll() _cert_get returns certb64 """
         mock_certget.return_value = {'foo': 'bar', 'href': 'href'}
         mock_loop.return_value = ('error', 'cert_bundle', 'cert_raw', 'poll_identifier')
-        self.cahandler.eab_profiling = True
         mock_prof.return_value = None
-        self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'poll_identifier'), self.cahandler.enroll('csr'))
-        self.assertTrue(mock_prof.called)
-        self.assertFalse(mock_lookup.called)
-
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._loop_poll')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get')
-    def test_068_enroll(self, mock_certget, mock_loop, mock_prof, mock_lookup):
-        """ CAhandler.enroll() _cert_get returns certb64 """
-        mock_certget.return_value = {'foo': 'bar', 'href': 'href'}
-        mock_loop.return_value = ('error', 'cert_bundle', 'cert_raw', 'poll_identifier')
         self.cahandler.eab_profiling = True
         self.cahandler.header_info_field = 'header_info_field'
-        mock_prof.return_value = None
         self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'poll_identifier'), self.cahandler.enroll('csr'))
         self.assertTrue(mock_prof.called)
-        self.assertFalse(mock_lookup.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._loop_poll')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get')
-    def test_069_enroll(self, mock_certget, mock_loop, mock_prof, mock_lookup):
+    def test_068_enroll(self, mock_certget, mock_loop, mock_prof):
         """ CAhandler.enroll() _cert_get returns certb64 """
         mock_certget.return_value = {'foo': 'bar', 'href': 'href'}
         mock_loop.return_value = ('error', 'cert_bundle', 'cert_raw', 'poll_identifier')
@@ -720,42 +703,38 @@ class TestACMEHandler(unittest.TestCase):
         mock_prof.return_value = 'prof_error'
         self.assertEqual(('prof_error', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_prof.called)
-        self.assertFalse(mock_lookup.called)
         self.assertFalse(mock_certget.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._loop_poll')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get')
-    def test_070_enroll(self, mock_certget, mock_loop, mock_prof, mock_lookup):
+    def test_069_enroll(self, mock_certget, mock_loop, mock_prof):
         """ CAhandler.enroll() _cert_get returns certb64 """
         mock_certget.return_value = {'foo': 'bar', 'href': 'href'}
         mock_loop.return_value = ('error', 'cert_bundle', 'cert_raw', 'poll_identifier')
         self.cahandler.eab_profiling = False
         self.cahandler.header_info_field = 'header_info_field'
-        mock_prof.return_value = 'prof_error'
-        mock_lookup.return_value = 'mock_lookup'
+        mock_prof.return_value = None
         self.assertEqual(('error', 'cert_bundle', 'cert_raw', 'poll_identifier'), self.cahandler.enroll('csr'))
-        self.assertFalse(mock_prof.called)
-        self.assertTrue(mock_lookup.called)
+        self.assertTrue(mock_prof.called)
         self.assertTrue(mock_certget.called)
-        self.assertEqual(self.cahandler.profile_id, 'mock_lookup')
+        self.assertEqual(self.cahandler.profile_id, None)
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_071_revoke(self, mock_getca):
+    def test_070_revoke(self, mock_getca):
         """ CAhandler.revoke() _ca_get_properties returns nothing """
         mock_getca.return_value = {}
         self.assertEqual((404, 'urn:ietf:params:acme:error:serverInternal', 'CA could not be found'), self.cahandler.revoke('cert'))
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_072_revoke(self, mock_getca):
+    def test_071_revoke(self, mock_getca):
         """ CAhandler.revoke() _ca_get_properties returns wrong information """
         mock_getca.return_value = {'foo': 'bar'}
         self.assertEqual((404, 'urn:ietf:params:acme:error:serverInternal', 'CA could not be found'), self.cahandler.revoke('cert'))
 
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_073_revoke(self, mock_getca, mock_serial):
+    def test_072_revoke(self, mock_getca, mock_serial):
         """ CAhandler.revoke() _ca_get_properties cert_serial_get failed """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = None
@@ -764,7 +743,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_074_revoke(self, mock_getca, mock_serial, mock_getcert):
+    def test_073_revoke(self, mock_getca, mock_serial, mock_getcert):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties failed """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -774,7 +753,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_075_revoke(self, mock_getca, mock_serial, mock_getcert):
+    def test_074_revoke(self, mock_getca, mock_serial, mock_getcert):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties returns wrong information """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -784,7 +763,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_076_revoke(self, mock_getca, mock_serial, mock_getcert):
+    def test_075_revoke(self, mock_getca, mock_serial, mock_getcert):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties empty cert_list """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -794,7 +773,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_077_revoke(self, mock_getca, mock_serial, mock_getcert):
+    def test_076_revoke(self, mock_getca, mock_serial, mock_getcert):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties returns cert_list with wrong information """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -805,7 +784,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_078_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
+    def test_077_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties returns cert_list revocation successful """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -817,7 +796,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_079_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
+    def test_078_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties returns href. revocation returns status without message """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -829,7 +808,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties')
     @patch('examples.ca_handler.certifier_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties')
-    def test_080_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
+    def test_079_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
         """ CAhandler.revoke() _ca_get_properties get_cert_properties returns href. revocation returns status with message """
         mock_getca.return_value = {'foo': 'bar', 'href': 'href'}
         mock_serial.return_value = 123
@@ -837,7 +816,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {'foo': 'bar', 'status': 'status', 'message': 'message'}
         self.assertEqual((400, 'urn:ietf:params:acme:error:alreadyRevoked', 'message'), self.cahandler.revoke('cert'))
 
-    def test_081_trigger(self):
+    def test_080_trigger(self):
         """ CAhandler.trigger() - no payload given """
         payload = None
         self.assertEqual(('No payload given', None, None), self.cahandler.trigger(payload))
@@ -846,7 +825,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.certifier_ca_handler.b64_decode')
     @patch('examples.ca_handler.certifier_ca_handler.b64_encode')
-    def test_082_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop):
+    def test_081_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop):
         """ CAhandler.trigger() - payload  but ca_lookup failed"""
         payload = 'foo'
         mock_b64dec.return_value = 'foodecode'
@@ -859,7 +838,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.certifier_ca_handler.b64_decode')
     @patch('examples.ca_handler.certifier_ca_handler.b64_encode')
-    def test_083_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial):
+    def test_082_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial):
         """ CAhandler.trigger() - payload serial number lookup failed"""
         payload = 'foo'
         mock_b64dec.return_value = 'foodecode'
@@ -874,7 +853,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.certifier_ca_handler.b64_decode')
     @patch('examples.ca_handler.certifier_ca_handler.b64_encode')
-    def test_084_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop):
+    def test_083_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop):
         """ CAhandler.trigger() - payload serial number lookup failed"""
         payload = 'foo'
         mock_b64dec.return_value = 'foodecode'
@@ -891,7 +870,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.certifier_ca_handler.b64_decode')
     @patch('examples.ca_handler.certifier_ca_handler.b64_encode')
-    def test_085_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop, mock_chain):
+    def test_084_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop, mock_chain):
         """ CAhandler.trigger() - payload serial number lookup failed"""
         payload = 'foo'
         mock_b64dec.return_value = 'foodecode'
@@ -909,7 +888,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.certifier_ca_handler.b64_decode')
     @patch('examples.ca_handler.certifier_ca_handler.b64_encode')
-    def test_086_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop, mock_chain):
+    def test_085_trigger(self, mock_b64dec, mock_b64enc, mock_p2d, mock_caprop, mock_serial, mock_certprop, mock_chain):
         """ CAhandler.trigger() - payload serial number lookup failed"""
         payload = 'foo'
         mock_b64dec.return_value = 'foodecode'
@@ -920,23 +899,23 @@ class TestACMEHandler(unittest.TestCase):
         mock_chain.return_value = 'chain'
         self.assertEqual((None, 'chain', 'foodecode'), self.cahandler.trigger(payload))
 
-    def test_087__pem_cert_chain_generate(self):
+    def test_086__pem_cert_chain_generate(self):
         """ _pem_cert_chain_generate - empty cert_dic """
         cert_dic = {}
         self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
 
-    def test_088__pem_cert_chain_generate(self):
+    def test_087__pem_cert_chain_generate(self):
         """ _pem_cert_chain_generate - wrong dic """
         cert_dic = {'foo': 'bar'}
         self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
 
-    def test_089__pem_cert_chain_generate(self):
+    def test_088__pem_cert_chain_generate(self):
         """ _pem_cert_chain_generate - certificateBase64 in dict """
         cert_dic = {'certificateBase64': 'certificateBase64'}
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase64\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_090__pem_cert_chain_generate(self, mock_get):
+    def test_089__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - issuer in dict without certificateBase64 """
         cert_dic = {'issuer': 'issuer'}
         mockresponse = Mock()
@@ -945,7 +924,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_091__pem_cert_chain_generate(self, mock_get):
+    def test_090__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - request returns "certificates" but no active """
         cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
         mockresponse1 = Mock()
@@ -956,7 +935,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_092__pem_cert_chain_generate(self, mock_get):
+    def test_091__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - request returns certificate and active, 2nd request is bogus """
         cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
         mockresponse1 = Mock()
@@ -967,7 +946,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_093__pem_cert_chain_generate(self, mock_get):
+    def test_092__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - request returns certificate two certs """
         cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
         mockresponse1 = Mock()
@@ -980,7 +959,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase642\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_094__pem_cert_chain_generate(self, mock_get):
+    def test_093__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - request returns certificate three certs """
         cert_dic = {'issuer': 'issuer', 'certificateBase64': 'certificateBase641'}
         mockresponse1 = Mock()
@@ -997,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase642\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\ncertificateBase643\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
     @patch('requests.get')
-    def test_095__pem_cert_chain_generate(self, mock_get):
+    def test_094__pem_cert_chain_generate(self, mock_get):
         """ _pem_cert_chain_generate - issuerCa in """
         cert_dic = {'issuerCa': 'issuerCa', 'certificateBase64': 'certificateBase641'}
         mockresponse1 = Mock()
@@ -1007,12 +986,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.side_effect = [mockresponse1, mockresponse2]
         self.assertEqual('-----BEGIN CERTIFICATE-----\ncertificateBase641\n-----END CERTIFICATE-----\n', self.cahandler._pem_cert_chain_generate(cert_dic))
 
-    def test_096__enter__(self):
+    def test_095__enter__(self):
         """ test __enter__ """
         self.cahandler.__enter__()
 
     @patch('requests.get')
-    def test_097_request_poll(self, mock_get):
+    def test_096_request_poll(self, mock_get):
         """ test request poll request returned exception """
         mock_get.side_effect = Exception('exc_api_get')
         result = ('"status" field not found in response.', None, None, 'url', False)
@@ -1021,7 +1000,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._request.poll() returned: exc_api_get', lcm.output)
 
     @patch('requests.get')
-    def test_098_request_poll(self, mock_get):
+    def test_097_request_poll(self, mock_get):
         """ test request poll request returned unknown status """
         mockresponse = Mock()
         mockresponse.json = lambda: {'status': 'unknown'}
@@ -1030,7 +1009,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
     @patch('requests.get')
-    def test_099_request_poll(self, mock_get):
+    def test_098_request_poll(self, mock_get):
         """ test request poll request returned status rejected """
         mockresponse = Mock()
         mockresponse.json = lambda: {'status': 'rejected'}
@@ -1039,7 +1018,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
     @patch('requests.get')
-    def test_100_request_poll(self, mock_get):
+    def test_099_request_poll(self, mock_get):
         """ test request poll request returned status accepted but no certinformation in """
         mockresponse = Mock()
         mockresponse.json = lambda: {'status': 'accepted', 'foo': 'bar'}
@@ -1048,7 +1027,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
     @patch('requests.get')
-    def test_101_request_poll(self, mock_get):
+    def test_100_request_poll(self, mock_get):
         """ test request poll request returned status accepted but no certinformation in """
         mockresponse = Mock()
         mockresponse.json = lambda: {'status': 'accepted', 'certificate': 'certificate'}
@@ -1058,7 +1037,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._pem_cert_chain_generate')
     @patch('requests.get')
-    def test_102_request_poll(self, mock_get, mock_pemgen):
+    def test_101_request_poll(self, mock_get, mock_pemgen):
         """ test request poll request returned status accepted but no certinformation in """
         mockresponse = Mock()
         mockresponse.json = lambda: {'status': 'accepted', 'certificate': 'certificate', 'certificateBase64': 'certificateBase64'}
@@ -1067,83 +1046,8 @@ class TestACMEHandler(unittest.TestCase):
         result = (None, 'bundle', 'certificateBase64', 'url', False)
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
-    def test_103_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
-        config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
-        self.assertEqual( 'foo', self.cahandler.header_info_field)
-
-    def test_104_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
-        config_dic = {'Order': {'header_info_list': '["foo"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
-        self.assertEqual( 'foo', self.cahandler.header_info_field)
-
-    def test_105_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
-        config_dic = {'Order': {'header_info_list': 'foo'}}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_headerinfo_get(config_dic)
-        self.assertFalse(self.cahandler.header_info_field)
-        self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
-
-    @patch('examples.ca_handler.certifier_ca_handler.eab_handler_load')
-    def test_106_config_eab_profile_load(self, mock_eabload):
-        """ test config_eab_profiling()"""
-        config_dic = configparser.ConfigParser()
-        config_dic['CAhandler'] = {'eab_profiling': True}
-        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
-        self.cahandler._config_eab_profile_load(config_dic)
-        self.assertTrue(mock_eabload.called)
-        self.assertTrue(self.cahandler.eab_profiling)
-
-    @patch('examples.ca_handler.certifier_ca_handler.eab_handler_load')
-    def test_107_config_eab_profile_load(self, mock_eabload):
-        """ test config_eab_profiling()"""
-        config_dic = configparser.ConfigParser()
-        config_dic['CAhandler'] = {'eab_profiling': True}
-        # ['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_eab_profile_load(config_dic)
-        self.assertFalse(mock_eabload.called)
-        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler configuration incomplete', lcm.output)
-        self.assertTrue(self.cahandler.eab_profiling)
-
-    @patch('examples.ca_handler.certifier_ca_handler.eab_handler_load')
-    def test_108_config_eab_profile_load(self, mock_eabload):
-        """ test config_eab_profiling()"""
-        config_dic = configparser.ConfigParser()
-        config_dic['CAhandler'] = {'eab_profiling': True}
-        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
-        mock_eabload.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_eab_profile_load(config_dic)
-        self.assertTrue(mock_eabload.called)
-        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler could not get loaded', lcm.output)
-        self.assertTrue(self.cahandler.eab_profiling)
-
-    @patch('examples.ca_handler.certifier_ca_handler.eab_handler_load')
-    def test_109_config_eab_profile_load(self, mock_eabload):
-        """ test config_eab_profiling()"""
-        config_dic = configparser.ConfigParser()
-        config_dic['CAhandler'] = {'eab_profiling': False}
-        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
-        self.cahandler._config_eab_profile_load(config_dic)
-        self.assertFalse(mock_eabload.called)
-        self.assertFalse(self.cahandler.eab_profiling)
-
-    @patch('examples.ca_handler.certifier_ca_handler.eab_handler_load')
-    def test_110_config_eab_profile_load(self, mock_eabload):
-        """ test config_eab_profiling()"""
-        config_dic = configparser.ConfigParser()
-        config_dic['CAhandler'] = {'eab_profiling': 'aa'}
-        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
-        self.cahandler._config_eab_profile_load(config_dic)
-        self.assertFalse(mock_eabload.called)
-        self.assertFalse(self.cahandler.eab_profiling)
-
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_111__eab_profile_check(self, mock_hil):
+    def test_102__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1152,7 +1056,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.profile_id = 'profile_id'
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1161,7 +1065,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
-    def test_112__eab_profile_check(self, mock_hil):
+    def test_103__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1170,7 +1074,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.profile_id = 'profile_id'
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'api_host': 'new_host', 'api_user': 'new_user', 'api_password': 'new_password', 'profile_id': 'new_profile'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('new_host', self.cahandler.api_host)
         self.assertEqual('new_user', self.cahandler.api_user)
@@ -1178,7 +1082,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('new_profile', self.cahandler.profile_id)
         self.assertFalse(mock_hil.called)
 
-    def test_113__eab_profile_check(self):
+    def test_104__eab_profile_check(self):
         """ test eab_profile_check default value from list """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1188,7 +1092,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'profile_id': ['profile_1', 'profile_2', 'profile_3']}
         # mock_hil.return_value = ('None', None)
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1196,7 +1100,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('profile_1', self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_114__eab_profile_check(self, mock_hil):
+    def test_105__eab_profile_check(self, mock_hil):
         """ test eab_profile_check default value from list header info validate returns a value """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1206,7 +1110,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_hil.return_value = ('profile_2', None)
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'profile_id': ['profile_1', 'profile_2', 'profile_3']}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1215,7 +1119,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_114__eab_profile_check(self, mock_hil):
+    def test_106__eab_profile_check(self, mock_hil):
         """ test eab_profile_check default value from list headerinfo_lookup returns an error """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1225,7 +1129,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_hil.return_value = (None, 'error')
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'profile_id': ['profile_1', 'profile_2', 'profile_3']}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('error', self.cahandler._eab_profile_check('csr'))
+            self.assertEqual('error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1234,7 +1138,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_115__eab_profile_check(self, mock_hil):
+    def test_107__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1245,7 +1149,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'allowed_domainlist': ['foo.bar', 'bar.foo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = 'domain_chk_error'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('domain_chk_error', self.cahandler._eab_profile_check('csr'))
+            self.assertEqual('domain_chk_error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1254,7 +1158,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_116__eab_profile_check(self, mock_hil):
+    def test_108__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1265,7 +1169,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'allowed_domainlist': ['foo.bar', 'bar.foo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
@@ -1274,7 +1178,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_117__eab_profile_check(self, mock_hil):
+    def test_109__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1285,7 +1189,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
@@ -1296,7 +1200,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_118__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_110__eab_profile_check(self, mock_hiv, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1309,19 +1213,19 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'profile_id'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertEqual('api_password', self.cahandler.api_password)
-        self.assertEqual('mock_hil', self.cahandler.profile_id)
         self.assertFalse(mock_hiv.called)
         self.assertTrue(mock_hil.called)
+        self.assertEqual('mock_hil', self.cahandler.profile_id)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_119__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_111__eab_profile_check(self, mock_hiv, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1334,7 +1238,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr'))
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
@@ -1343,6 +1247,85 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('profile_id', self.cahandler.profile_id)
         self.assertFalse(mock_hiv.called)
         self.assertTrue(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_112__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_113__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = False
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_114__eab_profile_string_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._profile_check(): eab_profiling enabled but no handler defined', lcm.output)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_115__eab_profile_string_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = MagicMock()
+        mock_eab.return_value = 'mock_eab'
+        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_116__eab_profile_string_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.header_info_field = 'header_info_field'
+        self.cahandler.eab_handler = MagicMock()
+        mock_eab.return_value = 'mock_eab'
+        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_117__eab_profile_string_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = None
+        self.cahandler.header_info_field = 'profile_id'
+        self.cahandler.profile_id = 'profile_id'
+        mock_hil.return_value = 'mock_hil'
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_hil.called)
+        self.assertEqual('mock_hil', self.cahandler.profile_id)
+
+    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
+    def test_118__eab_profile_string_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = None
+        self.cahandler.header_info_field = 'profile_id'
+        self.cahandler.profile_id = 'profile_id'
+        mock_hil.return_value = None
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_hil.called)
+        self.assertEqual('profile_id', self.cahandler.profile_id)
 
 if __name__ == '__main__':
 

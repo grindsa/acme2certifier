@@ -1465,177 +1465,194 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual('mock_name', self.cahandler._subject_modify('subject', dn_dic))
         self.assertIn('INFO:test_a2c:rewrite C to countryName', lcm.output)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_179_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_179_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = 'error'
+        mock_prof.return_value = None
         self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertFalse(mock_reqname.called)
         self.assertFalse(mock_csr.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_build.called)
         self.assertFalse(mock_ca.called)
         self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_180_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_180_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = 'error'
+        mock_prof.return_value = None
         self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertFalse(mock_reqname.called)
         self.assertFalse(mock_csr.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_build.called)
         self.assertFalse(mock_ca.called)
         self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_181_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_181_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
-        mock_info.return_value = [{'header_info': 'header_info'}]
         mock_reqname.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('request_name lookup failed', None, None, None), self.cahandler.enroll('csr'))
+        mock_prof.return_value = None
+        self.assertEqual(('request_name lookup failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertTrue(mock_reqname.called)
         self.assertFalse(mock_csr.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_build.called)
         self.assertFalse(mock_ca.called)
         self.assertFalse(mock_sign.called)
-        self.assertIn('INFO:test_a2c:header_info: header_info', lcm.output)
+        self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_182_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_182_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
-        mock_info.return_value = [{'header_info': 'header_info'}]
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = [None, 'cert', 'id']
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+        mock_prof.return_value = None
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertTrue(mock_reqname.called)
         self.assertTrue(mock_csr.called)
         self.assertTrue(mock_b64.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_ca.called)
         self.assertFalse(mock_sign.called)
-        self.assertIn('INFO:test_a2c:header_info: header_info', lcm.output)
+        self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_183_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
-        mock_info.return_value = [{'header_info': 'header_info'}]
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', None, 'id']
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+        mock_prof.return_value = None
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertTrue(mock_reqname.called)
         self.assertTrue(mock_csr.called)
         self.assertTrue(mock_b64.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_ca.called)
         self.assertFalse(mock_sign.called)
-        self.assertIn('INFO:test_a2c:header_info: header_info', lcm.output)
+        self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_184_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
-        mock_info.return_value = [{'header_info': 'header_info'}]
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', 'cert', None]
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
+        mock_prof.return_value = None
+        self.assertEqual(('ca lookup failed', None, None, None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertTrue(mock_reqname.called)
         self.assertTrue(mock_csr.called)
         self.assertTrue(mock_b64.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_ca.called)
         self.assertFalse(mock_sign.called)
-        self.assertIn('INFO:test_a2c:header_info: header_info', lcm.output)
+        self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
     @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.header_info_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_185_enroll(self, mock_chk, mock_info, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign):
+    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
-        mock_info.return_value = [{'header_info': 'header_info'}]
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', 'cert', 'caid']
         mock_sign.return_value = ['bundle', 'raw']
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual((None, 'bundle', 'raw', None), self.cahandler.enroll('csr'))
+        mock_prof.return_value = None
+        self.assertEqual((None, 'bundle', 'raw', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_chk.called)
-        self.assertTrue(mock_info.called)
         self.assertTrue(mock_reqname.called)
         self.assertTrue(mock_csr.called)
         self.assertTrue(mock_b64.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_ca.called)
         self.assertTrue(mock_sign.called)
-        self.assertIn('INFO:test_a2c:header_info: header_info', lcm.output)
+        self.assertTrue(mock_prof.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
+    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+        """ test enroll() """
+        mock_chk.return_value = None
+        mock_reqname.return_value = 'request_name'
+        mock_ca.return_value = ['key', 'cert', 'caid']
+        mock_sign.return_value = ['bundle', 'raw']
+        mock_prof.return_value = "prof_error"
+        self.assertEqual(('prof_error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(mock_reqname.called)
+        self.assertFalse(mock_csr.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_build.called)
+        self.assertFalse(mock_ca.called)
+        self.assertFalse(mock_sign.called)
+        self.assertTrue(mock_prof.called)
 
     @patch('examples.ca_handler.xca_ca_handler.x509.CertificateBuilder')
     @patch('examples.ca_handler.xca_ca_handler.b64_encode')
@@ -1992,6 +2009,240 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_crl.called)
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_112__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_113__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = False
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_114__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._profile_check(): eab_profiling enabled but no handler defined', lcm.output)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_115__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = MagicMock()
+        mock_eab.return_value = 'mock_eab'
+        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_116__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.header_info_field = 'header_info_field'
+        self.cahandler.eab_handler = MagicMock()
+        mock_eab.return_value = 'mock_eab'
+        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_117__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = None
+        self.cahandler.header_info_field = 'template_name'
+        self.cahandler.template_name = 'template_name'
+        mock_hil.return_value = 'mock_hil'
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_hil.called)
+        self.assertEqual('mock_hil', self.cahandler.template_name)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
+    def test_118__profile_check(self, mock_eab, mock_hil):
+        """ test eab_profile_string_check """
+        self.cahandler.eab_profiling = True
+        self.cahandler.eab_handler = None
+        self.cahandler.header_info_field = 'template_name'
+        self.cahandler.template_name = 'template_name'
+        mock_hil.return_value = None
+        self.assertFalse(self.cahandler._profile_check('csr'))
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_hil.called)
+        self.assertEqual('template_name', self.cahandler.template_name)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_150__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_151__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': 'new_template_name'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('new_template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_152__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        mock_hil.return_value = ('new_template_name2', None)
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': ["new_template_name1", "new_template_name2", "new_template_name3"]}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('new_template_name2', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertTrue(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_153__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        mock_hil.return_value = (None, 'hil_error')
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': ["new_template_name1", "new_template_name2", "new_template_name3"]}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('hil_error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertTrue(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_154__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': 'new_template_name', 'issuing_ca_key': 'new_issuing_ca_key', 'issuing_ca_name': 'new_issuing_ca_name', 'passphrase': 'new_passphrase'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('new_template_name', self.cahandler.template_name)
+        self.assertEqual('new_issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('new_issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('new_passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_155__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': 'new_template_name', 'allowed_domainlist': ['domain1', 'domain2', 'domain3']}
+        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = 'domain_chk_error'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('domain_chk_error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('new_template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_156__eab_profile_check(self, mock_hil):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'template_name': 'new_template_name', 'unknown': ['foobar', 'barfoo']}
+        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = 'domain_chk_error'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
+        self.assertEqual('new_template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_150__eab_profile_check(self, mock_hil, mock_lookup):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.header_info_field = 'template_name'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
+        mock_lookup.return_value = 'mock_lookup'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'template_name'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('mock_lookup', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+
+
 
 if __name__ == '__main__':
 
