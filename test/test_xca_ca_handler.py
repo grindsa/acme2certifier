@@ -1263,7 +1263,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('cryptography.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._subject_modify')
-    def test_165__cert_subject_generate(self, mock_submod, mock_name):
+    def test_166__cert_subject_generate(self, mock_submod, mock_name):
         """ _cert_subject_generate() """
         req = Mock()
         req.subject = None
@@ -1280,7 +1280,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_166__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
+    def test_167__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
@@ -1296,7 +1296,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_167__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
+    def test_168__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
@@ -1312,7 +1312,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.BasicConstraints')
-    def test_168__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
+    def test_169__extension_list_default(self, mock_bc, mock_ku, mock_ski, mock_aki, mock_eku):
         """ _extension_list_default() """
         cert = Mock()
         mock_bc.return_value = 'mock_bc'
@@ -1326,7 +1326,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_default')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._xca_template_process')
-    def test_169__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
+    def test_170__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
         """ _extension_list_generate() """
         cert = Mock()
         mock_extlist.return_value = 'mock_extlist'
@@ -1342,7 +1342,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_default')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._xca_template_process')
-    def test_170__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
+    def test_171__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
         """ _extension_list_generate() """
         cert = Mock()
         mock_extlist.return_value = 'mock_extlist'
@@ -1359,7 +1359,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_default')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._xca_template_process')
-    def test_171__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
+    def test_172__extension_list_generate(self, mock_template, mock_extlist, mock_convert):
         """ _extension_list_generate() """
         cert = Mock()
         mock_extlist.return_value = 'mock_extlist'
@@ -1377,7 +1377,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._extension_list_default')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._xca_template_process')
-    def test_172__extension_list_generate(self, mock_template, mock_extlist, mock_convert, mock_san):
+    def test_173__extension_list_generate(self, mock_template, mock_extlist, mock_convert, mock_san):
         """ _extension_list_generate() """
         cert = Mock()
         mock_extlist.return_value = ['mock_extlist']
@@ -1393,7 +1393,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_convert.called)
 
     @patch('OpenSSL.crypto.X509.from_cryptography')
-    def test_173__subject_name_hash_get(self, mock_x509):
+    def test_174__subject_name_hash_get(self, mock_x509):
         """ _subject_name_hash_get() """
         # mock_x509 = Mock()
         obj = Mock()
@@ -1402,7 +1402,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(73429447, self.cahandler._subject_name_hash_get('cert'))
 
     @patch('OpenSSL.crypto.X509.from_cryptography')
-    def test_172__subject_name_hash_get(self, mock_x509):
+    def test_175__subject_name_hash_get(self, mock_x509):
         """ _subject_name_hash_get() """
         # mock_x509 = Mock()
         obj = Mock()
@@ -1412,7 +1412,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.x509.NameAttribute')
-    def test_173__subject_modify(self, mock_addr, mock_name):
+    def test_176__subject_modify(self, mock_addr, mock_name):
         """ _subject_modify() """
         mock_name.return_value = 'mock_name'
         mock_addr.return_value = 'mock_addr'
@@ -1423,7 +1423,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.x509.NameAttribute')
-    def test_174__subject_modify(self, mock_addr, mock_name):
+    def test_177__subject_modify(self, mock_addr, mock_name):
         """ _subject_modify() """
         mock_name.return_value = 'mock_name'
         mock_addr.return_value = 'mock_addr'
@@ -1434,7 +1434,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.x509.NameAttribute')
-    def test_175__subject_modify(self, mock_addr, mock_name):
+    def test_178__subject_modify(self, mock_addr, mock_name):
         """ _subject_modify() """
         mock_name.return_value = 'mock_name'
         mock_addr.return_value = 'mock_addr'
@@ -1445,7 +1445,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.x509.NameAttribute')
-    def test_176__subject_modify(self, mock_addr, mock_name):
+    def test_179__subject_modify(self, mock_addr, mock_name):
         """ _subject_modify() """
         mock_name.return_value = 'mock_name'
         mock_addr.return_value = 'mock_addr'
@@ -1456,7 +1456,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.x509.Name')
     @patch('examples.ca_handler.xca_ca_handler.x509.NameAttribute')
-    def test_177__subject_modify(self, mock_addr, mock_name):
+    def test_180__subject_modify(self, mock_addr, mock_name):
         """ _subject_modify() """
         mock_name.return_value = 'mock_name'
         mock_addr.return_value = 'mock_addr'
@@ -1473,51 +1473,51 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_179_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
-        """ test enroll() """
-        mock_chk.return_value = 'error'
-        mock_prof.return_value = None
-        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
-        self.assertTrue(mock_chk.called)
-        self.assertFalse(mock_reqname.called)
-        self.assertFalse(mock_csr.called)
-        self.assertFalse(mock_b64.called)
-        self.assertFalse(mock_build.called)
-        self.assertFalse(mock_ca.called)
-        self.assertFalse(mock_sign.called)
-        self.assertFalse(mock_prof.called)
-
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
-    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
-    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_180_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
-        """ test enroll() """
-        mock_chk.return_value = 'error'
-        mock_prof.return_value = None
-        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
-        self.assertTrue(mock_chk.called)
-        self.assertFalse(mock_reqname.called)
-        self.assertFalse(mock_csr.called)
-        self.assertFalse(mock_b64.called)
-        self.assertFalse(mock_build.called)
-        self.assertFalse(mock_ca.called)
-        self.assertFalse(mock_sign.called)
-        self.assertFalse(mock_prof.called)
-
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
-    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
-    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
-    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
     def test_181_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+        """ test enroll() """
+        mock_chk.return_value = 'error'
+        mock_prof.return_value = None
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(mock_reqname.called)
+        self.assertFalse(mock_csr.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_build.called)
+        self.assertFalse(mock_ca.called)
+        self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_prof.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
+    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_182_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+        """ test enroll() """
+        mock_chk.return_value = 'error'
+        mock_prof.return_value = None
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(mock_reqname.called)
+        self.assertFalse(mock_csr.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_build.called)
+        self.assertFalse(mock_ca.called)
+        self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_prof.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._profile_check')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
+    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = None
@@ -1540,7 +1540,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_182_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
@@ -1564,7 +1564,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
@@ -1588,7 +1588,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
@@ -1612,7 +1612,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_187_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
@@ -1637,7 +1637,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_188_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
         """ test enroll() """
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
@@ -1664,7 +1664,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_186_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_189_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1694,7 +1694,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_187_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_190_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1726,7 +1726,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_187_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_191_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1757,7 +1757,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_188_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_192_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'foo': 'bar'}
@@ -1789,7 +1789,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_189_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_193_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'foo': 'bar'}
@@ -1821,7 +1821,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_190_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_194_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'crlDist': 'crlDist'}
@@ -1854,7 +1854,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_191_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_195_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': True}
@@ -1887,7 +1887,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_192_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_196_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': False}
@@ -1920,7 +1920,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_193_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_197_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': 'aa'}
@@ -1953,7 +1953,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_194_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_198_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '2', 'bcCritical': 'aa'}
@@ -1986,7 +1986,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_195_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_199_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1'}
@@ -2012,7 +2012,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_112__profile_check(self, mock_eab, mock_hil):
+    def test_200__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.assertFalse(self.cahandler._profile_check('csr'))
         self.assertFalse(mock_eab.called)
@@ -2020,7 +2020,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_113__profile_check(self, mock_eab, mock_hil):
+    def test_201__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = False
         self.assertFalse(self.cahandler._profile_check('csr'))
@@ -2029,7 +2029,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_114__profile_check(self, mock_eab, mock_hil):
+    def test_202__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -2040,7 +2040,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_115__profile_check(self, mock_eab, mock_hil):
+    def test_203__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         self.cahandler.eab_handler = MagicMock()
@@ -2051,7 +2051,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_116__profile_check(self, mock_eab, mock_hil):
+    def test_204__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         self.cahandler.header_info_field = 'header_info_field'
@@ -2063,9 +2063,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_117__profile_check(self, mock_eab, mock_hil):
+    def test_205__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
+        self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None
         self.cahandler.header_info_field = 'template_name'
         self.cahandler.template_name = 'template_name'
@@ -2077,9 +2077,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._eab_profile_check')
-    def test_118__profile_check(self, mock_eab, mock_hil):
+    def test_206__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
+        self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None
         self.cahandler.header_info_field = 'template_name'
         self.cahandler.template_name = 'template_name'
@@ -2090,7 +2090,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('template_name', self.cahandler.template_name)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_150__eab_profile_check(self, mock_hil):
+    def test_207__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2108,7 +2108,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_151__eab_profile_check(self, mock_hil):
+    def test_208__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2126,7 +2126,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_152__eab_profile_check(self, mock_hil):
+    def test_209__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2145,7 +2145,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_153__eab_profile_check(self, mock_hil):
+    def test_210__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2164,7 +2164,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_154__eab_profile_check(self, mock_hil):
+    def test_211__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2182,7 +2182,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_155__eab_profile_check(self, mock_hil):
+    def test_212__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2201,7 +2201,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_156__eab_profile_check(self, mock_hil):
+    def test_213__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2223,7 +2223,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_150__eab_profile_check(self, mock_hil, mock_lookup):
+    def test_214__eab_profile_check(self, mock_hil, mock_lookup):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
