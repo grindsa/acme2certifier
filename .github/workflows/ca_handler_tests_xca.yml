@@ -41,7 +41,7 @@ jobs:
         mkdir certbot
         mkdir lego
 
-    - name: "Setup a2c with xca_ca_handler - no template"
+    - name: "No template - Setup a2c with xca_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -70,18 +70,18 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Sleep for 10s"
+    - name: "No template - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "No template - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "No template - Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Acme.sh"
+    - name: "No template - Enroll acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -90,15 +90,15 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Key Encipherment"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "Revoke via acme.sh"
+    - name: "No template - Revoke via acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "Register certbot"
+    - name: "No template - Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll certbot"
+    - name: "No template - Enroll certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -107,11 +107,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "Revoke certbot"
+    - name: "No template - Revoke certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "Enroll lego"
+    - name: "No template - Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
@@ -120,11 +120,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "Revoke lego"
+    - name: "No template - Revoke lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "Setup a2c with xca_ca_handler - with template"
+    - name: "Template - Setup a2c with xca_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
@@ -149,18 +149,18 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Sleep for 10s"
+    - name: "Template - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Template - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Template - Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Enroll acme.sh"
+    - name: "Template - Enroll acme.sh"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
@@ -169,16 +169,16 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke via acme.sh"
+    - name: "Template - Revoke via acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "Register certbot"
+    - name: "Template - Register certbot"
       run: |
         sudo rm -rf certbot/*
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll certbot"
+    - name: "Template - Enroll certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -186,11 +186,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke certbot"
+    - name: "Template - Revoke certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "Enroll lego"
+    - name: "Template - Enroll lego"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
@@ -199,11 +199,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke lego"
+    - name: "Template - Revoke lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "Setup a2c with xca_ca_handler - headerinfo-only"
+    - name: "Header-info - Setup a2c with xca_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -233,18 +233,18 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Sleep for 10s"
+    - name: "Header-info - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Header-info - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Header-info - Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "01 - Enroll acme.sh without template_name"
+    - name: "Header-info - 01 - Enroll acme.sh without template_name"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
@@ -254,7 +254,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "01 - Enroll lego without template_name"
+    - name: "Header-info - 01 - Enroll lego without template_name"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
@@ -263,7 +263,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "02 - Enroll acme.sh with template_name template"
+    - name: "Header-info - 02 - Enroll acme.sh with template_name template"
       run: |
         sudo rm -rf acme-sh/*
         # docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --debug 3
@@ -274,7 +274,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "02 - Enroll lego with template_name template"
+    - name: "Header-info - 02 - Enroll lego with template_name template"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template_name=template -d lego.acme --http run
@@ -283,7 +283,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "Setup a2c with xca_ca_handler - profiling"
+    - name: "EAB - Setup a2c with xca_ca_handler - profiling"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -328,18 +328,18 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Sleep for 10s"
+    - name: "EAB - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "EAB - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "EAB - Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "01 - Enroll acme with a template_name taken from list in kid.json"
+    - name: "EAB - 01 - Enroll acme with a template_name taken from list in kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
@@ -350,18 +350,16 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "01 - Enroll lego with a template_name taken from list in kid.json"
+    - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
+    - name: "EAB - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: acmefail01
       continue-on-error: true
       run: |
@@ -369,13 +367,13 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent template_name=unknown -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "02a - check  result "
+    - name: "EAB - 02a - check  result "
       if: steps.acmefail01.outcome != 'failure'
       run: |
         echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
         exit 1
 
-    - name: "02b - Enroll acme with a template_name taken from header_info included in kid.json"
+    - name: "EAB - 02b - Enroll acme with a template_name taken from header_info included in kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
@@ -386,20 +384,20 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
+    - name: "EAB - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: legofail01
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent template_name=unknown -d lego.acme --http run
 
-    - name: "02a - check  result "
+    - name: "EAB - 02a - check  result "
       if: steps.legofail01.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
 
-    - name: "02b - Enroll lego with a template_name taken from header_info included in kid.json"
+    - name: "EAB - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent template_name=acme -d lego.acme --http run
@@ -410,7 +408,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "03 - Enroll acme with a template_name/ca_name taken from kid.json"
+    - name: "EAB - 03 - Enroll acme with a template_name/ca_name taken from kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --debug 3
@@ -421,7 +419,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "03 - Enroll lego with a template_name/ca_name taken from kid.json"
+    - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme --http run
@@ -432,7 +430,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
+    - name: "EAB - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
       id: acmefail02
       continue-on-error: true
       run: |
@@ -440,26 +438,26 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "04 - check  result "
+    - name: "EAB - 04 - check  result "
       if: steps.acmefail02.outcome != 'failure'
       run: |
         echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
         exit 1
 
-    - name: "04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
+    - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
       id: legofail02
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
 
-    - name: "04a - check  result "
+    - name: "EAB - 04a - check  result "
       if: steps.legofail02.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail02.outcome }}"
         exit 1
 
-    - name: "05 - Enroll acme with default values from acme.cfg"
+    - name: "EAB - 05 - Enroll acme with default values from acme.cfg"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_03 --eab-hmac-key YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --debug 3
@@ -470,7 +468,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "05 - Enroll lego with default values from acme.cfg"
+    - name: "EAB - 05 - Enroll lego with default values from acme.cfg"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego.acme --http run
@@ -551,7 +549,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with xca_ca_handler"
+    - name: "No template - Setup a2c with xca_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -572,21 +570,21 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Prepare Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "Test http://acme-srv/directory is accessible"
+    - name: "No template - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "No template - Enroll acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
         openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -595,15 +593,15 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Key Encipherment"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke via acme.sh"
+    - name: "No template - Revoke via acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER] certbot"
+    - name: "No template - Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "No template - Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -612,11 +610,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke HTTP-01 single domain certbot"
+    - name: "No template - Revoke HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "No template - Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
@@ -625,11 +623,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Key Encipherment"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication"
 
-    - name: "revoke HTTP-01 single domain lego"
+    - name: "No template - Revoke HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with xca_ca_handler"
+    - name: "Template - Setup a2c with xca_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -650,19 +648,19 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Reconfigure a2c "
+    - name: "Template - Reconfigure a2c "
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "Sleep for 5s"
+    - name: "Template - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "Test http://acme-srv/directory is accessable "
+    - name: "Template - Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Enroll acme.sh"
+    - name: "Template - Enroll acme.sh"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
@@ -671,16 +669,16 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke via acme.sh"
+    - name: "Template - Revoke via acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke  --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "Register certbot"
+    - name: "Template - Register certbot"
       run: |
         sudo rm -rf certbot/*
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Enroll HTTP-01 single domain certbot"
+    - name: "Template - Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
@@ -688,11 +686,11 @@ jobs:
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke HTTP-01 single domain certbot"
+    - name: "Template - Revoke HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "Enroll lego"
+    - name: "Template - Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
@@ -700,11 +698,11 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "Revoke HTTP-01 single domain lego"
+    - name: "Template - Revoke HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "Setup a2c with xca_ca_handler - headerinfo-only"
+    - name: "Header-info - Setup a2c with xca_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -728,19 +726,19 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Reconfigure a2c "
+    - name: "Header-info - Reconfigure a2c "
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "Sleep for 5s"
+    - name: "Header-info - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "Test http://acme-srv/directory is accessable "
+    - name: "Header-info - Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "01 - Enroll acme.sh without template_name"
+    - name: "Header-info - 01 - Enroll acme.sh without template_name"
       run: |
         sudo rm -rf acme-sh/*
         # docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --debug 3
@@ -751,7 +749,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "01 - Enroll lego without template_name"
+    - name: "Header-info - 01 - Enroll lego without template_name"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
@@ -760,7 +758,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "02 - Enroll acme.sh with template_name template"
+    - name: "Header-info - 02 - Enroll acme.sh with template_name template"
       run: |
         sudo rm -rf acme-sh/*
         # docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --debug 3
@@ -771,7 +769,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "02 - Enroll lego with template_name template"
+    - name: "Header-info - 02 - Enroll lego with template_name template"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template_name=template -d lego.acme --http run
@@ -780,7 +778,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "Setup a2c with xca_ca_handler - profiling"
+    - name: "EAB - Setup a2c with xca_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -815,19 +813,19 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "Reconfigure a2c "
+    - name: "EAB - Reconfigure a2c "
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "Sleep for 5s"
+    - name: "EAB - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "Test http://acme-srv/directory is accessable "
+    - name: "EAB - Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "01 - Enroll acme with a template_name taken from list in kid.json"
+    - name: "EAB - 01 - Enroll acme with a template_name taken from list in kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
@@ -838,7 +836,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "01 - Enroll lego with a template_name taken from list in kid.json"
+    - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme --http run
@@ -849,7 +847,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
+    - name: "EAB - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: acmefail01
       continue-on-error: true
       run: |
@@ -857,13 +855,13 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent template_name=unknown -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "02a - check  result "
+    - name: "EAB - 02a - check  result "
       if: steps.acmefail01.outcome != 'failure'
       run: |
         echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
         exit 1
 
-    - name: "02b - Enroll acme with a template_name taken from header_info included in kid.json"
+    - name: "EAB - 02b - Enroll acme with a template_name taken from header_info included in kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
@@ -874,20 +872,20 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
+    - name: "EAB - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: legofail01
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent template_name=unknown -d lego.acme --http run
 
-    - name: "02a - check  result "
+    - name: "EAB - 02a - check  result "
       if: steps.legofail01.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
 
-    - name: "02b - Enroll lego with a template_name taken from header_info included in kid.json"
+    - name: "EAB - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent template_name=acme -d lego.acme --http run
@@ -898,7 +896,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "03 - Enroll acme with a template_name/ca_name taken from kid.json"
+    - name: "EAB - 03 - Enroll acme with a template_name/ca_name taken from kid.json"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --debug 3
@@ -909,7 +907,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "03 - Enroll lego with a template_name/ca_name taken from kid.json"
+    - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme --http run
@@ -920,7 +918,7 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
 
-    - name: "04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
+    - name: "EAB - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
       id: acmefail02
       continue-on-error: true
       run: |
@@ -928,26 +926,26 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "04 - check  result "
+    - name: "EAB - 04 - check  result "
       if: steps.acmefail02.outcome != 'failure'
       run: |
         echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
         exit 1
 
-    - name: "04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
+    - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
       id: legofail02
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
 
-    - name: "04a - check  result "
+    - name: "EAB - 04a - check  result "
       if: steps.legofail02.outcome != 'failure'
       run: |
         echo "legofail outcome is ${{steps.legofail02.outcome }}"
         exit 1
 
-    - name: "05 - Enroll acme with default values from acme.cfg"
+    - name: "EAB - 05 - Enroll acme with default values from acme.cfg"
       run: |
         sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_03 --eab-hmac-key YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --debug 3
@@ -958,7 +956,7 @@ jobs:
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, TLS Web Client Authentication"
 
-    - name: "05 - Enroll lego with default values from acme.cfg"
+    - name: "EAB - 05 - Enroll lego with default values from acme.cfg"
       run: |
         sudo rm -rf lego/*
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego.acme --http run
@@ -968,7 +966,6 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
-
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
