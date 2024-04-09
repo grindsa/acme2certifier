@@ -1303,7 +1303,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
     def test_117__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
+        self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None
         self.cahandler.header_info_field = 'profile_id'
         self.cahandler.profile_id = 'profile_id'
@@ -1317,7 +1317,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
     def test_118__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
+        self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None
         self.cahandler.header_info_field = 'profile_id'
         self.cahandler.profile_id = 'profile_id'
