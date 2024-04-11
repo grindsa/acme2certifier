@@ -2242,7 +2242,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
         self.assertEqual('passphrase', self.cahandler.passphrase)
         self.assertFalse(mock_hil.called)
+        self.assertTrue(mock_lookup.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.header_info_lookup')
+    @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
+    def test_215__eab_profile_check(self, mock_hil, mock_lookup):
+        """ test eab_profile_check """
+        self.cahandler.eab_handler = MagicMock()
+        self.cahandler.template_name = 'template_name'
+        self.cahandler.issuing_ca_key = 'issuing_ca_key'
+        self.cahandler.issuing_ca_name = 'issuing_ca_name'
+        self.cahandler.passphrase = 'passphrase'
+        self.cahandler.header_info_field = 'template_name'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
+        mock_lookup.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_check('csr', 'hifield'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
+        self.assertEqual('template_name', self.cahandler.template_name)
+        self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
+        self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
+        self.assertEqual('passphrase', self.cahandler.passphrase)
+        self.assertFalse(mock_hil.called)
+        self.assertTrue(mock_lookup.called)
 
 
 if __name__ == '__main__':
