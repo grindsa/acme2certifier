@@ -348,7 +348,7 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
       run: |
@@ -357,7 +357,7 @@ jobs:
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: acmefail01
@@ -417,7 +417,7 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
       run: |
@@ -428,7 +428,7 @@ jobs:
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
       id: acmefail02
@@ -767,7 +767,7 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "Header-info - 02 - Enroll lego with template_name template"
       run: |
@@ -776,7 +776,7 @@ jobs:
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - Setup a2c with xca_ca_handler"
       run: |
@@ -834,7 +834,7 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
       run: |
@@ -845,7 +845,7 @@ jobs:
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
       id: acmefail01
@@ -905,7 +905,7 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature, Non Repudiation"
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Server Authentication, Code Signing"
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage -noout | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
       run: |
@@ -916,7 +916,7 @@ jobs:
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation"
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, Code Signing"
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Client Authentication, Code Signing"
 
     - name: "EAB - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
       id: acmefail02
