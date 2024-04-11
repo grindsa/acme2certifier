@@ -535,11 +535,9 @@ class CAhandler(object):
                     if result:
                         break
 
-            # we need to cover cases where profiling is enabled but no profile_id is defined in json
-            if self.header_info_field and handler_hifield not in eab_profile_dic:
-                hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
-                if hil_value:
-                    setattr(self, handler_hifield, hil_value)
+            # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
+            if self.header_info_field and not result and handler_hifield not in eab_profile_dic:
+                result = f'header_info field "{handler_hifield}" is not allowed by profile'
 
         self.logger.debug('CAhandler._eab_profile_check() ended with: %s', result)
         return result

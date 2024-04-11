@@ -2235,9 +2235,9 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
         mock_lookup.return_value = 'mock_lookup'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'template_name'))
+            self.assertEqual('header_info field "hifield" is not allowed by profile', self.cahandler._eab_profile_check('csr', 'hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('mock_lookup', self.cahandler.template_name)
+        self.assertEqual('template_name', self.cahandler.template_name)
         self.assertEqual('issuing_ca_key', self.cahandler.issuing_ca_key)
         self.assertEqual('issuing_ca_name', self.cahandler.issuing_ca_name)
         self.assertEqual('passphrase', self.cahandler.passphrase)
