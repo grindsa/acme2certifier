@@ -1198,9 +1198,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('profile_id', self.cahandler.profile_id)
         self.assertFalse(mock_hil.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_110__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_110__eab_profile_check(self, mock_hiv):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1209,23 +1208,20 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.profile_id = 'profile_id'
         self.cahandler.header_info_field = 'header_info_field'
         mock_hiv.return_value = ('hil_value', None)
-        mock_hil.return_value = 'mock_hil'
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'profile_id'))
+            self.assertEqual('header_info field "profile_id" is not allowed by profile', self.cahandler._eab_profile_check('csr', 'profile_id'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual('api_user', self.cahandler.api_user)
         self.assertEqual('api_password', self.cahandler.api_password)
         self.assertFalse(mock_hiv.called)
-        self.assertTrue(mock_hil.called)
-        self.assertEqual('mock_hil', self.cahandler.profile_id)
+        self.assertEqual('profile_id', self.cahandler.profile_id)
 
-    @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.certifier_ca_handler.header_info_field_validate')
-    def test_111__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_111__eab_profile_check(self, mock_hiv):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1234,11 +1230,10 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.profile_id = 'profile_id'
         self.cahandler.header_info_field = 'header_info_field'
         mock_hiv.return_value = ('hil_value', None)
-        mock_hil.return_value = None
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
         self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
+            self.assertEqual('header_info field "handler_hifield" is not allowed by profile', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('api_host', self.cahandler.api_host)
@@ -1246,7 +1241,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('api_password', self.cahandler.api_password)
         self.assertEqual('profile_id', self.cahandler.profile_id)
         self.assertFalse(mock_hiv.called)
-        self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.certifier_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.certifier_ca_handler.CAhandler._eab_profile_check')
