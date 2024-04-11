@@ -14,7 +14,7 @@ from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIden
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_lookup, header_info_field_validate, config_headerinfo_get, config_eab_profile_load
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, header_info_lookup, header_info_field_validate, config_headerinfo_load, config_eab_profile_load
 
 
 DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
@@ -358,7 +358,7 @@ class CAhandler(object):
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
-        self.header_info_field = config_headerinfo_get(self.logger, config_dic)
+        self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """

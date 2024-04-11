@@ -117,7 +117,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._certificates_list() ended')
         return api_response
 
-    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug('_config_header_info()')
 
@@ -190,7 +190,7 @@ class CAhandler(object):
         config_dic = load_config(self.logger, 'CAhandler')
 
         # load headerinfos
-        self._config_headerinfo_get(config_dic)
+        self._config_headerinfo_load(config_dic)
 
         if 'CAhandler' in config_dic:
             self._config_host_load(config_dic['CAhandler'])

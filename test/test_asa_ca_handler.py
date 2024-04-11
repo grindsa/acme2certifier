@@ -906,23 +906,23 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         # self.assertIn("foo", lcm.output)
         self.assertFalse(self.cahandler.profile_name)
 
-    def test_064_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_064_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
+        self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_065_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_065_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
+        self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_066_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_066_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_headerinfo_get(config_dic)
+            self.cahandler._config_headerinfo_load(config_dic)
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 

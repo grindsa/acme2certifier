@@ -60,7 +60,7 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug('_config_header_info()')
 
@@ -159,7 +159,7 @@ class CAhandler(object):
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
-            self._config_headerinfo_get(config_dic)
+            self._config_headerinfo_load(config_dic)
 
         # load proxy config
         self._config_proxy_load(config_dic)
