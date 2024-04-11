@@ -785,23 +785,23 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._template_name_get('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
-    def test_051_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_051_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
+        self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_052_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_052_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo"]'}}
-        self.cahandler._config_headerinfo_get(config_dic)
+        self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_053_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_053_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_headerinfo_get(config_dic)
+            self.cahandler._config_headerinfo_load(config_dic)
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 

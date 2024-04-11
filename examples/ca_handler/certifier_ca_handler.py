@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_get
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load
 
 
 class CAhandler(object):
@@ -307,7 +307,7 @@ class CAhandler(object):
             # load profiling
             self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             # load header info
-            self.header_info_field = config_headerinfo_get(self.logger, config_dic)
+            self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 
         # load proxy configuration
         self._config_proxy_load(config_dic)

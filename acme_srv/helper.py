@@ -167,18 +167,18 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return eab_profiling, eab_handler
 
 
-def config_headerinfo_get(logger: logging.Logger, config_dic: Dict[str, str]):
+def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """ load parameters """
-    logger.debug('config_headerinfo_get()')
+    logger.debug('config_headerinfo_load()')
 
     header_info_field = None
     if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
         try:
             header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
         except Exception as err_:
-            logger.warning('Helper.config_headerinfo_get() header_info_list failed with error: %s', err_)
+            logger.warning('Helper.config_headerinfo_load() header_info_list failed with error: %s', err_)
 
-    logger.debug('config_headerinfo_get() ended')
+    logger.debug('config_headerinfo_load() ended')
     return header_info_field
 
 

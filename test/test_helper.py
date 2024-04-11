@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -112,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.encode_url = encode_url
         self.uts_now = uts_now
         self.ip_validate = ip_validate
-        self.config_headerinfo_get = config_headerinfo_get
+        self.config_headerinfo_load = config_headerinfo_load
         self.config_eab_profile_load = config_eab_profile_load
 
     def test_001_helper_b64decode_pad(self):
@@ -2374,22 +2374,22 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
         self.assertIn('ERROR:test_a2c:header_info_lookup() could not parse header_info_field: mock_json', lcm.output)
 
-    def test_315_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_315_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
-        self.assertEqual('foo', self.config_headerinfo_get(self.logger, config_dic))
+        self.assertEqual('foo', self.config_headerinfo_load(self.logger, config_dic))
 
-    def test_316_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_316_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo"]'}}
-        self.assertEqual('foo', self.config_headerinfo_get(self.logger, config_dic))
+        self.assertEqual('foo', self.config_headerinfo_load(self.logger, config_dic))
 
-    def test_317_config_headerinfo_get(self):
-        """ test config_headerinfo_get()"""
+    def test_317_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.config_headerinfo_get(self.logger, config_dic))
-        self.assertIn('WARNING:test_a2c:Helper.config_headerinfo_get() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+            self.assertFalse(self.config_headerinfo_load(self.logger, config_dic))
+        self.assertIn('WARNING:test_a2c:Helper.config_headerinfo_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('acme_srv.helper.eab_handler_load')
     def test_318_config_eab_profile_load(self, mock_eabload):
