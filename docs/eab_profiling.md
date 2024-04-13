@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
 <!-- wiki-title Account profiling -->
-# Pass information from acme client to CA-handler
+# EAB Profiling
 
 Starting with  version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authoritzies.
 
@@ -22,7 +22,7 @@ eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: volume/kid_profiles.json
 ```
 
-The `key_file` allows the specification enrollmenmt parameters per (extenral) acme count. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below an example configuration to be used for [Insta Certifier](certifier.md) with some explaination:
+The `key_file` allows the specification enrollmenmt parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below an example configuration to be used for [Insta Certifier](certifier.md) with some explaination:
 
 ```json
 {
@@ -42,7 +42,6 @@ The `key_file` allows the specification enrollmenmt parameters per (extenral) ac
       "profile_id": ["profile_1", "profile_2", "profile_3"],
       "allowed_domainlist": ["*.example.fi", "*.acme"],
     }
-  },
   },
   "keyid_02": {
     "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
