@@ -66,24 +66,35 @@ class Challenge(object):
         self.logger.debug('Challenge._challengelist_search() ended with: %s', challenge_list)
         return challenge_list
 
+    def _challenge_validate_loop(self, challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str, str], jwk_thumbprint: str) -> Tuple[bool, bool]:
+        """ inner loop function to validate challenges """
+        self.logger.debug('Challenge._challenge_validate_loop(%s)', challenge_name)
+
+        if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
+            (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+        elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+            (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+        elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
+            (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
+        elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
+            (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
+        else:
+            self.logger.error('unknown challenge type "%s". Setting check result to False', challenge_dic['type'])
+            result = False
+            invalid = True
+
+        self.logger.debug('Challenge._challenge_validate_loop() ended with: %s/%s', result, invalid)
+        return (result, invalid)
+
     def _challenge_validate(self, pub_key: Dict[str, str], challenge_name: str, challenge_dic: Dict[str, str], payload: Dict[str, str]) -> Tuple[bool, bool]:
         """ challenge validate """
         self.logger.debug('Challenge._challenge_validate(%s)', challenge_name)
 
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+
         for _ele in range(0, 5):
-            if challenge_dic['type'] == 'http-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_http_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-            elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_dns_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-            elif challenge_dic['type'] == 'tls-alpn-01' and jwk_thumbprint:
-                (result, invalid) = self._validate_alpn_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint)
-            elif challenge_dic['type'] == 'tkauth-01' and jwk_thumbprint and self.tnauthlist_support:
-                (result, invalid) = self._validate_tkauth_challenge(challenge_name, challenge_dic['authorization__type'], challenge_dic['authorization__value'], challenge_dic['token'], jwk_thumbprint, payload)
-            else:
-                self.logger.error('unknown challenge type "%s". Setting check result to False', challenge_dic['type'])
-                result = False
-                invalid = True
+
+            result, invalid = self._challenge_validate_loop(challenge_name, challenge_dic, payload, jwk_thumbprint)
             if result or invalid:
                 # break loop if we got any good or bad response
                 break
@@ -167,6 +178,18 @@ class Challenge(object):
 
         self.logger.debug('Challenge._config_proxy_load() ended')
 
+    def _config_dns_load(self, config_dic: Dict[str, str]):
+        """ load dns config """
+        self.logger.debug('Challenge._config_dns_load()')
+
+        if 'Challenge' in config_dic and 'dns_server_list' in config_dic['Challenge']:
+            try:
+                self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
+            except Exception as err_:
+                self.logger.warning('Challenge._config_load() dns_server_list failed with error: %s', err_)
+
+        self.logger.debug('Challenge._config_dns_load() ended')
+
     def _config_challenge_load(self, config_dic: Dict[str, str]):
         """ load proxy config """
         self.logger.debug('Challenge._config_challenge_load()')
@@ -174,11 +197,7 @@ class Challenge(object):
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
             self.sectigo_sim = config_dic.getboolean('Challenge', 'sectigo_sim', fallback=False)
-            if 'dns_server_list' in config_dic['Challenge']:
-                try:
-                    self.dns_server_list = json.loads(config_dic['Challenge']['dns_server_list'])
-                except Exception as err_:
-                    self.logger.warning('Challenge._config_load() dns_server_list failed with error: %s', err_)
+
             if 'challenge_validation_timeout' in config_dic['Challenge']:
                 try:
                     self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
@@ -194,6 +213,7 @@ class Challenge(object):
 
         # load challenge parameters
         self._config_challenge_load(config_dic)
+        self._config_dns_load(config_dic)
 
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
