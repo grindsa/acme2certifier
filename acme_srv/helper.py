@@ -139,6 +139,49 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                 logger.warning('config_check(): section %s option: %s contains " characters. Check if this is really needed!', section, key)
 
 
+def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('_config_eab_profile_load()')
+
+    eab_profiling = False
+    eab_handler = None
+
+    try:
+        eab_profiling = config_dic.getboolean('CAhandler', 'eab_profiling', fallback=False)
+    except Exception as err:
+        logger.warning('CAhandler._config_eab_profile_load() failed with error: %s', err)
+        eab_profiling = False
+
+    if eab_profiling:
+        if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
+            # load eab_handler according to configuration
+            eab_handler_module = eab_handler_load(logger, config_dic)
+            if not eab_handler_module:
+                logger.critical('CAhandler._config_load(): EABHandler could not get loaded')
+            else:
+                eab_handler = eab_handler_module.EABhandler
+        else:
+            logger.critical('CAhandler._config_load(): EABHandler configuration incomplete')
+
+    logger.debug('_config_profile_load() ended')
+    return eab_profiling, eab_handler
+
+
+def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('config_headerinfo_load()')
+
+    header_info_field = None
+    if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
+        try:
+            header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
+        except Exception as err_:
+            logger.warning('Helper.config_headerinfo_load() header_info_list failed with error: %s', err_)
+
+    logger.debug('config_headerinfo_load() ended')
+    return header_info_field
+
+
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """ load and return eab_handler """
     logger.debug('Helper.eab_handler_load()')
@@ -671,6 +714,63 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
         result = f'{proto}://{server_name}{html.escape(environ["PATH_INFO"])}'
     else:
         result = f'{proto}://{server_name}'
+    return result
+
+
+def header_info_field_validate(logger, csr: str, header_info_field: str, value: str, value_list: List[str]) -> Tuple[str, str]:
+    """ select value from list"""
+    logger.debug('header_info_field_validate(%s)', value)
+
+    value_to_set = None
+    error = None
+    # get header info
+    header_info_value = header_info_lookup(logger, csr, header_info_field, value)
+    if header_info_value:
+        if header_info_value in value_list:
+            value_to_set = header_info_value
+        else:
+            error = f'{value} "{header_info_value}" is not allowed'
+    else:
+        # header not set, use first value from list
+        value_to_set = value_list[0]
+
+    logger.debug('header_info_field_validate(%s) ended with %s/%s', value, value_to_set, error)
+    return value_to_set, error
+
+
+def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:
+    """ jsonify header info"""
+    logger.debug('header_info_json_parse()')
+
+    header_info_dic = {}
+    try:
+        if isinstance(header_info, list) and 'header_info' in header_info[-1]:
+            header_info_dic = json.loads(header_info[-1]['header_info'])
+    except Exception as err:
+        logger.error('header_info_lookup() could not parse header_info_field: %s', err)
+
+    logger.debug('header_info_json_parse() ended with: %s', bool(header_info_dic))
+    return header_info_dic
+
+
+def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
+    """ lookup header info """
+    logger.debug('header_info_lookup(%s)', key)
+
+    result = None
+    header_info = header_info_get(logger, csr=csr)
+
+    if header_info:
+        header_info_dic = header_info_jsonify(logger, header_info)
+        if header_info_field in header_info_dic:
+            for ele in header_info_dic[header_info_field].split(' '):
+                if key in ele.lower():
+                    result = ele.split('=', 1)[1]
+                    break
+        else:
+            logger.error('header_info_lookup() header_info_field not found: %s', header_info_field)
+
+    logger.debug('header_info_lookup(%s) ended with: %s', key, result)
     return result
 
 
@@ -1262,17 +1362,17 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
     return result
 
 
-def validate_identifier(logger: logging.Logger, type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
+def validate_identifier(logger: logging.Logger, id_type: str, identifier: str, tnauthlist_support: bool = False) -> bool:
     """ validate identifier """
     logger.debug('validate_identifier()')
 
     result = False
     if identifier:
-        if type == 'dns':
+        if id_type == 'dns':
             result = validate_fqdn(logger, identifier)
-        elif type == 'ip':
+        elif id_type == 'ip':
             result = validate_ip(logger, identifier)
-        elif type == 'tnauthlist' and tnauthlist_support:
+        elif id_type == 'tnauthlist' and tnauthlist_support:
             result = True
 
     logger.debug('validate_identifier() ended with: %s', result)

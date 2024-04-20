@@ -46,7 +46,7 @@ class CAhandler(object):
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
+    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
         """ load parameters """
         self.logger.debug('_config_header_info()')
 
@@ -146,7 +146,7 @@ class CAhandler(object):
             self._config_host_load(config_dic)
             self._config_credentials_load(config_dic)
             self._config_parameters_load(config_dic)
-            self._config_headerinfo_get(config_dic)
+            self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
 
