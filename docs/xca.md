@@ -57,7 +57,6 @@ Template support has been introduced starting from v0.13. Support is limited to 
   - S: StateOrProvinceName
   - C: CountryName
 
-
 # eab profiling
 
 This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
@@ -103,6 +102,5 @@ below an example key-file used during regression testing:
   }
 }
 ```
-
 
 Enjoy enrolling and revoking certificates...
