@@ -9,6 +9,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- [Enrollment profiling via external account binding](docs/eab_profiling.md)
 - [#144](https://github.com/grindsa/acme2certifier/issues/144) configuration option to supress product name
 - [#143](https://github.com/grindsa/acme2certifier/issues/143) template name as part of the user-agent field in wcce/wes handler
 - configuration option to limit the number of identifiers in a single order request
@@ -18,7 +19,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
-- #147(https://github.com/grindsa/acme2certifier/pull/147) correct content-type for problem+json message
+- [#147](https://github.com/grindsa/acme2certifier/pull/147) correct content-type for problem+json message
 - updated [eab-example files](https://github.com/grindsa/acme2certifier/tree/master/examples/eab_handler) as hmac must be longer than 256bits
 - identifier sanitizing
 

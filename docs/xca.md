@@ -41,6 +41,7 @@ template_name: XCA template to be applied to CSRs
 - `passphrase` - *optional* - passphrase to access the database and decrypt the private CA Key
 - `ca_cert_chain_list` - *optional* - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issuing CA cert must not be included)
 - `template_name` - *optional* - name of the XCA template to be applied during certificate issuance
+- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 
 Template support has been introduced starting from v0.13. Support is limited to the below parameters which can be applied during certificate issuance:
 
@@ -55,5 +56,53 @@ Template support has been introduced starting from v0.13. Support is limited to 
   - L: Locality
   - S: StateOrProvinceName
   - C: CountryName
+
+
+# eab profiling
+
+This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+
+```cfg
+[EABhandler]
+eab_handler_file: examples/eab_handler/kid_profile_handler.py
+key_file: <profile_file>
+
+[CAhandler]
+eab_profiling: True
+```
+
+below an example key-file used during regression testing:
+
+```json
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "template_name": ["template", "acme"],
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "unknown_key": "unknown_value"
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "template_name": "template",
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "issuing_ca_name": "root-ca",
+      "issuing_ca_key": "root-ca"
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM",
+    "cahandler": {
+      "allowed_domainlist": ["www.example.com", "www.example.org"]
+    }
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+  }
+}
+```
+
 
 Enjoy enrolling and revoking certificates...
