@@ -193,6 +193,12 @@ class Challenge(object):
             except Exception as err_:
                 self.logger.warning('Challenge._config_load() dns_server_list failed with error: %s', err_)
 
+            if 'dns_validation_pause_timer' in config_dic['Challenge']:
+                try:
+                    self.dns_validation_pause_timer = int(config_dic['Challenge']['dns_validation_pause_timer'])
+                except Exception as err_:
+                    self.logger.warning('Challenge._config_load() failed to load dns_validation_pause_timer: %s', err_)
+
         self.logger.debug('Challenge._config_dns_load() ended')
 
     def _config_challenge_load(self, config_dic: Dict[str, str]):
@@ -208,12 +214,6 @@ class Challenge(object):
                     self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
                 except Exception as err_:
                     self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
-
-            if 'dns_validation_pause_timer' in config_dic['Challenge']:
-                try:
-                    self.dns_validation_pause_timer = int(config_dic['Challenge']['dns_validation_pause_timer'])
-                except Exception as err_:
-                    self.logger.warning('Challenge._config_load() failed to load dns_validation_pause_timer: %s', err_)
 
         self.logger.debug('Challenge._config_challenge_load() ended')
 
