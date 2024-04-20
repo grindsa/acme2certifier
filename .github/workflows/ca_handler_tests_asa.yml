@@ -16,8 +16,8 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -684,7 +684,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        rhversion: [8]
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
