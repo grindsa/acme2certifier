@@ -1,6 +1,6 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Account profiling -->
-# EAB Profiling
+<!-- wiki-title Enrollment profiling via external account binding -->
+# Enrollment profiling via external account binding
 
 Starting with  version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authoritzies.
 
