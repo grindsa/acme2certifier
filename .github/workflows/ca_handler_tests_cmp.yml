@@ -112,7 +112,7 @@ jobs:
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
     - name: "Establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g ping -c 270 $CMP_HOST &
+      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
         SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
@@ -312,7 +312,7 @@ jobs:
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
     - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g ping -c 180 $CMP_HOST &
+      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
         SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
@@ -462,7 +462,7 @@ jobs:
         KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
 
     - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g ping -c 180 $CMP_HOST &
+      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
         SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
