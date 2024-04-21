@@ -13,7 +13,6 @@ jobs:
     name: "asa_handler_tests"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -42,7 +41,7 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "[ PREPARE ] setup a2c with asa_ca_handler"
+    - name: "setup a2c with asa_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -84,11 +83,11 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
@@ -100,11 +99,11 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER ] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --key-type rsa --rsa-key-size 2048
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -115,7 +114,7 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -126,7 +125,7 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "[ PREPARE ] reconfiguration of a2c with a new profile"
+    - name: "reconfiguration of a2c with a new profile"
       run: |
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
@@ -153,14 +152,14 @@ jobs:
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "create letsencrypt and lego folder"
       run: |
         sudo rm -rf certbot/*
         sudo rm -rf lego/*
         sudo rm -rf acme-sh/*
         docker restart acme-sh
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
@@ -172,11 +171,11 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER ] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal --key-type rsa --rsa-key-size 2048
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -186,7 +185,7 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -220,7 +219,6 @@ jobs:
     name: "asa_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -247,7 +245,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -255,7 +253,7 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
@@ -269,7 +267,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler"
+    - name: "prepare acme_srv.cfg with certifier_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
@@ -294,25 +292,25 @@ jobs:
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
@@ -324,11 +322,11 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER ] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --key-type rsa --rsa-key-size 2048
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -339,7 +337,7 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -350,7 +348,7 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with certifier_ca_handler"
+    - name: "prepare acme_srv.cfg with certifier_ca_handler"
       run: |
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -377,14 +375,14 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "create letsencrypt and lego folder"
       run: |
         sudo rm -rf certbot/*
         sudo rm -rf lego/*
         sudo rm -rf acme-sh/*
         docker restart acme-sh
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
@@ -396,11 +394,11 @@ jobs:
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "[ REGISTER ] certbot"
+    - name: "Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal --key-type rsa --rsa-key-size 2048
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -411,7 +409,7 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -450,7 +448,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data
@@ -458,14 +456,14 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] create lego folder"
+    - name: "create lego folder"
       run: |
         mkdir lego
 
     - name: "Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] reconfiguration of a2c with a new profile"
+    - name: "reconfiguration of a2c with a new profile"
       run: |
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
@@ -496,35 +494,35 @@ jobs:
     - name: "Test http://acme-srv/directory is accessable again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "prepare acme.sh container"
       run: |
         sudo mkdir acme-sh
         docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "[ REGISTER] acme.sh"
+    - name: "Register acme.sh"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
 
-    - name: "[ ENROLL] acme.sh with profileID ACME"
+    - name: "Enroll acme.sh with profileID ACME"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --useragent profile_name=ACME --keylength 2048 --debug 3 --output-insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
 
-    - name: "[ ENROLL ] lego with profileID ACME"
+    - name: "Enroll lego with profileID ACME"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
 
-    - name: "[ ENROLL] acme.sh with profileID ACME_2"
+    - name: "Enroll acme.sh with profileID ACME_2"
       run: |
         docker exec -i acme-sh acme.sh --server http://acme-srv --renew --force -d acme-sh.acme --standalone --useragent profile_name=ACME_2 --keylength 2048 --debug 3 --output-insecure
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
 
-    - name: "[ ENROLL ] lego with profileID ACME_2"
+    - name: "Enroll lego with profileID ACME_2"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
