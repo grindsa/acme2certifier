@@ -215,7 +215,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
         return template_name
 
-    def _csr_process(self, ca_server, csr: str) ->  Tuple[str, str, str]:
+    def _csr_process(self, ca_server, csr: str) -> Tuple[str, str, str]:
 
         # recode csr
         csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
