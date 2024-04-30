@@ -4,12 +4,15 @@ from __future__ import print_function
 import os
 import textwrap
 import json
+import re
 from typing import List, Tuple, Dict
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
-# pylint: disable=e0401, e0611
+# pylint: disable=C0209, E0401, E0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get
+# pylint: disable=E0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, csr_san_get, csr_cn_get
+
 
 
 class CAhandler(object):
@@ -24,7 +27,7 @@ class CAhandler(object):
         self.ca_bundle = False
         self.template = None
         self.proxy = None
-        self.header_info_field = False
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -39,7 +42,7 @@ class CAhandler(object):
         """ check creadentials """
         self.logger.debug('CAhandler.__check_credentials()')
         auth_check = ca_server.check_credentials()
-        self.logger.debug('CAhandler.__check_credentials() ended with %s', auth_check)
+        self.logger.debug('CAhandler.__check_credentials() ended with {0}'.format(auth_check))
         return auth_check
 
     def _cert_bundle_create(self, ca_pem: str = None, cert_raw: str = None) -> Tuple[str, str, str]:
@@ -60,18 +63,6 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _config_headerinfo_load(self, config_dic: Dict[str, str]):
-        """ load parameters """
-        self.logger.debug('_config_header_info()')
-
-        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
-            try:
-                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
-            except Exception as err_:
-                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
-
-        self.logger.debug('_config_header_info() ended')
-
     def _config_user_load(self, config_dic: Dict[str, str]):
         """ load username """
         self.logger.debug('CAhandler._config_user_load()')
@@ -80,7 +71,7 @@ class CAhandler(object):
             try:
                 self.user = os.environ[config_dic['CAhandler']['user_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
+                self.logger.error('CAhandler._config_load() could not load user_variable:{0}'.format(err))
         if 'user' in config_dic['CAhandler']:
             if self.user:
                 self.logger.info('CAhandler._config_load() overwrite user')
@@ -96,7 +87,7 @@ class CAhandler(object):
             try:
                 self.password = os.environ[config_dic['CAhandler']['password_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
+                self.logger.error('CAhandler._config_load() could not load password_variable:{0}'.format(err))
         if 'password' in config_dic['CAhandler']:
             if self.password:
                 self.logger.info('CAhandler._config_load() overwrite password')
@@ -112,7 +103,7 @@ class CAhandler(object):
             try:
                 self.host = os.environ[config_dic['CAhandler']['host_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load host_variable:%s', err)
+                self.logger.error('CAhandler._config_load() could not load host_variable:{0}'.format(err))
         if 'host' in config_dic['CAhandler']:
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
@@ -132,6 +123,15 @@ class CAhandler(object):
         if 'ca_bundle' in config_dic['CAhandler']:
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
 
+
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            try:
+                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: {0}'.format(err))
+
+
+
         self.logger.debug('CAhandler._config_parameters_load() ended')
 
     def _config_proxy_load(self, config_dic: Dict[str, str]):
@@ -144,7 +144,7 @@ class CAhandler(object):
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:
-                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: %s', err_)
+                self.logger.warning('CAhandler._config_load() proxy_server_list failed with error: {0}'.format(err_))
 
         self.logger.debug('CAhandler._config_proxy_load() ended')
 
@@ -159,7 +159,6 @@ class CAhandler(object):
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
-            self._config_headerinfo_load(config_dic)
 
         # load proxy config
         self._config_proxy_load(config_dic)
@@ -191,41 +190,115 @@ class CAhandler(object):
         self.logger.debug('Certificate._pkcs7_to_pem() ended')
         return result
 
-    def _template_name_get(self, csr: str) -> str:
-        """ get templaate from csr """
-        self.logger.debug('CAhandler._template_name_get(%s)', csr)
-        template_name = None
+    def _sancheck_lists_create(self, csr: str) -> Tuple[List[str], List[str]]:
+        self.logger.debug('CAhandler.sancheck_lists_create()')
 
-        # parse profileid from http_header
-        header_info = header_info_get(self.logger, csr=csr)
-        if header_info:
-            try:
-                header_info_dic = json.loads(header_info[-1]['header_info'])
-                if self.header_info_field in header_info_dic:
-                    for ele in header_info_dic[self.header_info_field].split(' '):
-                        if 'template' in ele.lower():
-                            template_name = ele.split('=')[1]
-                            break
-            except Exception as err:
-                self.logger.error('CAhandler._template_name_get() could not parse template: %s', err)
+        check_list = []
+        san_list = []
 
-        self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
-        return template_name
+        # get sans and build a list
+        _san_list = csr_san_get(self.logger, csr)
+
+        if _san_list:
+            for san in _san_list:
+                try:
+                    # SAN list must be modified/filtered)
+                    (_san_type, san_value) = san.lower().split(':')
+                    san_list.append(san_value)
+                except Exception:
+                    # force check to fail as something went wrong during parsing
+                    check_list.append(False)
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
+
+        # get common name and attach it to san_list
+        cn_ = csr_cn_get(self.logger, csr)
+
+        if cn_:
+            cn_ = cn_.lower()
+            if cn_ not in san_list:
+                # append cn to san_list
+                self.logger.debug('Ahandler._csr_check(): append cn to san_list')
+                san_list.append(cn_)
+
+        return (san_list, check_list)
+
+    def _csr_check(self, csr: str) -> bool:
+        """ check CSR against definied whitelists """
+        self.logger.debug('CAhandler._csr_check()')
+
+        if self.allowed_domainlist:
+
+            result = False
+
+            (san_list, check_list) = self._sancheck_lists_create(csr)
+
+            # go over the san list and check each entry
+            for san in san_list:
+                check_list.append(self._list_check(san, self.allowed_domainlist))
+
+            if check_list:
+                # cover a cornercase with empty checklist (no san, no cn)
+                if False in check_list:
+                    result = False
+                else:
+                    result = True
+        else:
+            result = True
+
+        self.logger.debug('CAhandler._csr_check() ended with: {0}'.format(result))
+        return result
+
+    def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
+        """ check string against list """
+        self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
+        self.logger.debug('check against list: {0}'.format(list_))
+
+        # default setting
+        check_result = False
+
+        if entry:
+            if list_:
+                for regex in list_:
+                    # check entry
+                    check_result = self._entry_check(entry, regex, check_result)
+            else:
+                # empty list, flip parameter to make the check successful
+                check_result = True
+
+        if toggle:
+            # toggle result if this is a blacklist
+            check_result = not check_result
+
+        self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
+        return check_result
+
+    def _entry_check(self, entry: str, regex: str, check_result: bool) -> bool:
+        """ check string against regex """
+        self.logger.debug('_entry_check({0}/{1}):'.format(entry, regex))
+
+        if regex.startswith('*.'):
+            regex = regex.replace('*.', '.')
+        regex_compiled = re.compile(regex)
+
+        if bool(regex_compiled.search(entry)):
+            # parameter is in set flag accordingly and stop loop
+            check_result = True
+
+        self.logger.debug('_entry_check() ended with: {0}'.format(check_result))
+        return check_result
+
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
-        self.logger.debug('CAhandler.enroll(%s)', self.template)
+        self.logger.debug('CAhandler.enroll({0})'.format(self.template))
         cert_bundle = None
         error = None
         cert_raw = None
 
-        # lookup http header information from request
-        if self.header_info_field:
-            user_template = self._template_name_get(csr)
-            if user_template:
-                self.template = user_template
+        result = self._csr_check(csr)
 
-        if self.host and self.user and self.password and self.template:
+
+        if self.host and self.user and self.password and self.template and result:
             # setup certserv
             ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, proxies=self.proxy)
 
@@ -243,7 +316,7 @@ class CAhandler(object):
                     # ca_pem = ca_pem.replace('\r\n', '\n')
                 except Exception as err_:
                     ca_pem = None
-                    self.logger.error('ca_server.get_chain() failed with error: %s', err_)
+                    self.logger.error('ca_server.get_chain() failed with error: {0}'.format(err_))
 
                 try:
                     cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
@@ -251,7 +324,7 @@ class CAhandler(object):
                     cert_raw = cert_raw.replace('\r\n', '\n')
                 except Exception as err_:
                     cert_raw = None
-                    self.logger.error('ca_server.get_cert() failed with error: %s', err_)
+                    self.logger.error('ca_server.get_cert() failed with error: {0}'.format(err_))
 
                 # create bundle
                 (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
@@ -297,5 +370,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
+        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
         return (error, cert_bundle, cert_raw)
