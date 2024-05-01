@@ -25,6 +25,7 @@ class CAhandler(object):
         self.auth_method = 'basic'
         self.ca_bundle = False
         self.template = None
+        self.krb5_config = None
         self.proxy = None
         self.allowed_domainlist = []
         self.header_info_field = False
@@ -129,11 +130,13 @@ class CAhandler(object):
 
         if 'template' in config_dic['CAhandler']:
             self.template = config_dic['CAhandler']['template']
-        if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] == 'ntlm':
+        if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] in ['basic', 'ntlm', 'gssapi']:
             self.auth_method = config_dic['CAhandler']['auth_method']
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+        if 'krb5_config' in config_dic['CAhandler']:
+            self.krb5_config = config_dic['CAhandler']['krb5_config']
 
 
         if 'allowed_domainlist' in config_dic['CAhandler']:
@@ -321,6 +324,33 @@ class CAhandler(object):
         self.logger.debug('_entry_check() ended with: {0}'.format(check_result))
         return check_result
 
+    def _csr_process(self, ca_server, csr: str) ->  Tuple[str, str, str]:
+
+        # recode csr
+        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+
+        # get ca_chain
+        try:
+            ca_pkcs7 = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
+            ca_pem = self._pkcs7_to_pem(ca_pkcs7)
+            # replace crlf with lf
+            # ca_pem = ca_pem.replace('\r\n', '\n')
+        except Exception as err_:
+            ca_pem = None
+            self.logger.error('ca_server.get_chain() failed with error: %s', err_)
+
+        try:
+            cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
+            # replace crlf with lf
+            cert_raw = cert_raw.replace('\r\n', '\n')
+        except Exception as err_:
+            cert_raw = None
+            self.logger.error('ca_server.get_cert() failed with error: %s', err_)
+
+        # create bundle
+        (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+
+        return (error, cert_bundle, cert_raw)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
@@ -329,6 +359,9 @@ class CAhandler(object):
         error = None
         cert_raw = None
 
+        if self.krb5_config:
+            self.logger.info('CAhandler.enroll(): load krb5config from %s', self.krb5_config)
+            os.environ['KRB5_CONFIG'] = self.krb5_config
 
         # lookup http header information from request
         if self.header_info_field:
@@ -345,30 +378,11 @@ class CAhandler(object):
 
             # check connection and credentials
             auth_check = self._check_credentials(ca_server)
+
             if auth_check:
-                # recode csr
-                csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
 
-                # get ca_chain
-                try:
-                    ca_pkcs7 = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
-                    ca_pem = self._pkcs7_to_pem(ca_pkcs7)
-                    # replace crlf with lf
-                    # ca_pem = ca_pem.replace('\r\n', '\n')
-                except Exception as err_:
-                    ca_pem = None
-                    self.logger.error('ca_server.get_chain() failed with error: %s', err_)
-
-                try:
-                    cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
-                    # replace crlf with lf
-                    cert_raw = cert_raw.replace('\r\n', '\n')
-                except Exception as err_:
-                    cert_raw = None
-                    self.logger.error('ca_server.get_cert() failed with error: %s', err_)
-
-                # create bundle
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+                # enroll certificate
+                (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
 
             else:
                 self.logger.error('Connection or Credentialcheck failed')
