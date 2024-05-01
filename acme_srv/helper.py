@@ -1535,3 +1535,100 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
 
     logger.debug('ipv6_chk() ended with %s', result)
     return result
+
+
+def domainlist_check(logger, entry: str, list_: List[str], toggle: bool = False) -> bool:
+    """ check string against list """
+    logger.debug('domainlist_checkk(%s:%s)', entry, toggle)
+    logger.debug('check against list: {0}', list_)
+
+    # default setting
+    check_result = False
+
+    if entry:
+        if list_:
+            for regex in list_:
+                # check entry
+                check_result = domainlist_entry_check(logger, entry, regex, check_result)
+        else:
+            # empty list, flip parameter to make the check successful
+            check_result = True
+
+    if toggle:
+        # toggle result if this is a blacklist
+        check_result = not check_result
+
+    logger.debug('domainlist_check() ended with: %s', check_result)
+    return check_result
+
+
+def domainlist_entry_check(logger, entry: str, regex: str, check_result: bool) -> bool:
+    """ check string against regex """
+    logger.debug('domainlist_entry_check(%s/%s):', entry, regex)
+
+    if regex.startswith('*.'):
+        regex = regex.replace('*.', '.')
+    regex_compiled = re.compile(regex)
+
+    if bool(regex_compiled.search(entry)):
+        # parameter is in set flag accordingly and stop loop
+        check_result = True
+
+    logger.debug('_entry_check() ended with: %s', check_result)
+    return check_result
+
+
+def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> bool:
+    """ check if domain is in allowed domain list """
+    logger.debug('allowed_domainlist_check(%s)')
+
+    result = False
+    (san_list, check_list) = sancheck_lists_create(logger, csr)
+
+    # go over the san list and check each entry
+    for san in san_list:
+        check_list.append(domainlist_check(logger, san, allowed_domain_list))
+
+    if check_list:
+        # cover a cornercase with empty checklist (no san, no cn)
+        if False in check_list:
+            result = False
+        else:
+            result = True
+
+    logger.debug('allowed_domainlist_check() ended with: %s', result)
+    return result
+
+
+def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
+    """ create lists for san check """
+    logger.debug('CAhandler.sancheck_lists_create()')
+
+    check_list = []
+    san_list = []
+
+    # get sans and build a list
+    _san_list = csr_san_get(logger, csr)
+
+    if _san_list:
+        for san in _san_list:
+            try:
+                # SAN list must be modified/filtered)
+                (_san_type, san_value) = san.lower().split(':')
+                san_list.append(san_value)
+            except Exception:
+                # force check to fail as something went wrong during parsing
+                check_list.append(False)
+                logger.debug('sancheck_lists_create(): san_list parsing failed at entry: $s', san)
+
+    # get common name and attach it to san_list
+    cn = csr_cn_get(logger, csr)
+
+    if cn:
+        cn = cn.lower()
+        if cn not in san_list:
+            # append cn to san_list
+            logger.debug('sancheck_lists_create()): append cn to san_list')
+            san_list.append(cn)
+
+    return (san_list, check_list)

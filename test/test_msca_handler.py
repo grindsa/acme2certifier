@@ -76,6 +76,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
@@ -89,6 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
@@ -102,6 +104,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
@@ -115,6 +118,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
@@ -128,6 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
@@ -141,6 +146,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_013_config_load(self, mock_load_cfg):
@@ -154,6 +160,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_014_config_load(self, mock_load_cfg):
@@ -167,6 +174,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_015_config_load(self, mock_load_cfg):
@@ -180,6 +188,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_016_config_load(self, mock_load_cfg):
@@ -193,6 +202,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertEqual('template', self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_017_config_load(self, mock_load_cfg):
@@ -206,6 +216,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertEqual('krb5_config', self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch.dict('os.environ', {'host_variable': 'host'})
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
@@ -280,6 +291,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'doesnotexist'", lcm.output)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch.dict('os.environ', {'password_variable': 'password'})
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
@@ -290,6 +302,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual('password_local', self.cahandler.password)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite password', lcm.output)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.proxy_check')
     @patch('json.loads')
@@ -303,6 +316,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_json.called)
         self.assertTrue(mock_chk.called)
         self.assertEqual({'http': 'proxy.bar.local', 'https': 'proxy.bar.local'},self.cahandler.proxy )
+        self.assertFalse,(self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.proxy_check')
     @patch('json.loads')
@@ -318,6 +332,37 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy )
         self.assertIn('WARNING:test_a2c:CAhandler._config_load() proxy_server_list failed with error: exc_load_config', lcm.output)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_029_config_load(self, mock_load_cfg):
+        """ allowd_domain_list """
+        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': '["allowed_domainlist"]'}}
+        self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual('basic', self.cahandler.auth_method)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.krb5_config)
+        self.assertEqual(['allowed_domainlist'], self.cahandler.allowed_domainlist)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
+    def test_030_config_load(self, mock_load_cfg):
+        """ allowd_domain_list """
+        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': 'wrongstring'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertFalse(self.cahandler.host)
+        self.assertFalse(self.cahandler.user)
+        self.assertFalse(self.cahandler.password)
+        self.assertEqual('basic', self.cahandler.auth_method)
+        self.assertFalse(self.cahandler.ca_bundle)
+        self.assertFalse(self.cahandler.template)
+        self.assertFalse(self.cahandler.krb5_config)
+        self.assertFalse,(self.cahandler.allowed_domainlist)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     def test_029_revoke(self):
         """ test revocation """
@@ -406,6 +451,85 @@ class TestACMEHandler(unittest.TestCase):
         mock_p2p.return_value = 'p2p'
         self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_140_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_tmpl, mock_adc):
+        """ enroll enroll successful """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = "get_chain"
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = ['get_chain', 'get_cert']
+        mock_p2p.return_value = 'p2p'
+        self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_tmpl.called)
+        self.assertFalse(mock_adc.called)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_141_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_tmpl, mock_adc):
+        """ enroll enroll successful """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        self.cahandler.allowed_domainlist = ['allowed_domainlist']
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = "get_chain"
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_adc.return_value = True
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = ['get_chain', 'get_cert']
+        mock_p2p.return_value = 'p2p'
+        self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_tmpl.called)
+        self.assertTrue(mock_adc.called)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
+    @patch('textwrap.fill')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.Certsrv')
+    def test_142_enroll(self, mock_certserver, mock_credchk, mockwrap, mock_b2s, mock_p2p, mock_tmpl, mock_adc):
+        """ enroll enroll successful """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        self.cahandler.allowed_domainlist = ['allowed_domainlist']
+        mockresponse = MagicMock()
+        mockresponse.get_chain.return_value = "get_chain"
+        mockresponse.get_cert.return_value = "get_cert"
+        mock_adc.return_value = False
+        mock_certserver = mockresponse
+        mock_credchk.return_value = True
+        mockwrap.return_value = 'mockwrap'
+        mock_b2s.side_effect = ['get_chain', 'get_cert']
+        mock_p2p.return_value = 'p2p'
+        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_tmpl.called)
+        self.assertTrue(mock_adc.called)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
