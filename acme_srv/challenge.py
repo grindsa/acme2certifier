@@ -3,6 +3,7 @@
 # pylint: disable=r0913
 from __future__ import print_function
 import json
+import time
 from typing import List, Tuple, Dict
 from acme_srv.helper import generate_random_string, parse_url, load_config, jwk_thumbprint_get, url_get, sha256_hash, sha256_hash_hex, b64_encode, b64_url_encode, txt_get, fqdn_resolve, uts_now, uts_to_date_utc, servercert_get, cert_san_get, cert_extensions_get, fqdn_in_san_check, proxy_check, error_dic_get, ip_validate
 from acme_srv.db_handler import DBstore
@@ -23,6 +24,7 @@ class Challenge(object):
         self.expiry = expiry
         self.challenge_validation_disable = False
         self.challenge_validation_timeout = 10
+        self.dns_validation_pause_timer = 0.5
         self.tnauthlist_support = False
         self.sectigo_sim = False
         self.dns_server_list = None
@@ -87,6 +89,9 @@ class Challenge(object):
             if result or invalid:
                 # break loop if we got any good or bad response
                 break
+            elif challenge_dic['type'] == 'dns-01' and jwk_thumbprint:
+                # sleep for a while before we try again
+                time.sleep(self.dns_validation_pause_timer)
 
         self.logger.debug('Challenge._challenge_validate() ended with: %s/%s', result, invalid)
         return (result, invalid)
@@ -184,6 +189,12 @@ class Challenge(object):
                     self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
                 except Exception as err_:
                     self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
+
+            if 'dns_validation_pause_timer' in config_dic['Challenge']:
+                try:
+                    self.dns_validation_pause_timer = int(config_dic['Challenge']['dns_validation_pause_timer'])
+                except Exception as err_:
+                    self.logger.warning('Challenge._config_load() failed to load dns_validation_pause_timer: %s', err_)
 
         self.logger.debug('Challenge._config_challenge_load() ended')
 
