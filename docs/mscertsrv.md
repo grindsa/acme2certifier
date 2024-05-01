@@ -80,6 +80,7 @@ template: <name>
 - ca_bundle - CA certificate bundle in pem format needed to validate the server certificate
 - auth_method - authentication method (either "basic" or "ntlm")
 - template - certificate template used for enrollment
+- allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
 
 ## Passing a template from client to server
 
