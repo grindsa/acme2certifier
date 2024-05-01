@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, csr_cn_get, csr_san_get, parse_url
+from acme_srv.helper import load_config, b64_url_recode, csr_cn_get, csr_san_get, parse_url, allowed_domainlist_check
 
 """
 Config file section:
@@ -139,103 +139,6 @@ class CAhandler(object):
             data_dic = {'name': challenge_name, 'value1': challenge_content}
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
-
-    def _sancheck_lists_create(self, csr: str) -> Tuple[List[str], List[str]]:
-        self.logger.debug('CAhandler.sancheck_lists_create()')
-
-        check_list = []
-        san_list = []
-
-        # get sans and build a list
-        _san_list = csr_san_get(self.logger, csr)
-
-        if _san_list:
-            for san in _san_list:
-                try:
-                    # SAN list must be modified/filtered)
-                    (_san_type, san_value) = san.lower().split(':')
-                    san_list.append(san_value)
-                except Exception:
-                    # force check to fail as something went wrong during parsing
-                    check_list.append(False)
-                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: %s', san)
-
-        # get common name and attach it to san_list
-        cn_ = csr_cn_get(self.logger, csr)
-
-        if cn_:
-            cn_ = cn_.lower()
-            if cn_ not in san_list:
-                # append cn to san_list
-                self.logger.debug('Ahandler._csr_check(): append cn to san_list')
-                san_list.append(cn_)
-
-        return (san_list, check_list)
-
-    def _csr_check(self, csr: str) -> bool:
-        """ check CSR against definied whitelists """
-        self.logger.debug('CAhandler._csr_check()')
-
-        if self.allowed_domainlist:
-
-            result = False
-
-            (san_list, check_list) = self._sancheck_lists_create(csr)
-
-            # go over the san list and check each entry
-            for san in san_list:
-                check_list.append(self._list_check(san, self.allowed_domainlist))
-
-            if check_list:
-                # cover a cornercase with empty checklist (no san, no cn)
-                if False in check_list:
-                    result = False
-                else:
-                    result = True
-        else:
-            result = True
-
-        self.logger.debug('CAhandler._csr_check() ended with: %s', result)
-        return result
-
-    def _entry_check(self, entry: str, regex: str, check_result: bool) -> bool:
-        """ check string against regex """
-        self.logger.debug('_entry_check(%s/%s):', entry, regex)
-
-        if regex.startswith('*.'):
-            regex = regex.replace('*.', '.')
-        regex_compiled = re.compile(regex)
-
-        if bool(regex_compiled.search(entry)):
-            # parameter is in set flag accordingly and stop loop
-            check_result = True
-
-        self.logger.debug('_entry_check() ended with: %s', format(check_result))
-        return check_result
-
-    def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
-        """ check string against list """
-        self.logger.debug('CAhandler._list_check(%s:%s)', entry, toggle)
-        self.logger.debug('check against list: %s', list_)
-
-        # default setting
-        check_result = False
-
-        if entry:
-            if list_:
-                for regex in list_:
-                    # check entry
-                    check_result = self._entry_check(entry, regex, check_result)
-            else:
-                # empty list, flip parameter to make the check successful
-                check_result = True
-
-        if toggle:
-            # toggle result if this is a blacklist
-            check_result = not check_result
-
-        self.logger.debug('CAhandler._list_check() ended with: %s', check_result)
-        return check_result
 
     def _challenge_info(self, authzr: messages.AuthorizationResource, user_key: josepy.jwk.JWKRSA):
         """ filter challenges and get challenge details """
@@ -446,7 +349,11 @@ class CAhandler(object):
         user_key = None
 
         # check CN and SAN against black/whitlist
-        result = self._csr_check(csr)
+        if self.allowed_domainlist:
+            # check sans / cn against list of allowed comains from config
+            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+        else:
+            result = True
 
         if result:
             try:
