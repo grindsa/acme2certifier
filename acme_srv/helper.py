@@ -1539,8 +1539,9 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
 
 def domainlist_check(logger, entry: str, list_: List[str], toggle: bool = False) -> bool:
     """ check string against list """
-    logger.debug('domainlist_checkk(%s:%s)', entry, toggle)
-    logger.debug('check against list: {0}', list_)
+    logger.debug('domainlist_check(%s:%s)', entry, toggle)
+    # print(list_)
+    logger.debug('check against list: %s', list_)
 
     # default setting
     check_result = False
