@@ -27,6 +27,7 @@ class CAhandler(object):
         self.proxy = None
         self.allowed_domainlist = []
         self.header_info_field = False
+        self.verify = True
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -135,6 +136,7 @@ class CAhandler(object):
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         if 'krb5_config' in config_dic['CAhandler']:
             self.krb5_config = config_dic['CAhandler']['krb5_config']
+        self.verify = config_dic.getboolean('CAhandler', 'verify', fallback=True)
 
         if 'allowed_domainlist' in config_dic['CAhandler']:
             try:
@@ -281,7 +283,7 @@ class CAhandler(object):
 
             if result:
                 # setup certserv
-                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, proxies=self.proxy)
+                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
                 # check connection and credentials
                 auth_check = self._check_credentials(ca_server)
