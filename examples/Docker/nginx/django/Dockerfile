@@ -3,12 +3,16 @@ LABEL maintainer="grindelsack@gmail.com"
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends tzdata && \
-    apt-get install --no-install-recommends -y \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
     python3-pip \
     nginx \
     uwsgi \
     uwsgi-plugin-python3 \
     curl \
+    krb5-user \
+    libgssapi-krb5-2 \
+    libkrb5-3 \
+    python3-gssapi \
     python3-django \
     python3-mysqldb \
     python3-pymysql \
