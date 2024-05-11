@@ -1,7 +1,20 @@
 FROM ubuntu:22.04
 LABEL maintainer="grindelsack@gmail.com"
 
-RUN DEBIAN_FRONTEND="noninteractive" apt-get update  && apt-get -y install --no-install-recommends tzdata  && apt-get install -y --no-install-recommends python3-pip curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update  && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -y install --no-install-recommends tzdata && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
+    python3-pip \
+    apache2 \
+    apache2-data \
+    libapache2-mod-wsgi-py3 \
+    curl \
+    krb5-user \
+    libgssapi-krb5-2 \
+    libkrb5-3 \
+    python3-gssapi \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
