@@ -212,16 +212,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
         return template_name
 
-    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
-        """enroll certificate via MS-WCCE"""
-        self.logger.debug("CAhandler.enroll(%s)", self.template)
-        cert_bundle = None
-        error = None
-        cert_raw = None
-
-        if not (self.host and self.user and self.password and self.template):
-            self.logger.error("Config incomplete")
-            return ("Config incomplete", None, None, None)
+    def _csr_check(self, csr: str) -> bool:
+        """ check if csr is allowed """
+        self.logger.debug('CAhandler._csr_check()')
 
         # lookup http header information from request
         if self.header_info_field:
@@ -234,6 +227,23 @@ class CAhandler(object):
             result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
         else:
             result = True
+
+        self.logger.debug('CAhandler._csr_check() ended with: %s', result)
+        return result
+
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
+        """enroll certificate via MS-WCCE"""
+        self.logger.debug("CAhandler.enroll(%s)", self.template)
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        if not (self.host and self.user and self.password and self.template):
+            self.logger.error("Config incomplete")
+            return ("Config incomplete", None, None, None)
+
+        # check if csr is allowed
+        result = self._csr_check(csr)
 
         if result:
             # create request
