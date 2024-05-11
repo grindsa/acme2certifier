@@ -121,7 +121,7 @@ class Certsrv(object):
                 mechs=[gssapi.OID.from_int_seq(oid)],
                 usage="initiate",
             )
-            self.session.auth = HTTPSPNEGOAuth(creds=cred.creds)
+            self.session.auth = HTTPSPNEGOAuth(creds=cred.creds, mech=gssapi.OID.from_int_seq(oid))
         else:
             self.session.auth = (username, password)
 
