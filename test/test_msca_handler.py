@@ -7,6 +7,7 @@ import sys
 import os
 from unittest.mock import patch, Mock, MagicMock
 import base64
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -81,7 +82,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with unknown values """
-        mock_load_cfg.return_value = {'CAhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -95,7 +98,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
         """ test _config_load no cahandler section with host value """
-        mock_load_cfg.return_value = {'CAhandler': {'host': 'host'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host': 'host'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('host', self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -109,7 +114,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with user values """
-        mock_load_cfg.return_value = {'CAhandler': {'user': 'user'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user': 'user'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertEqual('user', self.cahandler.user)
@@ -123,7 +130,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with password values """
-        mock_load_cfg.return_value = {'CAhandler': {'password': 'password'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password': 'password'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -137,7 +146,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with authmethod basic """
-        mock_load_cfg.return_value = {'CAhandler': {'auth_method': 'basic'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'auth_method': 'basic'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -151,7 +162,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_013_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with authmethod ntlm """
-        mock_load_cfg.return_value = {'CAhandler': {'auth_method': 'ntlm'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'auth_method': 'ntlm'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -165,7 +178,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_014_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with authmethod unknown """
-        mock_load_cfg.return_value = {'CAhandler': {'auth_method': 'unknown'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'auth_method': 'unknown'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -179,7 +194,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_015_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with ca_bundle value """
-        mock_load_cfg.return_value = {'CAhandler': {'ca_bundle': 'ca_bundle'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_bundle': 'ca_bundle'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -193,7 +210,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_016_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with template value """
-        mock_load_cfg.return_value = {'CAhandler': {'template': 'template'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'template': 'template'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -207,7 +226,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_017_config_load(self, mock_load_cfg):
         """ test _config_load cahandler section with template value """
-        mock_load_cfg.return_value = {'CAhandler': {'krb5_config': 'krb5_config'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'krb5_config': 'krb5_config'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -222,7 +243,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_018_config_load(self, mock_load_cfg):
         """ test _config_load - load with host variable """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_variable'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'host_variable'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('host', self.cahandler.host)
 
@@ -230,7 +253,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_019_config_load(self, mock_load_cfg):
         """ test _config_load - load with host variable which does not exist """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'doesnotexist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'doesnotexist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
@@ -240,7 +265,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_020_config_load(self, mock_load_cfg):
         """ test _config_load - load with host variable which gets overwritten """
-        mock_load_cfg.return_value = {'CAhandler': {'host_variable': 'host_variable', 'host': 'host_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'host_variable': 'host_variable', 'host': 'host_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('host_local', self.cahandler.host)
@@ -250,7 +277,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_021_config_load(self, mock_load_cfg):
         """ test _config_load - load with user variable """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_variable'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'user_variable'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('user', self.cahandler.user)
 
@@ -258,7 +287,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_022_config_load(self, mock_load_cfg):
         """ test _config_load - load with user variable which does not exist """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'doesnotexist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'doesnotexist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
@@ -268,7 +299,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_023_config_load(self, mock_load_cfg):
         """ test _config_load - load with user variable which gets overwritten """
-        mock_load_cfg.return_value = {'CAhandler': {'user_variable': 'user_variable', 'user': 'user_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'user_variable': 'user_variable', 'user': 'user_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('user_local', self.cahandler.user)
@@ -278,7 +311,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_024_config_load(self, mock_load_cfg):
         """ test _config_load - load with password variable """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_variable'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'password_variable'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('password', self.cahandler.password)
 
@@ -286,7 +321,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_025_config_load(self, mock_load_cfg):
         """ test _config_load - load with password variable which does not exist """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'doesnotexist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'doesnotexist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
@@ -297,7 +334,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_026_config_load(self, mock_load_cfg):
         """ test _config_load - load with password variable which gets overwritten """
-        mock_load_cfg.return_value = {'CAhandler': {'password_variable': 'password_variable', 'password': 'password_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password_variable': 'password_variable', 'password': 'password_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('password_local', self.cahandler.password)
@@ -309,7 +348,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_027_config_load(self, mock_load_cfg, mock_json, mock_chk):
         """ test _config_load ca_handler configured load proxies """
-        mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['DEFAULT'] = {'proxy_server_list': 'foo'}
+        mock_load_cfg.return_value = parser
         mock_json.return_value = 'foo.bar.local'
         mock_chk.return_value = 'proxy.bar.local'
         self.cahandler._config_load()
@@ -323,8 +364,10 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_028_config_load(self, mock_load_cfg, mock_json, mock_chk):
         """ test _config_load ca_handler configured load proxies failed with exception in json.load """
-        mock_load_cfg.return_value = {'DEFAULT': {'proxy_server_list': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['DEFAULT'] = {'proxy_server_list': 'foo'}
         mock_json.side_effect = Exception('exc_load_config')
+        mock_load_cfg.return_value = parser
         mock_chk.side = 'proxy.bar.local'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -337,7 +380,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_029_config_load(self, mock_load_cfg):
         """ allowd_domain_list """
-        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': '["allowed_domainlist"]'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': '["allowed_domainlist"]'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -351,7 +396,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_030_config_load(self, mock_load_cfg):
         """ allowd_domain_list """
-        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': 'wrongstring'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': 'wrongstring'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)

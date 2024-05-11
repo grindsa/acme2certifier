@@ -136,6 +136,7 @@ class CAhandler(object):
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
         if 'krb5_config' in config_dic['CAhandler']:
             self.krb5_config = config_dic['CAhandler']['krb5_config']
+
         self.verify = config_dic.getboolean('CAhandler', 'verify', fallback=True)
 
         if 'allowed_domainlist' in config_dic['CAhandler']:
