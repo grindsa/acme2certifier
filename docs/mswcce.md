@@ -38,6 +38,7 @@ ca_name: <ca name>
 ca_bundle: <filename>
 template: <template name>
 use_kerberos: False
+allowed_domainlist: ["example.com", "*.example2.com"]
 ```
 
 - host - hostname of the system providing the enrollment service
@@ -52,6 +53,7 @@ use_kerberos: False
 - ca_bundle - CA certificate chain in pem format delievered along with the client certificate
 - template - certificate template used for enrollment
 - use_kerberos - use kerboros for authentication; if set to `False` authentication will be done via NTLM. Considering a [Microsoft accouncement from October 2023](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848) the usage of Kerberos should be preferred. Nevertheless, for backwards compatibility reasons the default setting is `False`
+- allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
 
 ## Passing a template from client to server
 
