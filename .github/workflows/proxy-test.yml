@@ -15,6 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        max-parallel: 1
         websrv: ['apache2']
         dbhandler: ['wsgi', 'django']
 
@@ -355,6 +356,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        max-parallel: 1
         rhversion: [8, 9]
     steps:
 

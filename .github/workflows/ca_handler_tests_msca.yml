@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -289,7 +289,7 @@ jobs:
     needs: mswcce_handler_tests
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -583,7 +583,7 @@ jobs:
     name: "mswcce_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
-      # max-parallel: 1
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -867,7 +867,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: mswcce_handler_tests_rpm
     strategy:
-      # max-parallel: 1
+      max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
