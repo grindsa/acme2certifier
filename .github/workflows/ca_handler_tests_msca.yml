@@ -263,6 +263,45 @@ jobs:
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
+    - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
+      run: |
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "KRB - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "KRB - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "KRB - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "KRB - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
+      id: acmefail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+
+    - name: "KRB - Check result "
+      if: steps.acmefail01.outcome != 'failure'
+      run: |
+        echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
+        exit 1
+
+    - name: "KRB - Enroll acme.sh with fqdn part of allowed_domainlist"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -748,10 +787,6 @@ jobs:
     - name: "NTLM - Test http://acme-srv/directory is accessable "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "NTLM - Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
     - name: "NTLM - Register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
@@ -763,7 +798,7 @@ jobs:
 
     - name: "NTLM - Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "NTLM - Enroll lego"
@@ -771,7 +806,7 @@ jobs:
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.acme.crt
 
-    - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+    - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos)"
       run: |
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
@@ -822,7 +857,7 @@ jobs:
 
     - name: "KRB - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
@@ -836,10 +871,46 @@ jobs:
     - name: "KRB - Enroll acme.sh with template submitted in command line (WebServerModified)"
       run: |
         sudo rm -rf acme-sh/
-        docker restart acme-sh
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 --issue -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --keylength 2048 -d acme-sh.acme --alpn --standalone --useragent template=WebServerModified --debug 3 --output-insecure --force
         openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
+      run: |
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/acme_srv.cfg
+
+    - name: "KRB - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "KRB - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "KRB - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "KRB - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
+      id: acmefail02
+      continue-on-error: true
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+
+    - name: "KRB - Check result "
+      if: steps.acmefail02.outcome != 'failure'
+      run: |
+        echo "acmefai2 outcome is ${{steps.acmefail01.outcome }}"
+        exit 1
+
+    - name: "KRB - Enroll acme.sh with fqdn part of allowed_domainlist"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
