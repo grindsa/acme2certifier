@@ -7,7 +7,7 @@ A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-nginx.sh) pe
 1. Install nginx and the corresponding wsgi module
 
 ```bash
-$ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl
+$ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 ```
 
 2. download the acme2certifier from [Github](https://github.com/grindsa/acme2certifier/archive/refs/heads/master.tar.gz) and unpack it.

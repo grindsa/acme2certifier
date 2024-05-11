@@ -5,7 +5,7 @@
 A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the below tasks will can be found in `examples/install_scripts` directory.
 
 1. Install apache2 and the corresponding wsgi module
-$ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
+$ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 
 2. check if the wsgi module is activated in your apache configuration
 
