@@ -16,7 +16,8 @@ from acme_srv.helper import (
     convert_string_to_byte,
     proxy_check,
     build_pem_file,
-    header_info_get
+    header_info_get,
+    allowed_domainlist_check
 )
 
 
@@ -35,6 +36,7 @@ class CAhandler(object):
         self.ca_name = None
         self.ca_bundle = False
         self.use_kerberos = False
+        self.allowed_domainlist = []
         self.header_info_field = None
 
     def __enter__(self):
@@ -119,6 +121,12 @@ class CAhandler(object):
             self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
         except Exception as err_:
             self.logger.warning('CAhandler._config_load() use_kerberos failed with error: %s', err_)
+
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            try:
+                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -221,39 +229,49 @@ class CAhandler(object):
             if user_template:
                 self.template = user_template
 
-        # create request
-        request = self.request_create()
-
-        # recode csr
-        csr = build_pem_file(self.logger, None, csr, 64, True)
-
-        # pylint: disable=W0511
-        # currently getting certificate chain is not supported
-        ca_pem = self._file_load(self.ca_bundle)
-
-        try:
-            # request certificate
-            cert_raw = convert_byte_to_string(
-                request.get_cert(convert_string_to_byte(csr))
-            )
-            # replace crlf with lf
-            cert_raw = cert_raw.replace("\r\n", "\n")
-        except Exception as err_:
-            cert_raw = None
-            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
-
-        if cert_raw:
-            if ca_pem:
-                cert_bundle = cert_raw + ca_pem
-            else:
-                cert_bundle = cert_raw
-
-            cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-            cert_raw = cert_raw.replace("\n", "")
+        if self.allowed_domainlist:
+            # check sans / cn against list of allowed comains from config
+            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
         else:
-            self.logger.error("cert bundling failed")
-            error = "cert bundling failed"
+            result = True
+
+        if result:
+            # create request
+            request = self.request_create()
+
+            # recode csr
+            csr = build_pem_file(self.logger, None, csr, 64, True)
+
+            # pylint: disable=W0511
+            # currently getting certificate chain is not supported
+            ca_pem = self._file_load(self.ca_bundle)
+
+            try:
+                # request certificate
+                cert_raw = convert_byte_to_string(
+                    request.get_cert(convert_string_to_byte(csr))
+                )
+                # replace crlf with lf
+                cert_raw = cert_raw.replace("\r\n", "\n")
+            except Exception as err_:
+                cert_raw = None
+                self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+
+            if cert_raw:
+                if ca_pem:
+                    cert_bundle = cert_raw + ca_pem
+                else:
+                    cert_bundle = cert_raw
+
+                cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+                cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+                cert_raw = cert_raw.replace("\n", "")
+            else:
+                self.logger.error("cert bundling failed")
+                error = "cert bundling failed"
+        else:
+            self.logger.error('SAN/CN check failed')
+            error = 'SAN/CN check failed'
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
