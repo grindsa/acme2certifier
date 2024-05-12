@@ -590,7 +590,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
+        self.assertEqual('ADLFAILURE', self.cahandler.allowed_domainlist)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
@@ -769,12 +769,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_045_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
+    def test_045_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_dlchk):
+        """ test enrollment - certificate and bundling successful """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        self.cahandler.allowed_domainlist = 'ADLFAILURE'
+        mock_dlchk.return_value = False
+        mock_rcr.return_value = Mock(return_value='raw_data')
+        mock_file.return_value = 'file_load'
+        mock_s2b.return_value = 's2b'
+        mock_b2s.return_value = 'b2s'
+        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
+        self.assertFalse(mock_dlchk.called)
+
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
+    @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
+    @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
+    @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
+    def test_046_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -793,7 +815,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_046_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_047_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -813,7 +835,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_047_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_048_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -835,7 +857,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_048_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_049_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -853,42 +875,42 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.mswcce_ca_handler.Request')
     @patch('examples.ca_handler.mswcce_ca_handler.Target')
-    def test_049_request_create(self, mock_target, mock_request):
+    def test_050_request_create(self, mock_target, mock_request):
         """ test request create """
         mock_target.return_value = True
         mock_request.return_value ='foo'
         self.assertEqual('foo', self.cahandler.request_create())
 
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
-    def test_050__enter(self, mock_cfgload):
+    def test_051__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.host = 'host'
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._config_load')
-    def test_051__enter(self, mock_cfgload):
+    def test_052__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.host = None
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch('examples.ca_handler.mswcce_ca_handler.header_info_get')
-    def test_052_template_name_get(self, mock_header):
+    def test_053_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': '{"header_field": "template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'}]
         self.cahandler.header_info_field = 'header_field'
         self.assertEqual('foo', self.cahandler._template_name_get('csr'))
 
     @patch('examples.ca_handler.mswcce_ca_handler.header_info_get')
-    def test_053_template_name_get(self, mock_header):
+    def test_054_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': '{"header_field": "Template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'}]
         self.cahandler.header_info_field = 'header_field'
         self.assertEqual('foo', self.cahandler._template_name_get('csr'))
 
     @patch('examples.ca_handler.mswcce_ca_handler.header_info_get')
-    def test_054_template_name_get(self, mock_header):
+    def test_055_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': 'header_info'}]
         self.cahandler.header_info_field = 'header_field'
@@ -896,19 +918,19 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._template_name_get('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
-    def test_055_config_headerinfo_load(self):
+    def test_056_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_056_config_headerinfo_load(self):
+    def test_057_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_057_config_headerinfo_load(self):
+    def test_058_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
