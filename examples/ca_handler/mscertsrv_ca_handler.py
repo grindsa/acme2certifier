@@ -241,15 +241,20 @@ class CAhandler(object):
             self.logger.error('ca_server.get_chain() failed with error: %s', err_)
 
         try:
-            cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
+            cert_p2b = ca_server.get_cert(csr, self.template)
+            cert_raw = convert_byte_to_string(cert_p2b)
             # replace crlf with lf
             cert_raw = cert_raw.replace('\r\n', '\n')
         except Exception as err_:
             cert_raw = None
+            error = str(err_)
             self.logger.error('ca_server.get_cert() failed with error: %s', err_)
 
         # create bundle
-        (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+        if cert_raw:
+            (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+        else:
+            cert_bundle = None
 
         return (error, cert_bundle, cert_raw)
 

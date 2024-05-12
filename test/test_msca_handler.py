@@ -700,12 +700,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
-        mock_b2s.side_effect = ['exc_get_chain', Exception('get_cert')]
+        mock_b2s.side_effect = ['get_chain', Exception('get_cert')]
         mock_p2p.return_value = 'p2p'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('cert bundling failed', None, None, None), self.cahandler.enroll('csr'))
+            self.assertEqual(('get_cert', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:ca_server.get_cert() failed with error: get_cert', lcm.output)
-        self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.header_info_get')
     def test_046_template_name_get(self, mock_header):
