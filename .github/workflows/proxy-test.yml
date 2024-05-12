@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        max-parallel: 1
         websrv: ['apache2']
         dbhandler: ['wsgi', 'django']
 
@@ -355,8 +355,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        max-parallel: 1
         rhversion: [8, 9]
     steps:
 
