@@ -144,6 +144,7 @@ class CAhandler(object):
                 self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
             except Exception as err:
                 self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
+                self.allowed_domainlist = 'ADLFAILURE'
 
         self.logger.debug('CAhandler._config_parameters_load() ended')
 
@@ -270,6 +271,22 @@ class CAhandler(object):
             if user_template:
                 self.template = user_template
 
+    def _domainlist_check(self, csr: str) -> bool:
+        """ check if domain is in allowed domainlist """
+        self.logger.debug('CAhandler._domainlist_check()')
+
+        if self.allowed_domainlist:
+            if self.allowed_domainlist != 'ADLFAILURE':
+                # check sans / cn against list of allowed comains from config
+                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            else:
+                result = False
+        else:
+            result = True
+
+        self.logger.debug('CAhandler._domainlist_check() ended with: %s', result)
+        return result
+
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll(%s)', self.template)
@@ -281,11 +298,7 @@ class CAhandler(object):
 
         if self.host and self.user and self.password and self.template:
 
-            if self.allowed_domainlist:
-                # check sans / cn against list of allowed comains from config
-                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            else:
-                result = True
+            result = self._domainlist_check(csr)
 
             if result:
                 # setup certserv

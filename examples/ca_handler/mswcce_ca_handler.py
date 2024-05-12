@@ -127,6 +127,7 @@ class CAhandler(object):
                 self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
             except Exception as err:
                 self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
+                self.allowed_domainlist = 'ADLFAILURE'
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -223,8 +224,11 @@ class CAhandler(object):
                 self.template = user_template
 
         if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            if self.allowed_domainlist != 'ADLFAILURE':
+                # check sans / cn against list of allowed comains from config
+                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            else:
+                result = False
         else:
             result = True
 
