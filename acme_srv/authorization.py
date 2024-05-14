@@ -205,7 +205,9 @@ class Authorization(object):
 
         response_dic = {}
         # check message
+        print(content, "================content new post" )
         (code, message, detail, protected, _payload, _account_name) = self.message.check(content)
+        print(protected,"=========protected")
         if code == 200:
             if 'url' in protected:
                 auth_info = self._authz_info(protected['url'])

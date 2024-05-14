@@ -131,6 +131,7 @@ class Message(object):
 
         # decode message
         (result, error_detail, protected, payload, _signature) = decode_message(self.logger, content)
+        print(result, "Result ---------------",protected,"----prot",payload,"----pay" )
         account_name = None
         if result:
             (code, message, detail, account_name) = self._check(skip_nonce_check, skip_signature_check, content, protected, use_emb_key)

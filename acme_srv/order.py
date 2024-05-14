@@ -90,6 +90,7 @@ class Order(object):
 
             try:
                 # add order to db
+                print(data_dic)
                 oid = self.dbstore.order_add(data_dic)
             except Exception as err_:
                 self.logger.critical('acme2certifier database error in Order._add() order: %s', err_)

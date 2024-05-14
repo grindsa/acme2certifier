@@ -8,7 +8,7 @@ from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get,
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
-
+from acme_srv.ca_handler import CAhandler
 
 class Certificate(object):
     """ CA  handler """
@@ -17,7 +17,7 @@ class Certificate(object):
         self.debug = debug
         self.server_name = srv_name
         self.logger = logger
-        self.cahandler = None
+        self.cahandler = CAhandler(self.debug, self.logger)
         self.dbstore = DBstore(self.debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
