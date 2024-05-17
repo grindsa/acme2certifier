@@ -9,13 +9,308 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
+  mscertsrv_handler_tests:
+    name: "mscertsrv_handler_tests"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "create folders and networks"
+      run: |
+        docker network create local
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Get runner ip"
+      run: |
+        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+
+    - name: "Prepare ssh environment on ramdisk "
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "Setup ssh forwarder"
+      run: |
+          docker run -d --rm --network local --name=$WCCE_FQDN_WOTLD  -e "MAPPINGS=445:$WCCE_HOST:445; 443:$WCCE_HOST:443; 88:$WCCE_HOST:88" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+      env:
+        SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test conection to mscertsrv via ssh tunnel"
+      run: |
+        docker run -i --rm --network local curlimages/curl --insecure -f https://$WCCE_FQDN
+      env:
+        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
+
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
+        sed -i "s/name: acme/name: local/g" docker-compose.yml
+        docker-compose up -d
+        docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
+
+    - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
+      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo touch examples/Docker/data/ca_certs.pem
+        sudo chmod 777 examples/Docker/data/ca_certs.pem
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
+
+        sudo touch examples/Docker/data/krb5.conf
+        sudo chmod 777 examples/Docker/data/krb5.conf
+        cat <<EOF > examples/Docker/data/krb5.conf
+        $WES_KRB5_CONF
+        EOF
+
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
+        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
+        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
+        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "KRB - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
+
+    - name: "KRB - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "KRB - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
+        openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "KRB - Enroll lego with template in acme_srv.cfg (WebServer)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "KRB - Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
+        openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "KRB - Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "NTLM - Setup a2c with mscertsrv_ca_handler using ntlm"
+      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo touch examples/Docker/data/ca_certs.pem
+        sudo chmod 777 examples/Docker/data/ca_certs.pem
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: ntlm" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
+        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
+        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
+        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+
+    - name: "NTLM - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "NTLM - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
+
+    - name: "NTLM - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "NTLM - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
+        openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "NTLM - Enroll lego with template in acme_srv.cfg (WebServer)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "NTLM - Enroll acme.sh with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
+        openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "NTLM - Enroll lego with template submitted in command line (WebServerModified)"
+      run: |
+        sudo rm -rf lego/
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
+        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+
+    - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
+      run: |
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+
+    - name: "NTLM - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "NTLM - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
+
+    - name: "NTLM - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "NTLM - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
+      id: acmefail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+
+    - name: "NTLM - Check result "
+      if: steps.acmefail01.outcome != 'failure'
+      run: |
+        echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
+        exit 1
+
+    - name: "NTLM - Enroll acme.sh with fqdn part of allowed_domainlist"
+      run: |
+        sudo rm -rf acme-sh/
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
+        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
+        sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: mscertsrv_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
 
   mswcce_handler_tests:
     name: "mswcce_handler_tests"
     runs-on: ubuntu-latest
+    needs: mscertsrv_handler_tests
     strategy:
       fail-fast: false
-      max-parallel: 1
+      # max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -322,16 +617,14 @@ jobs:
         name: mswcce_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  mscertsrv_handler_tests:
-    name: "mscertsrv_handler_tests"
+  mscertsrv_handler_tests_rpm:
+    name: "mscertsrv_handler_tests_rpm"
     runs-on: ubuntu-latest
-    needs: mswcce_handler_tests
     strategy:
+      # max-parallel: 1
       fail-fast: false
-      max-parallel: 1
       matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -382,247 +675,249 @@ jobs:
       env:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
+
+    - name: Retrieve Version from version.py
       run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: update version number in spec file
+      run: |
+        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
+        cat examples/install_scripts/rpm/acme2certifier.spec
+
+    - name: build RPM package
+      id: rpm
+      uses: grindsa/rpmbuild@alma9
+      with:
+        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+
+    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "Setup environment for alma installation"
+      run: |
+        docker network create acme
         sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        sed -i "s/name: acme/name: local/g" docker-compose.yml
-        docker-compose up -d
-        docker-compose logs
+        sudo chmod -R 777 data
+        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
       env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+
+    - name: "NTLM - Prepare Almalinux instance"
+      run: |
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network local --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo touch examples/Docker/data/ca_certs.pem
-        sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
+        sudo echo "verify: False" >> data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
 
-        sudo touch examples/Docker/data/krb5.conf
-        sudo chmod 777 examples/Docker/data/krb5.conf
-        cat <<EOF > examples/Docker/data/krb5.conf
+        sudo touch data/acme_ca/krb5.conf
+        sudo chmod 777 data/acme_ca/krb5.conf
+        cat <<EOF > data/acme_ca/krb5.conf
         $WES_KRB5_CONF
         EOF
 
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
         WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
         WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
 
-    - name: "Sleep for 10s"
+    - name: "KRB - Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+        docker exec acme-srv yum install -y krb5-libs
+
+    - name: "KRB - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-
-    - name: "KRB - Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
-
-    - name: "KRB - Test if https://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "KRB - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
         openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "KRB - Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         sudo rm -rf lego/
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
         sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "KRB - Enroll acme.sh with template submitted in command line (WebServerModified)"
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
         openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "KRB - Enroll lego with template submitted in command line (WebServerModified)"
       run: |
         sudo rm -rf lego/
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
         sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
-    - name: "NTLM - Setup a2c with mscertsrv_ca_handler using ntlm"
+    - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo touch examples/Docker/data/ca_certs.pem
-        sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "auth_method: ntlm" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo echo "verify: False" >> data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
         WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
         WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
-    - name: "NTLM - Sleep for 10s"
+    - name: "NTLM - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "NTLM - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 10s
-
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
-
-    - name: "NTLM - Test if https://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
+        time: 5s
 
     - name: "NTLM - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
         openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "NTLM - Enroll lego with template in acme_srv.cfg (WebServer)"
       run: |
         sudo rm -rf lego/
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
         sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "NTLM - Enroll acme.sh with template submitted in command line (WebServerModified)"
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
         openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "NTLM - Enroll lego with template submitted in command line (WebServerModified)"
       run: |
         sudo rm -rf lego/
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
-        sudo openssl verify -CAfile examples/Docker/data/ca_certs.pem lego/certificates/lego.local.crt
+        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
         sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
 
     - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
       run: |
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/acme_srv.cfg
 
-    - name: "NTLM - Sleep for 10s"
+    - name: "NTLM - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "NTLM - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 10s
+        time: 5s
 
     - name: "NTLM - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
 
-    - name: "NTLM - Test if https://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
-
     - name: "NTLM - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
-      id: acmefail01
+      id: acmefail02
       continue-on-error: true
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
 
     - name: "NTLM - Check result "
-      if: steps.acmefail01.outcome != 'failure'
+      if: steps.acmefail02.outcome != 'failure'
       run: |
-        echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
+        echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
         exit 1
 
     - name: "NTLM - Enroll acme.sh with fqdn part of allowed_domainlist"
       run: |
         sudo rm -rf acme-sh/
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
-        sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo rm -rf data/*.rpm
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-        cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
+        docker exec acme-srv ls -la /tmp > ${{ github.workspace }}/artifact/data/tmp_list
+        docker exec acme-srv ls -la /tmp
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: mscertsrv_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   mswcce_handler_tests_rpm:
     name: "mswcce_handler_tests_rpm"
     runs-on: ubuntu-latest
+    needs: mscertsrv_handler_tests_rpm
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -933,298 +1228,3 @@ jobs:
         name: mswcce_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  mscertsrv_handler_tests_rpm:
-    name: "mscertsrv_handler_tests_rpm"
-    runs-on: ubuntu-latest
-    needs: mswcce_handler_tests_rpm
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        rhversion: [8, 9]
-    steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
-
-    - name: "create folders and networks"
-      run: |
-        docker network create local
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
-
-    - name: "Get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
-
-    - name: "Prepare ssh environment on ramdisk "
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "Setup ssh forwarder"
-      run: |
-          docker run -d --rm --network local --name=$WCCE_FQDN_WOTLD  -e "MAPPINGS=445:$WCCE_HOST:445; 443:$WCCE_HOST:443; 88:$WCCE_HOST:88" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
-      env:
-        SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Test conection to mscertsrv via ssh tunnel"
-      run: |
-        docker run -i --rm --network local curlimages/curl --insecure -f https://$WCCE_FQDN
-      env:
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-
-
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
-
-    - name: "NTLM - Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network local --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
-    - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
-      run: |
-        mkdir -p data/acme_ca
-        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
-        sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
-        sudo echo "verify: False" >> data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-
-        sudo touch data/acme_ca/krb5.conf
-        sudo chmod 777 data/acme_ca/krb5.conf
-        cat <<EOF > data/acme_ca/krb5.conf
-        $WES_KRB5_CONF
-        EOF
-
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-
-    - name: "KRB - Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-        docker exec acme-srv yum install -y krb5-libs
-
-    - name: "KRB - Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "KRB - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
-        openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-
-    - name: "KRB - Enroll lego with template in acme_srv.cfg (WebServer)"
-      run: |
-        sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
-        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-
-    - name: "KRB - Enroll acme.sh with template submitted in command line (WebServerModified)"
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
-        openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
-
-    - name: "KRB - Enroll lego with template submitted in command line (WebServerModified)"
-      run: |
-        sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
-        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
-
-    - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
-      run: |
-        mkdir -p data/acme_ca
-        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
-        sudo echo "verify: False" >> data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-
-    - name: "NTLM - Reconfigure a2c "
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
-
-    - name: "NTLM - Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
-    - name: "NTLM - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local_ecc/acme-sh.local.cer
-        openssl x509 -in acme-sh/acme-sh.local_ecc/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-
-    - name: "NTLM - Enroll lego with template in acme_srv.cfg (WebServer)"
-      run: |
-        sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.local --http run
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
-        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-
-    - name: "NTLM - Enroll acme.sh with template submitted in command line (WebServerModified)"
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.local/acme-sh.local.cer
-        openssl x509 -in acme-sh/acme-sh.local/acme-sh.local.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
-
-    - name: "NTLM - Enroll lego with template submitted in command line (WebServerModified)"
-      run: |
-        sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network local goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.local --http run
-        sudo openssl verify -CAfile data/acme_ca/ca_certs.pem lego/certificates/lego.local.crt
-        sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
-
-    - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
-      run: |
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/acme_srv.cfg
-
-    - name: "NTLM - Reconfigure a2c "
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
-
-    - name: "NTLM - Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
-
-    - name: "NTLM - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
-      id: acmefail02
-      continue-on-error: true
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
-
-    - name: "NTLM - Check result "
-      if: steps.acmefail02.outcome != 'failure'
-      run: |
-        echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
-        exit 1
-
-    - name: "NTLM - Enroll acme.sh with fqdn part of allowed_domainlist"
-      run: |
-        sudo rm -rf acme-sh/
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network local  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo rm -rf data/*.rpm
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        docker exec acme-srv ls -la /tmp > ${{ github.workspace }}/artifact/data/tmp_list
-        docker exec acme-srv ls -la /tmp
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
