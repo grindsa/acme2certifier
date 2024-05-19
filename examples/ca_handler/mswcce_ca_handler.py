@@ -38,6 +38,7 @@ class CAhandler(object):
         self.use_kerberos = False
         self.allowed_domainlist = []
         self.header_info_field = None
+        self.timeout = 5
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -106,16 +107,21 @@ class CAhandler(object):
         """ load parameters """
         self.logger.debug("CAhandler._config_parameters_load()")
 
-        if 'target_domain' in config_dic['CAhandler']:
-            self.target_domain = config_dic['CAhandler']['target_domain']
         if 'domain_controller' in config_dic['CAhandler']:
             self.domain_controller = config_dic['CAhandler']['domain_controller']
-        if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-        if 'ca_bundle' in config_dic['CAhandler']:
-            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-        if 'template' in config_dic['CAhandler']:
-            self.template = config_dic['CAhandler']['template']
+        elif 'dns_server' in config_dic['CAhandler']:
+            self.domain_controller = config_dic['CAhandler']['dns_server']
+
+        self.target_domain = config_dic.get('CAhandler', 'target_domain', fallback=None)
+        self.ca_name = config_dic.get('CAhandler', 'ca_name', fallback=None)
+        self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=None)
+        self.template = config_dic.get('CAhandler', 'template', fallback=None)
+
+        try:
+            self.timeout = config_dic.getint('CAhandler', 'timeout', fallback=5)
+        except Exception as err_:
+            self.logger.warning('CAhandler._config_load() timeout failed with error: %s', err_)
+            self.timeout = 5
 
         try:
             self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
@@ -181,6 +187,7 @@ class CAhandler(object):
             password=self.password,
             remote_name=self.host,
             dc_ip=self.domain_controller,
+            timeout = self.timeout
         )
         request = Request(
             target=target,
