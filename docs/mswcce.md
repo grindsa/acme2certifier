@@ -37,6 +37,7 @@ domain_controller: <ip address of domain controller>
 ca_name: <ca name>
 ca_bundle: <filename>
 template: <template name>
+timout: 5
 use_kerberos: False
 allowed_domainlist: ["example.com", "*.example2.com"]
 ```
@@ -49,9 +50,11 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - password_variable - *optional* - name of the environment variable containing the password used for service access (a configured `password` parameter in acme_srv.cfg takes precedence)
 - target_domain - *optional* - ads domain name
 - domain_controller - *optional* - IP Address of the domain controller / dns server.
-- ca_name: - certificate authority name
+- dns_server - *optional* - IP Address of dns server.
+- ca_name - certificate authority name
 - ca_bundle - CA certificate chain in pem format delievered along with the client certificate
 - template - certificate template used for enrollment
+- timeout - *optional* - enrollment timeout (default: 5)
 - use_kerberos - use kerboros for authentication; if set to `False` authentication will be done via NTLM. Considering a [Microsoft accouncement from October 2023](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848) the usage of Kerberos should be preferred. Nevertheless, for backwards compatibility reasons the default setting is `False`
 - allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
 
