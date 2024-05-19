@@ -187,7 +187,7 @@ class CAhandler(object):
             password=self.password,
             remote_name=self.host,
             dc_ip=self.domain_controller,
-            timeout = self.timeout
+            timeout=self.timeout
         )
         request = Request(
             target=target,
