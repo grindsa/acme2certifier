@@ -96,9 +96,9 @@ jobs:
       run: |
         docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
 
-    - name: "enroll lego"
+    - name: "enroll Lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 150 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
 
     - name: "Check timeout"
       working-directory: examples/Docker/
