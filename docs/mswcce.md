@@ -37,7 +37,7 @@ domain_controller: <ip address of domain controller>
 ca_name: <ca name>
 ca_bundle: <filename>
 template: <template name>
-timout: 5
+timeout: 5
 use_kerberos: False
 allowed_domainlist: ["example.com", "*.example2.com"]
 ```
