@@ -2266,7 +2266,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_hil.called)
         self.assertTrue(mock_lookup.called)
 
-    def test_217__eab_profile_check(self):
+    def test_216__eab_profile_check(self):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2283,7 +2283,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('foo_ca1', self.cahandler.issuing_ca_name)
         self.assertEqual('passphrase', self.cahandler.passphrase)
 
-    def test_218__eab_profile_check(self):
+    def test_217__eab_profile_check(self):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'
@@ -2300,7 +2300,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('passphrase', self.cahandler.passphrase)
 
     @patch('examples.ca_handler.xca_ca_handler.header_info_field_validate')
-    def test_219__eab_profile_check(self, mock_hiv):
+    def test_218__eab_profile_check(self, mock_hiv):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.template_name = 'template_name'

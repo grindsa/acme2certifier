@@ -13,7 +13,7 @@ jobs:
     name: "cmp_handler_tests"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      max-parallel: 2
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -49,6 +49,26 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
+    - name: "Create ssh environment on ramdisk"
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "Setup ssh forwarder"
+      run: |
+          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+      env:
+        SSH_USER: ${{ secrets.CMP_SSH_USER }}
+        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
+        CMP_HOST: ${{ secrets.CMP_HOST }}
+
     - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
@@ -70,7 +90,8 @@ jobs:
         sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_key: volume/ra_key.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
@@ -96,41 +117,13 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "Create ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "Establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
-      env:
-        SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
-        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
-        CMP_HOST: ${{ secrets.CMP_HOST }}
-
-    - name: " Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
     - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "[ PREPARE ] setup a2c with cmp_ca_handler with PSK refnum authentication"
+    - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -149,7 +142,8 @@ jobs:
         sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
@@ -179,7 +173,7 @@ jobs:
 
     - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
@@ -228,7 +222,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -236,19 +230,44 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "Create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
 
-    - name: "[ PREPARE ] setup a2c with cmp_ca_handler"
+    - name: "Create ssh environment on ramdisk"
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "Setup ssh forwarder"
+      run: |
+          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+      env:
+        SSH_USER: ${{ secrets.CMP_SSH_USER }}
+        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
+        CMP_HOST: ${{ secrets.CMP_HOST }}
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Setup a2c with cmp_ca_handler"
       run: |
         sudo mkdir data/acme_ca
         sudo cp test/ca/root-ca-cert.pem data/acme_ca
@@ -268,7 +287,7 @@ jobs:
         sudo echo "cmp_ignore_keyusage: True" >> data/acme_srv.cfg
         sudo echo "cmp_msg_timeout: 3" >> data/acme_srv.cfg
         sudo echo "cmp_total_timeout: 5" >> data/acme_srv.cfg
-        sudo echo "cmp_server: $RUNNER_IP:8086" >> data/acme_srv.cfg
+        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/acme_srv.cfg
         sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/acme_srv.cfg
         sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/acme_srv.cfg
         sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
@@ -285,7 +304,7 @@ jobs:
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
@@ -295,42 +314,9 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ PREPARE ] ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
-      env:
-        SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
-        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
-        CMP_HOST: ${{ secrets.CMP_HOST }}
-
-    - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
@@ -378,7 +364,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -386,19 +372,44 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
+    - name: "Create letsencrypt and lego folder"
       run: |
         mkdir certbot
         mkdir lego
 
-    - name: "[ PREPARE ] setup a2c with cmp_ca_handler"
+    - name: "Create ssh environment on ramdisk"
+      run: |
+        sudo mkdir -p /tmp/rd
+        sudo mount -t tmpfs -o size=5M none /tmp/rd
+        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+        sudo chmod 600 /tmp/rd/ak.tmp
+        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      env:
+        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+
+    - name: "Setup ssh forwarder"
+      run: |
+          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+      env:
+        SSH_USER: ${{ secrets.CMP_SSH_USER }}
+        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
+        CMP_HOST: ${{ secrets.CMP_HOST }}
+
+    - name: "[ PREPARE ] Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Setup a2c with cmp_ca_handler"
       run: |
         sudo mkdir data/acme_ca
         sudo cp test/ca/root-ca-cert.pem data/acme_ca
@@ -416,7 +427,7 @@ jobs:
         sudo echo "cmp_ignore_keyusage: True" >> data/acme_srv.cfg
         sudo echo "cmp_msg_timeout: 3" >> data/acme_srv.cfg
         sudo echo "cmp_total_timeout: 5" >> data/acme_srv.cfg
-        sudo echo "cmp_server: $RUNNER_IP:8086" >> data/acme_srv.cfg
+        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/acme_srv.cfg
         sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/acme_srv.cfg
         sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/acme_srv.cfg
@@ -430,12 +441,12 @@ jobs:
         CMP_REF: ${{ secrets.CMP_REF }}
         CMP_SECRET: ${{ secrets.CMP_SECRET }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Prepare Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
@@ -445,42 +456,9 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ PREPARE ] ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "[ PREPARE ] establish SSH connection"
-      run: sudo ssh $SSH_USER@$SSH_HOST -fN -i /tmp/rd/ak.tmp -p $SSH_PORT -o UserKnownHostsFile=/tmp/rd/known_hosts -L 8086:$CMP_HOST:8086 -g
-      env:
-        SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
-        SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
-        CMP_HOST: ${{ secrets.CMP_HOST }}
-
-    - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
