@@ -16,3 +16,5 @@ xmltodict
 pyasn1
 pyasn1_modules
 requests_pkcs12
+requests_gssapi
+gssapi

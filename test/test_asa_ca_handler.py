@@ -563,7 +563,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_check')
-    def test_041_enroll(self, mock_pv, mock_iv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_043_enroll(self, mock_pv, mock_iv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = 'pv_error'
@@ -594,7 +594,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_042_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_044_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = None
@@ -625,7 +625,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_043_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_045_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = None
@@ -656,7 +656,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_044_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_046_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = 'mock_iv'
         mock_pv.return_value = None
@@ -688,7 +688,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_045_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_047_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = 'mock_pv'
@@ -719,7 +719,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_046_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_048_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = None
@@ -750,7 +750,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_047_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_049_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = None
@@ -776,7 +776,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.cert_ski_get')
-    def test_048_revoke(self, mock_ski, mock_post):
+    def test_050_revoke(self, mock_ski, mock_post):
         """ test revoke() """
         self.cahandler.ca_name = 'ca_name'
         mock_ski.return_value = 'serial'
@@ -787,7 +787,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.cert_ski_get')
-    def test_049_revoke(self, mock_ski, mock_post):
+    def test_051_revoke(self, mock_ski, mock_post):
         """ test revoke() """
         self.cahandler.ca_name = 'ca_name'
         mock_ski.return_value = 'mock_ski'
@@ -798,7 +798,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.cert_ski_get')
-    def test_050_revoke(self, mock_ski, mock_post):
+    def test_052_revoke(self, mock_ski, mock_post):
         """ test revoke() """
         self.cahandler.ca_name = 'ca_name'
         mock_ski.return_value = 'ski'
@@ -809,7 +809,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.cert_ski_get')
-    def test_051_revoke(self, mock_ski, mock_post):
+    def test_053_revoke(self, mock_ski, mock_post):
         """ test revoke() """
         self.cahandler.ca_name = 'ca_name'
         mock_ski.return_value = 'ski'
@@ -819,7 +819,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_post.called)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
-    def test_052_config_user_load(self):
+    def test_054_config_user_load(self):
         """ test _config_load - load template with user variable """
         config_dic = {'api_user_variable': 'api_user_var'}
         self.cahandler._config_user_load(config_dic)
@@ -827,7 +827,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
-    def test_053_config_user_load(self):
+    def test_055_config_user_load(self):
         """ test _config_load - load template with user variable """
         config_dic = {'api_user_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -837,7 +837,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_user_var': 'user_var'})
-    def test_054_config_user_load(self):
+    def test_056_config_user_load(self):
         """ test _config_load - load template with user variable """
         config_dic = {'api_user_variable': 'api_user_var', 'api_user': 'api_user'}
         self.cahandler._config_user_load(config_dic)
@@ -847,7 +847,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_host_var': 'host_var'})
-    def test_055_config_host_load(self):
+    def test_057_config_host_load(self):
         """ test _config_load - load template with host variable """
         config_dic = {'api_host_variable': 'api_host_var'}
         self.cahandler._config_host_load(config_dic)
@@ -855,7 +855,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_host_var': 'host_var'})
-    def test_056_config_host_load(self):
+    def test_058_config_host_load(self):
         """ test _config_load - load template with host variable """
         config_dic = {'api_host_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -865,7 +865,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_host_var': 'host_var'})
-    def test_057_config_host_load(self):
+    def test_059_config_host_load(self):
         """ test _config_load - load template with host variable """
         config_dic = {'api_host_variable': 'api_host_var', 'api_host': 'api_host'}
         self.cahandler._config_host_load(config_dic)
@@ -875,7 +875,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_key_var': 'key_var'})
-    def test_058_config_key_load(self):
+    def test_060_config_key_load(self):
         """ test _config_load - load template with key variable """
         config_dic = {'api_key_variable': 'api_key_var'}
         self.cahandler._config_key_load(config_dic)
@@ -883,7 +883,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_key_var': 'key_var'})
-    def test_059_config_key_load(self):
+    def test_061_config_key_load(self):
         """ test _config_load - load template with key variable """
         config_dic = {'api_key_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -893,7 +893,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_key_var': 'key_var'})
-    def test_060_config_key_load(self):
+    def test_062_config_key_load(self):
         """ test _config_load - load template with key variable """
         config_dic = {'api_key_variable': 'api_key_var', 'api_key': 'api_key'}
         self.cahandler._config_key_load(config_dic)
@@ -903,7 +903,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
-    def test_061_config_password_load(self):
+    def test_063_config_password_load(self):
         """ test _config_load - load template with password variable """
         config_dic = {'api_password_variable': 'api_password_var'}
         self.cahandler._config_password_load(config_dic)
@@ -911,7 +911,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
-    def test_062_config_password_load(self):
+    def test_064_config_password_load(self):
         """ test _config_load - load template with password variable """
         config_dic = {'api_password_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -921,7 +921,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler.profile_name)
 
     @patch.dict('os.environ', {'api_password_var': 'password_var'})
-    def test_063_config_password_load(self):
+    def test_065_config_password_load(self):
         """ test _config_load - load template with password variable """
         config_dic = {'api_password_variable': 'api_password_var', 'api_password': 'api_password'}
         self.cahandler._config_password_load(config_dic)
@@ -933,7 +933,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
     @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
-    def test_069_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg):
+    def test_066_enrollment_dic_create(self, mock_pkg, mock_ccg, mock_vdg):
         """ test _enrollment_dic_create()"""
         mock_pkg.return_value = 'pubkey'
         mock_ccg.return_value = 'cn'
@@ -942,7 +942,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual(result, self.cahandler._enrollment_dic_create('csr'))
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_102__eab_profile_check(self, mock_hil):
+    def test_067__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -960,7 +960,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
-    def test_103__eab_profile_check(self, mock_hil):
+    def test_068__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -977,7 +977,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual('new_profile', self.cahandler.profile_name)
         self.assertFalse(mock_hil.called)
 
-    def test_104__eab_profile_check(self):
+    def test_069__eab_profile_check(self):
         """ test eab_profile_check default value from list """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -995,7 +995,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual('profile_1', self.cahandler.profile_name)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_105__eab_profile_check(self, mock_hil):
+    def test_070__eab_profile_check(self, mock_hil):
         """ test eab_profile_check default value from list header info validate returns a value """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1014,7 +1014,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_106__eab_profile_check(self, mock_hil):
+    def test_071__eab_profile_check(self, mock_hil):
         """ test eab_profile_check default value from list headerinfo_lookup returns an error """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1033,7 +1033,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_hil.called)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_107__eab_profile_check(self, mock_hil):
+    def test_072__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1053,7 +1053,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_108__eab_profile_check(self, mock_hil):
+    def test_073__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1073,7 +1073,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_hil.called)
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_109__eab_profile_check(self, mock_hil):
+    def test_074__eab_profile_check(self, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1095,7 +1095,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_110__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_075__eab_profile_check(self, mock_hiv, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1121,7 +1121,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.header_info_field_validate')
-    def test_111__eab_profile_check(self, mock_hiv, mock_hil):
+    def test_076__eab_profile_check(self, mock_hiv, mock_hil):
         """ test eab_profile_check """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.api_host = 'api_host'
@@ -1145,7 +1145,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_112__profile_check(self, mock_eab, mock_hil):
+    def test_077__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.assertFalse(self.cahandler._profile_check('csr'))
         self.assertFalse(mock_eab.called)
@@ -1153,7 +1153,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_113__profile_check(self, mock_eab, mock_hil):
+    def test_078__profile_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = False
         self.assertFalse(self.cahandler._profile_check('csr'))
@@ -1162,7 +1162,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_114__eab_profile_string_check(self, mock_eab, mock_hil):
+    def test_079__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1173,7 +1173,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_115__eab_profile_string_check(self, mock_eab, mock_hil):
+    def test_080__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         self.cahandler.eab_handler = MagicMock()
@@ -1184,7 +1184,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_116__eab_profile_string_check(self, mock_eab, mock_hil):
+    def test_081__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = True
         self.cahandler.header_info_field = 'header_info_field'
@@ -1196,7 +1196,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_117__eab_profile_string_check(self, mock_eab, mock_hil):
+    def test_082__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None
@@ -1210,7 +1210,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
 
     @patch('examples.ca_handler.asa_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._eab_profile_check')
-    def test_118__eab_profile_string_check(self, mock_eab, mock_hil):
+    def test_083__eab_profile_string_check(self, mock_eab, mock_hil):
         """ test eab_profile_string_check """
         self.cahandler.eab_profiling = False
         self.cahandler.eab_handler = None

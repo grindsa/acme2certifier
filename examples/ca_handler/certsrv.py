@@ -59,11 +59,14 @@ class Certsrv(object):
         username: The username for authentication.
         password: The password for authentication.
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (SSL client certificate).
+            'ntlm', 'cert' (SSL client certificate) or 'gssapi' (GSSAPI, Kerberos)
         cafile: A PEM file containing the CA certificates that should be trusted.
+        verify: Boolean to enable/disable CA certificate checking.
         timeout: The timeout to use against the CA server, in seconds.
             The default is 30.
-
+        proxies: Dictionary of proxy server for post of get operations
+            {'http': 'http://foo.bar:3128', 'https': 'socks5://foo.bar:1080'}
+            The default is None
     Note:
         If you use a client certificate for authentication (auth_method=cert),
         the username parameter should be the path to a certificate, and
@@ -71,7 +74,7 @@ class Certsrv(object):
     """
     # pylint: disable=r0913
     def __init__(self, server, username, password, auth_method="basic",
-                 cafile=None, timeout=TIMEOUT, proxies=None):
+                 cafile=None, verify=True, timeout=TIMEOUT, proxies=None):
 
         self.server = server
         self.timeout = timeout
@@ -79,7 +82,9 @@ class Certsrv(object):
         self.session = requests.Session()
         self.proxies = proxies
 
-        if cafile:
+        if not verify:
+            self.session.verify = False
+        elif cafile:
             self.session.verify = cafile
         else:
             # requests uses it's own CA bundle by default
@@ -105,6 +110,18 @@ class Certsrv(object):
             self.session.auth = HttpNtlmAuth(username, password)
         elif self.auth_method == "cert":
             self.session.cert = (username, password)
+        elif self.auth_method == "gssapi":
+            from requests_gssapi import HTTPSPNEGOAuth
+            import gssapi
+            oid = '1.3.6.1.5.5.2'  # SPNEGO
+            # pylint: disable=e1101
+            cred = gssapi.raw.acquire_cred_with_password(
+                gssapi.Name(username, gssapi.NameType.user),
+                password.encode("utf-8"),
+                mechs=[gssapi.OID.from_int_seq(oid)],
+                usage="initiate",
+            )
+            self.session.auth = HTTPSPNEGOAuth(creds=cred.creds, mech=gssapi.OID.from_int_seq(oid))
         else:
             self.session.auth = (username, password)
 
@@ -329,7 +346,7 @@ class Certsrv(object):
             username: The username for authentication.
             password: The password for authentication.
         """
-        if self.auth_method in ("ntlm", "cert"):
+        if self.auth_method in ("ntlm", "cert", "gssapi"):
             # NTLM and SSL is connection based,
             # so we need to close the connection
             # to be able to re-authenticate
@@ -369,7 +386,7 @@ def get_cert(server, csr, template, username, password, encoding="b64", **kwargs
         encoding: The desired encoding for the returned certificate.
             Possible values are 'bin' for binary and 'b64' for Base64 (PEM).
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (ssl client certificate).
+            'ntlm', 'cert' (ssl client certificate) or 'gssapi' (GSSAPI, Kerberos).
         cafile: A PEM file containing the CA certificates that should be trusted.
 
     Returns:
@@ -407,7 +424,7 @@ def get_existing_cert(server, req_id, username, password, encoding="b64", **kwar
         encoding: The desired encoding for the returned certificate.
             Possible values are 'bin' for binary and 'b64' for Base64 (PEM).
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (ssl client certificate).
+            'ntlm', 'cert' (ssl client certificate) or 'gssapi' (GSSAPI, Kerberos).
         cafile: A PEM file containing the CA certificates that should be trusted.
 
     Returns:
@@ -440,7 +457,7 @@ def get_ca_cert(server, username, password, encoding="b64", **kwargs):
         encoding: The desired encoding for the returned certificate.
             Possible values are 'bin' for binary and 'b64' for Base64 (PEM).
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (ssl client certificate).
+            'ntlm', 'cert' (ssl client certificate) or 'gssapi' (GSSAPI, Kerberos).
         cafile: A PEM file containing the CA certificates that should be trusted.
 
     Returns:
@@ -469,7 +486,7 @@ def get_chain(server, username, password, encoding="bin", **kwargs):
         encoding: The desired encoding for the returned certificates.
             Possible values are 'bin' for binary and 'b64' for Base64 (PEM).
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (ssl client certificate).
+            'ntlm', 'cert' (ssl client certificate) or 'gssapi' (GSSAPI, Kerberos).
         cafile: A PEM file containing the CA certificates that should be trusted.
 
     Returns:
@@ -496,7 +513,7 @@ def check_credentials(server, username, password, **kwargs):
         username: The username for authentication.
         pasword: The password for authentication.
         auth_method: The chosen authentication method. Either 'basic' (the default),
-            'ntlm' or 'cert' (ssl client certificate).
+            'ntlm', 'cert' (ssl client certificate) or 'gssapi' (GSSAPI, Kerberos).
         cafile: A PEM file containing the CA certificates that should be trusted.
 
     Returns:

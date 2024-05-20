@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check  # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -23,8 +23,11 @@ class CAhandler(object):
         self.auth_method = 'basic'
         self.ca_bundle = False
         self.template = None
+        self.krb5_config = None
         self.proxy = None
+        self.allowed_domainlist = []
         self.header_info_field = False
+        self.verify = True
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -126,11 +129,22 @@ class CAhandler(object):
 
         if 'template' in config_dic['CAhandler']:
             self.template = config_dic['CAhandler']['template']
-        if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] == 'ntlm':
+        if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] in ['basic', 'ntlm', 'gssapi']:
             self.auth_method = config_dic['CAhandler']['auth_method']
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
             self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+        if 'krb5_config' in config_dic['CAhandler']:
+            self.krb5_config = config_dic['CAhandler']['krb5_config']
+
+        self.verify = config_dic.getboolean('CAhandler', 'verify', fallback=True)
+
+        if 'allowed_domainlist' in config_dic['CAhandler']:
+            try:
+                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
+                self.allowed_domainlist = 'ADLFAILURE'
 
         self.logger.debug('CAhandler._config_parameters_load() ended')
 
@@ -212,12 +226,44 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
         return template_name
 
-    def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
-        """ enroll certificate from via MS certsrv """
-        self.logger.debug('CAhandler.enroll(%s)', self.template)
-        cert_bundle = None
-        error = None
-        cert_raw = None
+    def _csr_process(self, ca_server, csr: str) -> Tuple[str, str, str]:
+
+        # recode csr
+        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+
+        # get ca_chain
+        try:
+            ca_pkcs7 = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
+            ca_pem = self._pkcs7_to_pem(ca_pkcs7)
+            # replace crlf with lf
+            # ca_pem = ca_pem.replace('\r\n', '\n')
+        except Exception as err_:
+            ca_pem = None
+            self.logger.error('ca_server.get_chain() failed with error: %s', err_)
+
+        try:
+            cert_p2b = ca_server.get_cert(csr, self.template)
+            cert_raw = convert_byte_to_string(cert_p2b)
+            # replace crlf with lf
+            cert_raw = cert_raw.replace('\r\n', '\n')
+        except Exception as err_:
+            cert_raw = None
+            error = str(err_)
+            self.logger.error('ca_server.get_cert() failed with error: %s', err_)
+
+        # create bundle
+        if cert_raw:
+            (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+        else:
+            cert_bundle = None
+
+        return (error, cert_bundle, cert_raw)
+
+    def _parameter_overwrite(self, csr: str):
+        """ overwrite overwrite krb5.conf or user-template """
+        if self.krb5_config:
+            self.logger.info('CAhandler.enroll(): load krb5config from %s', self.krb5_config)
+            os.environ['KRB5_CONFIG'] = self.krb5_config
 
         # lookup http header information from request
         if self.header_info_field:
@@ -225,40 +271,53 @@ class CAhandler(object):
             if user_template:
                 self.template = user_template
 
-        if self.host and self.user and self.password and self.template:
-            # setup certserv
-            ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, proxies=self.proxy)
+    def _domainlist_check(self, csr: str) -> bool:
+        """ check if domain is in allowed domainlist """
+        self.logger.debug('CAhandler._domainlist_check()')
 
-            # check connection and credentials
-            auth_check = self._check_credentials(ca_server)
-            if auth_check:
-                # recode csr
-                csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
-
-                # get ca_chain
-                try:
-                    ca_pkcs7 = convert_byte_to_string(ca_server.get_chain(encoding='b64'))
-                    ca_pem = self._pkcs7_to_pem(ca_pkcs7)
-                    # replace crlf with lf
-                    # ca_pem = ca_pem.replace('\r\n', '\n')
-                except Exception as err_:
-                    ca_pem = None
-                    self.logger.error('ca_server.get_chain() failed with error: %s', err_)
-
-                try:
-                    cert_raw = convert_byte_to_string(ca_server.get_cert(csr, self.template))
-                    # replace crlf with lf
-                    cert_raw = cert_raw.replace('\r\n', '\n')
-                except Exception as err_:
-                    cert_raw = None
-                    self.logger.error('ca_server.get_cert() failed with error: %s', err_)
-
-                # create bundle
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
-
+        if self.allowed_domainlist:
+            if self.allowed_domainlist != 'ADLFAILURE':
+                # check sans / cn against list of allowed comains from config
+                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
             else:
-                self.logger.error('Connection or Credentialcheck failed')
-                error = 'Connection or Credentialcheck failed.'
+                result = False
+        else:
+            result = True
+
+        self.logger.debug('CAhandler._domainlist_check() ended with: %s', result)
+        return result
+
+    def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
+        """ enroll certificate from via MS certsrv """
+        self.logger.debug('CAhandler.enroll(%s)', self.template)
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        self._parameter_overwrite(csr)
+
+        if self.host and self.user and self.password and self.template:
+
+            result = self._domainlist_check(csr)
+
+            if result:
+                # setup certserv
+                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
+
+                # check connection and credentials
+                auth_check = self._check_credentials(ca_server)
+
+                if auth_check:
+
+                    # enroll certificate
+                    (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+
+                else:
+                    self.logger.error('Connection or Credentialcheck failed')
+                    error = 'Connection or Credentialcheck failed.'
+            else:
+                self.logger.error('SAN/CN check failed')
+                error = 'SAN/CN check failed'
         else:
             self.logger.error('Config incomplete')
             error = 'Config incomplete'

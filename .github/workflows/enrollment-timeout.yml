@@ -13,12 +13,14 @@ jobs:
     name: async_enrollment_cert_reusage
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+
     steps:
+
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
@@ -28,6 +30,29 @@ jobs:
         mkdir acme-sh
         mkdir certbot
 
+    - name: "Prepare Postgres environment"
+      run: |
+        docker network create acme
+        sudo mkdir -p examples/Docker/data/pgsql/
+        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
+        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
+        sudo chmod 600 examples/Docker/data/pgsql/pgpass
+
+    - name: "Install postgres"
+      working-directory: examples/Docker/
+      run: |
+        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Configure postgres"
+      working-directory: examples/Docker/
+      run: |
+        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
@@ -35,7 +60,6 @@ jobs:
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         cat .env
-        docker network create acme
         docker-compose up -d
         docker-compose logs
       env:
@@ -47,7 +71,7 @@ jobs:
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/django_settings_psql.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo chmod 777 examples/Docker/data/ca_handler.py
         sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
@@ -72,13 +96,9 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
     - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
 
     - name: "Check timeout"
@@ -89,16 +109,16 @@ jobs:
 
     - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
     - name: "Check certificate reusage"
       working-directory: examples/Docker/
       run: |
         docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
 
-    - name: "enroll lego"
+    - name: "Enroll Lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 150 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
 
     - name: "Check timeout"
       working-directory: examples/Docker/
@@ -141,7 +161,7 @@ jobs:
     name: "rpm_wsgi_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -168,18 +188,13 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
         sudo chmod -R 777 data
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "[ PREPARE ] create lego and certbot folder"
-      run: |
-        mkdir lego
-        mkdir certbot
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
@@ -189,7 +204,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp examples/ca_handler/openssl_ca_handler.py data/acme_ca/ca_handler.py
@@ -204,35 +219,30 @@ jobs:
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Prepare Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-
-    - name: "[ VERIFY ] Check timeout"
+    - name: "Check timeout"
       run: |
         docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ VERIFY ] Check certificate reusage"
+    - name: "Check certificate reusage"
       run: |
         docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
 
@@ -259,7 +269,7 @@ jobs:
     name: "rpm_django_async_enrollment_cert_reusage"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8, 9]
@@ -267,13 +277,13 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "[ PREPARE ] postgres environment"
+    - name: "Prepare Postgres environment"
       run: |
         docker network create acme
         sudo mkdir -p examples/Docker/data/pgsql/
@@ -281,28 +291,22 @@ jobs:
         sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
         sudo chmod 600 examples/Docker/data/pgsql/pgpass
 
-    - name: "[ PREPARE ] postgres environment"
-      run: |
-        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
-        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
-        sudo chmod 600 examples/Docker/data/pgsql/pgpass
-
-    - name: "[ PREPARE ] install postgres"
+    - name: "Install postgres"
       working-directory: examples/Docker/
       run: |
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] configure postgres"
+    - name: "Configure postgres"
       working-directory: examples/Docker/
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -312,7 +316,7 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: update version number in spec file and path in nginx ssl config
+    - name: Update version number in spec file and path in nginx ssl config
       run: |
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
@@ -321,7 +325,7 @@ jobs:
         git add examples/nginx
         git commit -a -m "rpm update"
 
-    - name: build RPM package
+    - name: Build RPM package
       id: rpm
       uses: grindsa/rpmbuild@alma9
       with:
@@ -329,7 +333,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         sudo mkdir -p data/volume
         sudo mkdir -p data/acme2certifier
@@ -350,7 +354,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
         mkdir -p data/volume/acme_ca/certs
         sudo cp examples/ca_handler/openssl_ca_handler.py data/volume/acme_ca/ca_handler.py
@@ -365,14 +369,14 @@ jobs:
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Prepare Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
@@ -382,37 +386,32 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "[ VERIFY ] Check timeout"
+    - name: "Check timeout"
       run: |
         docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
 
-    - name: "[ ENROLL ] acme.sh"
+    - name: "Enroll acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
 
-    - name: "[ VERIFY ] Check certificate reusage"
+    - name: "Check certificate reusage"
       run: |
         docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
+
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
