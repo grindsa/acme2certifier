@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_get
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load
 
 
 class CAhandler(object):
@@ -30,6 +30,8 @@ class CAhandler(object):
         self.profile_id = None
         self.proxy = None
         self.header_info_field = False
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -133,10 +135,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get(%s)', csr)
         ca_dic = self._ca_get_properties('name', self.ca_name)
         cert_dic = {}
-
-        if self.header_info_field:
-            # parse profileid from http_header
-            self.profile_id = self._profile_id_get(csr=csr)
 
         if 'href' in ca_dic:
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
@@ -289,18 +287,6 @@ class CAhandler(object):
 
         self.logger.debug('_config_proxy_load() ended')
 
-    def _config_headerinfo_get(self, config_dic: Dict[str, str]):
-        """ load parameters """
-        self.logger.debug('_config_header_info()')
-
-        if 'Order' in config_dic and 'header_info_list' in config_dic['Order'] and config_dic['Order']['header_info_list']:
-            try:
-                self.header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
-            except Exception as err_:
-                self.logger.warning('Order._config_orderconfig_load() header_info_list failed with error: %s', err_)
-
-        self.logger.debug('_config_header_info() ended')
-
     def _config_load(self):
         """" load config from file """
         # pylint: disable=R0912, R0915
@@ -318,12 +304,13 @@ class CAhandler(object):
             self._config_password_load(config_dic)
             # load parameters from config
             self._config_parameter_load(config_dic)
-            # load headerinfo
-            self._config_headerinfo_get(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
+            # load header info
+            self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 
         # load proxy configuration
         self._config_proxy_load(config_dic)
-
         self.logger.debug('CAhandler._config_load() ended')
 
     def _poll_cert_get(self, request_dic: Dict[str, str], poll_identifier: str, error: str) -> Tuple[str, str, str, str, bool]:
@@ -447,27 +434,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pem_cert_chain_generate() ended')
         return pem_file
 
-    def _profile_id_get(self, csr: str) -> str:
-        """ get profile id from csr """
-        self.logger.debug('CAhandler._profile_id_get(%s)', csr)
-        profile_id = None
-
-        # parse profileid from http_header
-        header_info = header_info_get(self.logger, csr=csr)
-        if header_info:
-            try:
-                header_info_dic = json.loads(header_info[-1]['header_info'])
-                if self.header_info_field in header_info_dic:
-                    for ele in header_info_dic[self.header_info_field].split(' '):
-                        if 'profileid' in ele.lower():
-                            profile_id = ele.split('=')[1]
-                            break
-            except Exception as err:
-                self.logger.error('CAhandler._profile_id_get() could not parse profile_id: %s', err)
-
-        self.logger.debug('CAhandler._profile_id_get() ended with: %s', profile_id)
-        return profile_id
-
     def _request_poll(self, request_url: str) -> Tuple[str, str, str, str, bool]:
         """ poll request """
         self.logger.debug('CAhandler._request_poll(%s)', request_url)
@@ -521,15 +487,103 @@ class CAhandler(object):
         self.logger.debug('CAhandler._trigger_bundle_build() ended with:  %s', error)
         return (error, cert_bundle)
 
+    def _eab_profile_string_check(self, key, value):
+        self.logger.debug('CAhandler._eab_profile_string_check(): string: key: %s, value: %s', key, value)
+
+        if hasattr(self, key):
+            self.logger.debug('CAhandler._eab_profile_string_check(): setting attribute: %s to %s', key, value)
+            setattr(self, key, value)
+        else:
+            self.logger.error('CAhandler._eab_profile_string_check(): ignore string attribute: key: %s value: %s', key, value)
+
+        self.logger.debug('CAhandler._eab_profile_string_check() ended')
+
+    def _eab_profile_list_check(self, eab_handler, csr, key, value):
+        self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
+
+        result = None
+        if hasattr(self, key):
+            new_value, error = header_info_field_validate(self.logger, csr, self.header_info_field, key, value)
+            if new_value:
+                self.logger.debug('CAhandler._eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
+                setattr(self, key, new_value)
+            else:
+                result = error
+        elif key == 'allowed_domainlist':
+            # check if csr contains allowed domains
+            error = eab_handler.allowed_domains_check(csr, value)
+            if error:
+                result = error
+        else:
+            self.logger.error('CAhandler._eab_profile_list_check(): ignore list attribute: key: %s value: %s', key, value)
+
+        self.logger.debug('CAhandler._eab_profile_list_check() ended with: %s', result)
+        return result
+
+    def _eab_profile_check(self, csr: str, handler_hifield: str) -> str:
+        """ check eab profile"""
+        self.logger.debug('CAhandler._eab_profile_check()')
+
+        result = None
+        with self.eab_handler(self.logger) as eab_handler:
+            eab_profile_dic = eab_handler.eab_profile_get(csr)
+            for key, value in eab_profile_dic.items():
+                if isinstance(value, str):
+                    self._eab_profile_string_check(key, value)
+                elif isinstance(value, list):
+                    result = self._eab_profile_list_check(eab_handler, csr, key, value)
+                    if result:
+                        break
+
+            # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
+            if self.header_info_field and handler_hifield not in eab_profile_dic:
+                hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
+                if hil_value:
+                    # setattr(self, handler_hifield, hil_value)
+                    result = f'header_info field "{handler_hifield}" is not allowed by profile'
+
+        self.logger.debug('CAhandler._eab_profile_check() ended with: %s', result)
+        return result
+
+    def _profile_check(self, csr: str) -> str:
+        """ check profile """
+        self.logger.debug('CAhandler._profile_check()')
+        error = None
+
+        # handler specific header info field
+        handler_hifield = "profile_id"
+
+        if self.eab_profiling:
+            if self.eab_handler:
+                error = self._eab_profile_check(csr, handler_hifield)
+                # we need to cover cases where handler_value is enabled but nothing is defined in json
+            else:
+                self.logger.error('CAhandler._profile_check(): eab_profiling enabled but no handler defined')
+        elif self.header_info_field:
+            # no profiling - parse profileid from http_header
+            hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
+            if hil_value:
+                self.logger.debug('CAhandler._profile_check(): setting %s to %s', handler_hifield, hil_value)
+                setattr(self, handler_hifield, hil_value)
+
+        self.logger.debug('CAhandler._profile_check() ended with %s', error)
+        return error
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate """
         self.logger.debug('Certificate.enroll()')
         cert_bundle = None
-        error = None
         cert_raw = None
         poll_identifier = None
 
-        cert_dic = self._cert_get(csr)
+        # check for eab profiling and header_info
+        error = self._profile_check(csr)
+
+        # enrollment starts here
+        if not error:
+            cert_dic = self._cert_get(csr)
+        else:
+            cert_dic = None
 
         if cert_dic:
             if 'status' in cert_dic:
@@ -537,7 +591,7 @@ class CAhandler(object):
                 if 'message' in cert_dic:
                     error = cert_dic['message']
                 else:
-                    error = 'unknown errror'
+                    error = 'unknown error'
             elif 'certificateBase64' in cert_dic:
                 # this is a valid cert generate the bundle
                 cert_bundle = self._pem_cert_chain_generate(cert_dic)
@@ -548,7 +602,9 @@ class CAhandler(object):
             else:
                 error = 'no certificate information found'
         else:
-            error = 'internal error'
+            if not error:
+                error = 'internal error'
+
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier)
 
