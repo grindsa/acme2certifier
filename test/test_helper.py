@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -74,6 +74,8 @@ class TestACMEHandler(unittest.TestCase):
         self.fqdn_in_san_check = fqdn_in_san_check
         self.generate_random_string = generate_random_string
         self.get_url = get_url
+        self.header_info_field_validate = header_info_field_validate
+        self.header_info_lookup = header_info_lookup
         self.hooks_load = hooks_load
         self.ipv6_chk = ipv6_chk
         self.jwk_thumbprint_get = jwk_thumbprint_get
@@ -110,6 +112,8 @@ class TestACMEHandler(unittest.TestCase):
         self.encode_url = encode_url
         self.uts_now = uts_now
         self.ip_validate = ip_validate
+        self.config_headerinfo_load = config_headerinfo_load
+        self.config_eab_profile_load = config_eab_profile_load
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -2230,29 +2234,29 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """ test validate_fqdn() """
         self.assertTrue(self.validate_fqdn(self.logger, '*.bar.local'))
 
-    def test_294_validate_ip(self):
+    def test_295_validate_ip(self):
         """ test validate_ip() """
         self.assertTrue(self.validate_ip(self.logger, '10.0.0.1'))
 
-    def test_295_validate_ip(self):
+    def test_296_validate_ip(self):
         """ test validate_ip() """
         self.assertTrue(self.validate_ip(self.logger, '2a01:c22:b0cf:600:74be:80a7:4feb:bfe8'))
 
-    def test_296_validate_ip(self):
+    def test_297_validate_ip(self):
         """ test validate_ip() """
         self.assertFalse(self.validate_ip(self.logger, 'foo.bar.local'))
 
-    def test_297_validate_ip(self):
+    def test_298_validate_ip(self):
         """ test validate_ip() """
         self.assertFalse(self.validate_ip(self.logger, 'foo@bar.local'))
 
-    def test_298_validate_ip(self):
+    def test_299_validate_ip(self):
         """ test validate_ip() """
         self.assertFalse(self.validate_ip(self.logger, '301.0.0.1'))
 
     @patch('acme_srv.helper.validate_fqdn')
     @patch('acme_srv.helper.validate_ip')
-    def test_299_validate_identifier(self, mock_ip, mock_fqdn):
+    def test_300_validate_identifier(self, mock_ip, mock_fqdn):
         """ test validate_identifier """
         mock_fqdn.return_value = 'dns'
         mock_ip.return_value = 'ip'
@@ -2262,7 +2266,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.validate_fqdn')
     @patch('acme_srv.helper.validate_ip')
-    def test_300_validate_identifier(self, mock_ip, mock_fqdn):
+    def test_301_validate_identifier(self, mock_ip, mock_fqdn):
         """ test validate_identifier """
         mock_fqdn.return_value = 'dns'
         mock_ip.return_value = 'ip'
@@ -2272,7 +2276,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.validate_fqdn')
     @patch('acme_srv.helper.validate_ip')
-    def test_301_validate_identifier(self, mock_ip, mock_fqdn):
+    def test_302_validate_identifier(self, mock_ip, mock_fqdn):
         """ test validate_identifier """
         mock_fqdn.return_value = 'dns'
         mock_ip.return_value = 'ip'
@@ -2282,7 +2286,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.validate_fqdn')
     @patch('acme_srv.helper.validate_ip')
-    def test_302_validate_identifier(self, mock_ip, mock_fqdn):
+    def test_303_validate_identifier(self, mock_ip, mock_fqdn):
         """ test validate_identifier """
         mock_fqdn.return_value = 'dns'
         mock_ip.return_value = 'ip'
@@ -2292,13 +2296,156 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.validate_fqdn')
     @patch('acme_srv.helper.validate_ip')
-    def test_303_validate_identifier(self, mock_ip, mock_fqdn):
+    def test_304_validate_identifier(self, mock_ip, mock_fqdn):
         """ test validate_identifier """
         mock_fqdn.return_value = 'dns'
         mock_ip.return_value = 'ip'
         self.assertTrue(self.validate_identifier(self.logger, 'tnauthlist', 'ip', True))
         self.assertFalse(mock_fqdn.called)
         self.assertFalse(mock_ip.called)
+
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_305_header_info_field_validate(self, mock_lookup):
+        """ test header_info_field_validate """
+        mock_lookup.return_value = 'value2'
+        self.assertEqual(('value2', None), self.header_info_field_validate(self.logger, 'csr', 'header_info_field', 'key', ['value0', 'value2']))
+
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_306_header_info_field_validate(self, mock_lookup):
+        """ test header_info_field_validate """
+        mock_lookup.return_value = 'unk_value'
+        self.assertEqual((None, 'parameter "unk_value" is not allowed'), self.header_info_field_validate(self.logger, 'csr', 'header_info_field', 'parameter', ['value0', 'value2']))
+
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_307_header_info_field_validate(self, mock_lookup):
+        """ test header_info_field_validate """
+        mock_lookup.return_value = None
+        self.assertEqual(('value0', None), self.header_info_field_validate(self.logger, 'csr', 'header_info_field', 'parameter', ['value0', 'value2']))
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_308_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'header_info': '{"header_info_field": "foo1=value1 foo2=value2"}'}]
+        self.assertEqual('value1', self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_309_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'header_info': '{"header_info_field": "foo1=value1=foo foo2=value2=foo"}'}]
+        self.assertEqual('value1=foo', self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_310_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = None
+        self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_311_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'foo': '{"header_info_field": "foo1=value1 foo2=value2"}'}]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+        self.assertIn('ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field', lcm.output)
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_312_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'header_info': '{"foo": "foo1=value1 foo2=value2"}'}]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+        self.assertIn('ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field', lcm.output)
+
+    @patch('acme_srv.helper.header_info_get')
+    def test_313_header_info_lookup(self, mock_info):
+        """ test header_info_lookup """
+        mock_info.return_value = 'bump'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+        self.assertIn('ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field', lcm.output)
+
+    @patch('acme_srv.helper.json.loads')
+    @patch('acme_srv.helper.header_info_get')
+    def test_314_header_info_lookup(self, mock_info, mock_json):
+        """ test header_info_lookup """
+        mock_info.return_value = [{'header_info': 'foo1=value1 foo2=value2'}]
+        mock_json.side_effect = Exception('mock_json')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.header_info_lookup(self.logger, 'csr', 'header_info_field', 'foo1'))
+        self.assertIn('ERROR:test_a2c:header_info_lookup() could not parse header_info_field: mock_json', lcm.output)
+
+    def test_315_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
+        config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
+        self.assertEqual('foo', self.config_headerinfo_load(self.logger, config_dic))
+
+    def test_316_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
+        config_dic = {'Order': {'header_info_list': '["foo"]'}}
+        self.assertEqual('foo', self.config_headerinfo_load(self.logger, config_dic))
+
+    def test_317_config_headerinfo_load(self):
+        """ test config_headerinfo_load()"""
+        config_dic = {'Order': {'header_info_list': 'foo'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.config_headerinfo_load(self.logger, config_dic))
+        self.assertIn('WARNING:test_a2c:Helper.config_headerinfo_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+
+    @patch('acme_srv.helper.eab_handler_load')
+    def test_318_config_eab_profile_load(self, mock_eabload):
+        """ test config_eab_profiling()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'eab_profiling': True}
+        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        eabl = Mock()
+        eabl.EABhandler = 'bar'
+        mock_eabload.return_value = eabl
+        self.assertEqual((True, 'bar'), self.config_eab_profile_load(self.logger, config_dic))
+        self.assertTrue(mock_eabload.called)
+
+    @patch('acme_srv.helper.eab_handler_load')
+    def test_319_config_eab_profile_load(self, mock_eabload):
+        """ test config_eab_profiling()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'eab_profiling': True}
+        eabl = Mock()
+        eabl.EABhandler = 'bar'
+        mock_eabload.return_value = eabl
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((True, None), self.config_eab_profile_load(self.logger, config_dic))
+        self.assertFalse(mock_eabload.called)
+        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler configuration incomplete', lcm.output)
+        self.assertFalse(mock_eabload.called)
+
+    @patch('acme_srv.helper.eab_handler_load')
+    def test_320_config_eab_profile_load(self, mock_eabload):
+        """ test config_eab_profiling()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'eab_profiling': True}
+        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        mock_eabload.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((True, None), self.config_eab_profile_load(self.logger, config_dic))
+        self.assertTrue(mock_eabload.called)
+        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler could not get loaded', lcm.output)
+
+    @patch('acme_srv.helper.eab_handler_load')
+    def test_321_config_eab_profile_load(self, mock_eabload):
+        """ test config_eab_profiling()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'eab_profiling': False}
+        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        self.assertEqual((False, None), self.config_eab_profile_load(self.logger, config_dic))
+        self.assertFalse(mock_eabload.called)
+
+    @patch('acme_srv.helper.eab_handler_load')
+    def test_322_config_eab_profile_load(self, mock_eabload):
+        """ test config_eab_profiling()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'eab_profiling': 'aa'}
+        config_dic['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        self.assertEqual((False, None), self.config_eab_profile_load(self.logger, config_dic))
+        self.assertFalse(mock_eabload.called)
 
 if __name__ == '__main__':
     unittest.main()
