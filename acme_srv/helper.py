@@ -1305,7 +1305,8 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
         # this does not work on RH8
         context.minimum_version = ssl.TLSVersion.TLSv1_2
     except Exception:  # pragma: no cover
-        pass
+        logger.error('servercert_get(): minimum_version not supported')
+
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1
     context.options |= ssl.OP_NO_TLSv1_1
@@ -1313,7 +1314,7 @@ def servercert_get(logger: logging.Logger, hostname: str, port: int = 443, proxy
     if proxy_server:
         (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(logger, proxy_server)
         if proxy_proto and proxy_addr and proxy_port:
-            logger.debug('servercert_get() configure proxy')
+            logger.debug('servercert_get(): configure proxy')
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)
     try:
         sock.connect((hostname, port))
