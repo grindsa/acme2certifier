@@ -364,7 +364,7 @@ sync {
 - start Lsyncd and enable automatic startup
 
 ```bash
-sudo systemctl start lsyncd
+sudo systemctl restart lsyncd
 sudo systemctl enable lsyncd
 ```
 
