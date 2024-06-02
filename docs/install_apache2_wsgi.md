@@ -10,7 +10,7 @@ $ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-da
 2. check if the wsgi module is activated in your apache configuration
 
 ```bash
-$ sudo apache2ctl -M | grep -i wsgi
+sudo apache2ctl -M | grep -i wsgi
  wsgi_module (shared)
 ```
 
@@ -21,7 +21,7 @@ if the wsgi_module is not enabled please check the internet how to do...
 4. install the missing modules via pip
 
 ```bash
-$ sudo pip3 install -r requirements.txt
+sudo pip3 install -r requirements.txt
 ```
 
 5. copy the file `examples/apache2/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to you needs.
@@ -37,8 +37,8 @@ file must contain the following certificate data in pem format:
 7. activate the virtual server(s)
 
 ```bash
-$ sudo a2ensite acme2certifier.conf
-$ sudo a2ensite acme2certifier_ssl.conf
+sudo a2ensite acme2certifier.conf
+sudo a2ensite acme2certifier_ssl.conf
 ```
 
 8. create a directory `/var/www/acme2certifier`
@@ -46,19 +46,19 @@ $ sudo a2ensite acme2certifier_ssl.conf
 10. copy the directories `examples/ca_hander/`, `examples/eab_handler/`, `examples/hooks/` and `tools` to `/var/www/acme2certifier/`
 
 ```bash
-$ sudo mkdir /var/www/acme2certifier/examples
-$ sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
-$ sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
-$ sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
-$ sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
-$ sudo cp -R tools/ /var/www/acme2certifier/tools
+sudo mkdir /var/www/acme2certifier/examples
+sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
+sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
+sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
+sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
+sudo cp -R tools/ /var/www/acme2certifier/tools
 ```
 
 11. create a directory `/var/www/acme2certifier/acme_srv`
 12. copy the content of the `acme_srv` directory to `/var/www/acme2certifier/acme_srv`
 
 ```bash
-$ sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
+sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
 ```
 
 13. create a configuration file `acme_srv.cfg` in /var/www/acme2certfier/acme or use the example stored in the examples directory
@@ -68,26 +68,26 @@ $ sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
 17. activate the wsgi database handler
 
 ```bash
-$ sudo cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme_srv/acme2certfier/db_handler.py
+sudo cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme_srv/acme2certfier/db_handler.py
 ```
 
 18. ensure that the all files and directories under /var/www/acme2certifier are owned by the user running the webserver (www-data is just an example!)
 
 ```bash
-$ sudo chown -R www-data.www-data /var/www/acme2certifier/
+sudo chown -R www-data.www-data /var/www/acme2certifier/
 ```
 
 19. set correct permissions to acme subdirectory
 
 ```bash
-$ sudo chmod a+x /var/www/acme2certifier/acme_srv
+sudo chmod a+x /var/www/acme2certifier/acme_srv
 ```
 
 20. delete default apache configuration file and restart the apache2 service
 
 ```bash
-$ sudo rm /etc/apache2/sites-enabled/000-default.conf
-$ sudo systemctl reload apache2
+sudo rm /etc/apache2/sites-enabled/000-default.conf
+sudo systemctl reload apache2
 ```
 
 21. Check access to the directory resource to verify that everything works so far
