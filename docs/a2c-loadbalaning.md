@@ -36,7 +36,7 @@ The following instructions are based on [an existing tutorial](https://www.howto
 - install MariaDB-server
 
 ```bash
-sudo apt install mariadb-server
+sudo apt install -y mariadb-server
 ```
 
 - start MariaDB during startup
@@ -83,11 +83,15 @@ LISTEN   0        80           192.168.14.132:3306            0.0.0.0:*       us
 ...
 ```
 
-- open the mysql commandclient client and create the replication user
+- open the mysql commandclient client
+
+```bash
+sudo mysql -u  root
+```
+
+- create the replication user
 
 ```SQL
-sudo mysql -u  root
-
 CREATE USER 'replusr'@'%' IDENTIFIED BY 'replpasswd';
 GRANT REPLICATION SLAVE ON *.* TO 'replusr'@'%';
 FLUSH PRIVILEGES;
@@ -96,7 +100,7 @@ FLUSH PRIVILEGES;
 - Next, run the following query to check the current binary log and its exact position of it. In this example, the binary log file for the MariaDB server is "mariadb-bin.000001" with the position "773". These outputs will be used in the next stage for setting up the "ub2204-c2" server.
 
 ```bash
-MariaDB [(none)]> SHOW MASTER STATUS;
+SHOW MASTER STATUS;
 +--------------------+----------+--------------+------------------+
 | File               | Position | Binlog_Do_DB | Binlog_Ignore_DB |
 +--------------------+----------+--------------+------------------+
@@ -110,7 +114,7 @@ MariaDB [(none)]> SHOW MASTER STATUS;
 - install MariaDB-server
 
 ```bash
-sudo apt install mariadb-server
+sudo apt install -y mariadb-server
 ```
 
 - start MariaDB during startup
@@ -157,11 +161,15 @@ LISTEN   0        80           192.168.14.133:3306            0.0.0.0:*       us
 ...
 ```
 
-- open the mysql commandclient client and create the replication user
+- open the mysql commandclient client
+
+```bash
+sudo mysql -u  root
+```
+
+- create the replication user
 
 ```SQL
-sudo mysql -u  root
-
 CREATE USER 'replusr'@'%' IDENTIFIED BY 'replpasswd';
 GRANT REPLICATION SLAVE ON *.* TO 'replusr'@'%';
 FLUSH PRIVILEGES;
@@ -179,8 +187,6 @@ CHANGE MASTER TO MASTER_HOST='ub2204-c1', MASTER_USER='replusr', MASTER_PASSWORD
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
-
-MariaDB [(none)]> show slave status\G
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
                    Master_Host: ub2204-c1
@@ -210,8 +216,6 @@ CHANGE MASTER TO MASTER_HOST='ub2204-c2', MASTER_USER='replusr', MASTER_PASSWORD
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
-
-MariaDB [(none)]> show slave status\G
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
                    Master_Host: ub2204-c1
@@ -248,7 +252,7 @@ sudo mysql -u  root
 - create check databases
 
 ```SQL
-MariaDB [(none)]> SHOW DATABASES;
+SHOW DATABASES;
 +--------------------+
 | Database           |
 +--------------------+
@@ -266,7 +270,7 @@ MariaDB [(none)]>
 - delete database
 
 ```SQL
-MariaDB [(none)]> DROP DATABASE testdb;
+DROP DATABASE testdb;
 Query OK, 1 row affected (0.014 sec)
 
 MariaDB [(none)]>
@@ -277,6 +281,7 @@ MariaDB [(none)]>
 - back on ub2204-c1 check the databases to make sure that "testdb" is not present anymore
 
 ```SQL
+SHOW DATABASES;
 +--------------------+
 | Database           |
 +--------------------+
@@ -287,7 +292,6 @@ MariaDB [(none)]>
 +--------------------+
 4 rows in set (0.000 sec)
 
-MariaDB [(none)]>
 ```
 
 ## Configure directory replication via Lsyncd
@@ -315,7 +319,7 @@ sudo mkdir -p /var/www/acme2certifier/volume
 - install Lsyncd
 
 ```bash
-sudo apt-get install lsyncd
+sudo apt-get install -y lsyncd
 ```
 
 - create the directory storing the configuration and log files
@@ -400,7 +404,7 @@ sync {
 - start Lsyncd and enable automatic startup
 
 ```bash
-sudo systemctl start lsyncd
+sudo systemctl restart lsyncd
 sudo systemctl enable lsyncd
 ```
 
@@ -430,7 +434,7 @@ sudo rm /var/www/acme2certifier/volume/test.txt
 
 #### on ub2204-c1
 
-- back on ub2204-c1 check `/var/www/acme2certifier/volume` to make sure that "testdb" has been deleted (please note that replication can take up to 20s)
+- back on ub2204-c1 check `/var/www/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
 
 ```bash
 sudo ls -la /var/www/acme2certifier/volume
