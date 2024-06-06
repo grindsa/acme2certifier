@@ -1,14 +1,14 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- wiki-title How to build a high-availability acme2certifier  cluster -->
-# How to build a high-availability acme2certifier cluster
+<!-- wiki-title How to build an acme2certifier cluster on Alma Linux 9 -->
+# How to build an acme2certifier cluster on Alma Linux 9
 
 This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different ip-addresses database, configuration and runtime objects will be replicated among the nodes.
 
 This setup requires the switch to a different database engine as SQLite, which is the default a2c backend, is not designed to handle concurrent write access, which can happen in an active/active setup. Thus, [MariaDB](https://mariadb.org/) will be used. Configuration files and runtime objects will be replicated using [Lsyncd](https://github.com/lsyncd/lsyncd). The following diagram depicts the application stack to be used.
 
-![architecture](a2c-ha.png "architecture")
+![architecture](a2c-alma-loadbalancing.png "architecture")
 
-The guide is written for Ubuntu 22.04, however adapting to other Linux distributions should not be difficult.
+The guide is written for **Alma Linux 9**, however adapting to other Linux distributions ir Redhat derivates should not be difficult. There is already a guide for [Ubuntu 22.04](alma-ubuntu-loadbalancing.md) available
 
 ## Preparation
 
@@ -17,26 +17,33 @@ To set up the MariaDB Master-Master replication between multiple servers, you wi
 ```cfg
 cat /etc/hosts
 ...
-192.168.14.132 ub2204-c1.bar.local ub2204-c1
-192.168.14.133 ub2204-c2.bar.local ub2204-c2
+192.168.14.136 alma9-c1.bar.local alma9-c1
+192.168.14.137 alma9-c2.bar.local alma9-c2
 ```
-
-Furthermore, Apache2 should already be installed to create the directories to be replicated.
+Furthermore, the EPEL-repository need ot be enabled on both nodes.
 
 ```bash
-sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
+sudo yum install -y epel-release
+sudo yum update -y
+```
+
+Stop the firewalld on both nodes
+
+```bash
+sudo systemctl stop firewalld
+sudo systemctl disable firewalld
 ```
 
 ## Installation and configuration of MariaDB
 
 The following instructions are based on [an existing tutorial](https://www.howtoforge.com/how-to-setup-mariadb-master-master-replication-on-debian-11/).
 
-### Setting up ub2204-c1
+### Setting up alma9-c1
 
 - install MariaDB-server
 
 ```bash
-sudo apt install -y mariadb-server
+sudo yum install -y mariadb-server
 ```
 
 - start MariaDB during startup
@@ -46,20 +53,20 @@ sudo systemctl is-enabled mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the follwinng lines
+- modify ` /etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
 
 ```cfg
 # listen on external address
-bind-address            = 192.168.14.132
+bind-address            = 192.168.14.136
 
 server-id              = 1
-report_host            = ub2204-c1
+report_host            = alma9-c1
 
-log_bin                = /var/log/mysql/mariadb-bin
+log_bin                = /var/log/mariadb/mariadb-bin
 log_bin_index          = /var/log/mysql/mariadb-bin.index
 
-relay_log              = /var/log/mysql/relay-bin
-relay_log_index        = /var/log/mysql/relay-bin.index
+relay_log              = /var/log/mariadb/relay-bin
+relay_log_index        = /var/log/mariadb/relay-bin.index
 
 # avoiding  primary key collision
 log-slave-updates
@@ -79,7 +86,7 @@ sudo systemctl restart mariadb
 ss -plnt
 State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
-LISTEN   0        80           192.168.14.132:3306            0.0.0.0:*       users:(("mariadbd",pid=815,fd=43))
+LISTEN   0        80           192.168.14.136:3306            0.0.0.0:*       users:(("mariadbd",pid=815,fd=43))
 ...
 ```
 
@@ -97,7 +104,7 @@ GRANT REPLICATION SLAVE ON *.* TO 'replusr'@'%';
 FLUSH PRIVILEGES;
 ```
 
-- Next, run the following query to check the current binary log and its exact position of it. In this example, the binary log file for the MariaDB server is "mariadb-bin.000001" with the position "773". These outputs will be used in the next stage for setting up the "ub2204-c2" server.
+- Next, run the following query to check the current binary log and its exact position of it. In this example, the binary log file for the MariaDB server is "mariadb-bin.000001" with the position "773". These outputs will be used in the next stage for setting up the "alma9-c2" server.
 
 ```bash
 SHOW MASTER STATUS;
@@ -109,12 +116,12 @@ SHOW MASTER STATUS;
 1 row in set (0.000 sec)
 ```
 
-### Setting up ub2204-c2
+### Setting up alma9-c2
 
 - install MariaDB-server
 
 ```bash
-sudo apt install -y mariadb-server
+sudo yum install -y mariadb-server
 ```
 
 - start MariaDB during startup
@@ -124,20 +131,20 @@ sudo systemctl is-enabled mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the follwinng lines
+- modify `/etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
 
 ```cfg
 # listen on external address
-bind-address            = 192.168.14.133
+bind-address            = 192.168.14.137
 
 server-id              = 2
-report_host            = ub2204-c2
+report_host            = alma9-c2
 
-log_bin                = /var/log/mysql/mariadb-bin
-log_bin_index          = /var/log/mysql/mariadb-bin.index
+log_bin                = /var/log/mariadb/mariadb-bin
+log_bin_index          = /var/log/mariadb/mariadb-bin.index
 
-relay_log              = /var/log/mysql/relay-bin
-relay_log_index        = /var/log/mysql/relay-bin.index
+relay_log              = /var/log/mariadb/relay-bin
+relay_log_index        = /var/log/mariadb/relay-bin.index
 
 # avoiding  primary key collision
 log-slave-updates
@@ -157,7 +164,7 @@ sudo systemctl restart mariadb
 ss -plnt
 State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
-LISTEN   0        80           192.168.14.133:3306            0.0.0.0:*       users:(("mariadbd",pid=841,fd=41))
+LISTEN   0        80           192.168.14.137:3306            0.0.0.0:*       users:(("mariadbd",pid=841,fd=41))
 ...
 ```
 
@@ -175,28 +182,28 @@ GRANT REPLICATION SLAVE ON *.* TO 'replusr'@'%';
 FLUSH PRIVILEGES;
 ```
 
-- stop the slave and add information about the ub2204-c1 master node as well as the binlog file name ("mariadb-bin.000001") and position  ("773") from ub2204-c1.
+- stop the slave and add information about the alma9-c1 master node as well as the binlog file name ("mariadb-bin.000001") and position  ("773") from alma9-c1.
 
 ```SQL
 STOP SLAVE;
-CHANGE MASTER TO MASTER_HOST='ub2204-c1', MASTER_USER='replusr', MASTER_PASSWORD='replpasswd', MASTER_LOG_FILE='mariadb-bin.000001', MASTER_LOG_POS=773;
+CHANGE MASTER TO MASTER_HOST='alma9-c1', MASTER_USER='replusr', MASTER_PASSWORD='replpasswd', MASTER_LOG_FILE='mariadb-bin.000001', MASTER_LOG_POS=773;
 ```
 
-- start the slave again and verify the slave status on the "ub2204-c2" server. You should get "Slave_IO_Running: Yes" and "Slave_SQL_Running: Yes",
+- start the slave again and verify the slave status on the "alma9-c2" server. You should get "Slave_IO_Running: Yes" and "Slave_SQL_Running: Yes",
 
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
-                   Master_Host: ub2204-c1
+                   Master_Host: alma9-c1
 ...
               Slave_IO_Running: Yes
              Slave_SQL_Running: Yes
 ...
 ```
 
-### Configure master-master replication on ub2204-c1
+### Configure master-master replication on alma9-c1
 
 - open the mysql commandclient client and create the replication user
 
@@ -204,11 +211,11 @@ SHOW SLAVE STATUS\G
 sudo mysql -u  root
 ```
 
-- stop the slave and add information about the ub2204-c2 master node as well as the binlog file name and position.
+- stop the slave and add information about the alma9-c2 master node as well as the binlog file name and position.
 
 ```SQL
 STOP SLAVE;
-CHANGE MASTER TO MASTER_HOST='ub2204-c2', MASTER_USER='replusr', MASTER_PASSWORD='replpasswd', MASTER_LOG_FILE='mariadb-bin.000001', MASTER_LOG_POS=773;
+CHANGE MASTER TO MASTER_HOST='alma9-c2', MASTER_USER='replusr', MASTER_PASSWORD='replpasswd', MASTER_LOG_FILE='mariadb-bin.000001', MASTER_LOG_POS=773;
 ```
 
 - start the slave again and verify the slave status
@@ -218,7 +225,7 @@ START SLAVE;
 SHOW SLAVE STATUS\G
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
-                   Master_Host: ub2204-c1
+                   Master_Host: alma9-c1
 ...
               Slave_IO_Running: Yes
              Slave_SQL_Running: Yes
@@ -227,7 +234,7 @@ SHOW SLAVE STATUS\G
 
 ### Test master-master replication
 
-#### on ub2204-c1
+#### on alma9-c1
 
 -  open the mysql commandline client
 
@@ -241,7 +248,7 @@ sudo mysql -u  root
 CREATE DATABASE testdb;
 ```
 
-#### on ub2204-c2
+#### on alma9-c2
 
 -  open the mysql commandline client
 
@@ -276,9 +283,9 @@ Query OK, 1 row affected (0.014 sec)
 MariaDB [(none)]>
 ```
 
-#### on ub2204-c1
+#### on alma9-c1
 
-- back on ub2204-c1 check the databases to make sure that "testdb" is not present anymore
+- back on alma9-c1 check the databases to make sure that "testdb" is not present anymore
 
 ```SQL
 SHOW DATABASES;
@@ -313,13 +320,13 @@ sudo ssh-keygen -t rsa -f /root/.ssh/id_lsyncd
 - create the acme2certifier directory to be synchronized between the two hosts
 
 ```bash
-sudo mkdir -p /var/www/acme2certifier/volume
+sudo mkdir -p /opt/acme2certifier/volume
 ```
 
 - install Lsyncd
 
 ```bash
-sudo apt-get install -y lsyncd
+sudo yum install -y lsyncd
 ```
 
 - create the directory storing the configuration and log files
@@ -328,15 +335,15 @@ sudo apt-get install -y lsyncd
 sudo mkdir /etc/lsyncd /var/log/lsyncd
 ```
 
-### on ub2204-c1
-- test passwordless ssh access by logging in to ub2204-c2
+### on alma9-c1
+- test passwordless ssh access by logging in to alma9-c2
 
 ```bash
-sudo ssh -i /root/.ssh/id_lsyncd root@ub2204-c2
+sudo ssh -i /root/.ssh/id_lsyncd root@alma9-c2
 exit
 ```
 
-- create a configuration file `/etc/lsyncd/lsyncd.conf.lua` with the following content
+- create a configuration file `/etc/lsyncd.conf` with the following content
 
 ```lua
 settings {
@@ -348,9 +355,9 @@ settings {
 
 sync {
   default.rsyncssh,
-  source = "/var/www/acme2certifier/volume/",
-  host = "ub2204-c2",
-  targetdir = "/var/www/acme2certifier/volume/",
+  source = "/opt/acme2certifier/volume/",
+  host = "alma9-c2",
+  targetdir = "/opt/acme2certifier/volume/",
   rsync = {
     rsh = "/usr/bin/ssh -l root -i /root/.ssh/id_lsyncd -o StrictHostKeyChecking=no",
     compress = true,
@@ -368,15 +375,15 @@ sudo systemctl restart lsyncd
 sudo systemctl enable lsyncd
 ```
 
-### on ub2204-c2
+### on alma9-c2
 
-- test passwordless ssh access by logging in to ub2204-c1
+- test passwordless ssh access by logging in to alma9-c1
 
 ```bash
-sudo ssh -i /root/.ssh/id_lsyncd root@ub2204-c1
+sudo ssh -i /root/.ssh/id_lsyncd root@alma9-c1
 ```
 
-- create a configuration file `/etc/lsyncd/lsyncd.conf.lua` with the following content
+- create a configuration file `/etc/lsyncd.conf` with the following content
 
 ```lua
 settings {
@@ -388,9 +395,9 @@ settings {
 
 sync {
   default.rsyncssh,
-  source = "/var/www/acme2certifier/volume/",
-  host = "ub2204-c1",
-  targetdir = "/var/www/acme2certifier/volume/",
+  source = "/opt/acme2certifier/volume/",
+  host = "alma9-c1",
+  targetdir = "/opt/acme2certifier/volume/",
   rsync = {
     rsh = "/usr/bin/ssh -l root -i /root/.ssh/id_lsyncd -o StrictHostKeyChecking=no",
     compress = true,
@@ -410,34 +417,34 @@ sudo systemctl enable lsyncd
 
 ### Test replication
 
-#### on ub2204-c1
+#### on alma9-c1
 
-- create a file in `/var/www/acme2certifier/volume` directory
+- create a file in `/opt/acme2certifier/volume` directory
 
 ```bash
-sudo touch /var/www/acme2certifier/volume/test.txt
+sudo touch /opt/acme2certifier/volume/test.txt
 ```
 
-#### on ub2204-c2
+#### on alma9-c2
 
-- verify that the '/var/www/acme2certifier/volume/test.txt' has been syncronized to ub2204-c2 (please note that replication can take up to 20s)
+- verify that the '/opt/acme2certifier/volume/test.txt' has been syncronized to alma9-c2 (please note that replication can take up to 20s)
 
 ```bash
-sudo ls -la /var/www/acme2certifier/volume
+sudo ls -la /opt/acme2certifier/volume
 ```
 
-- delete the '/var/www/acme2certifier/volume/test.txt'
+- delete the '/opt/acme2certifier/volume/test.txt'
 
 ```bash
-sudo rm /var/www/acme2certifier/volume/test.txt
+sudo rm /opt/acme2certifier/volume/test.txt
 ```
 
-#### on ub2204-c1
+#### on alma9-c1
 
-- back on ub2204-c1 check `/var/www/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
+- back on alma9-c1 check `/opt/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
 
 ```bash
-sudo ls -la /var/www/acme2certifier/volume
+sudo ls -la /opt/acme2certifier/volume
 ```
 
 In case of problem check the logfiles stored in `/var/log/lsyncd` for errors.
@@ -446,24 +453,30 @@ In case of problem check the logfiles stored in `/var/log/lsyncd` for errors.
 
 ### on both nodes
 
-- Downlaod the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
+- Install django packages and mysqlclient
+
+```bash
+sudo yum install python3-mysqlclient python3-django3 python3-pyyaml -y
+```
+
+- Downlaod the [latest rpm package](https://github.com/grindsa/acme2certifier/releases)
 - install the package locally
 
 ```bash
-sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
+sudo yum localinstall -y ./acme2certifier_<version>-1.0.noarch.rpm
 ```
 
 - Copy and activete apache2 configuration file
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo cp /opt/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
 sudo a2ensite acme2certifier
 ```
 
 - Copy and activate apache2 ssl configuration file (optional)
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo cp /opt/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
 sudo a2ensite acme2certifier_ssl
 ```
 
@@ -477,15 +490,15 @@ sudo a2dissite default-ssl
 - copy the django handler and the django directory structure
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
-sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
+sudo cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+sudo cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
 ```
 
 - move the acme2certifier configuration file `acme_srv.cfg` into the mirrored diectory and create a symbolic link
 
 ```bash
-sudo mv /var/www/acme2certifier/acme_srv/acme_srv.cfg /var/www/acme2certifier/volume/
-sudo ln -s /var/www/acme2certifier/volume/acme_srv.cfg  /var/www/acme2certifier/acme_srv/
+sudo mv /opt/acme2certifier/acme_srv/acme_srv.cfg /opt/acme2certifier/volume/
+sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
 ```
 
 - Enable and start the apache2 service
@@ -495,7 +508,7 @@ sudo systemctl enable apache2.service
 sudo systemctl start apache2.service
 ```
 
-### on ub2204-c1
+### on alma9-c1
 
 -  open the mysql commandline client
 
@@ -514,11 +527,11 @@ FLUSH PRIVILEGES;
 - generate a new django secret-key and note it down
 
 ```bash
-python3 /var/www/acme2certifier/tools/django_secret_keygen.py
+python3 /opt/acme2certifier/tools/django_secret_keygen.py
 +%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e
 ```
 
-- modify `/var/www/acme2certifier/acme2certifier/settings.py` and
+- modify `/opt/acme2certifier/acme2certifier/settings.py` and
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
   - configure a connection to mariadb as shown below
@@ -527,7 +540,7 @@ python3 /var/www/acme2certifier/tools/django_secret_keygen.py
 ```python
 SECRET_KEY = '+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e'
 ...
-ALLOWED_HOSTS = ['192.168.14.132', 'ub2204-c1.bar.local']
+ALLOWED_HOSTS = ['192.168.14.136', 'alma9-c1.bar.local']
 ...
 
 DATABASES = {
@@ -536,26 +549,26 @@ DATABASES = {
         'NAME': 'acme2certifier',
         'USER': 'acme2certifier',
         'PASSWORD': 'a2cpasswd',
-        'HOST': "ub2204-c1",
+        'HOST': "alma9-c1",
         'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
     },
 
 }
 ```
 
-- Modify the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg`according to you needs. If your ca-handler needs runtime information (configuration files, keys, certificate-bundles etc.) to be shared between the nodes make sure that they get loaded from `/var/www/acme2certifier/volume`. Below an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
+- Modify the [configuration file](acme_srv.md) `/opt/acme2certifier/volume/acme_srv.cfg`according to you needs. If your ca-handler needs runtime information (configuration files, keys, certificate-bundles etc.) to be shared between the nodes make sure that they get loaded from `/opt/acme2certifier/volume`. Below an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
 
 ```cfg
 [CAhandler]
-handler_file: /var/www/acme2certifier/examples/ca_handler/openssl_ca_handler.py
-ca_cert_chain_list: ["/var/www/acme2certifier/volume/root-ca-cert.pem"]
-issuing_ca_key: /var/www/acme2certifier/volume/ca/sub-ca-key.pk8
+handler_file: /opt/acme2certifier/examples/ca_handler/openssl_ca_handler.py
+ca_cert_chain_list: ["/opt/acme2certifier/volume/root-ca-cert.pem"]
+issuing_ca_key: /opt/acme2certifier/volume/ca/sub-ca-key.pk8
 issuing_ca_key_passphrase_variable: OPENSSL_PASSPHRASE
-issuing_ca_cert: /var/www/acme2certifier/volume/ca/sub-ca-cert.pem
-issuing_ca_crl: /var/www/acme2certifier/volume/ca/sub-ca-crl.pem
+issuing_ca_cert: /opt/acme2certifier/volume/ca/sub-ca-cert.pem
+issuing_ca_crl: /opt/acme2certifier/volume/ca/sub-ca-crl.pem
 cert_validity_days: 30
 cert_validity_adjust: True
-cert_save_path: /var/www/acme2certifier/volume/ca/certs
+cert_save_path: /opt/acme2certifier/volume/ca/certs
 save_cert_as_hex: True
 cn_enforce: True
 ```
@@ -563,7 +576,7 @@ cn_enforce: True
 - create a django migration set, apply the migrations and load fixtures
 
 ```bash
-cd /var/www/acme2certifier
+cd /opt/acme2certifier
 sudo python3 manage.py makemigrations
 sudo python3 manage.py migrate
 sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
@@ -572,7 +585,7 @@ sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
 - run the django_update script
 
 ```bash
-sudo python3 /var/www/acme2certifier/tools/django_update.py
+sudo python3 /opt/acme2certifier/tools/django_update.py
 ```
 
 - restart the apache2 service
@@ -584,20 +597,20 @@ sudo systemctl restart apache2.service
 - Test the server by accessing the directory resource
 
 ```bash
-curl http://ub2204-c1.bar.local/directory
-{"newAccount": "http://ub2204-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c1.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c1.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c1.bar.local/acme_srv/revokecert"}
+curl http://alma9-c1.bar.local/directory
+{"newAccount": "http://alma9-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c1.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c1.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c1.bar.local/acme_srv/revokecert"}
 ```
 
-### on ub2204-c2
+### on alma9-c2
 
 - generate a new django secret and note it down
 
 ```bash
-python3 /var/www/acme2certifier/tools/django_secret_keygen.py
+python3 /opt/acme2certifier/tools/django_secret_keygen.py
 5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!
 ```
 
-- modify `/var/www/acme2certifier/acme2certifier/settings.py` and
+- modify `/opt/acme2certifier/acme2certifier/settings.py` and
   - insert a secret key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both IP-Adress and fqdn of the node
   - configure a connection to mariadb as shown below
@@ -605,7 +618,7 @@ python3 /var/www/acme2certifier/tools/django_secret_keygen.py
 ```python
 SECRET_KEY = '5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!'
 ...
-ALLOWED_HOSTS = ['192.168.14.133', 'ub2204-c2.bar.local']
+ALLOWED_HOSTS = ['192.168.14.137', 'alma9-c2.bar.local']
 ...
 
 DATABASES = {
@@ -614,7 +627,7 @@ DATABASES = {
         'NAME': 'acme2certifier',
         'USER': 'acme2certifier',
         'PASSWORD': 'a2cpasswd',
-        'HOST': "ub2204-c2",
+        'HOST': "alma9-c2",
         'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
     },
 
@@ -630,22 +643,22 @@ sudo systemctl restart apache2.service
 - Test the server by accessing the directory resource
 
 ```bash
-curl http://ub2204-c2.bar.local/directory
-{"newAccount": "http://ub2204-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c2.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c2.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c2.bar.local/acme_srv/revokecert"}
+curl http://alma9-c2.bar.local/directory
+{"newAccount": "http://alma9-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c2.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c2.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c2.bar.local/acme_srv/revokecert"}
 ```
 
 ## Test enrollment
 
 - try to enroll certificates from both nodes by using your favorite acme-client. I am using [lego](https://github.com/go-acme/lego) as this client supports multiple endpoints at once.
 
-- Example for enrollment from ub2204-c1
+- Example for enrollment from alma9-c1
 
 ```bash
- docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://ub2204-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
+ docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
 ```
 
-- Example for enrollment from ub2204-c2
+- Example for enrollment from alma9-c2
 
 ```bash
- docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://ub2204-c2.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
+ docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c2.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
 ```
