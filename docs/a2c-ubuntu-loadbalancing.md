@@ -8,7 +8,7 @@ This setup requires the switch to a different database engine as SQLite, which i
 
 ![architecture](a2c-ubuntu-loadbalancing.png "architecture")
 
-The guide is written for **Ubuntu 22.04**, however adapting to other Linux distributions should not be difficult. There is already a guide for [Alma Linux 9](alma-alma-loadbalancing.md) available
+The guide is written for **Ubuntu 22.04**, however adapting to other Linux distributions should not be difficult. There is also a guide for [Alma Linux 9](a2c-alma-loadbalancing.md) available
 
 ## Preparation
 
@@ -99,8 +99,11 @@ FLUSH PRIVILEGES;
 
 - Next, run the following query to check the current binary log and its exact position of it. In this example, the binary log file for the MariaDB server is "mariadb-bin.000001" with the position "773". These outputs will be used in the next stage for setting up the "ub2204-c2" server.
 
-```bash
+```SQL
 SHOW MASTER STATUS;
+```
+
+```SQL
 +--------------------+----------+--------------+------------------+
 | File               | Position | Binlog_Do_DB | Binlog_Ignore_DB |
 +--------------------+----------+--------------+------------------+
@@ -155,6 +158,9 @@ sudo systemctl restart mariadb
 
 ```bash
 ss -plnt
+```
+
+```bash
 State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
 LISTEN   0        80           192.168.14.133:3306            0.0.0.0:*       users:(("mariadbd",pid=841,fd=41))
@@ -187,6 +193,9 @@ CHANGE MASTER TO MASTER_HOST='ub2204-c1', MASTER_USER='replusr', MASTER_PASSWORD
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
+```
+
+```SQL
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
                    Master_Host: ub2204-c1
@@ -215,6 +224,9 @@ CHANGE MASTER TO MASTER_HOST='ub2204-c2', MASTER_USER='replusr', MASTER_PASSWORD
 
 ```SQL
 START SLAVE;
+```
+
+```SQL
 SHOW SLAVE STATUS\G
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
@@ -249,7 +261,7 @@ CREATE DATABASE testdb;
 sudo mysql -u  root
 ```
 
-- create check databases
+- check the databases created in previous step
 
 ```SQL
 SHOW DATABASES;
@@ -263,7 +275,9 @@ SHOW DATABASES;
 | testdb             |
 +--------------------+
 5 rows in set (0.000 sec)
+```
 
+```SQL
 MariaDB [(none)]>
 ```
 
@@ -271,9 +285,6 @@ MariaDB [(none)]>
 
 ```SQL
 DROP DATABASE testdb;
-Query OK, 1 row affected (0.014 sec)
-
-MariaDB [(none)]>
 ```
 
 #### on ub2204-c1
@@ -282,6 +293,9 @@ MariaDB [(none)]>
 
 ```SQL
 SHOW DATABASES;
+```
+
+```SQL
 +--------------------+
 | Database           |
 +--------------------+
@@ -298,7 +312,7 @@ SHOW DATABASES;
 
 The following instructions are based on [an existing tutorial](https://docs.rackspace.com/docs/set-up-lsyncd-locally-and-over-ssh-to-sync-directories).
 
-To accomplish a remote synchronization using Lsyncd, both nodes must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization  to ensure that permissions, ownership, and group information of the files to be synchronized will be preserved.
+To accomplish a remote synchronization using Lsyncd, each node must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization  to ensure that permissions, ownership, and group information of the synchronized objects will be preserved.
 
 ### on both nodes to be executed as root-user
 
@@ -581,10 +595,12 @@ sudo python3 /var/www/acme2certifier/tools/django_update.py
 sudo systemctl restart apache2.service
 ```
 
-- Test the server by accessing the directory resource
+- Test the server by accessing the directory ressource
 
 ```bash
 curl http://ub2204-c1.bar.local/directory
+```
+```bash
 {"newAccount": "http://ub2204-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c1.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c1.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c1.bar.local/acme_srv/revokecert"}
 ```
 
@@ -627,10 +643,12 @@ DATABASES = {
 sudo systemctl restart apache2.service
 ```
 
-- Test the server by accessing the directory resource
+- Test the server by accessing the directory ressource
 
 ```bash
 curl http://ub2204-c2.bar.local/directory
+```
+```bash
 {"newAccount": "http://ub2204-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c2.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c2.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c2.bar.local/acme_srv/revokecert"}
 ```
 

@@ -8,7 +8,7 @@ This setup requires the switch to a different database engine as SQLite, which i
 
 ![architecture](a2c-alma-loadbalancing.png "architecture")
 
-The guide is written for **Alma Linux 9**, however adapting to other Linux distributions ir Redhat derivates should not be difficult. There is already a guide for [Ubuntu 22.04](alma-ubuntu-loadbalancing.md) available
+The guide is written for **Alma Linux 9**, however adapting to other Linux distributions ir Redhat derivates should not be difficult. There is also a guide for [Ubuntu 22.04](a2c-ubuntu-loadbalancing.md) available
 
 ## Preparation
 
@@ -49,7 +49,7 @@ sudo yum install -y mariadb-server
 - start MariaDB during startup
 
 ```bash
-sudo systemctl is-enabled mariadb
+sudo systemctl enable mariadb
 sudo systemctl status mariadb
 ```
 
@@ -63,7 +63,7 @@ server-id              = 1
 report_host            = alma9-c1
 
 log_bin                = /var/log/mariadb/mariadb-bin
-log_bin_index          = /var/log/mysql/mariadb-bin.index
+log_bin_index          = /var/log/mariadb/mariadb-bin.index
 
 relay_log              = /var/log/mariadb/relay-bin
 relay_log_index        = /var/log/mariadb/relay-bin.index
@@ -106,8 +106,11 @@ FLUSH PRIVILEGES;
 
 - Next, run the following query to check the current binary log and its exact position of it. In this example, the binary log file for the MariaDB server is "mariadb-bin.000001" with the position "773". These outputs will be used in the next stage for setting up the "alma9-c2" server.
 
-```bash
+```SQL
 SHOW MASTER STATUS;
+```
+
+```SQL
 +--------------------+----------+--------------+------------------+
 | File               | Position | Binlog_Do_DB | Binlog_Ignore_DB |
 +--------------------+----------+--------------+------------------+
@@ -127,7 +130,7 @@ sudo yum install -y mariadb-server
 - start MariaDB during startup
 
 ```bash
-sudo systemctl is-enabled mariadb
+sudo systemctl enable mariadb
 sudo systemctl status mariadb
 ```
 
@@ -162,6 +165,9 @@ sudo systemctl restart mariadb
 
 ```bash
 ss -plnt
+```
+
+```bash
 State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
 LISTEN   0        80           192.168.14.137:3306            0.0.0.0:*       users:(("mariadbd",pid=841,fd=41))
@@ -194,6 +200,9 @@ CHANGE MASTER TO MASTER_HOST='alma9-c1', MASTER_USER='replusr', MASTER_PASSWORD=
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
+```
+
+```SQL
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
                    Master_Host: alma9-c1
@@ -223,6 +232,9 @@ CHANGE MASTER TO MASTER_HOST='alma9-c2', MASTER_USER='replusr', MASTER_PASSWORD=
 ```SQL
 START SLAVE;
 SHOW SLAVE STATUS\G
+```
+
+```SQL
 *************************** 1. row ***************************
                 Slave_IO_State: Waiting for master to send event
                    Master_Host: alma9-c1
@@ -256,17 +268,19 @@ CREATE DATABASE testdb;
 sudo mysql -u  root
 ```
 
-- create check databases
+- check the databases created in previous step
 
 ```SQL
 SHOW DATABASES;
+```
+
+```
 +--------------------+
 | Database           |
 +--------------------+
 | information_schema |
 | mysql              |
 | performance_schema |
-| sys                |
 | testdb             |
 +--------------------+
 5 rows in set (0.000 sec)
@@ -278,9 +292,6 @@ MariaDB [(none)]>
 
 ```SQL
 DROP DATABASE testdb;
-Query OK, 1 row affected (0.014 sec)
-
-MariaDB [(none)]>
 ```
 
 #### on alma9-c1
@@ -289,13 +300,15 @@ MariaDB [(none)]>
 
 ```SQL
 SHOW DATABASES;
+```
+
+```SQL
 +--------------------+
 | Database           |
 +--------------------+
 | information_schema |
 | mysql              |
 | performance_schema |
-| sys                |
 +--------------------+
 4 rows in set (0.000 sec)
 
@@ -305,7 +318,7 @@ SHOW DATABASES;
 
 The following instructions are based on [an existing tutorial](https://docs.rackspace.com/docs/set-up-lsyncd-locally-and-over-ssh-to-sync-directories).
 
-To accomplish a remote synchronization using Lsyncd, both nodes must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization  to ensure that permissions, ownership, and group information of the files to be synchronized will be preserved.
+To accomplish a remote synchronization using Lsyncd, each node must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization  to ensure that permissions, ownership, and group information of the synchronized objects will be preserved.
 
 ### on both nodes to be executed as root-user
 
@@ -329,13 +342,8 @@ sudo mkdir -p /opt/acme2certifier/volume
 sudo yum install -y lsyncd
 ```
 
-- create the directory storing the configuration and log files
-
-```bash
-sudo mkdir /etc/lsyncd /var/log/lsyncd
-```
-
 ### on alma9-c1
+
 - test passwordless ssh access by logging in to alma9-c2
 
 ```bash
@@ -460,38 +468,30 @@ sudo yum install python3-mysqlclient python3-django3 python3-pyyaml -y
 ```
 
 - Downlaod the [latest rpm package](https://github.com/grindsa/acme2certifier/releases)
-- install the package locally
+- install the package locally and fix permissions
 
 ```bash
 sudo yum localinstall -y ./acme2certifier_<version>-1.0.noarch.rpm
+ sudo chown -R nginx /opt/acme2certifier/volume/
 ```
 
-- Copy and activete apache2 configuration file
+- Copy and activete nginx configuration file
 
 ```bash
-sudo cp /opt/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-sudo a2ensite acme2certifier
+sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 ```
 
-- Copy and activate apache2 ssl configuration file (optional)
+- Copy and activate nginx ssl configuration file (optional)
 
 ```bash
-sudo cp /opt/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-sudo a2ensite acme2certifier_ssl
-```
-
-- disable the default sites
-
-```bash
-sudo a2dissite 000-default.conf
-sudo a2dissite default-ssl
+sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
 - copy the django handler and the django directory structure
 
 ```bash
 sudo cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
-sudo cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
+sudo cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/
 ```
 
 - move the acme2certifier configuration file `acme_srv.cfg` into the mirrored diectory and create a symbolic link
@@ -504,8 +504,10 @@ sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv
 - Enable and start the apache2 service
 
 ```bash
-sudo systemctl enable apache2.service
-sudo systemctl start apache2.service
+sudo systemctl enable acme2certifier
+sudo systemctl start acme2certifier
+sudo systemctl enable nginx
+sudo systemctl start nginx
 ```
 
 ### on alma9-c1
@@ -588,16 +590,18 @@ sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
 sudo python3 /opt/acme2certifier/tools/django_update.py
 ```
 
-- restart the apache2 service
+- restart the acme2certifier service
 
 ```bash
-sudo systemctl restart apache2.service
+sudo systemctl restart acme2certifier.service
 ```
 
-- Test the server by accessing the directory resource
+- Test the server by accessing the directory ressource
 
 ```bash
 curl http://alma9-c1.bar.local/directory
+```
+```bash
 {"newAccount": "http://alma9-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c1.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c1.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c1.bar.local/acme_srv/revokecert"}
 ```
 
@@ -634,16 +638,18 @@ DATABASES = {
 }
 ```
 
-- restart the apache2 service
+- restart the acme2certifier service
 
 ```bash
-sudo systemctl restart apache2.service
+sudo systemctl restart acme2certifier.service
 ```
 
-- Test the server by accessing the directory resource
+- Test the server by accessing the directory ressource
 
 ```bash
 curl http://alma9-c2.bar.local/directory
+```
+```bash
 {"newAccount": "http://alma9-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c2.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c2.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c2.bar.local/acme_srv/revokecert"}
 ```
 
