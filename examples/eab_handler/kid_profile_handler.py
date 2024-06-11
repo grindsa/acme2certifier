@@ -4,9 +4,9 @@
 from __future__ import print_function
 import json
 import re
+from typing import List, Tuple
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, csr_cn_get, csr_san_get
-from typing import List, Tuple, Dict
 
 
 class EABhandler(object):
@@ -74,7 +74,7 @@ class EABhandler(object):
                 san_list.append(cn_)
 
         self.logger.debug('EABhandler._cn_add() ended')
-        return (san_list)
+        return san_list
 
     def _profiles_load(self):
         """ load profiles from key_file """

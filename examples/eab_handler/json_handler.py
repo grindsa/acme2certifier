@@ -33,19 +33,30 @@ class EABhandler(object):
 
         self.logger.debug('EABhandler._config_load() ended')
 
+    def key_file_load(self) -> Dict[str, str]:
+        """ load key_file """
+        self.logger.debug('EABhandler.key_file_load()')
+
+        data_dic = {}
+        if self.key_file:
+            try:
+                with open(self.key_file, encoding='utf8') as json_file:
+                    data_dic = json.load(json_file)
+            except Exception as err:
+                self.logger.error('EABhandler.key_file_load() error: {0}'.format(err))
+
+        self.logger.debug('EABhandler.key_file_load() ended: {0}'.format(bool(data_dic)))
+        return data_dic
+
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
 
         mac_key = None
-        try:
-            if self.key_file and kid:
-                with open(self.key_file, encoding='utf8') as json_file:
-                    data_dic = json.load(json_file)
-                    if kid in data_dic:
-                        mac_key = data_dic[kid]
-        except Exception as err:
-            self.logger.error('EABhandler.mac_key_get() error: {0}'.format(err))
+
+        data_dic = self.key_file_load()
+        if kid and kid in data_dic:
+            mac_key = data_dic[kid]
 
         self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))
         return mac_key
