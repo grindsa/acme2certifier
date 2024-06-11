@@ -103,16 +103,16 @@ class TestACMEHandler(unittest.TestCase):
     def test_012_mac_key_get(self, mock_csv):
         """ test mac_key_get check break after first match """
         self.eabhandler.key_file = 'file'
-        mock_csv.return_value = [{'eab_kid': 'kid', 'eab_mac': 'mac'}, {'eab_kid': 'kid', 'eab_mac': 'mac2'}]
-        self.assertEqual('mac', self.eabhandler.mac_key_get('kid'))
+        mock_csv.return_value = [{'eab_kid': 'kid1', 'eab_mac': 'mac1'}, {'eab_kid': 'kid2', 'eab_mac': 'mac2'}]
+        self.assertEqual('mac1', self.eabhandler.mac_key_get('kid1'))
 
     @patch('csv.DictReader')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_013_mac_key_get(self, mock_csv):
         """ test mac_key_get match in the 2nd record """
         self.eabhandler.key_file = 'file'
-        mock_csv.return_value = [{'eab_kid': 'kid1', 'eab_mac': 'mac'}, {'eab_kid': 'kid', 'eab_mac': 'mac2'}]
-        self.assertEqual('mac2', self.eabhandler.mac_key_get('kid'))
+        mock_csv.return_value = [{'eab_kid': 'kid1', 'eab_mac': 'mac1'}, {'eab_kid': 'kid2', 'eab_mac': 'mac2'}]
+        self.assertEqual('mac2', self.eabhandler.mac_key_get('kid2'))
 
     @patch('csv.DictReader')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
@@ -138,7 +138,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_csv.side_effect = Exception('ex_mock_csv')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.eabhandler.mac_key_get('kid'))
-        self.assertIn('ERROR:test_a2c:EABhandler.mac_key_get() error: ex_mock_csv', lcm.output)
+        self.assertIn('ERROR:test_a2c:EABhandler.key_file_load() error: ex_mock_csv', lcm.output)
 
 if __name__ == '__main__':
 
