@@ -33,6 +33,23 @@ class EABhandler(object):
 
         self.logger.debug('EABhandler._config_load() ended')
 
+    def key_file_load(self) -> Dict[str, str]:
+        """ load key_file """
+        self.logger.debug('EABhandler.key_file_load()')
+
+        data_dic = {}
+        if self.key_file:
+            try:
+                with open(self.key_file, mode='r', encoding='utf8') as csv_file:
+                    csv_reader = csv.DictReader(csv_file)
+                    for row in csv_reader:
+                        data_dic[row['eab_kid']] = row['eab_mac']
+            except Exception as err:
+                self.logger.error('EABhandler.key_file_load() error: %s', err)
+
+        self.logger.debug('EABhandler.key_file_load() ended: {%s}', bool(data_dic))
+        return data_dic
+
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
         self.logger.debug('EABhandler.mac_key_get(%s)', kid)
