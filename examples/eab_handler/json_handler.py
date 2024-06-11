@@ -35,6 +35,7 @@ class EABhandler(object):
         self.logger.debug('EABhandler._config_load() ended')
 
     def key_file_load(self) -> Dict[str, str]:
+        """ load key_file """
         self.logger.debug('EABhandler.key_file_load()')
 
         data_dic = {}
@@ -55,8 +56,7 @@ class EABhandler(object):
 
         data_dic = self.key_file_load()
         if kid and kid in data_dic:
-                mac_key = data_dic[kid]
-
+            mac_key = data_dic[kid]
 
         self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))
         return mac_key
