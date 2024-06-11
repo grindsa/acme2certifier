@@ -35,6 +35,7 @@ class EABhandler(object):
         self.logger.debug('EABhandler._config_load() ended')
 
     def key_file_load(self) -> Dict[str, str]:
+        """ load key_file """
         self.logger.debug('EABhandler.key_file_load()')
 
         data_dic = {}
@@ -47,7 +48,7 @@ class EABhandler(object):
             except Exception as err:
                 self.logger.error('EABhandler.key_file_load() error: %s', err)
 
-        self.logger.debug('EABhandler.key_file_load() ended: {0}'.format(bool(data_dic)))
+        self.logger.debug('EABhandler.key_file_load() ended: {%s}', bool(data_dic))
         return data_dic
 
     def mac_key_get(self, kid: str = None) -> str:
