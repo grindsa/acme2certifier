@@ -33,9 +33,9 @@ class CAhandler(object):
 
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
-        self.url = None
-        self.url_dic = {}
-        self.keyfile = None
+        self.acme_url = None
+        self.acme_url_dic = {}
+        self.acme_keyfile = None
         self.key_size = 2048
         self.account = None
         self.email = None
@@ -50,7 +50,7 @@ class CAhandler(object):
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
-        if not self.url:
+        if not self.acme_url:
             self._config_load()
         return self
 
@@ -61,13 +61,13 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_account_load()')
 
         if 'acme_keyfile' in config_dic['CAhandler']:
-            self.keyfile = config_dic['CAhandler']['acme_keyfile']
+            acme_keyfile = config_dic['CAhandler']['acme_keyfile']
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
 
         if 'acme_url' in config_dic['CAhandler']:
-            self.url = config_dic['CAhandler']['acme_url']
-            self.url_dic = parse_url(self.logger, self.url)
+            self.acme_url = config_dic['CAhandler']['acme_url']
+            self.acme_url_dic = parse_url(self.logger, self.acme_url)
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
 
@@ -192,18 +192,18 @@ class CAhandler(object):
 
     def _user_key_load(self) -> josepy.jwk.JWKRSA:
         """ enroll certificate  """
-        self.logger.debug('CAhandler._user_key_load(%s)', self.keyfile)
+        self.logger.debug('CAhandler._user_key_load(%s)', self.acme_keyfile)
 
-        if os.path.exists(self.keyfile):
+        if os.path.exists(self.acme_keyfile):
             self.logger.debug('CAhandler.enroll() opening user_key')
-            with open(self.keyfile, "r", encoding='utf8') as keyf:
+            with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
                 user_key = josepy.JWKRSA.json_loads(keyf.read())
         else:
             self.logger.debug('CAhandler.enroll() generate and register key')
             user_key = self._key_generate()
             # dump keyfile to file
             try:
-                with open(self.keyfile, "w", encoding='utf8') as keyf:
+                with open(self.acme_keyfile, "w", encoding='utf8') as keyf:
                     keyf.write(json.dumps(user_key.to_json()))
             except Exception as err:
                 self.logger.error('Error during key dumping: %s', err)
@@ -273,9 +273,9 @@ class CAhandler(object):
         if regr:
             self.logger.info('CAhandler._account_lookup: found existing account: %s', regr.uri)
             self.account = regr.uri
-            if self.url:
+            if self.acme_url:
                 # remove url from string
-                self.account = self.account.replace(self.url, '')
+                self.account = self.account.replace(self.acme_url, '')
             if 'acct_path' in self.path_dic and self.path_dic['acct_path']:
                 # remove acc_path
                 self.account = self.account.replace(self.path_dic['acct_path'], '')
@@ -287,7 +287,7 @@ class CAhandler(object):
         regr = None
         if self.email:
             self.logger.debug('CAhandler.__account_register(): register new account with email: %s', self.email)
-            if self.url and 'host' in self.url_dic and self.url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
+            if self.acme_url and 'host' in self.acme_url_dic and self.acme_url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
             if self.eab_kid and self.eab_hmac_key:
@@ -320,8 +320,8 @@ class CAhandler(object):
             regr = self._account_create(acmeclient, user_key, directory)
 
         if regr:
-            if self.url and 'acct_path' in self.path_dic:
-                self.account = regr.uri.replace(self.url, '').replace(self.path_dic['acct_path'], '')
+            if self.acme_url and 'acct_path' in self.path_dic:
+                self.account = regr.uri.replace(self.acme_url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
                 self.logger.info('acme-account id is %s. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', self.account)
 
@@ -452,12 +452,12 @@ class CAhandler(object):
                 user_key = self._user_key_load()
                 net = client.ClientNetwork(user_key)
 
-                directory = messages.Directory.from_json(net.get(f'{self.url}{self.path_dic["directory_path"]}').json())
+                directory = messages.Directory.from_json(net.get(f'{self.acme_url}{self.path_dic["directory_path"]}').json())
                 acmeclient = client.ClientV2(directory, net=net)
                 reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
                 if self.account:
-                    regr = messages.RegistrationResource(uri=f"{self.url}{self.path_dic['acct_path']}{self.account}", body=reg)
+                    regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
                     self.logger.debug('CAhandler.enroll(): checking remote registration status')
                     regr = acmeclient.query_registration(regr)
                 else:
@@ -511,12 +511,12 @@ class CAhandler(object):
             certpem = f'-----BEGIN CERTIFICATE-----\n{textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64)}\n-----END CERTIFICATE-----\n'
             cert = josepy.ComparableX509(crypto.load_certificate(crypto.FILETYPE_PEM, certpem))
 
-            if os.path.exists(self.keyfile):
+            if os.path.exists(self.acme_keyfile):
                 user_key = self._user_key_load()
             net = client.ClientNetwork(user_key)
 
             if user_key:
-                directory = messages.Directory.from_json(net.get(f"{self.url}{self.path_dic['directory_path']}").json())
+                directory = messages.Directory.from_json(net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json())
                 acmeclient = client.ClientV2(directory, net=net)
                 reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
 
@@ -524,7 +524,7 @@ class CAhandler(object):
                     self._account_lookup(acmeclient, reg, directory)
 
                 if self.account:
-                    regr = messages.RegistrationResource(uri=f"{self.url}{self.path_dic['acct_path']}{self.account}", body=reg)
+                    regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
                     self.logger.debug('CAhandler.revoke() checking remote registration status')
                     regr = acmeclient.query_registration(regr)
 
@@ -542,7 +542,7 @@ class CAhandler(object):
                     self.logger.error('CAhandler.revoke(): could not find account key and lookup at acme-endpoint failed.')
                     detail = 'account lookup failed'
             else:
-                self.logger.error('CAhandler.revoke(): could not load user_key %s', self.keyfile)
+                self.logger.error('CAhandler.revoke(): could not load user_key %s', self.acme_keyfile)
                 detail = 'Internal Error'
 
         except Exception as err:
