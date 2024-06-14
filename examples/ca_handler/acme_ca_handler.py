@@ -61,7 +61,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_account_load()')
 
         if 'acme_keyfile' in config_dic['CAhandler']:
-            acme_keyfile = config_dic['CAhandler']['acme_keyfile']
+            self.acme_keyfile = config_dic['CAhandler']['acme_keyfile']
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
 

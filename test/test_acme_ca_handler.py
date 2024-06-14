@@ -49,8 +49,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -63,8 +63,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -78,8 +78,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'foo': 'bar'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -93,8 +93,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'acme_keyfile': 'key_file'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertEqual('key_file', self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertEqual('key_file', self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -107,8 +107,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'acme_url': 'url'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertEqual('url', self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertEqual('url', self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -121,8 +121,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'acme_account': 'acme_account'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertEqual('acme_account', self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -136,8 +136,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'acme_account_keysize': 'acme_account_keysize'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual('acme_account_keysize', self.cahandler.key_size)
@@ -151,8 +151,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'acme_account_email': 'acme_account_email'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -166,8 +166,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'directory_path': 'directory_path'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': 'directory_path'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -181,8 +181,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'account_path': 'account_path'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': 'account_path', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -196,8 +196,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': '["foo", "bar"]'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -212,8 +212,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -229,8 +229,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'eab_kid': 'eab_kid'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -247,8 +247,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {'CAhandler': {'eab_hmac_key': 'eab_hmac_key'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertFalse(self.cahandler.keyfile)
-        self.assertFalse(self.cahandler.url)
+        self.assertFalse(self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
         self.assertFalse(self.cahandler.account)
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
@@ -438,7 +438,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.query_registration = Mock(return_value = response)
         mock_messages = Mock()
         directory = {'newAccount': 'newAccount'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('uri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
@@ -454,7 +454,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.query_registration = Mock(return_value = response)
         mock_messages = Mock()
         directory = {'newAccount': 'newAccount'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('urluri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
@@ -470,7 +470,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.query_registration = Mock(return_value = response)
         mock_messages = Mock()
         directory = {'newAccount': 'newAccount'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('acct_pathuri', self.cahandler._account_register(acmeclient, 'user_key', directory).uri)
@@ -486,7 +486,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.new_account = Mock(return_value = response)
         mock_messages = Mock()
         self.cahandler.email = 'email'
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('newuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
@@ -501,7 +501,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient = Mock()
         acmeclient.new_account = Mock(return_value = response)
         mock_messages = Mock()
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.cahandler._account_register(acmeclient, 'user_key', 'directory'))
@@ -530,7 +530,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_messages = Mock()
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path1': 'acct_path'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.assertEqual('newuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
         self.assertFalse(self.cahandler.account)
 
@@ -545,7 +545,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_messages = Mock()
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.assertEqual('urluri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
         self.assertEqual('uri', self.cahandler.account)
         self.assertFalse(mock_eab.called)
@@ -561,8 +561,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_messages = Mock()
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
-        self.cahandler.url = 'zerossl.com'
-        self.cahandler.url_dic = {'host': 'acme.zerossl.com'}
+        self.cahandler.acme_url = 'zerossl.com'
+        self.cahandler.acme_url_dic = {'host': 'acme.zerossl.com'}
         self.assertEqual('zerossl.comuri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
         self.assertEqual('uri', self.cahandler.account)
         self.assertTrue(mock_eab.called)
@@ -578,7 +578,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_messages = Mock()
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.assertEqual('urluri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
         self.assertEqual('uri', self.cahandler.account)
         self.assertFalse(mock_eab.called)
@@ -594,7 +594,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_eab.return_value = Mock()
         self.cahandler.email = 'email'
         self.cahandler.path_dic = {'acct_path': 'acct_path'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.eab_kid = 'kid'
         self.cahandler.eab_hmac_key = 'hmac_key'
         self.assertEqual('urluri', self.cahandler._account_register(acmeclient, 'user_key', 'directory').uri)
@@ -880,7 +880,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.query_registration = Mock(return_value = response)
         mock_messages = Mock()
         directory = {'newAccount': 'newAccount'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._account_lookup(acmeclient, 'reg', directory)
         self.assertIn('INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info', lcm.output)
@@ -910,7 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.query_registration = Mock(return_value = response)
         mock_messages = Mock()
         directory = {'newAccount': 'newAccount'}
-        self.cahandler.url = 'url'
+        self.cahandler.acme_url = 'url'
         self.cahandler.path_dic = {'acct_path': 'acc_info'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._account_lookup(acmeclient, 'reg', directory)
@@ -928,7 +928,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('os.path.exists')
     def test_058_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_reg, mock_revoke):
         """ test revoke successful """
-        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.acme_keyfile = 'keyfile'
         self.cahandler.account = 'account'
         mock_exists.return_value = True
         response = Mock()
@@ -947,7 +947,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('os.path.exists')
     def test_059_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_reg, mock_revoke):
         """ test revoke invalid status after reglookup """
-        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.acme_keyfile = 'keyfile'
         self.cahandler.account = 'account'
         mock_exists.return_value = True
         response = Mock()
@@ -966,7 +966,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('os.path.exists')
     def test_060_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
         """ test revoke account lookup failed """
-        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.acme_keyfile = 'keyfile'
         mock_exists.return_value = True
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'account lookup failed'), self.cahandler.revoke('cert', 'reason', 'date'))
         self.assertTrue(mock_lookup.called)
@@ -981,7 +981,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('os.path.exists')
     def test_061_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
         """ test revoke user key load failed """
-        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.acme_keyfile = 'keyfile'
         mock_exists.return_value = False
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Internal Error'), self.cahandler.revoke('cert', 'reason', 'date'))
@@ -993,7 +993,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('OpenSSL.crypto.load_certificate')
     def test_062_revoke(self, mock_load, mock_comp):
         """ test revoke exception during processing """
-        self.cahandler.keyfile = 'keyfile'
+        self.cahandler.acme_keyfile = 'keyfile'
         mock_load.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'ex_user_key_load'), self.cahandler.revoke('cert', 'reason', 'date'))
