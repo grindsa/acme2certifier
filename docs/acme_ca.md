@@ -182,6 +182,7 @@ below an example key-file:
     "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
     "cahandler": {
       "acme_url": "https://acme-staging-v02.api.letsencrypt.org",
+      "acme_keyfile": "/var/www/acme2certifier/volume/acme_ca/le_key.json",
       "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"]
     }
   },
