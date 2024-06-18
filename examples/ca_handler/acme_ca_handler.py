@@ -47,6 +47,7 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.acme_keypath = None
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -103,6 +104,8 @@ class CAhandler(object):
 
         if 'eab_hmac_key' in config_dic['CAhandler']:
             self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
+
+        self.acme_keypath = config_dic['CAhandler'].get('acme_keypath', None)
 
         self.logger.debug('CAhandler._config_eab_load() ended')
 
@@ -353,17 +356,36 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._eab_profile_string_check() ended')
 
+    def _eab_profile_list_set(self, csr, key, value):
+        self.logger.debug('CAhandler._acme_keyfile_set(): list: key: %s, value: %s', key, value)
+
+        result = None
+        new_value, error = header_info_field_validate(self.logger, csr, self.header_info_field, key, value)
+        if new_value:
+            self.logger.debug('CAhandler._eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
+            setattr(self, key, new_value)
+            if key == 'acme_url':
+                if not self.acme_keypath:
+                    result = 'acme_keypath is missing in config'
+                    self.logger.error('CAhandler._eab_profile_list_check(): acme_keypath is missing in config')
+                else:
+                    self.acme_url_dic = parse_url(self.logger, new_value)
+                    self.acme_keyfile = f'{self.acme_keypath.rstrip('/')}/{self.acme_url_dic["host"].replace(':', '.')}.json'
+        else:
+            result = error
+
+        return result
+
     def _eab_profile_list_check(self, eab_handler, csr, key, value):
         self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
         result = None
         if hasattr(self, key) and key != 'allowed_domainlist':
-            new_value, error = header_info_field_validate(self.logger, csr, self.header_info_field, key, value)
-            if new_value:
-                self.logger.debug('CAhandler._eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
-                setattr(self, key, new_value)
+            if key == 'acme_keyfile':
+                self.logger.error('CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile')
             else:
-                result = error
+                result = self._eab_profile_list_set(csr, key, value)
+
         elif key == 'allowed_domainlist':
             # check if csr contains allowed domains
             error = eab_handler.allowed_domains_check(csr, value)
@@ -424,6 +446,21 @@ class CAhandler(object):
         self.logger.debug('CAhandler._profile_check() ended with %s', error)
         return error
 
+    def _allowed_domainlist_check(self, csr: str) -> str:
+        """ check allowed domainlist """
+        self.logger.debug('CAhandler._allowed_domainlist_check()')
+
+        error = None
+        # check CN and SAN against black/whitlist
+        if self.allowed_domainlist:
+            # check sans / cn against list of allowed comains from config
+            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            if not result:
+                error = 'Either CN or SANs are not allowed by configuration'
+
+        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
+        return error
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0915
@@ -432,22 +469,16 @@ class CAhandler(object):
         csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'
 
         cert_bundle = None
-        error = None
         cert_raw = None
         poll_indentifier = None
         user_key = None
-
-        # check CN and SAN against black/whitlist
-        if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-        else:
-            result = True
+        error = self._allowed_domainlist_check(csr)
 
         # check for eab profiling and header_info
-        error = self._profile_check(csr)
+        if not error:
+            error = self._profile_check(csr)
 
-        if result and not error:
+        if not error:
             try:
                 user_key = self._user_key_load()
                 net = client.ClientNetwork(user_key)
@@ -480,8 +511,7 @@ class CAhandler(object):
                 del user_key
 
         else:
-            error = 'CSR rejected. Either CN or SANs are not allowed by policy'
-            self.logger.error('CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.')
+            self.logger.error('CAhandler.enroll: CSR rejected. %s', error)
 
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)

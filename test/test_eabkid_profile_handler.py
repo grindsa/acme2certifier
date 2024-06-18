@@ -284,7 +284,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = (['foo'], [False])
         mock_cn.return_value = ['foo', 'bar']
         mock_wlc.side_effect = [True, True]
-        self.assertEqual('allowed_domainlist checking failed', self.eabhandler.allowed_domains_check('csr', ['domain', 'list']))
+        self.assertEqual('Either CN or SANs are not allowed by profile', self.eabhandler.allowed_domains_check('csr', ['domain', 'list']))
 
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._wllist_check')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._cn_add')
@@ -294,7 +294,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = (['foo'], [])
         mock_cn.return_value = ['foo', 'bar']
         mock_wlc.side_effect = [False, True]
-        self.assertEqual('allowed_domainlist checking failed', self.eabhandler.allowed_domains_check('csr', ['domain', 'list']))
+        self.assertEqual('Either CN or SANs are not allowed by profile', self.eabhandler.allowed_domains_check('csr', ['domain', 'list']))
 
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
     def test_040_eab_profile_get(self, mock_prof):
