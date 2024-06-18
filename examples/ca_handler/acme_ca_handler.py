@@ -356,7 +356,7 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._eab_profile_string_check() ended')
 
-    def _eab_profile_list_set(self, csr, key, value):
+    def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._acme_keyfile_set(): list: key: %s, value: %s', key, value)
 
         result = None
@@ -370,13 +370,13 @@ class CAhandler(object):
                     self.logger.error('CAhandler._eab_profile_list_check(): acme_keypath is missing in config')
                 else:
                     self.acme_url_dic = parse_url(self.logger, new_value)
-                    self.acme_keyfile = f'{self.acme_keypath.rstrip('/')}/{self.acme_url_dic["host"].replace(':', '.')}.json'
+                    self.acme_keyfile = f"{self.acme_keypath.rstrip('/')}/{self.acme_url_dic['host'].replace(':', '.')}.json"
         else:
             result = error
 
         return result
 
-    def _eab_profile_list_check(self, eab_handler, csr, key, value):
+    def _eab_profile_list_check(self, eab_handler: str, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
         result = None
