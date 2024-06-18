@@ -56,6 +56,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_004__config_load(self, mock_load_cfg):
@@ -71,6 +72,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_005__config_load(self, mock_load_cfg):
@@ -86,6 +88,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_006__config_load(self, mock_load_cfg):
@@ -100,6 +103,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
+
+    @patch('examples.ca_handler.acme_ca_handler.load_config')
+    def test_106__config_load(self, mock_load_cfg):
+        """ test _config_load key_file value """
+        mock_load_cfg.return_value = {'CAhandler': {'acme_keyfile': 'key_file', 'acme_keypath': 'acme_keypath'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_load()
+        self.assertEqual('key_file', self.cahandler.acme_keyfile)
+        self.assertFalse(self.cahandler.acme_url)
+        self.assertFalse(self.cahandler.account)
+        self.assertEqual({'directory_path': '/directory', 'acct_path' : '/acme/acct/'}, self.cahandler.path_dic)
+        self.assertEqual(2048, self.cahandler.key_size)
+        self.assertFalse(self.cahandler.email)
+        self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertEqual('acme_keypath', self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_007__config_load(self, mock_load_cfg):
@@ -114,6 +133,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_008__config_load(self, mock_load_cfg):
@@ -129,6 +149,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_009__config_load(self, mock_load_cfg):
@@ -144,6 +165,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_010__config_load(self, mock_load_cfg):
@@ -159,6 +181,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_account_email', self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_011__config_load(self, mock_load_cfg):
@@ -174,6 +197,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_012__config_load(self, mock_load_cfg):
@@ -189,6 +213,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_013__config_load(self, mock_load_cfg):
@@ -205,6 +230,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['foo', 'bar'], self.cahandler.allowed_domainlist)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_014__config_load(self, mock_load_cfg):
@@ -222,6 +248,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_015__config_load(self, mock_load_cfg):
@@ -240,6 +267,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_016__config_load(self, mock_load_cfg):
@@ -258,6 +286,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('eab_hmac_key', self.cahandler.eab_hmac_key)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
+        self.assertFalse(self.cahandler.acme_keypath)
 
     def test_017__challenge_filter(self):
         """ test _challenge_filter single http """
@@ -776,39 +805,43 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
-    def test_051_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk):
+    def test_051_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
         """ test enroll exception during enrollment  """
+        mock_profilechk.return_value = False
         mock_csrchk.return_value = False
         self.cahandler.allowed_domainlist = ['allowed_domain']
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('CSR rejected. Either CN or SANs are not allowed by policy', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.', lcm.output)
+            self.assertEqual(('Either CN or SANs are not allowed by configuration', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by configuration', lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._profile_check')
     @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
-    def test_052_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk):
+    def test_052_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
         """ test enroll exception during enrollment  """
+        mock_profilechk.return_value = False
         mock_csrchk.return_value = False
         self.cahandler.allowed_domainlist = ['allowed_domain']
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('CSR rejected. Either CN or SANs are not allowed by policy', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by policy.', lcm.output)
+            self.assertEqual(('Either CN or SANs are not allowed by configuration', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by configuration', lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
@@ -855,7 +888,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_reg.called)
         self.assertTrue(mock_issue.called)
         self.assertIn('INFO:test_a2c:Existing but not configured ACME account: uri', lcm.output)
-
 
     @patch('acme.messages')
     def test_054__account_lookup(self, mock_messages):
@@ -1116,6 +1148,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test eab_profile_check default value from list """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.acme_url = 'acme_url'
+        self.cahandler.acme_keypath = 'acme_keypath'
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': ['url1', 'url2', 'url3']}
         # mock_hil.return_value = ('None', None)
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1128,6 +1161,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test eab_profile_check default value from list header info validate returns a value """
         self.cahandler.eab_handler = MagicMock()
         self.cahandler.acme_url = 'acme_url'
+        self.cahandler.acme_keypath = 'acme_keypath'
         mock_hil.return_value = ('url2', None)
         self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': ['url1', 'url2', 'url3']}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1228,6 +1262,26 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
         self.assertEqual('acme_url', self.cahandler.acme_url)
         self.assertFalse(mock_hiv.called)
+
+    def test_82_eab_profile_list_check(self):
+        """ test eab_profile_list_check """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_keyfile', 'key_file'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile', lcm.output)
+
+    def test_83_eab_profile_list_check(self):
+        """ test eab_profile_list_check """
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('acme_keypath is missing in config', self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'acme_url'))
+        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keypath is missing in config', lcm.output)
+
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_84_eab_profile_list_check(self, mock_hiv   ):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.assertFalse(self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'http://acme_url'))
+        self.assertEqual('acme_keypath/acme_url.json', self.cahandler.acme_keyfile)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
