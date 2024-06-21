@@ -44,11 +44,50 @@ kid and mac_key need to be stored as key/value pairs in json format.
 
 ```json
 {
-  "keyid_01": "bWFjXzAw",
+  "keyid_00": "bWFjXzAw",
   "keyid_01": "bWFjXzAx",
   "keyid_02": "bWFjXzAy",
   "keyid_03": "bWFjXzAz"
 }
+```
+
+## Keyfile verification
+
+In the keyfile can be checked for consistency by using the `tools/eab_chk.py` utility.
+
+```bash
+ py /var/www/acme2certifier/tools/eab_chk.py --help
+```
+
+```bash
+usage: eab_chk.py [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
+
+eab_chk.py - verify eab keyfile
+
+options:
+  -h, --help            show this help message and exit
+  -c CONFIGFILE, --configfile CONFIGFILE
+                        configfile
+  -d, --debug           debug mode
+  -v, --verbose         verbose
+  -vv, --veryverbose    show enrollment profile
+  -k KEYID, --keyid KEYID
+                        keyid to filter
+  -s, --summary         summary
+```
+
+Below the example output by using the above mentioned json keyfile
+
+```bash
+ py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
+```
+
+```bash
+Summary: 4 entries in kid_file
+keyid_00: bWFjXzAw
+keyid_01: bWFjXzAx
+keyid_02: bWFjXzAy
+keyid_03: bWFjXzAz
 ```
 
 ## create a customized eab handler
@@ -90,3 +129,4 @@ class EABhandler(object):
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
         mac_key =  # code to lookup the mac_key...
         return mac_key
+```
