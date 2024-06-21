@@ -3,6 +3,7 @@
 """ eab json handler """
 from __future__ import print_function
 import json
+from typing import Dict
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config
 
@@ -51,7 +52,6 @@ class EABhandler(object):
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
         self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
-
         mac_key = None
 
         data_dic = self.key_file_load()

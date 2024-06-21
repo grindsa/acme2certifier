@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ eab file handler """
 from __future__ import print_function
+from typing import Dict
 import csv
 # pylint: disable=E0401
 from acme_srv.helper import load_config
@@ -56,15 +57,10 @@ class EABhandler(object):
 
         mac_key = None
         if self.key_file and kid:
-            try:
-                with open(self.key_file, mode='r', encoding='utf8') as csv_file:
-                    csv_reader = csv.DictReader(csv_file)
-                    for row in csv_reader:
-                        if 'eab_kid' in row and 'eab_mac' in row and row['eab_kid'] == kid:
-                            mac_key = row['eab_mac']
-                            break
-            except Exception as err:
-                self.logger.error('EABhandler.mac_key_get() error: %s', err)
-
+            data_dic = self.key_file_load()
+            if kid in data_dic:
+                mac_key = data_dic[kid]
+            else:
+                self.logger.error('EABhandler.mac_key_get() error: kid not found')
         self.logger.debug('EABhandler.mac_key_get() ended with: %s', bool(mac_key))
         return mac_key
