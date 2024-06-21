@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """ database updater """
 # pylint: disable=E0401, C0413
 import sys
@@ -41,9 +41,10 @@ def _filter_eab_dic(logger, eab_dic: Dict[str, str], keyid: str) -> Dict[str, st
     logger.debug('_filter_eab_dic(%s)', keyid)
     return {k: v for k, v in eab_dic.items() if k == keyid}
 
+
 def arg_parse() -> Tuple[bool, Dict[str, Dict[str, str]]]:
     """ simple argparser """
-    parser = argparse.ArgumentParser(description='match_import.py - update matches in database')
+    parser = argparse.ArgumentParser(description='eab_chk.py - verify eab keyfile')
     parser.add_argument('-c', '--configfile', help='configfile', required=True)
     parser.add_argument('-d', '--debug', help='debug mode', action="store_true", default=False)
     parser.add_argument('-v', '--verbose', help='verbose', action="store_true", default=False)
