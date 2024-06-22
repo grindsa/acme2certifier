@@ -5,7 +5,7 @@ from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url
+from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
 
 
 class CAhandler(object):
@@ -24,6 +24,9 @@ class CAhandler(object):
         self.username = None
         self.enrollment_code = None
         self.cert_passphrase = None
+        self.header_info_field = False
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -57,14 +60,11 @@ class CAhandler(object):
         """ load server information """
         self.logger.debug('CAhandler._config_auth_load()')
 
-        if 'CAhandler' in config_dic and 'api_host' in config_dic['CAhandler']:
-            self.api_host = config_dic['CAhandler']['api_host']
+        if 'CAhandler' in config_dic:
 
-        if 'CAhandler' in config_dic and 'request_timeout' in config_dic['CAhandler']:
-            self.request_timeout = config_dic['CAhandler']['request_timeout']
-
-        if 'CAhandler' in config_dic and 'ca_bundle' in config_dic['CAhandler']:
-            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+            self.api_host = config_dic['CAhandler'].get('api_host', None)
+            self.request_timeout = config_dic['CAhandler'].get('request_timeout', 5)
+            self.ca_bundle = config_dic['CAhandler'].get('ca_bundle', True)
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
@@ -143,14 +143,10 @@ class CAhandler(object):
         """ load ca information """
         self.logger.debug('CAhandler._config_cainfo_load()')
 
-        if 'CAhandler' in config_dic and 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-
-        if 'CAhandler' in config_dic and 'cert_profile_name' in config_dic['CAhandler']:
-            self.cert_profile_name = config_dic['CAhandler']['cert_profile_name']
-
-        if 'CAhandler' in config_dic and 'ee_profile_name' in config_dic['CAhandler']:
-            self.ee_profile_name = config_dic['CAhandler']['ee_profile_name']
+        if 'CAhandler' in config_dic:
+            self.ca_name = config_dic['CAhandler'].get('ca_name', None)
+            self.cert_profile_name = config_dic['CAhandler'].get('cert_profile_name', None)
+            self.ee_profile_name = config_dic['CAhandler'].get('ee_profile_name', None)
 
         self.logger.debug('CAhandler._config_cainfo_load() ended')
 
@@ -164,6 +160,11 @@ class CAhandler(object):
         self._config_server_load(config_dic)
         self._config_auth_load(config_dic)
         self._config_cainfo_load(config_dic)
+
+        # load profiling
+        self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
+        # load header info
+        self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 
         # check configuration for completeness
         variable_dic = self.__dict__
@@ -195,6 +196,29 @@ class CAhandler(object):
             api_response = str(err_)
 
         return api_response
+
+    def _enroll(self, csr: str) -> Tuple[str, str, str]:
+        """ enroll certificate """
+        self.logger.debug('CAhandler._enroll()')
+        cert_bundle = None
+        error = None
+        cert_raw = None
+
+        # prepare the CSR to be signed
+        csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+        sign_response = self._sign(csr)
+
+        if 'certificate' in sign_response and 'certificate_chain' in sign_response:
+            cert_raw = sign_response['certificate']
+            cert_bundle = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
+            for ca_cert in sign_response['certificate_chain']:
+                cert_bundle = f'{cert_bundle}{convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert)))}'
+        else:
+            error = 'Malformed response'
+            self.logger.error('CAhandler.enroll(): Malformed Rest response: %s', sign_response)
+
+        self.logger.debug('CAhandler._enroll() ended with error: %s', error)
+        return (error, cert_bundle, cert_raw)
 
     def _status_get(self) -> Dict[str, str]:
         """ get status of the rest-api """
@@ -235,7 +259,7 @@ class CAhandler(object):
         return sign_response
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
-        """ enroll certificate  """
+        """ process csr  """
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None
@@ -247,20 +271,15 @@ class CAhandler(object):
 
         if 'status' in status_dic and status_dic['status'].lower() == 'ok':
 
-            # prepare the CSR to be signed
-            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-            sign_response = self._sign(csr)
-
-            if 'certificate' in sign_response and 'certificate_chain' in sign_response:
-                cert_raw = sign_response['certificate']
-                cert_bundle = convert_byte_to_string(cert_der2pem(b64_decode(self.logger, cert_raw)))
-                for ca_cert in sign_response['certificate_chain']:
-                    cert_bundle = f'{cert_bundle}{convert_byte_to_string(cert_der2pem(b64_decode(self.logger, ca_cert)))}'
+            # check for eab profiling and header_info
+            error = eab_profile_header_info_check(self.logger, self, csr, 'cert_profile_name')
+            if not error:
+                # cnroll certificate
+                (error, cert_bundle, cert_raw) = self._enroll(csr)
             else:
-                error = 'Malformed response'
-                self.logger.error('CAhandler.enroll(): Malformed Rest response: %s', sign_response)
-
+                self.logger.error('CAhandler.enroll: CSR rejected. %s', error)
         else:
+            # error in status respoinse from ejbca rest api
             if 'error' in status_dic:
                 error = status_dic['error']
             else:
