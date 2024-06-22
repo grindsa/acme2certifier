@@ -428,7 +428,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_pkcs12.called)
         self.assertFalse(mock_session.called)
 
-    def test_026__api_post(self):
+    def test_040__api_post(self):
         """ test _api_post successful run """
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {'foo': 'bar'}
@@ -437,7 +437,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual({'foo': 'bar'}, self.cahandler._api_post('url', 'data'))
 
-    def test_027__api_post(self):
+    def test_041__api_post(self):
         """ CAhandler._api_post() returns an http error """
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception('exc_api_post')]
@@ -446,16 +446,16 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual('exc_api_post', self.cahandler._api_post('url', 'data'))
         self.assertIn('ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post', lcm.output)
 
-    def test_028__api_put(self):
+    def test_042__api_put(self):
         """ test _api_put successful run """
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {'foo': 'bar'}
         mockresponse = Mock()
         mockresponse.put.side_effect = [mockresponse2]
         self.cahandler.session = mockresponse
-        self.assertEqual({'foo': 'bar'}, self.cahandler._api_put('url', 'data'))
+        self.assertEqual({'foo': 'bar'}, self.cahandler._api_put('url'))
 
-    def test_028__api_put(self):
+    def test_043__api_put(self):
         """ CAhandler._api_put() returns an http error """
         mockresponse = Mock()
         mockresponse.put.side_effect = [Exception('exc_api_put')]
@@ -465,19 +465,19 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._api_put() returned error: exc_api_put', lcm.output)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._config_load')
-    def test_029__enter(self, mock_cfgload):
+    def test_044__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._config_load')
-    def test_030__enter(self, mock_cfgload):
+    def test_045__enter(self, mock_cfgload):
         """ CAhandler._enter() with config load """
         self.cahandler.api_host = 'api_host'
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
-    def test_031__cert_status_check(self):
+    def test_046__cert_status_check(self):
         """ test _cert_status_check  successful run """
         mockresponse = Mock()
         mockresponse.json = lambda: {'foo': 'bar'}
@@ -486,7 +486,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_host = 'api_host'
         self.assertEqual({'foo': 'bar'}, self.cahandler._cert_status_check('issuer_dn', 'cert_serial'))
 
-    def test_032__cert_status_check(self):
+    def test_047__cert_status_check(self):
         """ test _cert_status_check no api host """
         mockresponse = Mock()
         mockresponse.json = lambda: {'foo': 'bar'}
@@ -496,7 +496,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_check('issuer_dn', 'cert_serial')
         self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host option is misisng in configuration', lcm.output)
 
-    def test_033__cert_status_check(self):
+    def test_048__cert_status_check(self):
         """ test _cert_status_check exception """
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception('exc_cert_chk')]
@@ -506,7 +506,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual({'error': 'exc_cert_chk', 'status': 'nok'}, self.cahandler._cert_status_check('issuer_dn', 'cert_serial'))
         self.assertIn('ERROR:test_a2c:CAhandler._ca_get() returned error: exc_cert_chk', lcm.output)
 
-    def test_034__status_get(self):
+    def test_049__status_get(self):
         """ test _status_get  successful run """
         mockresponse = Mock()
         mockresponse.json = lambda: {'foo': 'bar'}
@@ -515,7 +515,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_host = 'api_host'
         self.assertEqual({'foo': 'bar'}, self.cahandler._status_get())
 
-    def test_035__status_get(self):
+    def test_050__status_get(self):
         """ test _status_get  no api host """
         mockresponse = Mock()
         mockresponse.json = lambda: {'foo': 'bar'}
@@ -525,7 +525,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._status_get()
         self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host parameter is misisng in configuration', lcm.output)
 
-    def test_036__status_get(self):
+    def test_051__status_get(self):
         """ test _cert_status_check exception """
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception('exc_status_chk')]
@@ -536,7 +536,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._ca_get() returned error: exc_status_chk', lcm.output)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._api_post')
-    def test_037__sign(self, mock_post):
+    def test_052__sign(self, mock_post):
         """ test _sign """
         self.cahandler.api_host = 'foo'
         mock_post.return_value = 'foo'
@@ -544,23 +544,23 @@ class TestACMEHandler(unittest.TestCase):
 
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._api_post')
-    def test_038__sign(self, mock_post):
+    def test_053__sign(self, mock_post):
         """ test _sign """
         mock_post.return_value = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.cahandler._sign('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host is misisng in configuration', lcm.output)
 
-    def test_039_poll(self):
+    def test_054_poll(self):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
 
-    def test_040_trigger(self):
+    def test_055_trigger(self):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_041_enroll(self, mock_status):
+    def test_056_enroll(self, mock_status):
         """ test enrollment """
         mock_status.return_value = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -568,7 +568,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Unknown error', lcm.output)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_042_enroll(self, mock_status):
+    def test_057_enroll(self, mock_status):
         """ test enrollment """
         mock_status.return_value = {'status': 'nok'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -576,7 +576,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.enroll(): Unknown error', lcm.output)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_043_enroll(self, mock_status):
+    def test_058_enroll(self, mock_status):
         """ test enrollment """
         mock_status.return_value = {'status': 'nok', 'error': 'error_msg'}
         self.assertEqual(('error_msg', None, None, None), self.cahandler.enroll('csr'))
@@ -588,7 +588,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_044_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
+    def test_059_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
         """ test enrollment """
         mock_status.return_value = {'status': 'ok'}
         mock_sign.return_value = {}
@@ -609,7 +609,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_045_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
+    def test_060_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
         """ test enrollment """
         mock_status.return_value = {'status': 'ok'}
         mock_sign.return_value = {'certificate': 'certificate'}
@@ -630,7 +630,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_046_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
+    def test_061_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
         """ test enrollment """
         mock_status.return_value = {'status': 'ok'}
         mock_sign.return_value = {'certificate_chain': 'certificate_chain'}
@@ -644,6 +644,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_d2p.called)
         self.assertFalse(mock_b2s.called)
 
+    @patch('examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
     @patch('examples.ca_handler.ejbca_ca_handler.b64_decode')
@@ -651,11 +652,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_047_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
+    def test_062_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s, profile_header_info_check):
         """ test enrollment one ca-cert """
         mock_status.return_value = {'status': 'ok'}
         mock_sign.return_value = {'certificate': 'certificate', 'certificate_chain': ['certificate_chain']}
         mock_b2s.side_effect = ['foo1', 'foo2',]
+        profile_header_info_check.return_value = False
         self.assertEqual((None, 'foo1foo2', 'certificate', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_recode.called)
         self.assertTrue(mock_pem.called)
@@ -664,6 +666,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_d2p.called)
         self.assertTrue(mock_b2s.called)
 
+    @patch('examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
     @patch('examples.ca_handler.ejbca_ca_handler.b64_decode')
@@ -671,7 +674,28 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
-    def test_048_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
+    def test_063_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s, profile_header_info_check):
+        """ test enrollment one ca-cert """
+        mock_status.return_value = {'status': 'ok'}
+        mock_sign.return_value = {'certificate': 'certificate', 'certificate_chain': ['certificate_chain']}
+        mock_b2s.side_effect = ['foo1', 'foo2',]
+        profile_header_info_check.return_value = 'error'
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_recode.called)
+        self.assertFalse(mock_pem.called)
+        self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_decode.called)
+        self.assertFalse(mock_d2p.called)
+        self.assertFalse(mock_b2s.called)
+
+    @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
+    @patch('examples.ca_handler.ejbca_ca_handler.b64_decode')
+    @patch('examples.ca_handler.ejbca_ca_handler.b64_url_recode')
+    @patch('examples.ca_handler.ejbca_ca_handler.build_pem_file')
+    @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._sign')
+    @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._status_get')
+    def test_064_enroll(self, mock_status, mock_sign, mock_pem, mock_recode, mock_decode, mock_d2p, mock_b2s):
         """ test enrollment two ca-certs """
         mock_status.return_value = {'status': 'ok'}
         mock_sign.return_value = {'certificate': 'certificate', 'certificate_chain': ['certificate_chain', 'certificate_chain']}
@@ -689,7 +713,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_issuer_get')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_serial_get')
-    def test_049_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
+    def test_065_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
         """ test revoke operation malformed api response """
         mock_status.return_value = {}
         self.assertEqual((400, 'urn:ietf:params:acme:error:serverInternal', 'Unknown status'), self.cahandler.revoke('cert'))
@@ -701,7 +725,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_issuer_get')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_serial_get')
-    def test_050_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
+    def test_066_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
         """ test revoke operation cert already revoked """
         mock_status.return_value = {'revoked': True}
         self.assertEqual((400, 'urn:ietf:params:acme:error:alreadyRevoked', 'Certificate has already been revoked'), self.cahandler.revoke('cert'))
@@ -713,7 +737,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_issuer_get')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_serial_get')
-    def test_051_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
+    def test_067_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
         """ test revoke operation - revocation response malformed """
         mock_status.return_value = {'revoked': False}
         mock_put.return_value = {'foo': 'bar'}
@@ -729,7 +753,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_issuer_get')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_serial_get')
-    def test_052_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
+    def test_068_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
         """ test revoke operation - revocation unsuccessful """
         mock_status.return_value = {'revoked': False}
         mock_put.return_value = {'revoked': False}
@@ -745,7 +769,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_issuer_get')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_serial_get')
-    def test_053_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
+    def test_069_revoke(self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put):
         """ test revoke operation - revocation unsuccessful """
         mock_status.return_value = {'revoked': False}
         mock_put.return_value = {'revoked': True}

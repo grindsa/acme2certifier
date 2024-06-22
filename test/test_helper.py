@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -116,6 +116,10 @@ class TestACMEHandler(unittest.TestCase):
         self.config_eab_profile_load = config_eab_profile_load
         self.domainlist_check = domainlist_check
         self.allowed_domainlist_check = allowed_domainlist_check
+        self.eab_profile_string_check = eab_profile_string_check
+        self.eab_profile_list_check = eab_profile_list_check
+        self.eab_profile_check = eab_profile_check
+        self.eab_profile_header_info_check = eab_profile_header_info_check
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -2610,7 +2614,215 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         csr = 'csr'
         self.assertFalse(self.allowed_domainlist_check(self.logger, csr, allowed_domainlist))
 
+    def test_344_eab_profile_string_check(self):
+        """ test _eab_profile_string_check() """
+        cahandler = FakeDBStore()
+        cahandler.foo = 'foo'
+        self.eab_profile_string_check(self.logger, cahandler, 'foo', 'bar')
+        self.assertEqual('bar', cahandler.foo)
 
+    def test_345_eab_profile_string_check(self):
+        """ test _eab_profile_string_check() """
+        cahandler = FakeDBStore()
+        cahandler.foo = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.eab_profile_string_check(self.logger, cahandler, 'foobar', 'bar')
+        self.assertEqual('foo', cahandler.foo)
+        self.assertIn('ERROR:test_a2c:Helper.eab_profile_string_check(): ignore string attribute: key: foobar value: bar', lcm.output)
+
+    def test_346_eab_profile_list_check(self):
+        """ test _eab_profile_list_check() """
+        cahandler = FakeDBStore()
+        cahandler.foo = 'foo'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.eab_profile_list_check(self.logger, cahandler, 'eabhandler', 'csr', 'foobar', 'bar')
+        self.assertEqual('foo', cahandler.foo)
+        self.assertIn('ERROR:test_a2c:Helper.eab_profile_list_check(): ignore list attribute: key: foobar value: bar', lcm.output)
+
+    def test_347_eab_profile_list_check(self):
+        """ test _eab_profile_list_check() """
+        cahandler = FakeDBStore()
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = False
+        cahandler.foo = 'foo'
+        self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'allowed_domainlist', 'bar')
+        self.assertEqual('foo', cahandler.foo)
+
+    def test_348_eab_profile_list_check(self):
+        """ test _eab_profile_list_check() """
+        cahandler = FakeDBStore()
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = 'error'
+        cahandler.foo = 'foo'
+        self.assertEqual('error', self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'allowed_domainlist', 'bar'))
+        self.assertEqual('foo', cahandler.foo)
+
+    @patch('acme_srv.helper.header_info_field_validate')
+    def test_349_eab_profile_list_check(self, mock_hifv):
+        """ test _eab_profile_list_check() """
+        cahandler = FakeDBStore()
+        cahandler.foo = 'foo'
+        cahandler.header_info_field = 'header_info_field'
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = 'error'
+        cahandler.foo = 'foo'
+        mock_hifv.return_value = ('mock_hifv', None)
+        self.assertFalse(self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'foo', 'bar'))
+        self.assertEqual('mock_hifv', cahandler.foo)
+
+    @patch('acme_srv.helper.header_info_field_validate')
+    def test_350_eab_profile_list_check(self, mock_hifv):
+        """ test _eab_profile_list_check() """
+        cahandler = FakeDBStore()
+        cahandler.foo = 'foo'
+        cahandler.header_info_field = 'header_info_field'
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = 'error'
+        cahandler.foo = 'foo'
+        mock_hifv.return_value = (None, 'error')
+        self.assertEqual('error', self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'foo', 'bar'))
+        self.assertEqual('foo', cahandler.foo)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_351_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = None
+        self.assertFalse(self.eab_profile_header_info_check(self.logger, cahandler, 'csr', 'handler_hifield'))
+        self.assertFalse(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_352_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = 'hi_field'
+        mock_lookup.return_value = 'hi_value'
+        cahandler.hi_field = 'pre_hi_field'
+        self.assertFalse(self.eab_profile_header_info_check(self.logger, cahandler, 'csr', 'hi_field'))
+        self.assertEqual('hi_value', cahandler.hi_field)
+        self.assertTrue(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_353_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = 'hi_field'
+        mock_lookup.return_value = 'hi_value'
+        cahandler.hi_field = 'pre_hi_field'
+        cahandler.profile_name = 'profile_name'
+        self.assertFalse(self.eab_profile_header_info_check(self.logger, cahandler, 'csr'))
+        self.assertEqual('pre_hi_field', cahandler.hi_field)
+        self.assertEqual('hi_value', cahandler.profile_name)
+        self.assertTrue(mock_lookup.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_354_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = False
+        cahandler.header_info_field = 'hi_field'
+        mock_lookup.return_value = None
+        cahandler.hi_field = 'pre_hi_field'
+        cahandler.profile_name = 'profile_name'
+        self.assertFalse(self.eab_profile_header_info_check(self.logger, cahandler, 'csr'))
+        self.assertEqual('pre_hi_field', cahandler.hi_field)
+        self.assertEqual('profile_name', cahandler.profile_name)
+        self.assertFalse(mock_eab.called)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_355_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = True
+        cahandler.eab_handler = None
+        cahandler.header_info_field = 'hi_field'
+        mock_lookup.return_value = 'hi_value'
+        cahandler.hi_field = 'pre_hi_field'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('Eab_profiling enabled but no handler defined', self.eab_profile_header_info_check(self.logger, cahandler, 'csr', 'hi_field'))
+        self.assertIn('ERROR:test_a2c:Helper.eab_profile_header_info_check(): eab_profiling enabled but no handler defined', lcm.output)
+        self.assertEqual('pre_hi_field', cahandler.hi_field)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_lookup.called)
+
+    @patch('acme_srv.helper.eab_profile_check')
+    @patch('acme_srv.helper.header_info_lookup')
+    def test_356_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+        """ test eab_profile_header_info_check() """
+        cahandler = FakeDBStore()
+        cahandler.eab_profiling = True
+        cahandler.eab_handler = 'eab_handler'
+        cahandler.header_info_field = 'hi_field'
+        mock_lookup.return_value = 'hi_value'
+        mock_eab.return_value = 'mock_eab'
+        cahandler.hi_field = 'pre_hi_field'
+        self.assertEqual('mock_eab', self.eab_profile_header_info_check(self.logger, cahandler, 'csr', 'hi_field'))
+        self.assertEqual('pre_hi_field', cahandler.hi_field)
+        self.assertFalse(mock_lookup.called)
+        self.assertTrue(mock_eab.called)
+
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_357_eab_profile_check(self, mock_string, mock_list):
+        """ test _eab_profile_check()"""
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = "testField"
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"testField": "stringValue"}
+        self.assertIsNone(self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertTrue(mock_string.called)
+        self.assertFalse(mock_list.called)
+
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_358_eab_profile_check(self, mock_string, mock_list):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = "testField"
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"testField": ["listValue"]}
+        mock_list.return_value = None
+        self.assertIsNone(self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertTrue(mock_list.called)
+
+    @patch('acme_srv.helper.header_info_lookup')
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_359_eab_profile_check(self, mock_string, mock_list, mock_hil):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = "testField"
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"testField": ["listValue"]}
+        mock_list.return_value = 'mock_list'
+        self.assertEqual('mock_list', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertTrue(mock_list.called)
+        self.assertFalse(mock_hil.called)
+
+    @patch('acme_srv.helper.header_info_lookup')
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_360_eab_profile_check(self, mock_string, mock_list, mock_hil):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = "testField"
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"testField1": ["listValue"]}
+        mock_list.return_value = 'mock_list'
+        self.assertEqual('header_info field "testField" is not allowed by profile', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertTrue(mock_list.called)
+        self.assertTrue(mock_hil.called)
 
 if __name__ == '__main__':
     unittest.main()
