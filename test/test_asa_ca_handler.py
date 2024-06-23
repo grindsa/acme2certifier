@@ -649,14 +649,13 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
     @patch('examples.ca_handler.asa_ca_handler.b64_decode')
-    @patch('examples.ca_handler.asa_ca_handler.csr_san_byte_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
     @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_046_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_046_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = 'mock_iv'
         mock_pv.return_value = None
@@ -671,7 +670,6 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_cpg.called)
         self.assertFalse(mockccg.called)
         self.assertFalse(mock_vdg.called)
-        self.assertFalse(mock_csbg.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_post.called)
         self.assertFalse(mock_b2s.called)
@@ -681,14 +679,13 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
     @patch('examples.ca_handler.asa_ca_handler.b64_decode')
-    @patch('examples.ca_handler.asa_ca_handler.csr_san_byte_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
     @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_047_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_047_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = 'mock_pv'
@@ -703,7 +700,6 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_cpg.called)
         self.assertFalse(mockccg.called)
         self.assertFalse(mock_vdg.called)
-        self.assertFalse(mock_csbg.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_post.called)
         self.assertFalse(mock_b2s.called)
@@ -743,14 +739,13 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
     @patch('examples.ca_handler.asa_ca_handler.b64_decode')
-    @patch('examples.ca_handler.asa_ca_handler.csr_san_byte_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
     @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._profile_verify')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
-    def test_049_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_csbg, mock_b64, mock_d2p, mock_b2s, mock_post):
+    def test_049_enroll(self, mock_iv, mock_pv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post):
         """ test enroll() """
         mock_iv.return_value = None
         mock_pv.return_value = None
@@ -768,7 +763,6 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertTrue(mock_cpg.called)
         self.assertFalse(mockccg.called)
         self.assertFalse(mock_vdg.called)
-        self.assertFalse(mock_csbg.called)
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_post.called)
         self.assertFalse(mock_b2s.called)
