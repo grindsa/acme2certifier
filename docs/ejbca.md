@@ -30,6 +30,7 @@ username: <name>
 enrollment_code: <value>
 ca_name: <name>
 request_timeout: <seconds>
+eab_profiling: <True|False>
 ```
 
 - api_host - URL of the EJBCA-Rest service
@@ -45,6 +46,7 @@ request_timeout: <seconds>
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
+- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 
 You can test the connection by running the following curl command against your EJBCA server.
 
@@ -63,3 +65,71 @@ The response to this call will show a dictionary containing status und version n
 ```
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
+
+## Passing a profile_id from client to server
+
+The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+
+```config
+[Order]
+...
+header_info_list: ["HTTP_USER_AGENT"]
+```
+
+The acme-client can then specify the profileID as part of its user-agent string.
+
+Example for acme.sh:
+
+```bash
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent cert_profile_name=acme_clt --debug 3 --output-insecure
+```
+
+Example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent cert_profile_name=acme_clt -d <fqdn> --http run
+```
+
+# eab profiling
+
+This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+
+```cfg
+[EABhandler]
+eab_handler_file: examples/eab_handler/kid_profile_handler.py
+key_file: <profile_file>
+
+[CAhandler]
+eab_profiling: True
+```
+
+below an example key-file used during regression testing:
+
+```json
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "cert_profile_name": ["acmeca2", "acmeca1"],
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"]
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "cert_profile_name": "acmeca2",
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "ca_name": "acmeca"
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM",
+    "cahandler": {
+      "allowed_domainlist": ["www.example.com", "www.example.org"]
+    }
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+  }
+}
+```
