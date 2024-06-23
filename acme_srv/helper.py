@@ -806,7 +806,8 @@ def load_config(logger: logging.Logger = None, mfilter: str = None, cfg_file: st
 
 def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
     """ split url into pieces """
-    logger.debug('parse_url(%s)', url)
+    logger.debug('parse_url()')
+
     url_dic = {
         'proto': urlparse(url).scheme,
         'host': urlparse(url).netloc,
