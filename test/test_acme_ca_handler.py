@@ -805,7 +805,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._profile_check')
+    @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
@@ -826,7 +826,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._profile_check')
+    @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
@@ -1120,159 +1120,16 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = [None, 'string', 'challenge']
         self.assertFalse(self.cahandler._order_authorization('acmeclient', order, 'user_key'))
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_072__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar'}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    def test_073__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': 'new_host'}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('new_host', self.cahandler.acme_url)
-        self.assertFalse(mock_hil.called)
-
-    def test_074__eab_profile_check(self):
-        """ test eab_profile_check default value from list """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.acme_keypath = 'acme_keypath'
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': ['url1', 'url2', 'url3']}
-        # mock_hil.return_value = ('None', None)
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('url1', self.cahandler.acme_url)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_075__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check default value from list header info validate returns a value """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.acme_keypath = 'acme_keypath'
-        mock_hil.return_value = ('url2', None)
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': ['url1', 'url2', 'url3']}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('url2', self.cahandler.acme_url)
-        self.assertTrue(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_076__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check default value from list headerinfo_lookup returns an error """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = (None, 'error')
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'acme_url': ['url1', 'url2', 'url3']}
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertTrue(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_077__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = ('hil_value', None)
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'allowed_domainlist': ['foo.bar', 'bar.foo']}
-        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = 'domain_chk_error'
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('domain_chk_error', self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_078__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = ('hil_value', None)
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'allowed_domainlist': ['foo.bar', 'bar.foo']}
-        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_079__eab_profile_check(self, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = ('hil_value', None)
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
-        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_080__eab_profile_check(self, mock_hiv, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.header_info_field = 'header_info_field'
-        mock_hiv.return_value = ('hil_value', None)
-        mock_hil.return_value = 'mock_hil'
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
-        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('header_info field "profile_name" is not allowed by profile', self.cahandler._eab_profile_check('csr', 'profile_name'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hiv.called)
-        self.assertTrue(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_081__eab_profile_check(self, mock_hiv, mock_hil):
-        """ test eab_profile_check """
-        self.cahandler.eab_handler = MagicMock()
-        self.cahandler.acme_url = 'acme_url'
-        self.cahandler.header_info_field = 'header_info_field'
-        mock_hiv.return_value = ('hil_value', None)
-        mock_hil.return_value = None
-        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {'foo': 'bar', 'unknown': ['foobar', 'barfoo']}
-        self.cahandler.eab_handler.return_value.__enter__.return_value.allowed_domains_check.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_check('csr', 'handler_hifield'))
-        self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_string_check(): ignore string attribute: key: foo value: bar', lcm.output)
-        self.assertIn("ERROR:test_a2c:CAhandler._eab_profile_list_check(): ignore list attribute: key: unknown value: ['foobar', 'barfoo']", lcm.output)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
-        self.assertFalse(mock_hiv.called)
-
     def test_82_eab_profile_list_check(self):
         """ test eab_profile_list_check """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_keyfile', 'key_file'))
+            self.assertFalse(self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_keyfile', 'key_file'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile', lcm.output)
 
     def test_83_eab_profile_list_check(self):
         """ test eab_profile_list_check """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('acme_keypath is missing in config', self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'acme_url'))
+            self.assertEqual('acme_keypath is missing in config', self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'acme_url'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keypath is missing in config', lcm.output)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
@@ -1280,87 +1137,50 @@ class TestACMEHandler(unittest.TestCase):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
-        self.assertFalse(self.cahandler._eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'http://acme_url'))
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        self.assertFalse(self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'http://acme_url'))
         self.assertEqual('acme_keypath/acme_url.json', self.cahandler.acme_keyfile)
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_082__profile_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.assertFalse(self.cahandler._profile_check('csr'))
-        self.assertFalse(mock_eab.called)
-        self.assertFalse(mock_hil.called)
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_85_eab_profile_list_check(self, mock_hiv   ):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = (None, 'error')
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        self.assertEqual('error', self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'http://acme_url'))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_083__profile_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = False
-        self.assertFalse(self.cahandler._profile_check('csr'))
-        self.assertFalse(mock_eab.called)
-        self.assertFalse(mock_hil.called)
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_86_eab_profile_list_check(self, mock_hiv   ):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        self.assertFalse(self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'unknown', 'unknown'))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_084__eab_profile_string_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._profile_check('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler._profile_check(): eab_profiling enabled but no handler defined', lcm.output)
-        self.assertFalse(mock_eab.called)
-        self.assertFalse(mock_hil.called)
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_87_eab_profile_list_check(self, mock_hiv   ):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        eab_handler = MagicMock()
+        eab_handler.allowed_domains_check.return_value = False
+        self.assertFalse(self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_085__eab_profile_string_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
-        self.cahandler.eab_handler = MagicMock()
-        mock_eab.return_value = 'mock_eab'
-        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
-        self.assertTrue(mock_eab.called)
-        self.assertFalse(mock_hil.called)
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_87_eab_profile_list_check(self, mock_hiv   ):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        eab_handler = MagicMock()
+        eab_handler.allowed_domains_check.return_value = 'error'
+        self.assertEqual('error', self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_086__eab_profile_string_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = True
-        self.cahandler.header_info_field = 'header_info_field'
-        self.cahandler.eab_handler = MagicMock()
-        mock_eab.return_value = 'mock_eab'
-        self.assertEqual('mock_eab', self.cahandler._profile_check('csr'))
-        self.assertTrue(mock_eab.called)
-        self.assertFalse(mock_hil.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_087__eab_profile_string_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = False
-        self.cahandler.eab_handler = None
-        self.cahandler.header_info_field = 'acme_url'
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = 'mock_hil'
-        self.assertFalse(self.cahandler._profile_check('csr'))
-        self.assertFalse(mock_eab.called)
-        self.assertTrue(mock_hil.called)
-        self.assertEqual('mock_hil', self.cahandler.acme_url)
-
-    @patch('examples.ca_handler.acme_ca_handler.header_info_lookup')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._eab_profile_check')
-    def test_088__eab_profile_string_check(self, mock_eab, mock_hil):
-        """ test eab_profile_string_check """
-        self.cahandler.eab_profiling = False
-        self.cahandler.eab_handler = None
-        self.cahandler.header_info_field = 'acme_url'
-        self.cahandler.acme_url = 'acme_url'
-        mock_hil.return_value = None
-        self.assertFalse(self.cahandler._profile_check('csr'))
-        self.assertFalse(mock_eab.called)
-        self.assertTrue(mock_hil.called)
-        self.assertEqual('acme_url', self.cahandler.acme_url)
 
 if __name__ == '__main__':
 

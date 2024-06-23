@@ -2824,5 +2824,19 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertTrue(mock_list.called)
         self.assertTrue(mock_hil.called)
 
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_361_eab_profile_check(self, mock_string, mock_list):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = "testField"
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"testField": ["listValue"]}
+        self.cahandler.eab_profile_list_check.return_value = 'eab_list_check'
+        mock_list.return_value = None
+        self.assertEqual('eab_list_check', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertFalse(mock_list.called)
+
+
 if __name__ == '__main__':
     unittest.main()
