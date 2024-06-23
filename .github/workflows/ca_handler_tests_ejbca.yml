@@ -116,7 +116,7 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "setup a2c with ejbca_ca_handler"
+    - name: "Default - setup a2c with ejbca_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -131,7 +131,7 @@ jobs:
         sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cert_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
@@ -146,36 +146,32 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Default - Test http://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Default - Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "prepare acme.sh container"
+    - name: "Default - enroll via acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "enroll via acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "revoke via acme.sh"
+    - name: "Default - revoke via acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "register certbot"
+    - name: "Default - register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "enroll HTTP-01 single domain certbot"
+    - name: "Default - enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "revoke HTTP-01 single domain certbot"
+    - name: "Default - revoke HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
@@ -184,9 +180,239 @@ jobs:
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    - name: "revoke HTTP-01 single domain lego"
+    - name: "Default - revoke HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
+      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_file: volume/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        SAEC: ${{ env.SAEC }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "EAB without headerinfo - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "EAB without headerinfo - 01a - enrollment without header-info field (first value in list)"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 01b - enrollment with header-info field included in list (silent ignore)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca1 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 01c - with header-info field containing value not included in list (silent ignore)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca3 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 02 -  profilinging ca and cert_profile"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 03 - domainlist validation fails (to fail)"
+      id: legofail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
+
+    - name: EAB without headerinfo - 03 - check  result "
+      if: steps.legofail01.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+
+    - name: "EAB without headerinfo - 04 - Settings from acme_srv.cfg"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
+
+    - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
+      run: |
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_file: volume/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_passphrase: $SAEC" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: acmesubca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+        cd examples/Docker/
+        docker-compose restart
+        docker-compose logs
+      env:
+        SAEC: ${{ env.SAEC }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "EAB with headerinfo - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "EAB wit headerinfo - Test if https://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+    - name: "EAB with headerinfo - 01a - enrollment without header-info field (first value in list)"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 01b - enrollment with header-info field (pick value from list)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca1 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
+
+    - name: "EAB with headerinfo - 01c - enrollment with header-info field containing value not included in list (to fail)"
+      id: legofail02
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca3 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+
+    - name: EAB with headerinfo 01c - check  result "
+      if: steps.legofail02.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail02.outcome }}"
+        exit 1
+
+    - name: "EAB with headerinfo - 01d - enrollment with header-info field cotaining an invalid parameter (silent overwrite)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent ca_name=foo -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 01e - enrollment with header-info field containing parameter not in json (silent overwrite)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca2 -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout  | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 02 -  profilinging ca and cert_profile"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 03 - domainlist validation fails (to fail)"
+      id: legofail03
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
+
+    - name: EAB with headerinfo - 03 - check  result "
+      if: steps.legofail03.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail03.outcome }}"
+        exit 1
+
+    - name: "EAB with headerinfo - 04 - Settings from acme_srv.cfg"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -331,7 +557,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "setup a2c with ejbca_ca_handler"
+    - name: "Default - setup a2c with ejbca_ca_handler"
       run: |
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -342,62 +568,273 @@ jobs:
         sudo echo "cert_passphrase: $SAEC" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
         sudo echo "ca_name: acmesubca" >> data/acme_srv.cfg
-        sudo echo "cert_profile_name: acmeca" >> data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> data/acme_srv.cfg
         sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
         sudo echo "username: acme_srv" >> data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Prepare Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "Test http://acme-srv/directory is accessible"
+    - name: "Default - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "prepare acme.sh container"
+    - name: "Default - enroll via acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "enroll via acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "revoke via acme.sh"
+    - name: "Default - revoke via acme.sh"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
 
-    - name: "register certbot"
+    - name: "Default - register certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "enroll HTTP-01 single domain certbot"
+    - name: "Default - enroll HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
 
-    - name: "revoke HTTP-01 single domain certbot"
+    - name: "Default - revoke HTTP-01 single domain certbot"
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "enroll lego"
+    - name: "Default - enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    - name: "revoke HTTP-01 single domain lego"
+    - name: "Default - revoke HTTP-01 single domain lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: https://ejbca" >> data/acme_srv.cfg
+        sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/acme_srv.cfg
+        sudo echo "cert_passphrase: $SAEC" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
+        sudo echo "ca_name: acmesubca" >> data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> data/acme_srv.cfg
+        sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
+        sudo echo "username: acme_srv" >> data/acme_srv.cfg
+        sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+
+        sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      env:
+        SAEC: ${{ env.SAEC }}
+
+    - name: "EAB without headerinfo - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "EAB without headerinfo - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "EAB without headerinfo - 01a - enrollment without header-info field (first value in list)"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 01b - enrollment with header-info field included in list (silent ignore)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca1 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 01c - with header-info field containing value not included in list (silent ignore)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca3 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 02 -  profilinging ca and cert_profile"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB without headerinfo - 03 - domainlist validation fails (to fail)"
+      id: legofail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
+
+    - name: EAB without headerinfo - 03 - check  result "
+      if: steps.legofail01.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+
+    - name: "EAB without headerinfo - 04 - Settings from acme_srv.cfg"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
+
+    - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: https://ejbca" >> data/acme_srv.cfg
+        sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/acme_srv.cfg
+        sudo echo "cert_passphrase: $SAEC" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
+        sudo echo "ca_name: acmesubca" >> data/acme_srv.cfg
+        sudo echo "cert_profile_name: acmeca1" >> data/acme_srv.cfg
+        sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
+        sudo echo "username: acme_srv" >> data/acme_srv.cfg
+        sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+
+        sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      env:
+        SAEC: ${{ env.SAEC }}
+
+    - name: "EAB with headerinfo - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "EAB with headerinfo - Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "EAB with headerinfo - 01a - enrollment without header-info field (first value in list)"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 01b - enrollment with header-info field (pick value from list)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca1 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
+
+    - name: "EAB with headerinfo - 01c - enrollment with header-info field containing value not included in list (to fail)"
+      id: legofail02
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca3 -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+
+    - name: EAB with headerinfo 01c - check  result "
+      if: steps.legofail02.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail02.outcome }}"
+        exit 1
+
+    - name: "EAB with headerinfo - 01d - enrollment with header-info field cotaining an invalid parameter (silent overwrite)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent ca_name=foo -d lego.acme --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 01e - enrollment with header-info field containing parameter not in json (silent overwrite)"
+      run: |
+        sudo rm -rf lego/*
+        sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com"  --user-agent cert_profile_name=acmeca2 -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout  | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 02 -  profilinging ca and cert_profile"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmeca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+
+    - name: "EAB with headerinfo - 03 - domainlist validation fails (to fail)"
+      id: legofail03
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
+
+    - name: EAB with headerinfo - 03 - check  result "
+      if: steps.legofail03.outcome != 'failure'
+      run: |
+        echo "legofail outcome is ${{steps.legofail03.outcome }}"
+        exit 1
+
+    - name: "EAB with headerinfo - 04 - Settings from acme_srv.cfg"
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
