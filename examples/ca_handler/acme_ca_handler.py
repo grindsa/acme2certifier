@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load
+from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check
 
 """
 Config file section:
@@ -345,16 +345,20 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._zerossl_eab_get() failed: %s', response.text)
 
-    def _eab_profile_string_check(self, key, value):
-        self.logger.debug('CAhandler._eab_profile_string_check(): string: key: %s, value: %s', key, value)
+    def _allowed_domainlist_check(self, csr: str) -> str:
+        """ check allowed domainlist """
+        self.logger.debug('CAhandler._allowed_domainlist_check()')
 
-        if hasattr(self, key):
-            self.logger.debug('CAhandler._eab_profile_string_check(): setting attribute: %s to %s', key, value)
-            setattr(self, key, value)
-        else:
-            self.logger.error('CAhandler._eab_profile_string_check(): ignore string attribute: key: %s value: %s', key, value)
+        error = None
+        # check CN and SAN against black/whitlist
+        if self.allowed_domainlist:
+            # check sans / cn against list of allowed comains from config
+            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            if not result:
+                error = 'Either CN or SANs are not allowed by configuration'
 
-        self.logger.debug('CAhandler._eab_profile_string_check() ended')
+        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
+        return error
 
     def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._acme_keyfile_set(): list: key: %s, value: %s', key, value)
@@ -376,7 +380,7 @@ class CAhandler(object):
 
         return result
 
-    def _eab_profile_list_check(self, eab_handler: str, csr: str, key: str, value: str) -> str:
+    def eab_profile_list_check(self, eab_handler: str, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
         result = None
@@ -397,70 +401,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._eab_profile_list_check() ended with: %s', result)
         return result
 
-    def _eab_profile_check(self, csr: str, handler_hifield: str) -> str:
-        """ check eab profile"""
-        self.logger.debug('CAhandler._eab_profile_check()')
-
-        result = None
-        with self.eab_handler(self.logger) as eab_handler:
-            eab_profile_dic = eab_handler.eab_profile_get(csr)
-            for key, value in eab_profile_dic.items():
-                if isinstance(value, str):
-                    self._eab_profile_string_check(key, value)
-                elif isinstance(value, list):
-                    result = self._eab_profile_list_check(eab_handler, csr, key, value)
-                    if result:
-                        break
-
-            # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
-            if self.header_info_field and handler_hifield not in eab_profile_dic:
-                hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
-                if hil_value:
-                    # setattr(self, handler_hifield, hil_value)
-                    result = f'header_info field "{handler_hifield}" is not allowed by profile'
-
-        self.logger.debug('CAhandler._eab_profile_check() ended with: %s', result)
-        return result
-
-    def _profile_check(self, csr: str) -> str:
-        """ check profile """
-        self.logger.debug('CAhandler._profile_check()')
-        error = None
-
-        # handler specific header info field
-        handler_hifield = "acme_url"
-
-        if self.eab_profiling:
-            if self.eab_handler:
-                error = self._eab_profile_check(csr, handler_hifield)
-                # we need to cover cases where handler_value is enabled but nothing is defined in json
-            else:
-                self.logger.error('CAhandler._profile_check(): eab_profiling enabled but no handler defined')
-        elif self.header_info_field:
-            # no profiling - parse profileid from http_header
-            hil_value = header_info_lookup(self.logger, csr, self.header_info_field, handler_hifield)
-            if hil_value:
-                self.logger.debug('CAhandler._profile_check(): setting %s to %s', handler_hifield, hil_value)
-                setattr(self, handler_hifield, hil_value)
-
-        self.logger.debug('CAhandler._profile_check() ended with %s', error)
-        return error
-
-    def _allowed_domainlist_check(self, csr: str) -> str:
-        """ check allowed domainlist """
-        self.logger.debug('CAhandler._allowed_domainlist_check()')
-
-        error = None
-        # check CN and SAN against black/whitlist
-        if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            if not result:
-                error = 'Either CN or SANs are not allowed by configuration'
-
-        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
-        return error
-
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0915
@@ -476,7 +416,7 @@ class CAhandler(object):
 
         # check for eab profiling and header_info
         if not error:
-            error = self._profile_check(csr)
+            error = eab_profile_header_info_check(self.logger, self, csr, 'acme_url')
 
         if not error:
             try:

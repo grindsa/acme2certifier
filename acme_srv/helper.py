@@ -1678,7 +1678,11 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
             if isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
-                result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
+                # check if we need to execute a function from the handler
+                if 'eab_profile_list_check' in dir(cahandler):
+                    result = cahandler.eab_profile_list_check(eab_handler, csr, key, value)
+                else:
+                    result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
                 if result:
                     break
 
