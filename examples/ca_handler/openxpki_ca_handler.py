@@ -210,7 +210,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._rpc_post()')
         try:
             # enroll via rpc
-            response = self.session.post(self.host + path, data=data_dic, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            response = self.session.post(self.host + path, json=data_dic, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
 
         except Exception as err_:
             self.logger.error('CAhandler._rpc_post() returned an error: %s', err_)
