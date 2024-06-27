@@ -19,10 +19,10 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
-    - name: "checkout GIT"
+    - name: "Checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders"
+    - name: "Create folders"
       run: |
         mkdir lego
         mkdir acme-sh
@@ -43,7 +43,7 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
 
 
-    - name: "setup a2c with xca_ca_handler"
+    - name: "Setup a2c with xca_ca_handler"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -52,8 +52,8 @@ jobs:
         sudo cp examples/ca_handler/xca_ca_handler.py examples/Docker/data/ca_handler.py
 
         sudo chmod 777 examples/Docker/data/ca_handler.py
-        sudo sed -i "s/error = self._profile_check(csr)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
-        sudo sed -i "s/header_info_field_validate, config_headerinfo_load, config_eab_profile_load/header_info_get, header_info_field_validate, config_headerinfo_load, config_eab_profile_load/g" examples/Docker/data/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
+        sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
         sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
@@ -89,12 +89,12 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent foo-bar-doo -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
-    - name: "[ WAIT ] Sleep for 15s"
+    - name: "Sleep for 15s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 15s
@@ -129,7 +129,7 @@ jobs:
       matrix:
         rhversion: [8, 9]
     steps:
-    - name: "checkout GIT"
+    - name: "Checkout GIT"
       uses: actions/checkout@v4
 
     - name: Retrieve Version from version.py
@@ -137,13 +137,13 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: update version number in spec file
+    - name: Update version number in spec file
       run: |
         # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
         cat examples/install_scripts/rpm/acme2certifier.spec
 
-    - name: build RPM package
+    - name: Build RPM package
       id: rpm
       uses: grindsa/rpmbuild@alma9
       with:
@@ -151,7 +151,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data
@@ -159,7 +159,7 @@ jobs:
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] create lego folder"
+    - name: "Create lego folder"
       run: |
         mkdir lego
 
@@ -171,7 +171,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with xca_ca_handler"
+    - name: "prepare acme_srv.cfg with xca_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -180,8 +180,8 @@ jobs:
 
         sudo cp examples/ca_handler/xca_ca_handler.py data/acme_ca/ca_handler.py
         sudo chmod 777 data/acme_ca/ca_handler.py
-        sudo sed -i "s/error = self._profile_check(csr)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/acme_ca/ca_handler.py
-        sudo sed -i "s/header_info_field_validate, config_headerinfo_load, config_eab_profile_load/header_info_get, header_info_field_validate, config_headerinfo_load, config_eab_profile_load/g" data/acme_ca/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/acme_ca/ca_handler.py
+        sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/acme_ca/ca_handler.py
 
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -199,7 +199,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
@@ -207,16 +207,16 @@ jobs:
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "[ ENROLL ] lego"
+    - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent foo-bar-doo  -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
-    - name: "[ WAIT ] Sleep for 15s"
+    - name: "Sleep for 15s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 15s
@@ -255,7 +255,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -275,7 +275,7 @@ jobs:
         git add examples/nginx
         git commit -a -m "rpm update"
 
-    - name: build RPM package
+    - name: Build RPM package
       id: rpm
       uses: grindsa/rpmbuild@alma9
       with:
@@ -283,7 +283,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data/volume
@@ -298,7 +298,7 @@ jobs:
         sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
 
-    - name: "[ PREPARE ] create lego folder"
+    - name: "create lego folder"
       run: |
         mkdir lego
 
@@ -310,7 +310,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    #- name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+    #- name: "prepare acme_srv.cfg with openssl_ca_handler"
     #  run: |
     #    sudo mkdir -p data/volume/acme_ca/certs
     #    sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
@@ -318,7 +318,7 @@ jobs:
     #    sudo chmod 777 data/volume/acme_srv.cfg
     #    sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with xca_ca_handler"
+    - name: "Setup acme_srv.cfg with xca_ca_handler"
       run: |
         mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
@@ -326,8 +326,8 @@ jobs:
 
         sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
         sudo chmod 777 data/volume/ca_handler.py
-        sudo sed -i "s/error = self._profile_check(csr)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
-        sudo sed -i "s/header_info_field_validate, config_headerinfo_load, config_eab_profile_load/header_info_get, header_info_field_validate, config_headerinfo_load, config_eab_profile_load/g" data/volume/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+        sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
         sudo touch data/volume/acme_srv.cfg
         sudo chmod 777 data/volume/acme_srv.cfg
@@ -345,14 +345,14 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
         cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
@@ -362,12 +362,12 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] lego"
+    - name: "lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent foo-bar-doo  -d lego.acme --http run
         sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
-    - name: "[ WAIT ] Sleep for 15s"
+    - name: "Sleep for 15s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 15s
