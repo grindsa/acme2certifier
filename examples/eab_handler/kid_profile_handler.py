@@ -4,9 +4,9 @@
 from __future__ import print_function
 import json
 import re
+from typing import List, Tuple
 # pylint: disable=C0209, E0401
 from acme_srv.helper import load_config, csr_cn_get, csr_san_get
-from typing import List, Tuple, Dict
 
 
 class EABhandler(object):
@@ -74,25 +74,7 @@ class EABhandler(object):
                 san_list.append(cn_)
 
         self.logger.debug('EABhandler._cn_add() ended')
-        return (san_list)
-
-    def _profiles_load(self):
-        """ load profiles from key_file """
-        self.logger.debug('EABhandler._profiles_load()')
-
-        if self.key_file:
-            try:
-                with open(self.key_file, encoding='utf8') as json_file:
-                    profiles_dic = json.load(json_file)
-            except Exception as err:
-                self.logger.error('EABhandler._profiles_load() error: {0}'.format(err))
-                profiles_dic = {}
-        else:
-            self.logger.error('EABhandler._profiles_load() no key_file specified')
-            profiles_dic = {}
-
-        self.logger.debug('EABhandler._profiles_load() ended with %s', bool(profiles_dic))
-        return profiles_dic
+        return san_list
 
     def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
         """ check entry against regex """
@@ -177,7 +159,7 @@ class EABhandler(object):
         self.logger.debug('EABhandler._eab_profile_get()')
 
         # load profiles from key_file
-        profiles_dic = self._profiles_load()
+        profiles_dic = self.key_file_load()
 
         # get eab_kid from database
         eab_kid = self.eab_kid_get(csr)
@@ -190,6 +172,24 @@ class EABhandler(object):
 
         self.logger.debug('EABhandler._eab_profile_get() ended with: %s', bool(profile_dic))
         return profile_dic
+
+    def key_file_load(self):
+        """ load profiles from key_file """
+        self.logger.debug('EABhandler.key_file_load()')
+
+        if self.key_file:
+            try:
+                with open(self.key_file, encoding='utf8') as json_file:
+                    profiles_dic = json.load(json_file)
+            except Exception as err:
+                self.logger.error('EABhandler.key_file_load() error: {0}'.format(err))
+                profiles_dic = {}
+        else:
+            self.logger.error('EABhandler.key_file_load() no key_file specified')
+            profiles_dic = {}
+
+        self.logger.debug('EABhandler.key_file_load() ended with %s', bool(profiles_dic))
+        return profiles_dic
 
     def mac_key_get(self, kid: str = None) -> str:
         """ check external account binding """
