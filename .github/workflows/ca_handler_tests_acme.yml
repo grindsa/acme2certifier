@@ -45,7 +45,7 @@ jobs:
 
     - name: "Configure smallstep"
       run: |
-        docker exec -i step ca provisioner add acme --type ACME
+        docker exec -i step-ca step ca provisioner add acme --type ACME
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
         docker restart --network acme step-ca
