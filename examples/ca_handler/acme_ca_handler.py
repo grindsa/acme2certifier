@@ -13,6 +13,7 @@ from OpenSSL import crypto
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
+from acme import errors
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check
 
@@ -48,6 +49,7 @@ class CAhandler(object):
         self.eab_handler = None
         self.eab_profiling = False
         self.acme_keypath = None
+        self.ssl_verify = True
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -83,6 +85,9 @@ class CAhandler(object):
 
         if 'acme_account_email' in config_dic['CAhandler']:
             self.email = config_dic['CAhandler']['acme_account_email']
+
+        if 'ssl_verify' in config_dic['CAhandler']:
+            self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
 
         self.logger.debug('CAhandler._config_account_load() ended')
 
@@ -200,7 +205,14 @@ class CAhandler(object):
         if os.path.exists(self.acme_keyfile):
             self.logger.debug('CAhandler.enroll() opening user_key')
             with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
-                user_key = josepy.JWKRSA.json_loads(keyf.read())
+
+                user_key_dic = json.loads(keyf.read())
+                # check if account_name is stored in keyfile
+                if 'account' in user_key_dic:
+                    self.account = user_key_dic['account']
+                    self.logger.info('CAhandler.enroll() account %s found in keyfile', self.account)
+                    del user_key_dic['account']
+                user_key = josepy.JWKRSA.fields_from_json(user_key_dic)
         else:
             self.logger.debug('CAhandler.enroll() generate and register key')
             user_key = self._key_generate()
@@ -263,7 +275,7 @@ class CAhandler(object):
                 self.logger.error('CAhandler.enroll: Error getting certificate: %s', order.error)
                 error = f'Error getting certificate: {order.error}'
 
-        self.logger.debug('CAhandler.enroll() ended')
+        self.logger.debug('CAhandler._order_issue() ended')
         return (error, cert_bundle, cert_raw)
 
     def _account_lookup(self, acmeclient: client.ClientV2, reg: str, directory: messages.Directory):
@@ -289,7 +301,7 @@ class CAhandler(object):
 
         regr = None
         if self.email:
-            self.logger.debug('CAhandler.__account_register(): register new account with email: %s', self.email)
+            self.logger.debug('CAhandler._account_create(): register new account with email: %s', self.email)
             if self.acme_url and 'host' in self.acme_url_dic and self.acme_url_dic['host'].endswith('zerossl.com'):  # lgtm [py/incomplete-url-substring-sanitization]
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
@@ -300,11 +312,15 @@ class CAhandler(object):
             else:
                 # register with email
                 reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True)
-            regr = acmeclient.new_account(reg)
-            self.logger.debug('CAhandler.__account_register(): new account reqistered: %s', regr.uri)
+            try:
+                regr = acmeclient.new_account(reg)
+                self.logger.debug('CAhandler._account_create(): new account reqistered.')
+            except errors.ConflictError:
+                self.logger.error('CAhandler._account_create(): registration failed: ConflictError')  # pragma: no cover
+            except Exception as err:
+                self.logger.error('CAhandler._account_create(): registration failed: %s', err)
         else:
-            self.logger.error('CAhandler.__account_register(): registration aborted. Email address is missing')
-            regr = None
+            self.logger.error('CAhandler._account_create(): registration aborted. Email address is missing')
 
         self.logger.debug('CAhandler._account_create() ended with: %s', bool(regr))
         return regr
@@ -327,8 +343,26 @@ class CAhandler(object):
                 self.account = regr.uri.replace(self.acme_url, '').replace(self.path_dic['acct_path'], '')
             if self.account:
                 self.logger.info('acme-account id is %s. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', self.account)
-
+                self._account_to_keyfile()
+        else:
+            self.logger.error('CAhandler._account_register(): registration failed')
         return regr
+
+    def _account_to_keyfile(self):
+        """ add account to keyfile"""
+        self.logger.debug('CAhandler._account_to_keyfile()')
+
+        if self.acme_keyfile and self.account:
+            try:
+                with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
+                    # keyf.write(json.dumps(self.account))
+                    key_dic = json.loads(keyf.read())
+                    key_dic['account'] = self.account
+
+                with open(self.acme_keyfile, "w", encoding='utf8') as keyf:
+                    keyf.write(json.dumps(key_dic))
+            except Exception as err:
+                self.logger.error('CAhandler._account_to_keyfile() failed: %s', err)
 
     def _zerossl_eab_get(self):
         """ get eab credentials from zerossl """
@@ -381,6 +415,7 @@ class CAhandler(object):
         return result
 
     def eab_profile_list_check(self, eab_handler: str, csr: str, key: str, value: str) -> str:
+        """ check eab profile list """
         self.logger.debug('CAhandler._eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
         result = None
@@ -400,6 +435,41 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._eab_profile_list_check() ended with: %s', result)
         return result
+
+    def _enroll(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str, regr: messages.RegistrationResource) -> Tuple[str, str, str]:
+        """ enroll certificate """
+        self.logger.debug('CAhandler._enroll()')
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        if regr.body.status == "valid":
+            (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
+        elif not regr.body.status and regr.uri:
+            # this is an exisitng but not configured account. Throw error but continue enrolling
+            self.logger.info('Existing but not configured ACME account: %s', regr.uri)
+            (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
+        else:
+            self.logger.error('CAhandler.enroll: Bad ACME account: %s', regr.body.error)
+            error = f'Bad ACME account: {regr.body.error}'
+
+        self.logger.debug('CAhandler._enroll() ended with %s', bool(cert_raw))
+        return error, cert_bundle, cert_raw
+
+    def _registration_lookup(self, acmeclient: client.ClientV2, reg: messages.Registration, directory: messages.Directory, user_key) -> messages.RegistrationResource:
+        """ lookup registration """
+        self.logger.debug('CAhandler._registration_lookup()')
+
+        if self.account:
+            regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
+            self.logger.debug('CAhandler._registration_lookup(): checking remote registration status')
+            regr = acmeclient.query_registration(regr)
+        else:
+            # new account or existing account with missing account id
+            regr = self._account_register(acmeclient, user_key, directory)
+
+        self.logger.debug('CAhandler._registration_lookup() ended with: %s', bool(regr))
+        return regr
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
@@ -421,35 +491,25 @@ class CAhandler(object):
         if not error:
             try:
                 user_key = self._user_key_load()
-                net = client.ClientNetwork(user_key)
+                net = client.ClientNetwork(user_key, verify_ssl=self.ssl_verify)
 
                 directory = messages.Directory.from_json(net.get(f'{self.acme_url}{self.path_dic["directory_path"]}').json())
                 acmeclient = client.ClientV2(directory, net=net)
                 reg = messages.Registration.from_data(key=user_key, terms_of_service_agreed=True)
 
-                if self.account:
-                    regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
-                    self.logger.debug('CAhandler.enroll(): checking remote registration status')
-                    regr = acmeclient.query_registration(regr)
+                # lookup account / create new account
+                regr = self._registration_lookup(acmeclient, reg, directory, user_key)
+                if regr:
+                    # enroll certificate
+                    error, cert_bundle, cert_raw = self._enroll(acmeclient, user_key, csr_pem, regr)
                 else:
-                    # new account or existing account with missing account id
-                    regr = self._account_register(acmeclient, user_key, directory)
-
-                if regr.body.status == "valid":
-                    (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
-                elif not regr.body.status and regr.uri:
-                    # this is an exisitng but not configured account. Throw error but continue enrolling
-                    self.logger.info('Existing but not configured ACME account: %s', regr.uri)
-                    (error, cert_bundle, cert_raw) = self._order_issue(acmeclient, user_key, csr_pem)
-                else:
-                    self.logger.error('CAhandler.enroll: Bad ACME account: %s', regr.body.error)
-                    error = f'Bad ACME account: {regr.body.error}'
+                    self.logger.error('CAhandler.enroll: account registration failed')
+                    error = 'Account registration failed'
             except Exception as err:
                 self.logger.error('CAhandler.enroll: error: %s', err)
                 error = str(err)
             finally:
                 del user_key
-
         else:
             self.logger.error('CAhandler.enroll: CSR rejected. %s', error)
 
