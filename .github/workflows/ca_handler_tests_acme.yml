@@ -40,10 +40,10 @@ jobs:
             -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
             smallstep/step-ca
 
-    - name: "[ WAIT ] Sleep for 20s"
+    - name: "[ WAIT ] Sleep for 30s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 20s
+        time: 30s
 
     - name: "Configure smallstep"
       run: |
@@ -54,10 +54,10 @@ jobs:
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
         docker restart step-ca
 
-    - name: "[ WAIT ] Sleep for 10s"
+    - name: "[ WAIT ] Sleep for 30s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 10s
+        time: 30s
 
     - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca/acme/acme/directory --insecure
