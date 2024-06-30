@@ -69,7 +69,7 @@ jobs:
 
     - name: "Enroll from smallstep"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
         openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
