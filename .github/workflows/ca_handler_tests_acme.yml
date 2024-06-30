@@ -23,6 +23,7 @@ jobs:
 
     - name: "create folders"
       run: |
+        docker network create acme
         mkdir lego
         mkdir acme-sh
         mkdir certbot
@@ -64,7 +65,6 @@ jobs:
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         cat .env
-        docker network create acme
         docker-compose up -d
         docker-compose logs
       env:
