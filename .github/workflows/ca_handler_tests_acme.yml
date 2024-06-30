@@ -67,6 +67,11 @@ jobs:
     - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
 
+    - name: "Enroll from smallstep"
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://smallstep-ca:9000/acme/acme --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
@@ -80,9 +85,6 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
     - name: "Enroll from le-sim"
       run: |
