@@ -45,11 +45,14 @@ The handler must be configured via `acme_srv`.
 | handler_file | path to ca_handler file | yes | None |
 | account_path | path to account ressource on ca server | no | '/acme/acct' |
 | acme_url | url of the acme endpoint | yes | None |
-| acme_account | acme account name. If not specified acme2certifer will try to lookup the account name based on the key-file | yes | None |
-| acme_keyfile | Path to private key json-format. If specified in config but not existing on file-system acme2certifer will generate a new key and try to register it |
+| acme_account | acme account name. If not specified acme2certifer will try to lookup the account name based on the key-file | no | None |
+| acme_keyfile | Path to private key json-format. If specified in config but not existing on file-system acme2certifer will generate a new key and try to register it | no | None |
+| acme_keypath | Path to private key directory. If specified in config acme2certifer store new keys in this directory | no | None |
 | acme_account_email | email address used to register a new account | no | None |
 | allowed_domainlist | list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] | no | [] |
 | directory_path | path to directory ressource on ca server | no | '/directory' |
+| eab_profiling |  enable eab-profiling  | None |  False |
+| ssl_verify | verify certificates on SSL connections | no | True |
 
 - modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters.
 
@@ -158,10 +161,12 @@ docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-
 
 This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
 
+**Important**: In case `acme_url` variables will be specified in a profile (like for 'keyid_00' in the below example), the `acme_key_path` parameter must be set in `acme_srv.cfg` to ensure that the different key_files are being stored correctly.
+
 ```cfg
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
-key_file: <profile_file>
+acme_key_path: <path>
 
 [CAhandler]
 eab_profiling: True
