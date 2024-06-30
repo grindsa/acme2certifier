@@ -53,10 +53,10 @@ jobs:
             -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
             smallstep/step-ca
 
-    - name: "[ WAIT ] Sleep for 30s"
+    - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 30s
+        time: 20s
 
     - name: "Configure smallstep"
       run: |
@@ -66,10 +66,10 @@ jobs:
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
         docker restart step-ca
 
-    - name: "[ WAIT ] Sleep for 30s"
+    - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 30s
+        time: 20s
 
     - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
@@ -117,7 +117,11 @@ jobs:
     - name: "Enroll via acme_ca_handler 2nd attempt"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
-        docker logs acme-srv | grep -i "found in keyfile"
+
+    - name: "Check acme account found in keyfile"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep -i "found in keyfile"
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
