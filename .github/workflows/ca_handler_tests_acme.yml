@@ -65,7 +65,7 @@ jobs:
         docker logs step-ca
 
     - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f https://step-ca/acme/acme/directory --insecure
+      run: docker run -i --rm --network acme curlimages/curl -f https://step-ca/acme/acme/directory:9000 --insecure
 
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
