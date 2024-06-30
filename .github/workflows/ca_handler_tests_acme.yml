@@ -1321,7 +1321,6 @@ jobs:
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs acme-le-sim
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
