@@ -59,8 +59,8 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://step-ca.acme/acme/acme/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://step-ca.acme/acme/acme/directory
+    - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
+      run: docker run -i --rm --network acme curlimages/curl -f https://step-ca.acme/acme/acme/directory --insecure
 
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
@@ -99,6 +99,7 @@ jobs:
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ssl_verify: False" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
