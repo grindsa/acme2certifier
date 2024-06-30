@@ -27,10 +27,11 @@ jobs:
         mkdir lego
         mkdir acme-sh
         mkdir certbot
+        mkdir step
 
     - name: "Setup smallstep"
       run: |
-        docker run --rm -d -v /home/joern/step:/home/step \
+        docker run --rm -d -v "$(pwd)/step":/home/step \
             -p 9000:9000 -p 443:443 \
             --network acme \
             --name step-ca \
@@ -45,6 +46,7 @@ jobs:
 
     - name: "Configure smallstep"
       run: |
+        docker ps
         docker exec -i step-ca step ca provisioner add acme --type ACME
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
