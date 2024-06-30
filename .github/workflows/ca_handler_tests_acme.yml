@@ -30,6 +30,19 @@ jobs:
         mkdir step
         sudo chmod -R 777 step
 
+    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
+      working-directory: examples/Docker/
+      run: |
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
+        docker-compose up -d
+        docker-compose logs
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
+
     - name: "Setup smallstep"
       run: |
         docker run -d -v "$(pwd)/step":/home/step \
@@ -66,19 +79,6 @@ jobs:
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-
     - name: "Setup acme ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme
@@ -113,8 +113,7 @@ jobs:
 
     - name: "Enroll via acme_ca_handler"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force &
-        sleep 30
+        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
