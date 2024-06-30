@@ -31,7 +31,7 @@ jobs:
 
     - name: "Setup smallstep"
       run: |
-        docker run --rm -d -v "$(pwd)/step":/home/step \
+        docker run -d -v "$(pwd)/step":/home/step \
             -p 9000:9000 -p 443:443 \
             --network acme \
             --name step-ca \
@@ -39,14 +39,15 @@ jobs:
             -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
             smallstep/step-ca
 
-    - name: "[ WAIT ] Sleep for 10s"
+    - name: "[ WAIT ] Sleep for 20s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
-        time: 10s
+        time: 20s
 
     - name: "Configure smallstep"
       run: |
         docker ps
+        docker logs step-ca
         docker exec -i step-ca step ca provisioner add acme --type ACME
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
