@@ -61,7 +61,6 @@ jobs:
     - name: "Configure smallstep"
       run: |
         docker ps
-        docker logs step-ca
         docker exec -i step-ca step ca provisioner add acme --type ACME
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
         docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
@@ -92,7 +91,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: https://step-ca.acme:9000/acme/acme" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ssl_verify: False" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
@@ -111,9 +110,14 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Enroll via acme_ca_handler"
+    - name: "Enroll via acme_ca_handler 1st attempt"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+
+    - name: "Enroll via acme_ca_handler 2nd attempt"
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+        docker logs acme-srv | grep -i "found in keyfile"
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
@@ -122,7 +126,6 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
-        docker logs step-ca
         docker logs step-ca > ${{ github.workspace }}/artifact/step-ca.log
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log step-ca.log
