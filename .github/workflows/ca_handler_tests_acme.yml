@@ -28,8 +28,7 @@ jobs:
         mkdir acme-sh
         mkdir certbot
         mkdir step
-        sudo touch step/password
-        sudo chmod 777 step/password
+        sudo chmod -R 777 step
 
     - name: "Setup smallstep"
       run: |
