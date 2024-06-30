@@ -67,6 +67,11 @@ jobs:
     - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
 
+    - name: "enroll lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://smallstep-ca:9000/acme/acme -a --email "lego@example.com" -d lego.acme --http run
+        # sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+
     - name: "Enroll from smallstep"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://smallstep-ca:9000/acme/acme --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
@@ -136,9 +141,10 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
-        docker logs acme-le-sim
+        docker logs step-ca
+        docker logs step-ca > ${{ github.workspace }}/artifact/step-ca.log
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log acme-le-sim.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log step-ca.log
 
     - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4
