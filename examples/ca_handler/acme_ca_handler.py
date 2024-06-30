@@ -357,7 +357,7 @@ class CAhandler(object):
                 with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
                     # keyf.write(json.dumps(self.account))
                     key_dic = json.loads(keyf.read())
-                    key_dic['account'] = self.account
+                    key_dic['account'] = self.account.lstrip('/')
 
                 with open(self.acme_keyfile, "w", encoding='utf8') as keyf:
                     keyf.write(json.dumps(key_dic))
