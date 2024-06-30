@@ -1228,6 +1228,8 @@ jobs:
 
     - name: "Setup smallstep"
       run: |
+        mkdir step
+        sudo chmod -R 777 step
         docker network create acme
         docker run -d -v "$(pwd)/step":/home/step \
             -p 9000:9000 -p 443:443 \
