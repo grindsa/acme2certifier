@@ -464,9 +464,13 @@ class CAhandler(object):
             regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
             self.logger.debug('CAhandler._registration_lookup(): checking remote registration status')
             regr = acmeclient.query_registration(regr)
+            if hasattr(regr, 'uri'):
+                self.logger.info('CAhandler._registration_lookup(): found existing account: %s', regr.uri)
         else:
             # new account or existing account with missing account id
             regr = self._account_register(acmeclient, user_key, directory)
+            if hasattr(regr, 'uri'):
+                self.logger.info('CAhandler._registration_lookup(): new account: %s', regr.uri)
 
         self.logger.debug('CAhandler._registration_lookup() ended with: %s', bool(regr))
         return regr
