@@ -325,31 +325,51 @@ class CAhandler(object):
         self.logger.debug('CAhandler._account_create() ended with: %s', bool(regr))
         return regr
 
+    def _accountname_get(self, url: str, acme_url: str, path_dic: Dict[str, str]) -> str:
+        """ get accountname from url """
+        self.logger.debug('CAhandler._accountname_get()')
+
+        account = None
+
+        acct_path =  path_dic.get('acct_path',  None)
+
+        if acct_path == '/':
+            # remove url from string
+            account = url.replace(acme_url, '').lstrip('/')
+        elif acct_path:
+            # remove url from string
+            account = url.replace(acme_url, '').replace(path_dic['acct_path'], '')
+        else:
+            account = url.replace(acme_url, '')
+
+        self.logger.debug('CAhandler._accountname_get() ended with: %s', account)
+        return account
+
     def _account_register(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, directory: messages.Directory) -> messages.RegistrationResource:
         """ register account / check registration """
         self.logger.debug('CAhandler._account_register(%s)', self.email)
+
         try:
             # we assume that the account exist and need to query the account id
             reg = messages.NewRegistration.from_data(key=user_key, email=self.email, terms_of_service_agreed=True, only_return_existing=True)
             response = acmeclient._post(directory['newAccount'], reg)
             regr = acmeclient._regr_from_response(response)
             regr = acmeclient.query_registration(regr)
-            self.logger.debug('CAhandler.__account_register(): found existing account: %s', regr.uri)
+            if hasattr(regr, 'uri'):
+                self.logger.debug('CAhandler.__account_register(): found existing account: %s', regr.uri)
         except Exception:
             regr = self._account_create(acmeclient, user_key, directory)
 
         if regr:
+            # extract the account-name from registration ressource
             if self.acme_url and 'acct_path' in self.path_dic:
-                if self.path_dic['acct_path'] == '/':
-                    # remove url from string
-                    self.account = regr.uri.replace(self.acme_url, '').lstrip('/')
-                else:
-                    # remove url from string
-                    self.account = regr.uri.replace(self.acme_url, '').replace(self.path_dic['acct_path'], '')
+                if hasattr(regr, 'uri'):
+                    self.account = self._accountname_get(regr.uri, self.acme_url, self.path_dic)
 
             if self.account:
                 self.logger.info('acme-account id is %s. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', self.account)
                 self._account_to_keyfile()
+
         else:
             self.logger.error('CAhandler._account_register(): registration failed')
         return regr
