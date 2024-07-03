@@ -64,27 +64,20 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_account_load()')
 
         if 'acme_keyfile' in config_dic['CAhandler']:
-            self.acme_keyfile = config_dic['CAhandler']['acme_keyfile']
+            self.acme_keyfile = config_dic['CAhandler'].get('acme_keyfile')
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
 
         if 'acme_url' in config_dic['CAhandler']:
-            self.acme_url = config_dic['CAhandler']['acme_url']
+            self.acme_url = config_dic['CAhandler'].get('acme_url')
             self.acme_url_dic = parse_url(self.logger, self.acme_url)
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
 
-        if 'acme_account' in config_dic['CAhandler']:
-            self.account = config_dic['CAhandler']['acme_account']
-
-        if 'account_path' in config_dic['CAhandler']:
-            self.path_dic['acct_path'] = config_dic['CAhandler']['account_path']
-
-        if 'acme_account_keysize' in config_dic['CAhandler']:
-            self.key_size = config_dic['CAhandler']['acme_account_keysize']
-
-        if 'acme_account_email' in config_dic['CAhandler']:
-            self.email = config_dic['CAhandler']['acme_account_email']
+        self.path_dic['acct_path'] = config_dic['CAhandler'].get('account_path', '/acme/acct/')
+        self.key_size = config_dic['CAhandler'].get('acme_account_keysize', 2048)
+        self.account = config_dic['CAhandler'].get('acme_account', None)
+        self.email = config_dic['CAhandler'].get('acme_account_email', None)
 
         if 'ssl_verify' in config_dic['CAhandler']:
             self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
@@ -95,21 +88,15 @@ class CAhandler(object):
         """" load eab config """
         self.logger.debug('CAhandler._config_eab_load()')
 
-        if 'directory_path' in config_dic['CAhandler']:
-            self.path_dic['directory_path'] = config_dic['CAhandler']['directory_path']
-
         if 'allowed_domainlist' in config_dic['CAhandler']:
             try:
                 self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
             except Exception as err:
                 self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
 
-        if 'eab_kid' in config_dic['CAhandler']:
-            self.eab_kid = config_dic['CAhandler']['eab_kid']
-
-        if 'eab_hmac_key' in config_dic['CAhandler']:
-            self.eab_hmac_key = config_dic['CAhandler']['eab_hmac_key']
-
+        self.path_dic['directory_path'] = config_dic['CAhandler'].get('directory_path', '/directory')
+        self.eab_kid = config_dic['CAhandler'].get('eab_kid', None)
+        self.eab_hmac_key = config_dic['CAhandler'].get('eab_hmac_key', None)
         self.acme_keypath = config_dic['CAhandler'].get('acme_keypath', None)
 
         self.logger.debug('CAhandler._config_eab_load() ended')
@@ -174,7 +161,6 @@ class CAhandler(object):
             else:
                 challenge = self._challenge_filter(authzr, chall_type='sectigo-email-01')
                 chall_content = challenge.to_partial_json()
-
         else:
             if authzr:
                 self.logger.error('CAhandler._challenge_info() userkey is missing')
@@ -380,9 +366,7 @@ class CAhandler(object):
         if self.acme_keyfile and self.account:
             try:
                 with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
-                    # keyf.write(json.dumps(self.account))
                     key_dic = json.loads(keyf.read())
-                    # key_dic['account'] = self.account.lstrip('/')
                     key_dic['account'] = self.account
 
                 with open(self.acme_keyfile, "w", encoding='utf8') as keyf:
