@@ -258,7 +258,10 @@ class Challenge(object):
 
     def _name_get(self, url: str) -> str:
         """ get challenge """
-        self.logger.debug('Challenge.get_name(%s)', url)
+        if url.isalnum():
+            self.logger.debug('Challenge.get_name(%s)', url)
+        else:
+            self.logger.debug('Challenge.get_name(%s)', b64_encode(self.logger, url))
 
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic['path'].replace(self.path_dic['chall_path'], '')
