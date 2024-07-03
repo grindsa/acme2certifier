@@ -105,6 +105,11 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+    - name: "Check acme account found in keyfile"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep -i "found in keyfile"
+
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
       run: |
@@ -747,6 +752,10 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+    - name: "Check acme account found in keyfile"
+      run: |
+        docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -878,6 +887,11 @@ jobs:
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
         openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+    - name: "Check acme account found in keyfile"
+      run: |
+        docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
