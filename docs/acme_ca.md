@@ -112,6 +112,18 @@ acme_account_email: email@example.com
 account_path: /account/
 ```
 
+# Example for smallstep ca
+
+Below a configuration to connect to a smallstep ca under the assumption that a provisioner called `myacme` has been created.
+
+```cfg
+acme_keyfile: acme_srv/acme/smallstep.json
+acme_url: https://<fqdn>/acme/myacme
+acme_account_email: email@example.com
+account_path: /
+ssl_verify: False
+```
+
 ## Example key-file in json format
 
 This is just an example for your reference. DO NOT USE IT ON YOUR SYSTEM!
