@@ -10,22 +10,22 @@ The debian package is generic and supports running acme2certifier with either ap
 2. Install acme2certifier and apache2 packages
 
 ```bash
-$ sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-$ sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
+sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
+sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 ```
 
 3. Copy and activete apache2 configuration file
 
 ```bash
-$ sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
-$ sudo a2ensite acme2certifier
+sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo a2ensite acme2certifier
 ```
 
 4. Copy and activate apache2 ssl configuration file (optional)
 
 ```bash
-$ sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
-$ sudo a2ensite acme2certifier_ssl
+sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo a2ensite acme2certifier_ssl
 ```
 
 5. Create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv/` or use the example stored in the examples directory
@@ -35,14 +35,14 @@ $ sudo a2ensite acme2certifier_ssl
 8. Enable and start the apache2 service
 
 ```bash
-$ systemctl enable apache2.service
-$ systemctl start apache2.service
+sudo systemctl enable apache2.service
+sudo systemctl start apache2.service
 ```
 
 9. Test the server by accessing the directory resource
 
 ```bash
-$ curl http://<your server name>/directory
+curl http://<your server name>/directory
 {"newAccount": "http://127.0.0.1:8000/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme_srv/key-change", "newNonce": "http://127.0.0.1:8000/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme_srv/neworders", "revokeCert": "http://127.0.0.1:8000/acme_srv/revokecert"}
 ```
 
@@ -54,32 +54,32 @@ $ curl http://<your server name>/directory
 2. Install acme2certifier and nginx packages
 
 ```bash
-$ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
-$ sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
+sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
+sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 ```
 
 3. Adapt the nginx configuration file to Ubuntu 22.04 and activate the configuration
 
 ```bash
-$ sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
-$ sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
-$ sudo rm /etc/nginx/sites-enabled/default
-$ sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
+sudo sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
+sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+sudo rm /etc/nginx/sites-enabled/default
+sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
 ```
 
 4. Adapt and copy uwsgi configuration files
 
 ```bash
-$ sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
-$ sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
-$ echo "plugins=python3" >> examples/nginx/acme2certifier.ini
-$ sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
+sudo sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
+sudo sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
+sudo echo "plugins=python3" >> examples/nginx/acme2certifier.ini
+sudo sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
 ```
 
 5. Create acme2certifier systemd service file
 
 ```bash
-cat <<EOT > acme2certifier.service
+sudo cat <<EOT > acme2certifier.service
 [Unit]
 Description=uWSGI instance to serve acme2certifier
 After=network.target
@@ -99,27 +99,27 @@ EOT
 6. Copy systemd service file
 
 ```bash
-$ sudo mv acme2certifier.service /etc/systemd/system/acme2certifier.service
+sudo mv acme2certifier.service /etc/systemd/system/acme2certifier.service
 ```
 
 7. Enable and start acme2certifier service
 
 ```bash
-$ sudo systemctl start acme2certifier
-$ sudo systemctl enable acme2certifier
+sudo systemctl start acme2certifier
+sudo systemctl enable acme2certifier
 ```
 
 8. Enable and start nginx
 
 ```bash
-$ sudo systemctl start nginx
-$ sudo systemctl enable nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
 ```
 
 9. Test the server by accessing the directory resource
 
 ```bash
-$ curl http://<your server name>/directory
+curl http://<your server name>/directory
 {"newAccount": "http://127.0.0.1:8000/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1:8000/acme_srv/key-change", "newNonce": "http://127.0.0.1:8000/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1:8000/acme_srv/neworders", "revokeCert": "http://127.0.0.1:8000/acme_srv/revokecert"}
 ```
 
