@@ -331,8 +331,7 @@ class CAhandler(object):
 
         account = None
 
-        acct_path =  path_dic.get('acct_path',  None)
-
+        acct_path = path_dic.get('acct_path', None)
         if acct_path == '/':
             # remove url from string
             account = url.replace(acme_url, '').lstrip('/')
