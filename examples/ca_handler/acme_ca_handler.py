@@ -340,7 +340,13 @@ class CAhandler(object):
 
         if regr:
             if self.acme_url and 'acct_path' in self.path_dic:
-                self.account = regr.uri.replace(self.acme_url, '').replace(self.path_dic['acct_path'], '')
+                if self.path_dic['acct_path'] == '/':
+                    # remove url from string
+                    self.account = regr.uri.replace(self.acme_url, '').lstrip('/')
+                else:
+                    # remove url from string
+                    self.account = regr.uri.replace(self.acme_url, '').replace(self.path_dic['acct_path'], '')
+
             if self.account:
                 self.logger.info('acme-account id is %s. Please add an corresponding acme_account parameter to your acme_srv.cfg to avoid unnecessary lookups', self.account)
                 self._account_to_keyfile()
@@ -357,6 +363,7 @@ class CAhandler(object):
                 with open(self.acme_keyfile, "r", encoding='utf8') as keyf:
                     # keyf.write(json.dumps(self.account))
                     key_dic = json.loads(keyf.read())
+                    # key_dic['account'] = self.account.lstrip('/')
                     key_dic['account'] = self.account
 
                 with open(self.acme_keyfile, "w", encoding='utf8') as keyf:
@@ -464,9 +471,13 @@ class CAhandler(object):
             regr = messages.RegistrationResource(uri=f"{self.acme_url}{self.path_dic['acct_path']}{self.account}", body=reg)
             self.logger.debug('CAhandler._registration_lookup(): checking remote registration status')
             regr = acmeclient.query_registration(regr)
+            if hasattr(regr, 'uri'):
+                self.logger.info('CAhandler._registration_lookup(): found existing account: %s', regr.uri)
         else:
             # new account or existing account with missing account id
             regr = self._account_register(acmeclient, user_key, directory)
+            if hasattr(regr, 'uri'):
+                self.logger.info('CAhandler._registration_lookup(): new account: %s', regr.uri)
 
         self.logger.debug('CAhandler._registration_lookup() ended with: %s', bool(regr))
         return regr
