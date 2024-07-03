@@ -258,15 +258,14 @@ class Challenge(object):
 
     def _name_get(self, url: str) -> str:
         """ get challenge """
-        if url.isalnum():
-            self.logger.debug('Challenge.get_name(%s)', url)
-        else:
-            self.logger.debug('Challenge.get_name(%s)', b64_encode(self.logger, url))
+        self.logger.debug('Challenge.get_name()')
 
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic['path'].replace(self.path_dic['chall_path'], '')
         if '/' in challenge_name:
             (challenge_name, _sinin) = challenge_name.split('/', 1)
+
+        self.logger.debug('Challenge.get_name() ended with:', challenge_name)
         return challenge_name
 
     def _new(self, authz_name: str, mtype: str, token: str = None, value: str = None) -> Dict[str, str]:
