@@ -4,7 +4,7 @@
 
 Acme2certifier supports external databases by using the [Django Python framework](https://www.djangoproject.com/). The default SQLite backend is not designed to handle concurrent write access, which can easily occur in an environment with a high transaction frequency.
 
-All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/databases/) should work in theory; MariaDB and PostgreSQL will be tested during [release regression](https://github.com/grindsa/acme2certifier/blob/master/.github/workflows/django_tests.yml).
+All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/databases/) should work in theory; MariaDB and PostgreSQL will be tested during [release regression](https://github.com/grindsa/acme2certifier/blob/master/.github/workflows/django_tests..yml).
 
 This guide is written for **Ubuntu 22.04**; however, adapting it to other Linux distributions should not be difficult.
 
