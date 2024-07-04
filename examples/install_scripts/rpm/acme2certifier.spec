@@ -138,6 +138,7 @@ WorkingDirectory=%{dest_dir}
 
 %files
 %defattr(-,root,root,-)
+%config(noreplace) %{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
 %license LICENSE
 %doc *.md requirements.txt docs/*.md
 %attr(0755,nginx,-)%{dest_dir}/%{projname}/
