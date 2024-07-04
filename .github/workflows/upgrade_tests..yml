@@ -620,7 +620,7 @@ jobs:
         sudo mkdir acme-sh
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
@@ -818,16 +818,16 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
-        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
-        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+        sudo touch data/volume/acme_srv.cfg
+        sudo chmod 777 data/volume/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -999,16 +999,16 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
-        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
-        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+        sudo touch data/volume/acme_srv.cfg
+        sudo chmod 777 data/volume/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -1207,16 +1207,16 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
-        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
-        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+        sudo touch data/volume/acme_srv.cfg
+        sudo chmod 777 data/volume/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
