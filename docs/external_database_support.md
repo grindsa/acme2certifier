@@ -64,7 +64,7 @@ GRANT postgres TO acme2certifier;
 sudo apt-get install python3-django python3-psycopg2
 ```
 
-## Install and Cnfigure acme2certifier
+## Install and Configure acme2certifier
 
 - Downlaod the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
 - Install the package locally
