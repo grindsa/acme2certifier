@@ -620,9 +620,21 @@ jobs:
         sudo mkdir acme-sh
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
-        sudo sed -i "s/examples\/ca_handler/\/opt\/acme2certifier\/examples\/ca_handler/g" data/acme_srv.cfg
-        sudo sed -i "s/volume\/acme_ca/\/opt\/acme2certifier\/volume\/acme_ca/g" data/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+      env:
+        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -671,7 +683,6 @@ jobs:
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        docker cp data/acme_srv.cfg acme-srv:/opt/acme2certifier/acme_srv
         docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
         docker restart acme-srv
         docker stop acme-sh
@@ -807,7 +818,21 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+      env:
+        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -856,8 +881,7 @@ jobs:
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        docker cp data/volume/acme_srv.cfg acme-srv:/opt/acme2certifier/acme_srv
-        docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
+        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
         docker stop acme-sh
@@ -975,7 +999,21 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+      env:
+        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -1024,8 +1062,7 @@ jobs:
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        docker cp data/volume/acme_srv.cfg acme-srv:/opt/acme2certifier/acme_srv
-        docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
+        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
         docker stop acme-sh
@@ -1170,7 +1207,21 @@ jobs:
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+      env:
+        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "[ PREPARE ] Almalinux instance"
       run: |
@@ -1219,8 +1270,7 @@ jobs:
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp/acme2certifier
         # docker exec acme-srv rpm -Uvh /tmp/acme2certifier/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        docker cp data/volume/acme_srv.cfg acme-srv:/opt/acme2certifier/acme_srv
-        docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
+        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
         docker stop acme-sh
