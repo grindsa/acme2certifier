@@ -137,6 +137,8 @@ WorkingDirectory=%{dest_dir}
 %files
 %defattr(-,root,root,-)
 %config(noreplace) %{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
+%config(noreplace) %{dest_dir}/%{projname}/acme_srv/db_handler.py
+
 %license LICENSE
 %doc *.md requirements.txt docs/*.md
 %attr(0755,nginx,-)%{dest_dir}/%{projname}/
@@ -145,6 +147,11 @@ WorkingDirectory=%{dest_dir}
 %changelog
 
 %post
+if [ -d %{dest_dir}/%{projname}/%{projname} ]; then
+   echo "django environment detected"
+   cp -R %{dest_dir}/%{projname}/examples/django/acme_srv/* %{dest_dir}/%{projname}/acme_srv/
+fi
+
 cat <<EOT > /tmp/acme2certifier.te
 module acme2certifier 1.0;
 
