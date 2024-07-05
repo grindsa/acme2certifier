@@ -17,12 +17,12 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] prepare environment"
+    - name: "Prepare environment"
       working-directory: examples/Docker/
       run: |
         docker network create acme
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         # sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -33,12 +33,12 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] install a2c 0.19.3"
+    - name: "Install a2c 0.19.3"
       run: |
         docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-apache2-wsgi
         docker logs acme-srv
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -49,34 +49,25 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/acme-sh"
-        docker run --rm -id -v "$(pwd)/examples/Docker/data/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
-      run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] Upgrade to latest a2c build"
+    - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
         docker stop acme-srv
@@ -85,7 +76,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -96,26 +87,17 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot2"
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot2":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
@@ -129,6 +111,7 @@ jobs:
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
@@ -143,12 +126,12 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] prepare environment"
+    - name: "Prepare environment"
       working-directory: examples/Docker/
       run: |
         docker network create acme
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         # sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -160,12 +143,12 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] install a2c 0.19.3"
+    - name: "Install a2c 0.19.3"
       run: |
         docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-nginx-wsgi
         docker logs acme-srv
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -176,34 +159,25 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/acme-sh"
-        docker run --rm -id -v "$(pwd)/examples/Docker/data/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
-      run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] Upgrade to latest a2c build"
+    - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
         docker stop acme-srv
@@ -212,7 +186,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -223,26 +197,17 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot2"
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot2":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
@@ -271,31 +236,31 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] prepare environment"
+    - name: "Prepare environment"
       working-directory: examples/Docker/
       run: |
         docker network create acme
         sudo mkdir -p data/mysql
 
-    - name: "[ PREPARE ] install mariadb"
+    - name: "Install mariadb"
       working-directory: examples/Docker/
       run: |
         # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] configure mariadb"
+    - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
         docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         # sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -309,12 +274,12 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] install a2c 0.19.3"
+    - name: "Install a2c 0.19.3"
       run: |
         docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-apache2-django
         docker logs acme-srv
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -325,34 +290,25 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/acme-sh"
-        docker run --rm -id -v "$(pwd)/examples/Docker/data/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
-      run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] Upgrade to latest a2c build"
+    - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
         docker stop acme-srv
@@ -361,7 +317,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -372,26 +328,17 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot2"
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot2":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
@@ -419,31 +366,31 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] prepare environment"
+    - name: "Prepare environment"
       working-directory: examples/Docker/
       run: |
         docker network create acme
         sudo mkdir -p data/mysql
 
-    - name: "[ PREPARE ] install mariadb"
+    - name: "Install mariadb"
       working-directory: examples/Docker/
       run: |
         # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] configure mariadb"
+    - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
         docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
@@ -457,12 +404,12 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "[ PREPARE ] install a2c 0.19.3"
+    - name: "Install a2c 0.19.3"
       run: |
         docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-nginx-django
         docker logs acme-srv
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -473,34 +420,25 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/acme-sh"
-        docker run --rm -id -v "$(pwd)/examples/Docker/data/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
-      run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
+    - name: "Register certbot"
       run: |
         sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
-    - name: "[ PREPARE ] Upgrade to latest a2c build"
+    - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
         docker stop acme-srv
@@ -510,7 +448,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] Sleep for 5s"
+    - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 5s
@@ -521,26 +459,17 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via https"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server https://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --insecure --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug --output-insecure
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot2"
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot2":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
@@ -590,7 +519,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data/volume
@@ -615,7 +544,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] prepare acme_srv.cfg with openssl_ca_handler"
+    - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
         sudo mkdir acme-sh
         sudo mkdir -p data/volume/acme_ca/certs
@@ -636,7 +565,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
@@ -656,40 +585,32 @@ jobs:
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Register certbot"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ REGISTER] certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "Update acme2certifier"
       run: |
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
-        # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
         docker restart acme-srv
-        docker stop acme-sh
-        sudo rm -rf $PWD/certbot/*
-        sudo rm -rf $PWD/acme-sh/*
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -697,27 +618,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -767,7 +679,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
         docker network create acme
@@ -788,18 +700,18 @@ jobs:
         sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
-    - name: "[ PREPARE ] install mariadb"
+    - name: "Install mariadb"
       working-directory: examples/Docker/
       run: |
         # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] configure mariadb"
+    - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
         docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
@@ -814,7 +726,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
@@ -834,7 +746,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
@@ -854,41 +766,32 @@ jobs:
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Register certbot"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ REGISTER] certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "Update acme2certifier"
       run: |
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
-        # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
-        docker stop acme-sh
-        sudo rm -rf $PWD/certbot/*
-        sudo rm -rf $PWD/acme-sh/*
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -896,27 +799,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -966,7 +860,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
         docker network create acme
@@ -995,7 +889,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
@@ -1015,7 +909,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
@@ -1035,41 +929,32 @@ jobs:
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Register certbot"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ REGISTER] certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "Update acme2certifier"
       run: |
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
-        # docker exec acme-srv rpm -Uvh /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
-        docker stop acme-sh
-        sudo rm -rf $PWD/certbot/*
-        sudo rm -rf $PWD/acme-sh/*
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -1077,27 +962,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -1147,7 +1023,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
         docker network create acme
@@ -1168,29 +1044,29 @@ jobs:
         sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
-    - name: "[ PREPARE ] postgres environment"
+    - name: "postgres environment"
       run: |
         sudo mkdir -p /tmp/data/pgsql
         sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
         sudo cp .github/pgpass /tmp//data/pgsql/pgpass
         sudo chmod 600 /tmp/data/pgsql/pgpass
 
-    - name: "[ PREPARE ] install postgres"
+    - name: "Install postgres"
       working-directory: /tmp
       run: |
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "[ PREPARE ] configure postgres"
+    - name: "Configure postgres"
       working-directory: /tmp
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -1203,7 +1079,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
-    - name: "[ PREPARE ] configure acme2certifier"
+    - name: "Configure acme2certifier"
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
@@ -1223,7 +1099,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
@@ -1243,41 +1119,32 @@ jobs:
         sudo apt-get install -y curl socat
         curl -f http://localhost:22280
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Register certbot"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        sudo mkdir -p "$(pwd)/examples/Docker/data/certbot"
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "[ REGISTER] certbot"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "Update acme2certifier"
       run: |
         docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp/acme2certifier
-        # docker exec acme-srv rpm -Uvh /tmp/acme2certifier/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        # docker exec -w /opt/acme2certifier acme-srv cp examples/django/acme_srv/*.py acme_srv/
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
-        docker stop acme-sh
-        sudo rm -rf $PWD/certbot/*
-        sudo rm -rf $PWD/acme-sh/*
 
-    - name: "[ PREPARE ] Sleep for 10s"
+    - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -1285,27 +1152,18 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh via https"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL ] register via http"
+    - name: "Enroll acme.sh via http"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv  --register-account --accountemail 'acme-sh@example.com' --accountkeylength ec-256 --debug 2
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ ENROLL] acme.sh"
+    - name: "Enroll certbot HTTP-01 single domain"
       run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --insecure --output-insecure --force
-        openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
