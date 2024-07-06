@@ -618,6 +618,19 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
+    - name: "Get hashes of django_handler.py and db_handler.py"
+      run: |
+        echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/wsgi_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+        echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+
+    - run: echo "Hash1 is ${{ env.HASH1 }}"
+    - run: echo "Hash2 is ${{ env.HASH2 }}"
+
+    - name: Compare hashes
+      if: env.HASH1 != env.HASH2
+      run: |
+        exit 1
+
     - name: "Enroll acme.sh via https"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
@@ -799,6 +812,19 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
+    - name: "Get hashes of django_handler.py and db_handler.py"
+      run: |
+        echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+        echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+
+    - run: echo "Hash1 is ${{ env.HASH1 }}"
+    - run: echo "Hash2 is ${{ env.HASH2 }}"
+
+    - name: Compare hashes
+      if: env.HASH1 != env.HASH2
+      run: |
+        exit 1
+
     - name: "Enroll acme.sh via https"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
@@ -962,6 +988,19 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
+    - name: "Get hashes of django_handler.py and db_handler.py"
+      run: |
+        echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+        echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+
+    - run: echo "Hash1 is ${{ env.HASH1 }}"
+    - run: echo "Hash2 is ${{ env.HASH2 }}"
+
+    - name: Compare hashes
+      if: env.HASH1 != env.HASH2
+      run: |
+        exit 1
+
     - name: "Enroll acme.sh via https"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --insecure --debug 3 --output-insecure --force
@@ -1114,6 +1153,7 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessable"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
+
     - name: "[ CURL ] install curl and socat and test connction"
       run: |
         sudo apt-get install -y curl socat
@@ -1151,6 +1191,19 @@ jobs:
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Get hashes of django_handler.py and db_handler.py"
+      run: |
+        echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+        echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
+
+    - run: echo "Hash1 is ${{ env.HASH1 }}"
+    - run: echo "Hash2 is ${{ env.HASH2 }}"
+
+    - name: Compare hashes
+      if: env.HASH1 != env.HASH2
+      run: |
+        exit 1
 
     - name: "Enroll acme.sh via https"
       run: |
