@@ -8,11 +8,11 @@ This handler can be used to enroll certificates from the [Open Source version of
 
 - [EJBCA](https://www.ejbca.org) needs to have the RESTv1-service enabled
 - you'll need:
-  - a [client certificate and key in p12](https://doc.primekey.com/ejbca/ejbca-operations/ejbca-ca-concept-guide/authentication-methods) format to authenticate towards the rest-service
+  - a [client certificate and key in p12](https://docs.keyfactor.com/ejbca/latest/authentication-methods) format to authenticate towards the rest-service
   - the name of the CA issuing the certificates from EJBA admin UI
   - a username and enrolment code
-  - a [certificate profile name](https://doc.primekey.com/ejbca/ejbca-operations/ejbca-ca-concept-guide/certificate-profiles-overview)
-  - an [end-entity profile name](https://download.primekey.com/docs/EJBCA-Enterprise/6_14_1/End_Entity_Profiles.html)
+  - a [certificate profile name](https://docs.keyfactor.com/ejbca/latest/certificate-profiles-overview)
+  - an [end-entity profile name](https://docs.keyfactor.com/ejbca/latest/end-entity-profiles-overview)
 
 ## Configuration
 
