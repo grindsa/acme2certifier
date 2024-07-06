@@ -105,9 +105,12 @@ class CAhandler(object):
             'emailprotection': ExtendedKeyUsageOID.EMAIL_PROTECTION,
             'timestamping': ExtendedKeyUsageOID.TIME_STAMPING,
             'ocspsigning': ExtendedKeyUsageOID.OCSP_SIGNING,
-            'pkinitkdc': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
             'ekeyuse': 'eKeyUse'  # this is just for testing
         }
+
+        # backwards compatibility with cryptography module coming Ubuntu 22.04
+        if hasattr(ExtendedKeyUsageOID, 'KERBEROS_PKINIT_KDC'):
+            eku_mapping_dic['pkInitKDC'] = ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC
 
         eku_list = []
         for attribute in ext.split(','):
