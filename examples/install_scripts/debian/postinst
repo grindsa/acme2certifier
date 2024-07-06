@@ -24,6 +24,13 @@ set -e
 
 case "$1" in
     configure)
+
+    if [ -d /var/www/acme2certifier/acme2certifier ]; then
+        echo "django environment detected"
+        cp -R /var/www/acme2certifier/examples/django/acme_srv/* /var/www/acme2certifier/acme_srv/
+        cp -f /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
+    fi
+
 	chown -R www-data.www-data /var/www/acme2certifier
     ;;
 
