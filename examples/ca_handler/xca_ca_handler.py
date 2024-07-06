@@ -448,9 +448,12 @@ class CAhandler(object):
                 'emailProtection': ExtendedKeyUsageOID.EMAIL_PROTECTION,
                 'timeStamping': ExtendedKeyUsageOID.TIME_STAMPING,
                 'OCSPSigning': ExtendedKeyUsageOID.OCSP_SIGNING,
-                'pkInitKDC': ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC,
                 'eKeyUse': 'eKeyUse'  # this is just for testing
             }
+            # backwards compatibility with cryptography module coming Ubuntu 22.04
+            if hasattr(ExtendedKeyUsageOID, 'KERBEROS_PKINIT_KDC'):
+                eku_mapping_dic['pkInitKDC'] = ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC
+
             if 'ekuCritical' in template_dic:
                 try:
                     ekuc = bool(int(template_dic['ekuCritical']))
