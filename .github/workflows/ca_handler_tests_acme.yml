@@ -56,7 +56,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim/directory is accessable"
+    - name: "Test http://acme-le-sim/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
 
     - name: "Enroll from le-sim"
@@ -89,10 +89,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll via acme_ca_handler 1st attempt"
@@ -170,7 +170,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim/directory is accessable"
+    - name: "Test http://acme-le-sim/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
 
     - name: "Enroll from le-sim"
@@ -203,10 +203,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll via acme_ca_handler 1st attempt"
@@ -308,10 +308,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim-1/directory is accessable"
+    - name: "Test http://acme-le-sim-1/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-1/directory
 
-    - name: "Test http://acme-le-sim2/directory is accessable"
+    - name: "Test http://acme-le-sim2/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
 
     - name: "Enroll from acme-le-sim-1"
@@ -369,10 +369,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB - 01 - Enroll acme.sh without acme_url"
@@ -578,7 +578,7 @@ jobs:
       with:
         time: 20s
 
-    - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
+    - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
 
     - name: "Enroll from smallstep using acme-sh"
@@ -612,10 +612,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll via acme_ca_handler 1st attempt"
@@ -695,7 +695,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim/directory is accessable"
+    - name: "Test http://acme-le-sim/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
 
     - name: "Prepare setup environment for alma installation"
@@ -826,7 +826,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim/directory is accessable"
+    - name: "Test http://acme-le-sim/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
 
     - name: "Enroll from le-sim"
@@ -984,10 +984,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim-1/directory is accessable"
+    - name: "Test http://acme-le-sim-1/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-1/directory
 
-    - name: "Test http://acme-le-sim2/directory is accessable"
+    - name: "Test http://acme-le-sim2/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
 
     - name: "Enroll from le-sim"
@@ -1271,7 +1271,7 @@ jobs:
       with:
         time: 20s
 
-    - name: "Test https://step-ca.acme/acme/acme/directory is accessable"
+    - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
 
     - name: "Enroll from smallstep using acme-sh"

@@ -43,10 +43,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -81,10 +81,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -153,10 +153,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -191,10 +191,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -284,10 +284,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -322,10 +322,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -414,10 +414,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -453,10 +453,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh via https"
@@ -802,7 +802,7 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "[ CURL ] install curl and socat and test connction"
@@ -980,7 +980,7 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "[ CURL ] install curl and socat and test connction"
@@ -1185,7 +1185,7 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
 

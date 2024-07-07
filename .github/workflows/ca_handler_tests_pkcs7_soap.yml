@@ -57,7 +57,7 @@ jobs:
         mkdir certbot
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup a2c with pkcs7_ca_handler"
@@ -175,7 +175,7 @@ jobs:
         mkdir certbot
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup a2c with pkcs7_ca_handler"

@@ -31,7 +31,7 @@ jobs:
         docker-compose up -d
         docker-compose logs
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler"
@@ -43,7 +43,7 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Test http://acme-srv/directory is accessible again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
@@ -101,7 +101,7 @@ jobs:
         docker-compose logs
         sleep 5
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] setup openssl ca_handler"
@@ -114,7 +114,7 @@ jobs:
         docker-compose logs
         sleep 5
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Test http://acme-srv/directory is accessible again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"

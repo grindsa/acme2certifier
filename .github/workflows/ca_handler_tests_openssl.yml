@@ -60,10 +60,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Prepare acme.sh container"
@@ -134,10 +134,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh"
@@ -201,10 +201,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "[ * ] collecting test logs"
@@ -255,10 +255,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Register certbot"
