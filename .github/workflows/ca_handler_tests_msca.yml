@@ -133,10 +133,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "KRB - Test http://acme-srv/directory is accessable"
+    - name: "KRB - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
 
-    - name: "KRB - Test if https://acme-srv/directory is accessable"
+    - name: "KRB - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "KRB - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
@@ -210,10 +210,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
+    - name: "NTLM - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
 
-    - name: "NTLM - Test if https://acme-srv/directory is accessable"
+    - name: "NTLM - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "NTLM - Enroll acme.sh with template in acme_srv.cfg (WebServer)"
@@ -257,10 +257,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
+    - name: "NTLM - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
 
-    - name: "NTLM - Test if https://acme-srv/directory is accessable"
+    - name: "NTLM - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "NTLM - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
@@ -447,10 +447,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
+    - name: "NTLM - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "NTLM - Test if https://acme-srv/directory is accessable"
+    - name: "NTLM - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "NTLM - Enroll acme.sh"
@@ -512,10 +512,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "KRB - Test http://acme-srv/directory is accessable"
+    - name: "KRB - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "KRB - Test if https://acme-srv/directory is accessable"
+    - name: "KRB - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "KRB - Enroll acme.sh"
@@ -573,10 +573,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "KRB - Test http://acme-srv/directory is accessable"
+    - name: "KRB - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "KRB - Test if https://acme-srv/directory is accessable"
+    - name: "KRB - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "KRB - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
@@ -871,7 +871,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "NTLM - Test http://acme-srv/directory is accessable"
+    - name: "NTLM - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network local curlimages/curl -f http://acme-srv/directory
 
     - name: "NTLM - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
@@ -1082,7 +1082,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "NTLM - Test http://acme-srv/directory is accessable "
+    - name: "NTLM - Test http://acme-srv/directory is accessible "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "NTLM - Register certbot"
@@ -1145,7 +1145,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "KRB - Test http://acme-srv/directory is accessable "
+    - name: "KRB - Test http://acme-srv/directory is accessible "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "KRB - Enroll lego with template in acme_srv.cfg (WebServer)"
@@ -1188,7 +1188,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "KRB - Test http://acme-srv/directory is accessable"
+    - name: "KRB - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "KRB - Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"

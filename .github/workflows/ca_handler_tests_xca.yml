@@ -74,10 +74,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "No template - Test http://acme-srv/directory is accessable"
+    - name: "No template - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "No template - Test if https://acme-srv/directory is accessable"
+    - name: "No template - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "No template - Enroll acme.sh"
@@ -152,10 +152,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Template - Test http://acme-srv/directory is accessable"
+    - name: "Template - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Template - Test if https://acme-srv/directory is accessable"
+    - name: "Template - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Template - Enroll acme.sh"
@@ -235,10 +235,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Header-info - Test http://acme-srv/directory is accessable"
+    - name: "Header-info - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Header-info - Test if https://acme-srv/directory is accessable"
+    - name: "Header-info - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Header-info - 01 - Enroll acme.sh without template_name"
@@ -329,10 +329,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "EAB - Test http://acme-srv/directory is accessable"
+    - name: "EAB - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB - Test if https://acme-srv/directory is accessable"
+    - name: "EAB - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB - 01 - Enroll acme with a template_name taken from list in kid.json"
@@ -680,7 +680,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "Template - Test http://acme-srv/directory is accessable "
+    - name: "Template - Test http://acme-srv/directory is accessible "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "Template - Enroll acme.sh"
@@ -758,7 +758,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "Header-info - Test http://acme-srv/directory is accessable "
+    - name: "Header-info - Test http://acme-srv/directory is accessible "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "Header-info - 01 - Enroll acme.sh without template_name"
@@ -845,7 +845,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "EAB - Test http://acme-srv/directory is accessable "
+    - name: "EAB - Test http://acme-srv/directory is accessible "
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "EAB - 01 - Enroll acme with a template_name taken from list in kid.json"

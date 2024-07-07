@@ -73,10 +73,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "No profile - Test http://acme-srv/directory is accessable"
+    - name: "No profile - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "No profile - Test if https://acme-srv/directory is accessable"
+    - name: "No profile - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "No profile - Enroll acme.sh"
@@ -140,10 +140,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Profile 101 - Test http://acme-srv/directory is accessable"
+    - name: "Profile 101 - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Profile 101 - Test if https://acme-srv/directory is accessable"
+    - name: "Profile 101 - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Profile 101 - Enroll acme.sh"
@@ -210,10 +210,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Profile 102 - Test http://acme-srv/directory is accessable"
+    - name: "Profile 102 - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Profile 102 - Test if https://acme-srv/directory is accessable"
+    - name: "Profile 102 - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Profile 102 - Enroll acme.sh"
@@ -284,10 +284,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Header-info - Test http://acme-srv/directory is accessable"
+    - name: "Header-info - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Header-info - Test if https://acme-srv/directory is accessable"
+    - name: "Header-info - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Header-info - 01 - Enroll acme.sh with profile_id 101"
@@ -366,10 +366,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessable"
+    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB without headerinfo - Test if https://acme-srv/directory is accessable"
+    - name: "EAB without headerinfo - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB without headerinfo - Enroll acme.sh without profile_id"
@@ -524,10 +524,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "EAB with headerinfo - Test http://acme-srv/directory is accessable"
+    - name: "EAB with headerinfo - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessable"
+    - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB with headerinfo - 01 - Enroll acme.sh without profile_id"
@@ -861,7 +861,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Profile 101 - Test http://acme-srv/directory is accessable"
+    - name: "Profile 101 - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "Profile 101 - Enroll acme.sh"
@@ -931,7 +931,7 @@ jobs:
       with:
         time: 10s
 
-    - name: "Profile 102 - Test http://acme-srv/directory is accessable"
+    - name: "Profile 102 - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "Profile 102 - Enroll acme.sh"

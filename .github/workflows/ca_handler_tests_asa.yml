@@ -78,10 +78,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Test http://acme-srv/directory is accessable"
+    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Test if https://acme-srv/directory is accessable"
+    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Enroll acme.sh"
@@ -230,10 +230,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "Header-info - Test http://acme-srv/directory is accessable"
+    - name: "Header-info - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Header-info - Test if https://acme-srv/directory is accessable"
+    - name: "Header-info - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Header-info - 01 - Enroll acme.sh with profile_name ${{ secrets.ASA_PROFILE1 }}"
@@ -324,10 +324,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessable"
+    - name: "EAB without headerinfo - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB without headerinfo -  Test if https://acme-srv/directory is accessable"
+    - name: "EAB without headerinfo -  Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB without headerinfo - 01 - Enroll acme.sh without profile_name"
@@ -491,10 +491,10 @@ jobs:
       with:
         time: 10s
 
-    - name: "EAB with headerinfo - Test http://acme-srv/directory is accessable"
+    - name: "EAB with headerinfo - Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessable"
+    - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "EAB with headerinfo - 01 - Enroll acme.sh without profile_name"
@@ -1346,7 +1346,7 @@ jobs:
       run: |
         mkdir lego
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] reconfiguration of a2c with a new profile"
@@ -1377,7 +1377,7 @@ jobs:
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
 
-    - name: "Test http://acme-srv/directory is accessable again"
+    - name: "Test http://acme-srv/directory is accessible again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"

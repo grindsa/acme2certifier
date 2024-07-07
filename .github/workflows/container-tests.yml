@@ -31,9 +31,9 @@ jobs:
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -55,7 +55,7 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ ENROLL ] enroll certificate to verify handler migration"
       run: |
@@ -103,9 +103,9 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -127,7 +127,7 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ ENROLL ] enroll certificate to verify handler migration"
       run: |
@@ -175,9 +175,9 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -199,7 +199,7 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ ENROLL ] enroll certificate to verify handler migration"
       run: |
@@ -248,9 +248,9 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    - name: "Test if https://acme-srv/directory is accessable"
+    - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     - name: "[ PREPARE ] prepare acme.sh container"
       run: |
@@ -272,7 +272,7 @@ jobs:
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
-    - name: "Test if http://acme-srv/directory is accessable"
+    - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
     - name: "[ ENROLL ] enroll certificate to verify handler migration"
       run: |

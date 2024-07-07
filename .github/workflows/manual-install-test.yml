@@ -41,7 +41,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo service apache2 restart
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
@@ -102,7 +102,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo service nginx restart
 
-    - name: "Test http://acme-srv/directory is accessable"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
@@ -325,7 +325,7 @@ jobs:
         sudo chown -R www-data.www-data /var/www/acme2certifier/volume
         sudo systemctl start apache2
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessable"
+    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1/directory
 
     - name: "[ PREPARE ] Modfiy configuration to allow certifiate enrollment"
@@ -338,7 +338,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo systemctl restart apache2
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessable"
+    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
@@ -445,7 +445,7 @@ jobs:
         sudo systemctl start acme2certifier
         sudo systemctl enable acme2certifier
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessable"
+    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1/directory
 
     - name: "[ PREPARE ] configure ca_handler"
@@ -464,7 +464,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo systemctl restart nginx
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessable"
+    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
     - name: "[ PREPARE ] prepare acme.sh container"
