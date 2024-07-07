@@ -490,8 +490,8 @@ jobs:
         name: nginx-django-upgrade.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  rpm_wsgi_upgrade_nginx:
-    name: "rpm_wsgi_upgrade_nginx"
+  rpm_build:
+    name: "rpm_build"
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -518,6 +518,35 @@ jobs:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+
+    - name: "Upload RPM package"
+      uses: actions/upload-artifact@master
+      with:
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: ${{ steps.rpm.outputs.rpm_dir_path }}/noarch/
+
+  rpm_wsgi_upgrade_nginx:
+    name: "rpm_wsgi_upgrade_nginx"
+    runs-on: ubuntu-latest
+    needs: rpm_build
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: /tmp/
+
+    - name: List files
+      run: ls -la /tmp/
 
     - name: "Setup environment for alma installation"
       run: |
@@ -605,7 +634,7 @@ jobs:
 
     - name: "Update acme2certifier"
       run: |
-        docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
+        docker cp /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
         docker restart acme-srv
@@ -666,6 +695,7 @@ jobs:
   rpm_django_upgrade_nginx_mariadb:
     name: "rpm_django_upgrade_nginx_mariadb"
     runs-on: ubuntu-latest
+    needs: rpm_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -684,13 +714,14 @@ jobs:
         git add examples/nginx
         git commit -a -m "rpm update"
 
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: /tmp/
 
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+    - name: List files
+      run: ls -la /tmp/
 
     - name: "Setup environment for alma installation"
       run: |
@@ -799,7 +830,7 @@ jobs:
 
     - name: "Update acme2certifier"
       run: |
-        docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
+        docker cp /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
@@ -860,6 +891,7 @@ jobs:
   rpm_django_upgrade_nginx_sqlite:
     name: "rpm_django_upgrade_nginx_sqlite"
     runs-on: ubuntu-latest
+    needs: rpm_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -878,13 +910,14 @@ jobs:
         git add examples/nginx
         git commit -a -m "rpm update"
 
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: /tmp/
 
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+    - name: List files
+      run: ls -la /tmp/
 
     - name: "Setup environment for alma installation"
       run: |
@@ -975,7 +1008,7 @@ jobs:
 
     - name: "Update acme2certifier"
       run: |
-        docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
+        docker cp /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
         docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
@@ -1036,6 +1069,7 @@ jobs:
   rpm_django_upgrade_nginx_psql:
     name: "rpm_django_upgrade_nginx_psql"
     runs-on: ubuntu-latest
+    needs: rpm_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -1054,13 +1088,14 @@ jobs:
         git add examples/nginx
         git commit -a -m "rpm update"
 
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: /tmp/
 
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
+    - name: List files
+      run: ls -la /tmp/
 
     - name: "Setup environment for alma installation"
       run: |
@@ -1179,8 +1214,8 @@ jobs:
 
     - name: "Update acme2certifier"
       run: |
-        docker cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp/acme2certifier
-        docker exec acme-srv yum -y localinstall /tmp/acme2certifier/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        docker cp /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm acme-srv:/tmp
+        docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
         docker restart acme-srv
 
@@ -1237,8 +1272,44 @@ jobs:
         name: rpm_django_upgrade_nginx_psql.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+  deb_build:
+    name: "deb_build"
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: "Prepare environment to build deb package"
+      run: |
+        sudo apt-get update && sudo apt-get -y upgrade
+        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
+        rm setup.py
+        cp -R examples/install_scripts/debian ./
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
+        cd ../
+        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+
+    - name: "Build debian package"
+      run: |
+        dpkg-buildpackage -uc -us
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb ${{ github.workspace }}/artifact/upload
+
+    - name: "Upload debian package"
+      uses: actions/upload-artifact@master
+      with:
+        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        path: ${{ github.workspace }}/artifact/upload
+
   deb_upgrade_wsgi:
     name: "deb_upgrade_wsgi"
+    needs: deb_build
     runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
@@ -1260,20 +1331,14 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "Prepare environment to build deb package"
-      run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        rm setup.py
-        cp -R examples/install_scripts/debian ./
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+    - name: Download debian package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        path: data/
 
-    - name: "Build debian package"
-      run: |
-        dpkg-buildpackage -uc -us
-        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb data/
+    - name: List files
+      run: ls -la data/
 
     - name: "Instanciate Ubuntu 22.04"
       run: |
@@ -1405,10 +1470,10 @@ jobs:
         name: deb_upgrade_wsgi.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-
   deb_upgrade_django_sqlite:
     name: "deb_upgrade_django_sqlite"
     runs-on: ubuntu-latest
+    needs: deb_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -1429,20 +1494,14 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "Prepare environment to build deb package"
-      run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        rm setup.py
-        cp -R examples/install_scripts/debian ./
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+    - name: Download debian package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        path: data/
 
-    - name: "Build debian package"
-      run: |
-        dpkg-buildpackage -uc -us
-        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb data/
+    - name: List files
+      run: ls -la data/
 
     - name: "Instanciate Ubuntu 22.04"
       run: |
@@ -1579,6 +1638,7 @@ jobs:
   deb_upgrade_django_mariadb:
     name: "deb_upgrade_django_mariadb"
     runs-on: ubuntu-latest
+    needs: deb_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -1617,20 +1677,14 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "Prepare environment to build deb package"
-      run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        rm setup.py
-        cp -R examples/install_scripts/debian ./
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+    - name: Download debian package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        path: data/
 
-    - name: "Build debian package"
-      run: |
-        dpkg-buildpackage -uc -us
-        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb data/
+    - name: List files
+      run: ls -la data/
 
     - name: "Instanciate Ubuntu 22.04"
       run: |
@@ -1770,6 +1824,7 @@ jobs:
   deb_upgrade_django_psql:
     name: "deb_upgrade_django_psql"
     runs-on: ubuntu-latest
+    needs: deb_build
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -1817,20 +1872,14 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "Prepare environment to build deb package"
-      run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        rm setup.py
-        cp -R examples/install_scripts/debian ./
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+    - name: Download debian package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        path: data/
 
-    - name: "Build debian package"
-      run: |
-        dpkg-buildpackage -uc -us
-        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb data/
+    - name: List files
+      run: ls -la data/
 
     - name: "Instanciate Ubuntu 22.04"
       run: |
