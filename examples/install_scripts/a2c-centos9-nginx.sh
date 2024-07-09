@@ -10,7 +10,7 @@ echo "## Installing missing packages"
 sudo yum install -y epel-release
 sudo yum update -y
 
-sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-plugin-python3 policycoreutils-python-utils
+sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-plugin-python3 policycoreutils-python-utils krb5-libs krb5-devel gcc python3-devel
 
 # 2. create directory
 sudo mkdir /opt/acme2certifier
