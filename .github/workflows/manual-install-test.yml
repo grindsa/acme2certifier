@@ -16,7 +16,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -44,17 +44,9 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll via acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://${{ env.RUNNER_IP }}:8080 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
@@ -78,7 +70,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -102,20 +94,9 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo service nginx restart
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: curl -f http://127.0.0.1:8080/directory
-
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://${{ env.RUNNER_IP }}:8080 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
@@ -139,7 +120,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -148,35 +129,27 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
-    - name: "[ PREPARE ] environment"
+    - name: "Prepare environment"
       run: |
         docker network create acme
+        mkdir -p acme-sh
         echo "exit 0" >> examples/install_scripts/a2c-centos9-nginx.sh
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/examples/Docker/almalinux-systemd/script_tester.sh
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
@@ -223,7 +196,7 @@ jobs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
-    - name: "[ PREPARE ] Setup environment"
+    - name: "Setup environment"
       run: |
         docker network create acme
         mkdir -p data/acme_ca/certs/
@@ -232,7 +205,7 @@ jobs:
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
 
-    - name: "[ PREPARE ] Almalinux instance"
+    - name: "Almalinux instance"
       run: |
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
@@ -243,19 +216,9 @@ jobs:
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile test/ca/root-ca-cert.pem -untrusted test/ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
@@ -281,7 +244,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -292,7 +255,7 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "[ PREPARE ] environment to build deb package"
+    - name: "Prepare environment to build deb package"
       run: |
         sudo apt-get update && sudo apt-get -y upgrade
         sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
@@ -303,18 +266,18 @@ jobs:
         tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
 
 
-    - name: "[ BUILD ] build debian package"
+    - name: "Build debian package"
       run: |
         dpkg-buildpackage -uc -us
         dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
-    - name: "[ Install ] install apache2 and acme2certifier packages"
+    - name: Install apache2 and acme2certifier packages"
       run: |
         sudo apt-get update
         sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
         sudo apt-get install -y ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
-    - name: "[ PREPARE ] configure a2c"
+    - name: "configure a2c"
       run: |
         sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
         sudo a2ensite acme2certifier
@@ -325,10 +288,10 @@ jobs:
         sudo chown -R www-data.www-data /var/www/acme2certifier/volume
         sudo systemctl start apache2
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1/directory
 
-    - name: "[ PREPARE ] Modfiy configuration to allow certifiate enrollment"
+    - name: "Modfiy configuration to allow certifiate enrollment"
       run: |
         # sudo apt-get install -y socat
         sudo sed -i "s/Listen 80/Listen 8080/g" /etc/apache2/ports.conf
@@ -338,20 +301,12 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo systemctl restart apache2
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://${{ env.RUNNER_IP }}:8080 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
@@ -375,7 +330,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -386,7 +341,7 @@ jobs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-    - name: "[ PREPARE ] environment to build deb package"
+    - name: "Prepare environment to build deb package"
       run: |
         sudo apt-get update && sudo apt-get -y upgrade
         sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
@@ -396,18 +351,18 @@ jobs:
         cd ../
         tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
 
-    - name: "[ BUILD ] build debian package"
+    - name: "Build debian package"
       run: |
         dpkg-buildpackage -uc -us
         dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
-    - name: "[ Install ] install nginx and acme2certifier packages"
+    - name: "Install nginx and acme2certifier packages"
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
         sudo apt-get install -y ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
 
-    - name: "[PREPARE] Local modification to get a2c running"
+    - name: "Prepare local modification to get a2c running"
       run: |
         sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
         sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
@@ -416,14 +371,14 @@ jobs:
         sudo chown -R www-data.www-data /var/www/acme2certifier/
         sudo systemctl start nginx
 
-    - name: "[PREPARE] Modify uwsgi configuration file"
+    - name: "Modify uwsgi configuration file"
       run: |
         sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
         sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
         echo "plugins=python3" >> examples/nginx/acme2certifier.ini
         sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
 
-    - name: "[PREPARE] create a2c service"
+    - name: "Create a2c service"
       run: |
         cat <<EOT > acme2certifier.service
         [Unit]
@@ -445,17 +400,17 @@ jobs:
         sudo systemctl start acme2certifier
         sudo systemctl enable acme2certifier
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1/directory
 
-    - name: "[ PREPARE ] configure ca_handler"
+    - name: "Configure ca_handler"
       run: |
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo mkdir -p /var/www/acme2certifier/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem /var/www/acme2certifier/volume/acme_ca/
         sudo chown -R www-data.www-data /var/www/acme2certifier/volume
 
-    - name: "[ PREPARE ] Modfiy configuration to allow certifiate enrollment"
+    - name: "Modfiy configuration to allow certifiate enrollment"
       run: |
         sudo sed -i "s/listen 80/listen 8080/g" /etc/nginx/sites-enabled/acme_srv.conf
         sudo sed -i "s/listen [::]:80/listen [::]:8080/g" /etc/nginx/sites-enabled/acme_srv.conf
@@ -464,20 +419,12 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo systemctl restart nginx
 
-    - name: "[ TEST ] Test http://acme-srv/directory is accessible"
+    - name: "Test http://acme-srv/directory is accessible"
       run: curl -f http://127.0.0.1:8080/directory
 
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Enroll acme.sh"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ REGISTER] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --register-account --accountemail 'acme-sh@example.com' --debug 3
-
-    - name: "[ ENROLL] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://${{ env.RUNNER_IP }}:8080 --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://${{ env.RUNNER_IP }}:8080 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test logs"
