@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check  # pylint: disable=e0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -28,6 +28,9 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.header_info_field = False
         self.verify = True
+        self.eab_handler = None
+        self.eab_profiling = False
+
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -266,10 +269,11 @@ class CAhandler(object):
             os.environ['KRB5_CONFIG'] = self.krb5_config
 
         # lookup http header information from request
-        if self.header_info_field:
-            user_template = self._template_name_get(csr)
-            if user_template:
-                self.template = user_template
+        # if self.header_info_field:
+        #    user_template = self._template_name_get(csr)
+        #    if user_template:
+        #        self.template = user_template
+
 
     def _domainlist_check(self, csr: str) -> bool:
         """ check if domain is in allowed domainlist """
@@ -298,23 +302,31 @@ class CAhandler(object):
 
         if self.host and self.user and self.password and self.template:
 
+            # check if domain is in allowed domainlis
             result = self._domainlist_check(csr)
 
             if result:
-                # setup certserv
-                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
-                # check connection and credentials
-                auth_check = self._check_credentials(ca_server)
+                # check for eab profiling and header_info
+                error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
 
-                if auth_check:
+                if not error:
+                    # setup certserv
+                    ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
-                    # enroll certificate
-                    (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+                    # check connection and credentials
+                    auth_check = self._check_credentials(ca_server)
 
+                    if auth_check:
+
+                        # enroll certificate
+                        (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+
+                    else:
+                        self.logger.error('Connection or Credentialcheck failed')
+                        error = 'Connection or Credentialcheck failed.'
                 else:
-                    self.logger.error('Connection or Credentialcheck failed')
-                    error = 'Connection or Credentialcheck failed.'
+                    self.logger.error('EAB profile check failed')
             else:
                 self.logger.error('SAN/CN check failed')
                 error = 'SAN/CN check failed'
