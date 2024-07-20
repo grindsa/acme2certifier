@@ -17,7 +17,8 @@ from acme_srv.helper import (
     proxy_check,
     build_pem_file,
     header_info_get,
-    allowed_domainlist_check
+    allowed_domainlist_check,
+    eab_profile_header_info_check
 )
 
 
@@ -39,6 +40,8 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.header_info_field = None
         self.timeout = 5
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -225,10 +228,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check()')
 
         # lookup http header information from request
-        if self.header_info_field:
-            user_template = self._template_name_get(csr)
-            if user_template:
-                self.template = user_template
+        #if self.header_info_field:
+        #    user_template = self._template_name_get(csr)
+        #    if user_template:
+        #        self.template = user_template
 
         if self.allowed_domainlist:
             if self.allowed_domainlist != 'ADLFAILURE':
@@ -257,39 +260,46 @@ class CAhandler(object):
         result = self._csr_check(csr)
 
         if result:
-            # create request
-            request = self.request_create()
 
-            # recode csr
-            csr = build_pem_file(self.logger, None, csr, 64, True)
+            # check for eab profiling and header_info
+            error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
 
-            # pylint: disable=W0511
-            # currently getting certificate chain is not supported
-            ca_pem = self._file_load(self.ca_bundle)
+            if not error:
+                # create request
+                request = self.request_create()
 
-            try:
-                # request certificate
-                cert_raw = convert_byte_to_string(
-                    request.get_cert(convert_string_to_byte(csr))
-                )
-                # replace crlf with lf
-                cert_raw = cert_raw.replace("\r\n", "\n")
-            except Exception as err_:
-                cert_raw = None
-                self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+                # recode csr
+                csr = build_pem_file(self.logger, None, csr, 64, True)
 
-            if cert_raw:
-                if ca_pem:
-                    cert_bundle = cert_raw + ca_pem
+                # pylint: disable=W0511
+                # currently getting certificate chain is not supported
+                ca_pem = self._file_load(self.ca_bundle)
+
+                try:
+                    # request certificate
+                    cert_raw = convert_byte_to_string(
+                        request.get_cert(convert_string_to_byte(csr))
+                    )
+                    # replace crlf with lf
+                    cert_raw = cert_raw.replace("\r\n", "\n")
+                except Exception as err_:
+                    cert_raw = None
+                    self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+
+                if cert_raw:
+                    if ca_pem:
+                        cert_bundle = cert_raw + ca_pem
+                    else:
+                        cert_bundle = cert_raw
+
+                    cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+                    cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+                    cert_raw = cert_raw.replace("\n", "")
                 else:
-                    cert_bundle = cert_raw
-
-                cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("\n", "")
+                    self.logger.error("cert bundling failed")
+                    error = "cert bundling failed"
             else:
-                self.logger.error("cert bundling failed")
-                error = "cert bundling failed"
+                self.logger.error('EAB profile check failed')
         else:
             self.logger.error('SAN/CN check failed')
             error = 'SAN/CN check failed'
