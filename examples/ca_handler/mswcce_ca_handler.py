@@ -18,7 +18,8 @@ from acme_srv.helper import (
     build_pem_file,
     header_info_get,
     allowed_domainlist_check,
-    eab_profile_header_info_check
+    eab_profile_header_info_check,
+    config_eab_profile_load
 )
 
 
@@ -164,6 +165,8 @@ class CAhandler(object):
             self._config_host_load(config_dic)
             self._config_credentials_load(config_dic)
             self._config_parameters_load(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
@@ -227,12 +230,6 @@ class CAhandler(object):
         """ check if csr is allowed """
         self.logger.debug('CAhandler._csr_check()')
 
-        # lookup http header information from request
-        #if self.header_info_field:
-        #    user_template = self._template_name_get(csr)
-        #    if user_template:
-        #        self.template = user_template
-
         if self.allowed_domainlist:
             if self.allowed_domainlist != 'ADLFAILURE':
                 # check sans / cn against list of allowed comains from config
@@ -262,7 +259,7 @@ class CAhandler(object):
         if result:
 
             # check for eab profiling and header_info
-            error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+            error = eab_profile_header_info_check(self.logger, self, csr, 'template')
 
             if not error:
                 # create request
