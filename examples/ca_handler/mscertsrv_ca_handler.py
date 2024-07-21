@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check # pylint: disable=e0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check, config_eab_profile_load # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -176,6 +176,8 @@ class CAhandler(object):
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             self._config_headerinfo_load(config_dic)
 
         # load proxy config
@@ -262,18 +264,11 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _parameter_overwrite(self, csr: str):
+    def _parameter_overwrite(self, _csr: str):
         """ overwrite overwrite krb5.conf or user-template """
         if self.krb5_config:
             self.logger.info('CAhandler.enroll(): load krb5config from %s', self.krb5_config)
             os.environ['KRB5_CONFIG'] = self.krb5_config
-
-        # lookup http header information from request
-        # if self.header_info_field:
-        #    user_template = self._template_name_get(csr)
-        #    if user_template:
-        #        self.template = user_template
-
 
     def _domainlist_check(self, csr: str) -> bool:
         """ check if domain is in allowed domainlist """
@@ -308,7 +303,7 @@ class CAhandler(object):
             if result:
 
                 # check for eab profiling and header_info
-                error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+                error = eab_profile_header_info_check(self.logger, self, csr, 'template')
 
                 if not error:
                     # setup certserv

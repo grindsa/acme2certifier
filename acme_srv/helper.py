@@ -1703,7 +1703,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     logger.debug('Helper.eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
     result = None
-    if hasattr(cahandler, key):
+    if hasattr(cahandler, key) and key != 'allowed_domainlist':
         new_value, error = header_info_field_validate(logger, csr, cahandler.header_info_field, key, value)
         if new_value:
             logger.debug('Helper.eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
