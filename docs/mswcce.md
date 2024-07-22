@@ -40,6 +40,7 @@ template: <template name>
 timeout: 5
 use_kerberos: False
 allowed_domainlist: ["example.com", "*.example2.com"]
+eab_profiling: False
 ```
 
 - host - hostname of the system providing the enrollment service
@@ -57,6 +58,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - timeout - *optional* - enrollment timeout (default: 5)
 - use_kerberos - use kerboros for authentication; if set to `False` authentication will be done via NTLM. Considering a [Microsoft accouncement from October 2023](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848) the usage of Kerberos should be preferred. Nevertheless, for backwards compatibility reasons the default setting is `False`
 - allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
+- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 
 ## Passing a template from client to server
 
@@ -80,4 +82,49 @@ Example for lego:
 
 ```bash
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
+```
+
+# eab profiling
+
+This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+
+```cfg
+[EABhandler]
+eab_handler_file: examples/eab_handler/kid_profile_handler.py
+key_file: <profile_file>
+
+[CAhandler]
+eab_profiling: True
+```
+
+below an example key-file used during regression testing:
+
+```json
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "template": ["WebServerModified", "WebServer"],
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "unknown_key": "unknown_value"
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "template": "WebServerModified",
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "unknown_key": "unknown_value"
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM",
+    "cahandler": {
+      "allowed_domainlist": ["www.example.com", "www.example.org"]
+    }
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+  }
+}
 ```
