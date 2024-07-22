@@ -10,6 +10,8 @@ Currently the following ca-handlers had been modified and do support this featur
 - [EJBCA](ejbca.md)
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
+- [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
+- [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](mswcce.md)
 - [XCA](xca.md)
 
 In case you need support for a different ca-handler feel free to raise an [issue](https://github.com/grindsa/acme2certifier/issues/new).
