@@ -898,13 +898,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\nfile_load', 'b2s_replacement', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mswcce_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_051_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_051_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -913,18 +913,19 @@ class TestACMEHandler(unittest.TestCase):
         mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = None
         mock_s2b.return_value = 's2b'
+        mock_eab.return_value = None
         mock_b2s.return_value = '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n'
         self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n', 'b2s_replacement', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_rcr.called)
-        self.assertFalse(mock_tmpl.called)
+        self.assertTrue(mock_eab.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mswcce_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_052_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_052_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -935,18 +936,18 @@ class TestACMEHandler(unittest.TestCase):
         mock_file.return_value = None
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n'
-        mock_tmpl.return_value = 'new_template'
-        self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n', 'b2s_replacement', None), self.cahandler.enroll('csr'))
-        self.assertTrue(mock_rcr.called)
-        self.assertEqual('new_template', self.cahandler.template)
+        mock_eab.return_value = 'error'
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_rcr.called)
+        self.assertEqual('template', self.cahandler.template)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._template_name_get')
+    @patch('examples.ca_handler.mswcce_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler._file_load')
     @patch('examples.ca_handler.mswcce_ca_handler.build_pem_file')
-    def test_053_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_tmpl):
+    def test_053_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab):
         """ test enrollment - certificate and bundling successful replacement test """
         self.cahandler.host = 'host'
         self.cahandler.user = 'user'
@@ -957,7 +958,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_file.return_value = None
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n'
-        mock_tmpl.return_value = None
+        mock_eab.return_value = None
         self.assertEqual((None, '-----BEGIN CERTIFICATE-----\nb2s_replacement\n-----END CERTIFICATE-----\n', 'b2s_replacement', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_rcr.called)
         self.assertEqual('template', self.cahandler.template)
