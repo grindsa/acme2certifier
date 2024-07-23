@@ -2683,9 +2683,22 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual('error', self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'foo', 'bar'))
         self.assertEqual('foo', cahandler.foo)
 
+    def test_351_eab_profile_list_check(self):
+        """ test _eab_profile_list_check() test allowed domain check if cahander contains attribute """
+        cahandler = FakeDBStore()
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = False
+        cahandler.allowed_domainlist = ['foo', 'foobar']
+        cahandler.foo = 'foo'
+        cahandler.header_info_field = None
+        self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'allowed_domainlist', ['bar'])
+        self.assertEqual('foo', cahandler.foo)
+        self.assertTrue(eabhandler.allowed_domains_check.called)
+        self.assertEqual(['foo', 'foobar'], cahandler.allowed_domainlist)
+
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_351_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_352_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2696,7 +2709,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_352_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_353_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2710,7 +2723,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_353_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_354_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2726,7 +2739,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_354_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_355_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2741,7 +2754,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_355_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_356_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -2758,7 +2771,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_356_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_357_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -2774,7 +2787,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_357_eab_profile_check(self, mock_string, mock_list):
+    def test_358_eab_profile_check(self, mock_string, mock_list):
         """ test _eab_profile_check()"""
         self.cahandler = MagicMock()
         self.csr = "testCSR"
@@ -2786,7 +2799,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_358_eab_profile_check(self, mock_string, mock_list):
+    def test_359_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2799,7 +2812,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch('acme_srv.helper.header_info_lookup')
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_359_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_360_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2813,7 +2826,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch('acme_srv.helper.header_info_lookup')
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_360_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_361_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2826,7 +2839,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_361_eab_profile_check(self, mock_string, mock_list):
+    def test_362_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
