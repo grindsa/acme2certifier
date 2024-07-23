@@ -265,7 +265,7 @@ class Challenge(object):
         if '/' in challenge_name:
             (challenge_name, _sinin) = challenge_name.split('/', 1)
 
-        self.logger.debug('Challenge.get_name() ended with:', challenge_name)
+        self.logger.debug('Challenge.get_name() ended with: %s', challenge_name)
         return challenge_name
 
     def _new(self, authz_name: str, mtype: str, token: str = None, value: str = None) -> Dict[str, str]:
