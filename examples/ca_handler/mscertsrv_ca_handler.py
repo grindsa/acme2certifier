@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check, config_eab_profile_load # pylint: disable=e0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check, config_eab_profile_load  # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -30,7 +30,6 @@ class CAhandler(object):
         self.verify = True
         self.eab_handler = None
         self.eab_profiling = False
-
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
