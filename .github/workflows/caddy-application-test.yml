@@ -81,6 +81,7 @@ jobs:
       run: |
         docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
         docker logs caddy 2>&1 | grep "certificate obtained successfully"
+        docker logs caddy 2>&1 | grep "got renewal info"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
