@@ -8,6 +8,7 @@ import sys
 import json
 from typing import List, Tuple, Dict
 
+DJANGO_VERSION = 3
 
 def initialize():  # nopep8
     """ initialize routine when calling dbstore functions from script """
@@ -16,15 +17,13 @@ def initialize():  # nopep8
     import django
     # pylint: disable=E1101
     django.setup()
+    return django.VERSION[0]
 
-
-initialize()
+DJANGO_VERSION  = initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
 from django.db.models import QuerySet  # nopep8
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Cliaccount, Housekeeping, Nonce, Order, Status  # nopep8
-import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
-
 
 class DBstore(object):
     """ helper to do datebase operations """
@@ -152,7 +151,7 @@ class DBstore(object):
         if 'status' in data_dic:
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
 
-        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
+        if DJANGO_VERSION < 4 and settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions')
             with transaction.atomic(immediate=True):
                 # update authorization
@@ -199,7 +198,7 @@ class DBstore(object):
         # replace orderstatus with an instance
         data_dic['status'] = self._status_getinstance(data_dic['status'])
 
-        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
+        if DJANGO_VERSION < 4 and settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions')
             with transaction.atomic(immediate=True):
                 obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
