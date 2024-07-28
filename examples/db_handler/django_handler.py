@@ -8,7 +8,6 @@ import sys
 import json
 from typing import List, Tuple, Dict
 
-DJANGO_VERSION = 3
 
 def initialize():  # nopep8
     """ initialize routine when calling dbstore functions from script """
@@ -19,11 +18,15 @@ def initialize():  # nopep8
     django.setup()
     return django.VERSION[0]
 
-DJANGO_VERSION  = initialize()
+
+DJANGO_VERSION = initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
 from django.db.models import QuerySet  # nopep8
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Cliaccount, Housekeeping, Nonce, Order, Status  # nopep8
+if DJANGO_VERSION < 4:
+    import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
+
 
 class DBstore(object):
     """ helper to do datebase operations """
