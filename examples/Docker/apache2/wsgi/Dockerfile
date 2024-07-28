@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 LABEL maintainer="grindelsack@gmail.com"
 
 ENV APACHE_RUN_USER www-data
@@ -20,7 +20,7 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-RUN pip3 install -r /var/www/acme2certifier/requirements.txt  && \
+RUN pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf  && \
     cp /var/www/acme2certifier/examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py  && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
