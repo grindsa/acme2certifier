@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 LABEL maintainer="grindelsack@gmail.com"
 
 RUN apt-get update  && \
@@ -25,7 +25,8 @@ RUN apt-get update  && \
 
 COPY ./ /var/www/acme2certifier/
 
-RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install supervisor django_rename_app==0.1.3 && \
+# RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install supervisor django_rename_app==0.1.3 && \
+RUN pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && pip3 install supervisor django_rename_app==0.1.3 --break-system-packages && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
 	cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \

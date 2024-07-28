@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 LABEL maintainer="grindelsack@gmail.com"
 
 ENV APACHE_RUN_USER www-data
@@ -29,7 +29,8 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install django_rename_app==0.1.3 && \
+# RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install django_rename_app==0.1.3 && \
+RUN pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
