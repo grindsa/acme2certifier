@@ -25,7 +25,6 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-# RUN pip3 install -r /var/www/acme2certifier/requirements.txt && pip3 install django_rename_app==0.1.3 && \
 RUN pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
