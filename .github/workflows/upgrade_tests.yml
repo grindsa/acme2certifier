@@ -340,7 +340,6 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
-        exit 1
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -472,7 +471,6 @@ jobs:
       run: |
         docker run -i --rm --name certbot --network acme -v "$(pwd)/examples/Docker/data/certbot":/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem examples/Docker/data/certbot/live/certbot/cert.pem
-        exit 1
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
