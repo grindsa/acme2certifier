@@ -344,14 +344,14 @@ jobs:
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs acme2certifier_acme-srv_1
-        docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
+        docker exec mariadbsrv mariadb-dump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
@@ -475,8 +475,8 @@ jobs:
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs acme2certifier_acme-srv_1
-        docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
+        # docker logs acme2certifier_acme-srv_1
+        docker exec mariadbsrv mariadb-dump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
