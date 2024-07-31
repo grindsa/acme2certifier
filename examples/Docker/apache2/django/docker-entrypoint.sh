@@ -94,14 +94,11 @@ then
     ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 fi
 
-# check if we need to rename the app
-if !( grep "    'acme_srv'" /var/www/acme2certifier/volume/settings.py &> /dev/null)
+# check if we need to remove django_rename app
+if !( grep "    'django_rename_app'," /var/www/acme2certifier/volume/settings.py &> /dev/null)
 then
-    echo "rename django application" >> /proc/1/fd/1
-    sed -i "s/    'acme'/    'django_rename_app',\n    'acme_srv'/g" /var/www/acme2certifier/volume/settings.py
-    rm -rf /var/www/acme2certifier/volume/migrations/*
-    cp  -R /var/www/acme2certifier/examples/django/acme_srv/migrations /var/www/acme2certifier/volume/
-    python3 manage.py rename_app acme acme_srv
+    echo "remove django_rename application" >> /proc/1/fd/1
+    sed -i "s/    'django_rename_app',\n    'acme_srv'/    'acme_srv'/g" /var/www/acme2certifier/volume/settings.py
 fi
 
 echo "apply migrations"  >> /proc/1/fd/1
