@@ -99,7 +99,7 @@ fi
 if !( grep "    'django_rename_app'," /var/www/acme2certifier/volume/settings.py &> /dev/null)
 then
     echo "remove django_rename application" >> /proc/1/fd/1
-    sed -i "s/    'django_rename_app',\n    'acme_srv'/    'acme_srv'/g" /var/www/acme2certifier/volume/settings.py
+    sed -i "/    'django_rename_app',/d" /var/www/acme2certifier/volume/settings.py
 fi
 
 echo "apply migrations"  >> /proc/1/fd/1
