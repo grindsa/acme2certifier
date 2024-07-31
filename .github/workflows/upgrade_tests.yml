@@ -348,7 +348,7 @@ jobs:
         # docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
+        # sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
@@ -480,7 +480,7 @@ jobs:
         # docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
+        # sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
