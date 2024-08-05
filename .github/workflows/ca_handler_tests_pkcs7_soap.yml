@@ -41,6 +41,7 @@ jobs:
     - name: "[ PREPARE ] Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mv ../../.dockerignore ../../.dockerignore.acme
         docker-compose -f soap_srv.yml up -d
         docker-compose -f soap_srv.yml logs
@@ -159,6 +160,7 @@ jobs:
     - name: "[ PREPARE ] Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mv ../../.dockerignore ../../.dockerignore.acme
         docker-compose -f soap_srv.yml up -d
         docker-compose -f soap_srv.yml logs
