@@ -60,6 +60,11 @@ jobs:
         docker-compose restart
         docker-compose logs
 
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
     - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
@@ -167,6 +172,11 @@ jobs:
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
         docker-compose restart
         docker-compose logs
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
 
     - name: "Test if http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory

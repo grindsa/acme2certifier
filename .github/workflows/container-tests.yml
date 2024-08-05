@@ -84,6 +84,7 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sed -i "s/apache2/nginx/g" .env
         sudo mkdir -p data
         docker network create acme
@@ -156,6 +157,7 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sed -i "s/wsgi/django/g" .env
         sudo mkdir -p data
         docker network create acme
@@ -227,6 +229,7 @@ jobs:
     - name: "Build the stack"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sed -i "s/wsgi/django/g" .env
         sed -i "s/apache2/nginx/g" .env
         sudo mkdir -p data
