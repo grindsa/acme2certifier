@@ -181,6 +181,7 @@ jobs:
     - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         docker stop acme-srv
         sudo chmod -R 777 data
         sed -i "s/apache2/nginx/g" .env
@@ -312,6 +313,7 @@ jobs:
     - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         docker stop acme-srv
         sudo chmod -R 777 data
         sed -i "s/wsgi/django/g" .env
@@ -442,6 +444,7 @@ jobs:
     - name: "Upgrade to latest a2c build"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         docker stop acme-srv
         sudo chmod -R 777 data
         sed -i "s/wsgi/django/g" .env
