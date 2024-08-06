@@ -9,7 +9,7 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  docker-compose_apache2_wsgi:
+  docker-compose:
     name: "Docker compose - apache2 wsgi"
     runs-on: ubuntu-latest
     strategy:
@@ -61,12 +61,12 @@ jobs:
 
     - name: "Enroll via acme.sh (http)"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "Enroll via acme.sh (https)"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --insecure --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --insecure --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "Test ca_handler_migration"
@@ -87,7 +87,7 @@ jobs:
 
     - name: "Enroll via acme.sh (http)"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure
         openssl verify -CAfile /var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem -untrusted /var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
     - name: "[ * ] collecting test data"
