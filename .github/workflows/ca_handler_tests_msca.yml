@@ -71,6 +71,7 @@ jobs:
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mkdir -p data
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
@@ -602,6 +603,7 @@ jobs:
     - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mkdir -p data
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
