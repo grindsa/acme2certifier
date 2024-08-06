@@ -1336,6 +1336,7 @@ jobs:
     - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mkdir -p data
         docker network create acme
         docker-compose up -d
