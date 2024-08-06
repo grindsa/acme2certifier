@@ -66,7 +66,7 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Enroll HTTP-01 single domain acme.sh"
+    - name: "HTTPS - Enroll HTTP-01 single domain acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server https://acme-srv --keylength ${{ matrix.keylength }} --accountkeylength ${{ matrix.accountkeylength }} --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
@@ -74,7 +74,7 @@ jobs:
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "Renew HTTP-01 single domain acme.sh"
+    - name: "HTTPS - Renew HTTP-01 single domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
@@ -85,22 +85,26 @@ jobs:
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "Revoke HTTP-01 single domain acme.sh"
+    - name: "HTTPS - Revoke HTTP-01 single domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server https://acme-srv --revoke ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
 
-    - name: "Enroll HTTP-01 2x domain acme.sh"
+    - name: "HTTPS - Decativate acme.sh"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server https://acme-srv --keylength ${{ matrix.keylength }} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server https://acme-srv --debug 2 --output-insecure --insecure
+
+    - name: "HTTP - Enroll HTTP-01 2x domain acme.sh"
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server http://acme-srv --keylength ${{ matrix.keylength }} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "Renew HTTP-01 2x domain acme.sh"
+    - name: "HTTP - Renew HTTP-01 2x domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
@@ -111,14 +115,14 @@ jobs:
         fi
         openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "Revoke HTTP-01 2x domain acme.sh"
+    - name: "HTTP - Revoke HTTP-01 2x domain acme.sh"
       run: |
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="--ecc"
         fi
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server http://acme-srv --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server http://acme-srv ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --insecure
 
-    - name: "Decativate acme.sh"
+    - name: "HTTP - Decativate acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server http://acme-srv --debug 2 --output-insecure --insecure
 
