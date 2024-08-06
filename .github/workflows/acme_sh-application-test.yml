@@ -98,6 +98,7 @@ jobs:
 
     - name: "HTTP - Enroll HTTP-01 2x domain acme.sh"
       run: |
+        sudo rm -rf acme-sh/*
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --issue --server http://acme-srv --keylength ${{ matrix.keylength }} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure --insecure
         if ([ "${{ matrix.keylength }}" == "ec-256" ] || [ "${{ matrix.keylength }}" == "ec-384" ] || [ "${{ matrix.keylength }}" == "ec-521" ]) ; then
           ECC="_ecc"
