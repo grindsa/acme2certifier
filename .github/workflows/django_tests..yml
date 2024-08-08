@@ -154,8 +154,8 @@ jobs:
 
     - name: "HTTPS - Revoke lego"
       run: |
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
-        sudo rm -rf lego/*
+          # docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+          sudo rm -rf lego/*
 
     - name: "HTTP - Enroll lego"
       run: |
