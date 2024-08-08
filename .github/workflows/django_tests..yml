@@ -81,16 +81,16 @@ jobs:
 
     - name: "HTTPS - Register certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email --no-verify-ss
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email --no-verify-ssl
 
     - name: "HTTPS - Enroll certbot"
       run: |
-        docker run -i --rm -name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --no-verify-ss
+        docker run -i --rm -name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --no-verify-ssl
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
     - name: "HTTPS - Revoke certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --cert-name certbot --no-verify-ss
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --cert-name certbot --no-verify-ssl
         sudo rm -rf certbot/*
 
     - name: "HTTPS - Enroll acme.sh"
