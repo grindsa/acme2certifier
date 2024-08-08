@@ -90,7 +90,7 @@ jobs:
 
     - name: "HTTPS - Revoke certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --no-verify-ssl --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --no-verify-ssl --delete-after-revoke --cert-name certbot
         sudo rm -rf certbot/*
 
     - name: "HTTPS - Enroll acme.sh"
