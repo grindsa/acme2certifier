@@ -1,10 +1,15 @@
 name: "Build RPM package"
 description: "Build RPM package"
 inputs:
-  acme_server:
-    description: "ACME server URL"
+  GH_SBOM_USER:
+    description: "GIT user for SBOM repo"
     required: true
-    default: "acme-srv"
+  GH_SBOM_TOKEN:
+    description: "GIT token for SBOM repo"
+    required: true
+  RH_VERSION:
+    description: "RHEL version"
+    required: true
 
 runs:
   using: "composite"
@@ -53,3 +58,22 @@ runs:
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
       shell: bash
 
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ inputs.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ inputs.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+      shell: bash
+
+    - name: "Almalinux instance"
+      run: |
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:$RH_VERSION/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+      env:
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+      shell: bash
