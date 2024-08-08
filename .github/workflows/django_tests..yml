@@ -60,7 +60,7 @@ jobs:
         docker-compose restart
         docker-compose logs
 
-    - name: "create directories"
+    - name: "Create directories"
       run: |
         mkdir -p acme-sh/
         mkdir -p certbot/
@@ -79,14 +79,7 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "HTTPS - Enroll lego"
-      run: |
-        docker run -i -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
-    - name: "HTTPS - Revoke lego"
-      run: |
-        docker run -i -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
     - name: "HTTPS - Enroll acme.sh"
       run: |
@@ -138,6 +131,16 @@ jobs:
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
+    - name: "HTTPS - Register certbot"
+      run: |
+        docker run -i --rm -e REQUESTS_CA_BUNDLE=/etc/letsencrypt/acme2certifier_cabundle.pem --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email
+
+    - name: "HTTPS - Enroll certbot"
+      run: |
+        docker run -i --rm -e REQUESTS_CA_BUNDLE=/etc/letsencrypt/acme2certifier_cabundle.pem --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+
     - name: "HTTP - Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
@@ -146,6 +149,15 @@ jobs:
     - name: "HTTP - Revoke lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+
+    - name: "HTTPS - Enroll lego"
+      run: |
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+
+    - name: "HTTPS - Revoke lego"
+      run: |
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
