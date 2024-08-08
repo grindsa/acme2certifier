@@ -58,7 +58,7 @@ runs:
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
       shell: bash
 
-    - run: echo "GH_SBOM_USER is ${{ inputs.GH_SBOM_USER }}"
+    - run: echo "RH_VERSION is ${{ inputs.RH_VERSION }}"
       shell: bash
 
     - name: "Retrieve rpms from SBOM repo"
