@@ -334,14 +334,7 @@ jobs:
       with:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
-
-    #- name: "Retrieve rpms from SBOM repo"
-    #  run: |
-    #    git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-    #    cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-    #  env:
-    #    GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-    #    GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "prepare acme_srv.cfg with openssl_ca_handler"
       run: |
