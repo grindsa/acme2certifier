@@ -331,7 +331,7 @@ jobs:
 
     - name: "Build rpm package"
       uses: ./.github/actions/rpm_prep
-      env:
+      with:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 

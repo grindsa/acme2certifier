@@ -23,7 +23,7 @@ runs:
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
       shell: bash
 
-    - name: update version number in spec file and path in nginx ssl config
+    - name: Update version number in spec file and path in nginx ssl config
       run: |
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
@@ -63,8 +63,6 @@ runs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        echo $GH_SBOM_USER
-        echo ${{ inputs.GH_SBOM_USER }}
         git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
       env:
