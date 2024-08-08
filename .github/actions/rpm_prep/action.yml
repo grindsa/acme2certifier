@@ -42,7 +42,7 @@ runs:
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
       shell: bash
 
-    - name: "setup environment for alma installation"
+    - name: "Setup environment for alma installation"
       run: |
         docker network create acme
         sudo mkdir -p data/volume
@@ -58,6 +58,9 @@ runs:
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
       shell: bash
 
+    - run: echo "GH_SBOM_USER is ${{ inputs.GH_SBOM_USER }}"
+      shell: bash
+
     - name: "Retrieve rpms from SBOM repo"
       run: |
         echo $GH_SBOM_USER
@@ -70,7 +73,7 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
-    - name: "Almalinux instance"
+    - name: "Spin up alma instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:$RH_VERSION/g" data/Dockerfile
