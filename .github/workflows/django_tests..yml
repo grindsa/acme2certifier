@@ -79,6 +79,20 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
+    - name: "HTTPS - Register certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email --no-verify-ss
+
+    - name: "HTTPS - Enroll certbot"
+      run: |
+        docker run -i --rm -name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --no-verify-ss
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+
+    - name: "HTTPS - Revoke certbot"
+      run: |
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --cert-name certbot --no-verify-ss
+        sudo rm -rf certbot/*
+
     - name: "HTTPS - Enroll acme.sh"
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
@@ -120,15 +134,7 @@ jobs:
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server http://acme-srv --debug 2 --output-insecure --insecure
 
-    - name: "HTTPS - Register certbot"
-      run: |
-        docker run -i --rm -e REQUESTS_CA_BUNDLE=/etc/letsencrypt/acme2certifier_cabundle.pem --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email
 
-    - name: "HTTPS - Enroll certbot"
-      run: |
-        docker run -i --rm -e REQUESTS_CA_BUNDLE=/etc/letsencrypt/acme2certifier_cabundle.pem --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
-        sudo rm -rf certbot/*
 
     - name: "HTTP - Register certbot"
       run: |
