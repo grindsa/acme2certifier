@@ -1,5 +1,5 @@
 name: "Certificate Enrollment"
-description: "Test if acme.sh, certbot and lego can enroll, renew, revoke and deactivate certificates"
+description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
 inputs:
   acme_server:
     description: "ACME server URL"
