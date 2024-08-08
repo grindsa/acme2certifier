@@ -85,7 +85,7 @@ jobs:
 
     - name: "HTTPS - Enroll certbot"
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges --no-verify-ssl http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http --no-verify-ssl -d certbot.acme --cert-name certbot
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
     - name: "HTTPS - Revoke certbot"
