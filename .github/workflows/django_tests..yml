@@ -61,7 +61,7 @@ jobs:
         docker-compose logs
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients.yml
+      uses: ./.github/actions/acme_clients
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
