@@ -33,7 +33,6 @@ runs:
       uses: grindsa/rpmbuild@alma9
       with:
         spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-      shell: bash
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
       shell: bash
