@@ -34,13 +34,19 @@ jobs:
         docker save acme2certifier/$DB_HANDLER > /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
         gzip /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
         ls -la /tmp
-        #docker save -o acme_container.tar acme_container
-        #mkdir -p ${{ github.workspace }}/artifact/
-        #mv acme_container.tar ${{ github.workspace }}/artifact/
-        exit 1
       env:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Upload RPM package"
+      uses: actions/upload-artifact@master
+      with:
+        name: a2c.WEB_SRV.$DB_HANDLER.tar.gz
+        path: /tmp
+
+    - name: "Upload RPM package"
+      run: |
+        exit 1
 
   acme_container_tests:
     name: "acme_container_tests"
