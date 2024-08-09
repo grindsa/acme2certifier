@@ -20,7 +20,7 @@ runs:
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         # cat .env
-        docker-compose upbuild
+        docker-compose build
       shell: bash
       env:
         WEB_SRV: ${{ inputs.WEB_SRV }}
