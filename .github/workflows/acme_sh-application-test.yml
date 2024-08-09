@@ -74,6 +74,7 @@ jobs:
 
     - name: "Import container"
       run: |
+        sudo apt-get install -y docker-compose
         gunzip /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
