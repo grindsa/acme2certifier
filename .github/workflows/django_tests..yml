@@ -63,6 +63,7 @@ jobs:
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         docker-compose restart
         docker-compose logs
+        exit 1
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
