@@ -15,8 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
     - name: "checkout GIT"
@@ -39,7 +39,7 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Upload RPM package"
+    - name: "Upload container package"
       uses: actions/upload-artifact@master
       with:
         name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
@@ -54,10 +54,8 @@ jobs:
       matrix:
         accountkeylength: [2048, ec-256, ec-521]
         keylength: [2048, ec-521]
-        # websrv: ['apache2', 'nginx']
-        # dbhandler: ['wsgi', 'django']
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
