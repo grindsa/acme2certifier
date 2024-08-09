@@ -104,9 +104,6 @@ jobs:
     - name: "Install postgres"
       working-directory: examples/Docker/
       run: |
-        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
-        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
-        sudo chmod 600 examples/Docker/data/pgsql/pgpass
         docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
     - name: "Sleep for 10s"
@@ -117,6 +114,10 @@ jobs:
     - name: "Configure postgres"
       working-directory: examples/Docker/
       run: |
+        sudo mkdir -p data/pgsql
+        sudo cp .github/a2c.psql pgsql/a2c.psql
+        sudo cp .github/pgpass pgsql/pgpass
+        sudo chmod 600 pgsql/pgpass
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
     - name: "Sleep for 5s"
