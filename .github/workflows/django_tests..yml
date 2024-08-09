@@ -99,7 +99,7 @@ jobs:
       with:
         DB_HANDLER: "django"
         WEB_SRV: ${{ matrix.websrv }}
-        DJANGO_DB: "mariadb"
+        DJANGO_DB: "psql"
 
     - name: "Install postgres"
       working-directory: examples/Docker/
