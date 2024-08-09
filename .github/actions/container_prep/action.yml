@@ -1,0 +1,46 @@
+name: "Build RPM package"
+description: "Build RPM package"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DJANGO_DB:
+    description: "Django database"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      working-directory: examples/Docker/
+      run: |
+        sudo apt-get install -y docker-compose
+        sudo mkdir -p data
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        cat .env
+        docker network create acme
+        docker-compose up -d
+        docker-compose logs
+      shell: bash
+      env:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+
+    - name: "Setup environment"
+      run: |
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        if [ -z "$DJANGO_DB" ]; then
+            sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        else
+            sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
+        fi
+      shell: bash
