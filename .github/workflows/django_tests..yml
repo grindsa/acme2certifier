@@ -63,13 +63,13 @@ jobs:
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         grep -i 'django.db.backends.mysql' data/settings.py
         docker-compose restart
-        docker-compose logs
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         docker exec mariadbsrv mariadb-dump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
@@ -140,13 +140,13 @@ jobs:
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         grep -i 'django.db.backends.postgresql_psycopg2' data/settings.py
         docker-compose restart
-        docker-compose logs
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         docker run -v "$(pwd)/examples/Docker/data/pgsql/pgpass":/root/.pgpass --rm --network acme postgres pg_dump -U postgres -h postgresdbsrv acme2certifier > /tmp/acme2certifier.psql
         mkdir -p ${{ github.workspace }}/artifact/upload
@@ -227,6 +227,7 @@ jobs:
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
@@ -311,6 +312,7 @@ jobs:
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
@@ -398,6 +400,7 @@ jobs:
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
