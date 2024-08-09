@@ -38,7 +38,7 @@ jobs:
         #mkdir -p ${{ github.workspace }}/artifact/
         #mv acme_container.tar ${{ github.workspace }}/artifact/
         exit 1
-      with:
+      env:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
