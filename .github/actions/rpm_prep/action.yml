@@ -12,37 +12,18 @@ inputs:
     required: true
   DJANGO_DB:
     description: "Django database"
+  RPM_BUILD:
+    description: "Build RPM"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
 
-    - name: "Retrieve Version from version.py"
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-      shell: bash
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-      shell: bash
-
-    - name: "Update version number in spec file and path in nginx ssl config"
-      run: |
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-        git config --global user.email "grindelsack@gmail.com"
-        git config --global user.name "rpm update"
-        git add examples/nginx
-        git commit -a -m "rpm update"
-      shell: bash
-
-    - name: "Build RPM package"
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-      shell: bash
+    - name: "Build rpm package"
+      if: inputs.RPM_BUILD == 'true'
+      uses: ./.github/actions/rpm_prep
 
     - name: "Setup environment for alma installation"
       run: |
