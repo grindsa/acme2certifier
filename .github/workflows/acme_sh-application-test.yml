@@ -66,20 +66,20 @@ jobs:
       run: |
         mkdir acme-sh
 
-    - name: "Build container"
+    - name: "Prepare container environment"
       uses: ./.github/actions/container_prep
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
 
-    - name: Download container
+    - name: "Download container"
       uses: actions/download-artifact@v4
       with:
         name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar,gz
         path: /tmp
 
-    - name: Import container
+    - name: "Import container"
       run: |
         gunzip /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar

@@ -41,6 +41,7 @@ runs:
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
 
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      if: inputs.CONTAINER_BUILD == 'true'
       working-directory: examples/Docker/
       run: |
           docker-compose up -d
