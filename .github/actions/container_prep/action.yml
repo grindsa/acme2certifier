@@ -9,6 +9,9 @@ inputs:
     description: "Web server"
     required: true
     default: "apache2"
+  DJANGO_DB:
+    description: "Django database"
+    required: false
   CONTAINER_BUILD:
     description: "Build container"
     required: true
