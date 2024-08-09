@@ -31,7 +31,7 @@ jobs:
     - name: "Save container"
       run: |
         docker images
-        docker save grindsa/acme2certifier > /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
+        docker save acme2certifier > /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
         gzip /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
         ls -la /tmp
         #docker save -o acme_container.tar acme_container
