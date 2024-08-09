@@ -188,7 +188,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "Build rpm package"
+    - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
@@ -254,13 +254,14 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "Build rpm package"
+    - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: mariadb
+        RPM_BUILD: false
 
     - name: "Install mariadb"
       run: |
@@ -277,6 +278,17 @@ jobs:
         docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
+
+    - name: "Retrieve Version from version.py"
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: data/
 
     - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
@@ -326,13 +338,14 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "Build rpm package"
+    - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: psql
+        RPM_BUILD: false
 
     - name: "Install postgres"
       run: |
@@ -350,6 +363,17 @@ jobs:
     - name: "Configure postgres"
       run: |
         docker run -v /tmp/pgsql/a2c.psql:/tmp/a2c.psql -v /tmp/pgsql/pgpass:/root/.pgpass --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+
+    - name: "Retrieve Version from version.py"
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: data/
 
     - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
