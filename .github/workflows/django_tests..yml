@@ -193,7 +193,7 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
-        BUILD_RPM: "false"
+        RPM_BUILD: false
 
     - name: Download rpm package
       uses: actions/download-artifact@v4
