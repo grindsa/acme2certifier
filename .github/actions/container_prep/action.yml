@@ -19,7 +19,6 @@ runs:
   steps:
     - name: "Setup environment"
       run: |
-        sudo apt-get install -y docker-compose
         docker network create acme
         sudo mkdir -p examples/Docker/data
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
@@ -40,3 +39,9 @@ runs:
       with:
         WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
+
+    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      working-directory: examples/Docker/
+      run: |
+          docker-compose up -d
+      shell: bash

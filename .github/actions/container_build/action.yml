@@ -16,11 +16,11 @@ runs:
     - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: examples/Docker/
       run: |
-        sudo mkdir -p data
+        sudo apt-get install -y docker-compose
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         # cat .env
-        docker-compose up -d
+        docker-compose upbuild
       shell: bash
       env:
         WEB_SRV: ${{ inputs.WEB_SRV }}
