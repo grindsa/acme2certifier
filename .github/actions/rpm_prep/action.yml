@@ -55,7 +55,7 @@ runs:
         sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-        if [ -z $DJANGO_DB ]; then
+        if [ -z "$DJANGO_DB" ]; then
             sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
         else
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
