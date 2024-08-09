@@ -23,7 +23,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders"
+    - name: "Create folders"
       run: |
         mkdir acme-sh
 
@@ -32,7 +32,6 @@ jobs:
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
-        DJANGO_DB: "mariadb"
 
     - name: "Setup openssl ca_handler"
       run: |
