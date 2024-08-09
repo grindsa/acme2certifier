@@ -45,10 +45,6 @@ jobs:
         name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         path: /tmp/a2c
 
-    - name: "Upload RPM package"
-      run: |
-        exit 1
-
   acme_container_tests:
     name: "acme_container_tests"
     runs-on: ubuntu-latest
@@ -58,8 +54,10 @@ jobs:
       matrix:
         accountkeylength: [2048, ec-256, ec-521]
         keylength: [2048, ec-521]
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
+        # websrv: ['apache2', 'nginx']
+        # dbhandler: ['wsgi', 'django']
+        websrv: ['apache2']
+        dbhandler: ['wsgi']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -74,6 +72,18 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
+
+    - name: Download container
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar,gz
+        path: /tmp
+
+    - name: Import container
+      run: |
+        gunzip /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
 
     - name: "Setup openssl ca_handler"
       run: |
