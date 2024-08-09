@@ -17,7 +17,7 @@ runs:
   using: "composite"
   steps:
 
-    - name: Retrieve Version from version.py
+    - name: "Retrieve Version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
       shell: bash
@@ -25,7 +25,7 @@ runs:
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
       shell: bash
 
-    - name: Update version number in spec file and path in nginx ssl config
+    - name: "Update version number in spec file and path in nginx ssl config"
       run: |
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
@@ -35,7 +35,7 @@ runs:
         git commit -a -m "rpm update"
       shell: bash
 
-    - name: build RPM package
+    - name: "Build RPM package"
       id: rpm
       uses: grindsa/rpmbuild@alma9
       with:
@@ -80,7 +80,7 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
-    - name: "Spin up alma instance"
+    - name: "Spin-up alma instance"
       run: |
         sudo cp examples/Docker/almalinux-systemd/Dockerfile data
         sudo sed -i "s/FROM almalinux:9/FROM almalinux:$RH_VERSION/g" data/Dockerfile
