@@ -366,7 +366,7 @@ jobs:
       run: |
         docker run -v /tmp/pgsql/a2c.psql:/tmp/a2c.psql -v /tmp/pgsql/pgpass:/root/.pgpass --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
-    - name: "Retrieve Version from version.py"
+    - name: "Retrieve version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
@@ -418,9 +418,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [nginx_django_rpm_psql, nginx_django_rpm_mariadb, nginx_django_rpm_sqlite]
     steps:
-    - name: "Retrieve Version from version.py"
+    - name: "Retrieve version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
     - name: "Delete artifact"
       uses: geekyeggo/delete-artifact@v5
