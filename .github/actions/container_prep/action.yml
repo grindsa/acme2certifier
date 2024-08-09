@@ -40,7 +40,7 @@ runs:
         WEB_SRV: ${{ inputs.WEB_SRV }}
         DB_HANDLER: ${{ inputs.DB_HANDLER }}
 
-    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+    - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: examples/Docker/
       run: |
           docker-compose up -d

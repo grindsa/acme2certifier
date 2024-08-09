@@ -31,10 +31,16 @@ jobs:
     - name: "Save container"
       run: |
         docker images
+        docker save grindsa/acme2certifier > /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
+        gzip /tmp/a2c.WEB_SRV.$DB_HANDLER.tar
+        ls -la /tmp
         #docker save -o acme_container.tar acme_container
         #mkdir -p ${{ github.workspace }}/artifact/
         #mv acme_container.tar ${{ github.workspace }}/artifact/
         exit 1
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
   acme_container_tests:
     name: "acme_container_tests"
