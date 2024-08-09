@@ -61,9 +61,9 @@ jobs:
         sudo echo "" >> data/acme_srv.cfg
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
+        grep -i 'django.db.backends.mysql' data/settings.py
         docker-compose restart
         docker-compose logs
-        exit 1
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -138,6 +138,7 @@ jobs:
         sudo echo "" >> data/acme_srv.cfg
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
+        grep -i 'django.db.backends.postgresql_psycopg2' data/settings.py
         docker-compose restart
         docker-compose logs
 
@@ -215,6 +216,7 @@ jobs:
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        grep -i 'django.db.backends.sqlite3' data/volume/settings.py
 
     - name: "Execute install scipt"
       run: |
@@ -298,6 +300,7 @@ jobs:
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        grep -i 'django.db.backends.mysql' data/volume/settings.py
 
     - name: "Execute install scipt"
       run: |
@@ -384,6 +387,7 @@ jobs:
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        grep -i 'django.db.backends.postgresql_psycopg2' data/volume/settings.py
 
     - name: "Execute install scipt"
       run: |
