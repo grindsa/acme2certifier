@@ -92,7 +92,7 @@ jobs:
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker-compose up -d
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
