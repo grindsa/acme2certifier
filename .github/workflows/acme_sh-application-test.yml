@@ -33,6 +33,7 @@ jobs:
         docker images
         docker save acme2certifier/$DB_HANDLER > /tmp/a2c.$WEB_SRV.$DB_HANDLER.tar
         gzip /tmp/a2c.$WEB_SRV.$DB_HANDLER.tar
+        ls -la
       env:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
