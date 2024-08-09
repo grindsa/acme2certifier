@@ -9,30 +9,18 @@ inputs:
     description: "Web server"
     required: true
     default: "apache2"
-  DJANGO_DB:
-    description: "Django database"
+  CONTAINER_BUILD:
+    description: "Build container"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
-    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      shell: bash
-      env:
-        WEB_SRV: ${{ inputs.WEB_SRV }}
-        DB_HANDLER: ${{ inputs.DB_HANDLER }}
-
     - name: "Setup environment"
       run: |
+        sudo apt-get install -y docker-compose
+        docker network create acme
         sudo mkdir -p examples/Docker/data
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -45,3 +33,10 @@ runs:
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
       shell: bash
+
+    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      if: inputs.CONTAINER_BUILD == 'true'
+      uses: ./.github/actions/container_build
+      with:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
