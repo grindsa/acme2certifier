@@ -166,13 +166,14 @@ jobs:
       uses: actions/checkout@v4
 
     - name: "Build rpm package"
+      id: rpm_build
       uses: ./.github/actions/rpm_build
 
     - name: "Upload RPM package"
       uses: actions/upload-artifact@master
       with:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-        path: ${{ steps.rpm.outputs.rpm_dir_path }}/noarch/
+        path: ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/
 
 
   nginx_django_rpm_sqlite:
