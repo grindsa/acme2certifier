@@ -31,8 +31,9 @@ jobs:
     - name: "Save container"
       run: |
         docker images
-        docker save acme2certifier/$DB_HANDLER > /tmp/a2c.$WEB_SRV.$DB_HANDLER.tar
-        gzip /tmp/a2c.$WEB_SRV.$DB_HANDLER.tar
+        mkdir -p /tmp/a2c
+        docker save acme2certifier/$DB_HANDLER > /tmp/a2c/a2c.$WEB_SRV.$DB_HANDLER.tar
+        gzip /tmp/a2c/a2c.$WEB_SRV.$DB_HANDLER.tar
         ls -la
       env:
         DB_HANDLER: ${{ matrix.dbhandler }}
@@ -42,7 +43,7 @@ jobs:
       uses: actions/upload-artifact@master
       with:
         name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-        path: /tmp
+        path: /tmp/a2c
 
     - name: "Upload RPM package"
       run: |
