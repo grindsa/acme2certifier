@@ -43,4 +43,6 @@ runs:
         else
             sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
         fi
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
       shell: bash
