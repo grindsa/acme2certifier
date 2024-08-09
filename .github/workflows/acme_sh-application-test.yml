@@ -66,13 +66,6 @@ jobs:
       run: |
         mkdir acme-sh
 
-    - name: "Prepare container environment"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
-        CONTAINER_BUILD: false
-
     - name: "Download container"
       uses: actions/download-artifact@v4
       with:
@@ -84,6 +77,13 @@ jobs:
         gunzip /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
 
     - name: "Setup openssl ca_handler"
       run: |
