@@ -196,16 +196,21 @@ jobs:
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
 
+    - name: "Retrieve Version from version.py"
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+
     - name: Download rpm package
       uses: actions/download-artifact@v4
       with:
-        name: acme2certifier-build-1.0.noarch.rpm
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
     - name: "Copy acme2certifier"
       run: |
         ls -la /tmp/
-        sudo cp /tmp/acme2certifier-build-1.0.noarch.rpm data/
+        sudo cp /tmp/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data/
 
     - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
