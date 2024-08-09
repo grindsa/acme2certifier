@@ -23,7 +23,7 @@ runs:
 
     - name: "Build rpm package"
       if: inputs.RPM_BUILD == 'true'
-      uses: ./.github/actions/rpm_prep
+      uses: ./.github/actions/rpm_build
 
     - name: "Setup environment for alma installation"
       run: |
@@ -32,10 +32,14 @@ runs:
         sudo mkdir -p data/acme2certifier
         sudo mkdir -p data/nginx
         sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
+        if [ -f ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ] then;
+          echo "RPM exists"
+          sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        fi
         if [ -z "$DJANGO_DB" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
         else
