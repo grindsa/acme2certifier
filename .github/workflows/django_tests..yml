@@ -115,9 +115,9 @@ jobs:
       working-directory: examples/Docker/
       run: |
         sudo mkdir -p data/pgsql
-        sudo cp ../../.github/a2c.psql pgsql/a2c.psql
-        sudo cp ../../.github/pgpass pgsql/pgpass
-        sudo chmod 600 pgsql/pgpass
+        sudo cp ../../.github/a2c.psql data/pgsql/a2c.psql
+        sudo cp ../../.github/pgpass data/pgsql/pgpass
+        sudo chmod 600 data/pgsql/pgpass
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
     - name: "Sleep for 5s"
