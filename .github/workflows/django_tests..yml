@@ -178,6 +178,7 @@ jobs:
   nginx_django_rpm_sqlite:
     name: "nginx_django_rpm_sqlite"
     runs-on: ubuntu-latest
+    needs: rpm_build
     strategy:
       fail-fast: false
       matrix:
@@ -192,6 +193,18 @@ jobs:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
+        BUILD_RPM: "false"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-build-1.0.noarch.rpm
+        path: /tmp/
+
+    - name: "Copy acme2certifier"
+      run: |
+        ls -la /tmp/
+        sudo cp /tmp/acme2certifier-build-1.0.noarch.rpm data/
 
     - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
@@ -231,6 +244,7 @@ jobs:
   nginx_django_rpm_mariadb:
     name: "nginx_django_rpm_mariadb"
     runs-on: ubuntu-latest
+    needs: rpm_build
     strategy:
       fail-fast: false
       matrix:
@@ -302,6 +316,7 @@ jobs:
   nginx_django_rpm_psql:
     name: "nginx_django_rpm_psql"
     runs-on: ubuntu-latest
+    needs: rpm_build
     strategy:
       fail-fast: false
       matrix:
