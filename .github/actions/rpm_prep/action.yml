@@ -23,6 +23,7 @@ runs:
 
     - name: "Build rpm package"
       if: inputs.RPM_BUILD == 'true'
+      id: rpm_build
       uses: ./.github/actions/rpm_build
 
     - name: "Setup environment for alma installation"
@@ -36,9 +37,9 @@ runs:
         sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-        if [ -f ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
+        if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
-          sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
         else
           echo "RPM does not exist"
         fi

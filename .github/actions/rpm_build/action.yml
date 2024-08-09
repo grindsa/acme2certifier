@@ -1,5 +1,9 @@
 name: "Build RPM package"
 description: "Build RPM package"
+outputs:
+  rpm_dir_path:
+    description: "Path to the directory containing the RPM package"
+    value: ${{ steps.rpm.outputs.rpm_dir_path }}
 
 runs:
   using: "composite"
