@@ -115,7 +115,7 @@ runs:
 
     - name: "HTTPS - Enroll lego"
       run: |
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --ssl run
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --tls run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
       shell: bash
 
