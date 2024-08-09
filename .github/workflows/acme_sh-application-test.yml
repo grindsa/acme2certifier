@@ -56,6 +56,7 @@ jobs:
         keylength: [2048, ec-521]
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -179,3 +180,18 @@ jobs:
       with:
         name: acme_container_tests${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.accountkeylength }}_key-${{ matrix.keylength }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+  cleanup:
+    name: "cleanup"
+    runs-on: ubuntu-latest
+    needs: acme_container_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+    - uses: geekyeggo/delete-artifact@v5
+      with:
+        name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
