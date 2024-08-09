@@ -69,7 +69,7 @@ jobs:
     - name: "Download container"
       uses: actions/download-artifact@v4
       with:
-        name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar,gz
+        name: a2c.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         path: /tmp
 
     - name: "Import container"
