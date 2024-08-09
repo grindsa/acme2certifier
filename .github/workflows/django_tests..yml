@@ -51,8 +51,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Prepare acme_srv.cfg with openssl_ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         sudo chmod 777 data/acme_srv.cfg
@@ -125,8 +127,10 @@ jobs:
       with:
         time: 5s
 
-    - name: "Prepare acme_srv.cfg with openssl_ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         sudo chmod 777 data/acme_srv.cfg
