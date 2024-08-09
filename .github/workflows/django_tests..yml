@@ -157,6 +157,24 @@ jobs:
         name: ${{ matrix.websrv }}-psql.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+
+  rpm_build:
+    name: "rpm_build"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Build rpm package"
+      uses: ./.github/actions/rpm_build
+
+    - name: "Upload RPM package"
+      uses: actions/upload-artifact@master
+      with:
+        name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
+        path: ${{ steps.rpm.outputs.rpm_dir_path }}/noarch/
+
+
   nginx_django_rpm_sqlite:
     name: "nginx_django_rpm_sqlite"
     runs-on: ubuntu-latest

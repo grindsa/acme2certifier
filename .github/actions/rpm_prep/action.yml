@@ -39,6 +39,8 @@ runs:
         if [ -f ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
           echo "RPM exists"
           sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        else
+          echo "RPM does not exist"
         fi
         if [ -z "$DJANGO_DB" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
