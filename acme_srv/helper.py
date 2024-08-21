@@ -433,20 +433,54 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     logger.debug('cert_ski_get() ended with: %s', ski_value)
     return ski_value
 
+def cryptography_version_get(logger: logging.Logger) -> int:
+    """ get version number of cryptography module """
+    logger.debug('Helper.cryptography_version_get()')
+    import cryptography
+
+    version_list = cryptography.__version__.split('.')
+    if version_list:
+        major_version = int(version_list[0])
+    else:
+        major_version = 36
+
+    logger.debug('cryptography_version_get() ended with %s', major_version)
+    return major_version
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """ get extenstions from certificate certificate """
     logger.debug('cert_extensions_get()')
 
-    cert = cert_load(logger, certificate, recode=recode)
-
-    extension_list = []
-    for extension in cert.extensions:
-        extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
+    crypto_module_version = cryptography_version_get(logger)
+    if crypto_module_version < 36:
+        logger.debug('Helper.cert_extensions_get(): using pyopenssl')
+        extension_list = cert_extensions_py_openssl_get(logger, certificate, recode)
+    else:
+        cert = cert_load(logger, certificate, recode=recode)
+        extension_list = []
+        for extension in cert.extensions:
+            extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
     logger.debug('cert_extensions_get() ended with: %s', extension_list)
     return extension_list
 
+def cert_extensions_py_openssl_get(logger, certificate, recode=True):
+    """ get extenstions from certificate certificate """
+    logger.debug('cert_extensions_py_openssl_get()')
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
+
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+    extension_list = []
+    ext_count = cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = cert.get_extension(i)
+        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
+
+    logger.debug('cert_extensions_py_openssl_get() ended with: {0}'.format(extension_list))
+    return extension_list
 
 def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = False):
     """ get serial number form certificate """
