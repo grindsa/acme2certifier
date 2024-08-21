@@ -1,0 +1,97 @@
+name: "rpm_prep"
+description: "Prepare environment for RPM installation"
+inputs:
+  GH_SBOM_USER:
+    description: "GIT user for SBOM repo"
+    required: true
+  GH_SBOM_TOKEN:
+    description: "GIT token for SBOM repo"
+    required: true
+  RH_VERSION:
+    description: "RHEL version"
+    required: true
+  DJANGO_DB:
+    description: "Django database"
+  RPM_BUILD:
+    description: "Build RPM"
+    required: true
+    default: "true"
+  NAME_SPACE:
+    description: "Name space"
+    required: true
+    default: "acme"
+  IPV6:
+    description: "IPv6"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Build rpm package"
+      if: inputs.RPM_BUILD == 'true'
+      id: rpm_build
+      uses: ./.github/actions/rpm_build
+
+    - name: "Setup environment for alma installation"
+      run: |
+        echo "IPv6 is $IPV6"
+        if [ "$IPV6" == "false" ]; then
+          echo "create v4 namespace"
+          docker network create $NAME_SPACE
+        else
+          echo "create v6 namespace"
+          docker network create $NAME_SPACE --ipv6 --subnet "fdbb:6445:65b4:0a60::/64"
+        fi
+        sudo mkdir -p data/volume
+        sudo mkdir -p data/acme2certifier
+        sudo mkdir -p data/nginx
+        sudo chmod -R 777 data
+        sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
+        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+        sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
+        if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
+          echo "RPM exists"
+          sudo cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        else
+          echo "RPM does not exist"
+        fi
+        if [ -z "$DJANGO_DB" ]; then
+            sudo cp .github/django_settings.py data/acme2certifier/settings.py
+        else
+            sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
+        fi
+        sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
+        sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
+
+      shell: bash
+
+    - run: echo "RH_VERSION is ${{ inputs.RH_VERSION }}"
+      shell: bash
+
+    - name: "Retrieve rpms from SBOM repo"
+      run: |
+        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
+      env:
+        GH_SBOM_USER: ${{ inputs.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ inputs.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+      shell: bash
+
+    - name: "Spin-up alma instance"
+      run: |
+        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
+        sudo sed -i "s/FROM almalinux:9/FROM almalinux:$RH_VERSION/g" data/Dockerfile
+        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
+        docker run -d -id --privileged --network $NAME_SPACE -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+      env:
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      shell: bash
