@@ -433,6 +433,7 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     logger.debug('cert_ski_get() ended with: %s', ski_value)
     return ski_value
 
+
 def cryptography_version_get(logger: logging.Logger) -> int:
     """ get version number of cryptography module """
     logger.debug('Helper.cryptography_version_get()')
@@ -446,6 +447,7 @@ def cryptography_version_get(logger: logging.Logger) -> int:
 
     logger.debug('cryptography_version_get() ended with %s', major_version)
     return major_version
+
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """ get extenstions from certificate certificate """
@@ -464,6 +466,7 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     logger.debug('cert_extensions_get() ended with: %s', extension_list)
     return extension_list
 
+
 def cert_extensions_py_openssl_get(logger, certificate, recode=True):
     """ get extenstions from certificate certificate """
     logger.debug('cert_extensions_py_openssl_get()')
@@ -481,6 +484,7 @@ def cert_extensions_py_openssl_get(logger, certificate, recode=True):
 
     logger.debug('cert_extensions_py_openssl_get() ended with: {0}'.format(extension_list))
     return extension_list
+
 
 def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = False):
     """ get serial number form certificate """
