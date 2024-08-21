@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['django']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
 
