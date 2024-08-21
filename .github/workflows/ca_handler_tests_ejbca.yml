@@ -22,12 +22,6 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders"
-      run: |
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
-
     - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
@@ -39,7 +33,6 @@ jobs:
       run: |
         mkdir -p data/acme_ca
         sudo chmod -R 777 data/acme_ca
-        docker network create acme
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
       env:
         EJBCA_IP: ${{ env.RUNNER_IP }}
@@ -58,7 +51,7 @@ jobs:
         echo SAEC=$(docker logs ejbca | grep /opt/keyfactor/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
 
     - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
+    - run: sudo echo  ${{ env.SAEC }} > examples/Docker/data/passphrase.txt
 
     - name: "Configure ejbca"
       run: |
@@ -103,26 +96,14 @@ jobs:
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
         DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Default - setup a2c with ejbca_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -142,57 +123,11 @@ jobs:
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Default - Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "Default - Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-
-    - name: "Default - enroll via acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "Default - revoke via acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-
-    - name: "Default - register certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "Default - enroll HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
-
-    - name: "Default - revoke HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
-
-    - name: "enroll lego"
-      run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
-
-    - name: "Default - revoke HTTP-01 single domain lego"
-      run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
 
     - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
@@ -291,12 +226,6 @@ jobs:
 
     - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/ejbca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
@@ -415,6 +344,12 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmesubca
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -447,7 +382,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] get runner ip"
+    - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
@@ -457,16 +392,9 @@ jobs:
       run: |
         mkdir -p data/acme_ca
         sudo chmod -R 777 data
-        docker network create acme
         sudo sh -c "echo '$EJBCA_IP ejbca' >> /etc/hosts"
       env:
         EJBCA_IP: ${{ env.RUNNER_IP }}
-
-    - name: "[ PREPARE ] create acme-sh, letsencrypt and lego folders"
-      run: |
-        mkdir certbot
-        mkdir lego
-        mkdir acme-sh
 
     - name: "Instanciate ejbca server"
       run: |
@@ -482,7 +410,7 @@ jobs:
         echo SAEC=$(docker logs ejbca | grep /opt/keyfactor/bin/start.sh | grep Password: | awk -F'Password: ' '{print $2}' | awk -F ' ' '{print $1}') >> $GITHUB_ENV
 
     - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
-    - run: echo  ${{ env.SAEC }} > data/passphrase.txt
+    - run: sudo echo  ${{ env.SAEC }} > data/passphrase.txt
 
     - name: "Configure ejbca"
       run: |
@@ -501,7 +429,6 @@ jobs:
       run: |
         docker exec -i ejbca bin/ejbca.sh ca init acmesubca "CN=acmesubca" soft foo123 4096 RSA -v 365 --policy 2.5.29.32.0 -s SHA256WithRSA --signedby $CAID
         docker exec -i ejbca bin/ejbca.sh ca importprofiles -d /tmp/data/
-
       env:
         CAID: ${{ env.CAID }}
 
@@ -526,37 +453,12 @@ jobs:
       env:
         SAEC: ${{ env.SAEC }}
 
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "setup environment for alma installation"
-      run: |
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
         GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "Default - setup a2c with ejbca_ca_handler"
       run: |
@@ -575,13 +477,6 @@ jobs:
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
       env:
         SAEC: ${{ env.SAEC }}
-
-    - name: "Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "Execute install scipt"
       run: |
@@ -624,8 +519,6 @@ jobs:
 
     - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
       run: |
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "api_host: https://ejbca" >> data/acme_srv.cfg
@@ -722,8 +615,6 @@ jobs:
 
     - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
       run: |
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "api_host: https://ejbca" >> data/acme_srv.cfg

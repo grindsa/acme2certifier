@@ -9,9 +9,29 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
+  container_build:
+    name: "container_build"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Build container"
+      uses: ./.github/actions/container_build_upload
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
   mscertsrv_handler_tests:
     name: "mscertsrv_handler_tests"
     runs-on: ubuntu-latest
+    needs: container_build
     strategy:
       fail-fast: false
       # max-parallel: 1
@@ -22,12 +42,26 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders and networks"
+    - name: "Download container"
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        path: /tmp
+
+    - name: "Import container"
       run: |
-        docker network create local
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
+        sudo apt-get install -y docker-compose
+        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
+        NAME_SPACE: local
 
     - name: "Get runner ip"
       run: |
@@ -68,27 +102,8 @@ jobs:
       env:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        sed -i "s/name: acme/name: local/g" docker-compose.yml
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-
     - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
@@ -113,10 +128,6 @@ jobs:
         cat <<EOF > examples/Docker/data/krb5.conf
         $WES_KRB5_CONF
         EOF
-
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -128,6 +139,13 @@ jobs:
         WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+
+    - name: "Bring up a2c container"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        NAME_SPACE: local
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -170,13 +188,6 @@ jobs:
 
     - name: "NTLM - Setup a2c with mscertsrv_ca_handler using ntlm"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo touch examples/Docker/data/ca_certs.pem
-        sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -191,9 +202,6 @@ jobs:
         sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -284,6 +292,12 @@ jobs:
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -321,10 +335,30 @@ jobs:
 
     - name: "create folders and networks"
       run: |
-        docker network create local
         mkdir lego
         mkdir acme-sh
         mkdir certbot
+
+    - name: "Download container"
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        path: /tmp
+
+    - name: "Import container"
+      run: |
+        sudo apt-get install -y docker-compose
+        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
+        NAME_SPACE: local
 
     - name: "Get runner ip"
       run: |
@@ -365,26 +399,8 @@ jobs:
       env:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        sed -i "s/name: acme/name: local/g" docker-compose.yml
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-
     - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
@@ -424,10 +440,6 @@ jobs:
         sudo sed -i "s/example.net/local/g" examples/Docker/data/kid_profiles.json
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -439,6 +451,13 @@ jobs:
         WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+
+    - name: "Bring up a2c container"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        NAME_SPACE: local
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -519,6 +538,12 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.local.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.local.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -560,11 +585,30 @@ jobs:
         mkdir acme-sh
         mkdir certbot
 
+    - name: "Download container"
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        path: /tmp
+
+    - name: "Import container"
+      run: |
+        sudo apt-get install -y docker-compose
+        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
+
     - name: "[ PREPARE ] get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
     - name: "Install dnsmasq"
@@ -599,21 +643,6 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WES_HOST: ${{ secrets.WES_HOST }}
-
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
 
     - name: "Prepare ssh environment on ramdisk "
       run: |
@@ -664,9 +693,6 @@ jobs:
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ssh_host: $SSH_HOST:$SSH_PORT" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WCCE_USER: ${{ secrets.WCCE_USER }}
@@ -678,6 +704,12 @@ jobs:
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
         SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
         SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+
+    - name: "Bring up a2c container"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -836,6 +868,12 @@ jobs:
         openssl verify -CAfile examples/Docker/data/ca_certs.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -855,6 +893,12 @@ jobs:
       with:
         name: mswcce_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
   mswcce_handler_profiling_tests:
     name: "mswcce_handler_profiling_tests"
@@ -916,19 +960,25 @@ jobs:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WES_HOST: ${{ secrets.WES_HOST }}
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
+    - name: "Download container"
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        path: /tmp
+
+    - name: "Import container"
       run: |
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
+        sudo apt-get install -y docker-compose
+        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
+
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
         DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
 
     - name: "Prepare ssh environment on ramdisk "
       run: |
@@ -996,10 +1046,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
-        cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
@@ -1010,6 +1056,12 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
+
+    - name: "Bring up a2c container"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "EAB with headerinfo - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -1090,6 +1142,12 @@ jobs:
         sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -1110,9 +1168,36 @@ jobs:
         name: mswcce_handler_profiling_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+  cleanup:
+    name: "cleanup"
+    runs-on: ubuntu-latest
+    needs: [mscertsrv_handler_tests, mscertsrv_handler_profiling_tests, mswcce_handler_tests, mswcce_handler_profiling_tests ]
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+    - uses: geekyeggo/delete-artifact@v5
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+
+  rpm_build_and_upload:
+    name: "rpm_build_and_upload"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Build rpm package"
+      id: rpm_build
+      uses: ./.github/actions/rpm_build_upload
+
   mscertsrv_handler_tests_rpm:
     name: "mscertsrv_handler_tests_rpm"
     runs-on: ubuntu-latest
+    needs: rpm_build_and_upload
     strategy:
       # max-parallel: 1
       fail-fast: false
@@ -1122,12 +1207,20 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders and networks"
-      run: |
-        docker network create local
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+        RPM_BUILD: false
+        NAME_SPACE: "local"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ github.run_id }}.noarch.rpm
+        path: data/
 
     - name: "Get runner ip"
       run: |
@@ -1167,50 +1260,6 @@ jobs:
         docker run -i --rm --network local curlimages/curl --insecure -f https://$WCCE_FQDN
       env:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-
-
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
-
-    - name: "NTLM - Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network local --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
       run: |
@@ -1287,10 +1336,6 @@ jobs:
 
     - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
       run: |
-        mkdir -p data/acme_ca
-        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
@@ -1418,12 +1463,20 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders and networks"
-      run: |
-        docker network create local
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+        RPM_BUILD: false
+        NAME_SPACE: "local"
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ github.run_id }}.noarch.rpm
+        path: data/
 
     - name: "Get runner ip"
       run: |
@@ -1463,49 +1516,6 @@ jobs:
         docker run -i --rm --network local curlimages/curl --insecure -f https://$WCCE_FQDN
       env:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
-
-    - name: "EAB with headerinfo - Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network local --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
       run: |
@@ -1547,7 +1557,6 @@ jobs:
         cat <<EOF > data/acme_ca/krb5.conf
         $WES_KRB5_CONF
         EOF
-
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -1671,6 +1680,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+        DJANGO_DB: psql
+        RPM_BUILD: false
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ github.run_id }}.noarch.rpm
+        path: data/
+
     - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
@@ -1713,42 +1737,6 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WES_HOST: ${{ secrets.WES_HOST }}
-
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Create letsencrypt and lego folder"
       run: |
@@ -1809,13 +1797,6 @@ jobs:
         WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-
-    - name: "NTLM - Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
     - name: "NTLM - Execute install scipt"
       run: |
@@ -1989,6 +1970,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+        DJANGO_DB: psql
+        RPM_BUILD: false
+
+    - name: Download rpm package
+      uses: actions/download-artifact@v4
+      with:
+        name: acme2certifier-${{ github.run_id }}.noarch.rpm
+        path: data/
+
     - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
@@ -2031,42 +2027,6 @@ jobs:
         WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WES_HOST: ${{ secrets.WES_HOST }}
-
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
-      with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-
-    - name: "Retrieve rpms from SBOM repo"
-      run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
-        cp /tmp/sbom/rpm-repo/RPMs/rhel${{ matrix.rhversion }}/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Create letsencrypt and lego folder"
       run: |
@@ -2148,17 +2108,9 @@ jobs:
         WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
-    - name: "EAB with headerinfo - Prepare Almalinux instance"
-      run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:${{ matrix.rhversion }}/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
     - name: "EAB with headerinfo - Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-
 
     - name: "EAB with headerinfo - Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -2254,3 +2206,12 @@ jobs:
         name: mswcce_handler_profile_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
+  rpm_cleanup:
+    name: "rpm_cleanup"
+    runs-on: ubuntu-latest
+    needs: [mscertsrv_handler_tests_rpm, mscertsrv_handler_profile_tests_rpm, mswcce_handler_tests_rpm, mswcce_handler_profile_tests_rpm]
+    steps:
+    - name: "Delete artifact"
+      uses: geekyeggo/delete-artifact@v5
+      with:
+        name: acme2certifier-${{ github.run_id }}.noarch.rpm
