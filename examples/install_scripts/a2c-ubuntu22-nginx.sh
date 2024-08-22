@@ -31,9 +31,17 @@ sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_
 
 echo "## Modify nginx configuration file"
 sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
+sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv_ssl.conf
 sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+sudo cp examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
 sudo  rm /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
+sudo ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
+
+echo "## Add keyfile and certificate"
+sudo mkdir -p /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier_cert.pem /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier_key.pem /var/www/acme2certifier/volume/
 
 echo "## Modify uwsgi configuration file"
 sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
