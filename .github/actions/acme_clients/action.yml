@@ -21,6 +21,14 @@ inputs:
     description: "Use certbot"
     required: true
     default: "true"
+  HTTP_PORT:
+    description: "HTTP port"
+    required: true
+    default: "80"
+  HTTPS_PORT:
+    description: "HTTPS port"
+    required: true
+    default: "443"
 
 runs:
   using: "composite"
@@ -41,16 +49,24 @@ runs:
         time: 5s
 
     - name: "Test if http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Enroll acme.sh"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -63,11 +79,14 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Renew acme.sh"
       if: ${{ inputs.RENEWAL == 'true' }}
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://acme-srv  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://$ACME_SERVER:$HTTPS_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -80,22 +99,33 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke HTTP-01 single domain acme.sh"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server https://acme-srv --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server https://$ACME_SERVER:$HTTPS_PORT --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Decativate acme.sh"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server https://acme-srv --debug 2 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server https://$ACME_SERVER:$HTTPS_PORT --debug 2 --output-insecure --insecure
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Enroll acme.sh"
       run: |
         sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER:$HTTP_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -108,11 +138,14 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Renew acme.sh"
       if: ${{ inputs.RENEWAL == 'true' }}
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://acme-srv  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://$ACME_SERVER:$HTTP_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -125,28 +158,43 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke HTTP-01 single domain acme.sh"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server http://$ACME_SERVER:$HTTP_PORT --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Decativate acme.sh"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server http://acme-srv --debug 2 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --deactivate-account --server http://$ACME_SERVER:$HTTP_PORT --debug 2 --output-insecure --insecure
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Register certbot"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://acme-srv --no-eff-email --no-verify-ssl
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://$ACME_SERVER:$HTTPS_PORT --no-eff-email --no-verify-ssl
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Enroll certbot"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv --standalone --preferred-challenges http --no-verify-ssl -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl -d certbot.acme --cert-name certbot
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -158,24 +206,35 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke certbot"
       if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://acme-srv --no-verify-ssl --delete-after-revoke --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://$ACME_SERVER:$HTTPS_PORT --no-verify-ssl --delete-after-revoke --cert-name certbot
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Register certbot"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
         sudo rm -rf certbot/*
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://$ACME_SERVER:$HTTP_PORT --no-eff-email
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Enroll certbot"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -187,16 +246,23 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke certbot"
       if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
       run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server http://acme-srv --delete-after-revoke --cert-name certbot
+        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server http://$ACME_SERVER:$HTTP_PORT --delete-after-revoke --cert-name certbot
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Enroll lego"
       run: |
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --tls run
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme --tls run
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -208,17 +274,24 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
-        # docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+        # docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego.acme revoke
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Enroll lego"
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme --http run
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -230,12 +303,19 @@ runs:
       shell: bash
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme revoke
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
