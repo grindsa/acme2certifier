@@ -763,45 +763,8 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: "Install Firefox from Mozilla"
-      run: |
-        sudo apt-get update
-        sudo install -d -m 0755 /etc/apt/keyrings
-        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee -a /etc/apt/sources.list.d/mozilla.list > /dev/null
-        echo '
-        Package: *
-        Pin: origin packages.mozilla.org
-        Pin-Priority: 1000
-        ' | sudo tee /etc/apt/preferences.d/mozilla
-        sudo apt update && sudo apt install firefox
-
-    - name: "Prepare environment to build deb package"
-      run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-        rm setup.py
-        cp -R examples/install_scripts/debian ./
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-        cd ../
-        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
-
-    - name: "Build debian package"
-      run: |
-        dpkg-buildpackage -uc -us
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb ${{ github.workspace }}/artifact/upload
-
-    - name: "Upload debian package"
-      uses: actions/upload-artifact@master
-      with:
-        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-        path: ${{ github.workspace }}/artifact/upload
+    - name: "deb build and upload"
+      uses: ./.github/actions/deb_build_upload
 
   deb_upgrade_wsgi:
     name: "deb_upgrade_wsgi"
@@ -831,7 +794,7 @@ jobs:
       uses: actions/download-artifact@v4
       continue-on-error: true
       with:
-        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         path: data/
 
     - name: List files
@@ -896,9 +859,7 @@ jobs:
 
     - name: "Upgrade a2c"
       run: |
-        # docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-        # docker exec acme-srv apt-get install -y -o Dpkg::Options::="--force-confask,confnew,confmiss" /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/db_update.py
         docker exec acme-srv systemctl restart apache2
 
@@ -970,8 +931,9 @@ jobs:
 
     - name: Download debian package
       uses: actions/download-artifact@v4
+      continue-on-error: true
       with:
-        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         path: data/
 
     - name: List files
@@ -1044,7 +1006,7 @@ jobs:
 
     - name: "Upgrade a2c"
       run: |
-        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv systemctl restart apache2
 
@@ -1134,8 +1096,9 @@ jobs:
 
     - name: Download debian package
       uses: actions/download-artifact@v4
+      continue-on-error: true
       with:
-        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         path: data/
 
     - name: List files
@@ -1204,7 +1167,7 @@ jobs:
 
     - name: "Upgrade a2c"
       run: |
-        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv systemctl restart apache2
 
@@ -1305,8 +1268,9 @@ jobs:
 
     - name: Download debian package
       uses: actions/download-artifact@v4
+      continue-on-error: true
       with:
-        name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         path: data/
 
     - name: List files
@@ -1375,7 +1339,7 @@ jobs:
 
     - name: "Upgrade a2c"
       run: |
-        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+        docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv systemctl restart apache2
 
