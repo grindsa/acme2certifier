@@ -93,7 +93,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Renew acme.sh"
-      if: ${{ inputs.RENEWAL == 'true' }}
+      if: inputs.RENEWAL == 'true'
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://$ACME_SERVER:$HTTPS_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
@@ -113,7 +113,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke HTTP-01 single domain acme.sh"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: inputs.REVOCATION == 'true'
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server https://$ACME_SERVER:$HTTPS_PORT --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
       shell: bash
@@ -152,7 +152,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Renew acme.sh"
-      if: ${{ inputs.RENEWAL == 'true' }}
+      if: inputs.RENEWAL == 'true'
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://$ACME_SERVER:$HTTP_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
@@ -172,7 +172,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke HTTP-01 single domain acme.sh"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: inputs.REVOCATION == 'true'
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name=acme-sh --network acme neilpang/acme.sh:latest --revoke --server http://$ACME_SERVER:$HTTP_PORT --revoke -d acme-sh.acme --standalone --debug 2 --output-insecure  --insecure
       shell: bash
@@ -191,7 +191,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Register certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      if: inputs.USE_CERTBOT == 'true'
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://$ACME_SERVER:$HTTPS_PORT --no-eff-email --no-verify-ssl
       shell: bash
@@ -201,7 +201,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Enroll certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      if: inputs.USE_CERTBOT == 'true'
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl -d certbot.acme --cert-name certbot
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -220,7 +220,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke certbot"
-      if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
+      if: (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true')
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server https://$ACME_SERVER:$HTTPS_PORT --no-verify-ssl --delete-after-revoke --cert-name certbot
       shell: bash
@@ -230,7 +230,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Register certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      if: inputs.USE_CERTBOT == 'true'
       run: |
         sudo rm -rf certbot/*
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://$ACME_SERVER:$HTTP_PORT --no-eff-email
@@ -241,7 +241,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Enroll certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      if: inputs.USE_CERTBOT == 'true'
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -260,7 +260,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke certbot"
-      if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
+      if: (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true')
       run: |
         docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --server http://$ACME_SERVER:$HTTP_PORT --delete-after-revoke --cert-name certbot
       shell: bash
@@ -288,7 +288,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTPS - Revoke lego"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: inputs.REVOCATION == 'true'
       run: |
         # docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego.acme revoke
       shell: bash
@@ -317,7 +317,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
     - name: "HTTP - Revoke lego"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: inputs.REVOCATION == 'true'
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme revoke
       shell: bash

@@ -156,7 +156,7 @@ jobs:
         sudo mkdir -p lego
 
     - name: "Prepare acme_srv.cfg for wsgi with openssl_ca_handler"
-      if: ${{ matrix.execscript }} == 'rpm_tester.sh'
+      if: matrix.execscript == 'rpm_tester.sh'
       run: |
         sudo mkdir -p data/acme_ca/certs/
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
@@ -167,7 +167,7 @@ jobs:
         sudo echo "key_file: /opt/acme2certifier/examples/eab_handler/key_file.json" >> data/acme_srv.cfg
 
     - name: "Prepare acme_srv.cfg for django with openssl_ca_handler"
-      if: ${{ matrix.execscript }} == 'django_tester.sh'
+      if: matrix.execscript == 'django_tester.sh'
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/

@@ -102,14 +102,14 @@ jobs:
         mkdir certbot
 
     - name: "Stup openssl ca_handler"
-      if: ${{ matrix.execscript == 'rpm_tester.sh' }}
+      if: matrix.execscript == 'rpm_tester.sh'
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
 
     - name: "Setup openssl ca_handler"
-      if: ${{ matrix.execscript == 'django_tester.sh' }}
+      if: matrix.execscript == 'django_tester.sh'
       run: |
         sudo mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/

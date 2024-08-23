@@ -131,7 +131,7 @@ jobs:
         mkdir lego
 
     - name: "Setup acme_srv.cfg with xca_ca_handler"
-      if: ${{ matrix.execscript }} == 'rpm_tester.sh'
+      if: matrix.execscript == 'rpm_tester.sh'
       run: |
         mkdir -p data/acme_ca
         sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
@@ -160,7 +160,7 @@ jobs:
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Setup acme_srv.cfg with xca_ca_handler"
-      if: ${{ matrix.execscript }} == 'django_tester.sh'
+      if: matrix.execscript == 'django_tester.sh'
       run: |
         mkdir -p data/volume/acme_ca/certs
         sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
