@@ -61,58 +61,25 @@ runs:
         IPV6: ${{ inputs.IPV6 }}
       shell: bash
 
-    - name: "Instanciate Mariadb"
-      if: inputs.DJANGO_DB == 'mariadb'
-      run: |
-        # sudo mkdir -p data/mysql
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-      shell: bash
-
-    - name: "Sleep for 10s"
-      if: inputs.DJANGO_DB == 'mariadb'
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure mariadb"
-      if: inputs.DJANGO_DB == 'mariadb'
-      working-directory: examples/Docker/
-      run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
-      shell: bash
-
     - name: "Instanciate Ubuntu 22.04"
       run: |
-        docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
+        docker run -d --name acme-srv --network $NAME_SPACE --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
       shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "postgres environment"
-      if: inputs.DJANGO_DB == 'psql'
-      run: |
-        sudo mkdir -p /tmp/data/pgsql
-        sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
-        sudo cp .github/pgpass /tmp//data/pgsql/pgpass
-        sudo chmod 600 /tmp/data/pgsql/pgpass
-      shell: bash
-
-    - name: "Install postgres"
-      if: inputs.DJANGO_DB == 'psql'
-      working-directory: /tmp
-      run: |
-        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-      shell: bash
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      if: inputs.DJANGO_DB == 'psql'
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
       with:
-        time: 10s
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Configure postgres"
+    - name: "Instanciate Postgres"
       if: inputs.DJANGO_DB == 'psql'
-      working-directory: /tmp
-      run: |
-        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-      shell: bash
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+
+
+

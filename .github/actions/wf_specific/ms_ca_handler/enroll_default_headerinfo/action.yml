@@ -33,8 +33,6 @@ runs:
       openssl verify -CAfile cert-1.pem acme-sh/acme-sh.${{ inputs.NAME_SPACE }}_ecc/acme-sh.${{ inputs.NAME_SPACE }}.cer
       openssl x509 -in acme-sh/acme-sh.${{ inputs.NAME_SPACE }}_ecc/acme-sh.${{ inputs.NAME_SPACE }}.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
     run: |
@@ -43,8 +41,6 @@ runs:
       sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
       sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
     run: |
@@ -53,8 +49,6 @@ runs:
       openssl verify -CAfile cert-1.pem acme-sh/acme-sh.${{ inputs.NAME_SPACE }}/acme-sh.${{ inputs.NAME_SPACE }}.cer
       openssl x509 -in acme-sh/acme-sh.${{ inputs.NAME_SPACE }}/acme-sh.${{ inputs.NAME_SPACE }}.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
     shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "Enroll lego with template submitted in command line (WebServerModified)"
     run: |
@@ -63,5 +57,3 @@ runs:
       sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
       sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
     shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
