@@ -95,3 +95,15 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
       shell: bash
+
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Postgres"
+      if: inputs.DJANGO_DB == 'psql'
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

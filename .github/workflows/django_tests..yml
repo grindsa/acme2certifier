@@ -28,29 +28,6 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DJANGO_DB: "mariadb"
 
-    - name: "Install mariadb"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data/mysql
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure mariadb"
-      working-directory: examples/Docker/
-      run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
     - name: "Setup openssl ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -109,30 +86,6 @@ jobs:
         DB_HANDLER: "django"
         WEB_SRV: ${{ matrix.websrv }}
         DJANGO_DB: "psql"
-
-    - name: "Install postgres"
-      working-directory: examples/Docker/
-      run: |
-        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure postgres"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data/pgsql
-        sudo cp ../../.github/a2c.psql data/pgsql/a2c.psql
-        sudo cp ../../.github/pgpass data/pgsql/pgpass
-        sudo chmod 600 data/pgsql/pgpass
-        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
 
     - name: "Setup openssl ca_handler"
       run: |
@@ -270,22 +223,6 @@ jobs:
         DJANGO_DB: mariadb
         RPM_BUILD: false
 
-    - name: "Install mariadb"
-      run: |
-        sudo mkdir -p /tmp/mysql
-        docker run --name mariadbsrv --network acme -v /tmp/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure mariadb"
-      run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
-
     - name: "Retrieve Version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
@@ -355,23 +292,6 @@ jobs:
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: psql
         RPM_BUILD: false
-
-    - name: "Install postgres"
-      run: |
-        sudo mkdir -p /tmp/pgsql/data
-        sudo cp .github/a2c.psql /tmp/pgsql/a2c.psql
-        sudo cp .github/pgpass /tmp/pgsql/pgpass
-        sudo chmod 600 /tmp/pgsql/pgpass
-        docker run --name postgresdbsrv -v /tmp/pgsql/data:/var/lib/postgresql/data --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure postgres"
-      run: |
-        docker run -v /tmp/pgsql/a2c.psql:/tmp/a2c.psql -v /tmp/pgsql/pgpass:/root/.pgpass --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
     - name: "Retrieve version from version.py"
       run: |

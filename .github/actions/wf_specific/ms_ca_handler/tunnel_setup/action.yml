@@ -1,0 +1,76 @@
+name: "tunnel_setup"
+description: "tunnel_setup"
+inputs:
+  WCCE_SSH_ACCESS_KEY:
+    description: "SSH access key"
+    required: true
+  WCCE_SSH_KNOWN_HOSTS:
+    description: "SSH known hosts"
+    required: true
+  WCCE_FQDN_WOTLD:
+    description: "FQDN without top level domain"
+    required: true
+  WCCE_FQDN:
+    description: "FQDN"
+    required: true
+  WCCE_HOST:
+    description: "WCCE host"
+    required: true
+  WCCE_SSH_USER:
+    description: "SSH user"
+    required: true
+  WCCE_SSH_HOST:
+    description: "SSH host"
+    required: true
+  WCCE_SSH_PORT:
+    description: "SSH port"
+    required: true
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Prepare ssh environment on ramdisk "
+    run: |
+      sudo mkdir -p /tmp/rd
+      sudo mount -t tmpfs -o size=5M none /tmp/rd
+      sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+      sudo chmod 600 /tmp/rd/ak.tmp
+      sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+    env:
+      SSH_KEY: ${{ inputs.WCCE_SSH_ACCESS_KEY }}
+      KNOWN_HOSTS: ${{ inputs.WCCE_SSH_KNOWN_HOSTS }}
+    shell: bash
+
+  - name: "Setup ssh forwarder"
+    run: |
+        docker run -d --rm --network $NAME_SPACE --name=$WCCE_FQDN_WOTLD  -e "MAPPINGS=445:$WCCE_HOST:445; 443:$WCCE_HOST:443; 88:$WCCE_HOST:88" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+    env:
+      SSH_USER: ${{ inputs.WCCE_SSH_USER }}
+      SSH_HOST: ${{ inputs.WCCE_SSH_HOST }}
+      SSH_PORT: ${{ inputs.WCCE_SSH_PORT }}
+      WCCE_HOST: ${{ inputs.WCCE_HOST }}
+      WCCE_FQDN_WOTLD: ${{ inputs.WCCE_FQDN_WOTLD }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+    shell: bash
+
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Test conection to mscertsrv via ssh tunnel"
+    run: |
+      docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$WCCE_FQDN
+    env:
+      WCCE_FQDN: ${{ inputs.WCCE_FQDN }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+    shell: bash
