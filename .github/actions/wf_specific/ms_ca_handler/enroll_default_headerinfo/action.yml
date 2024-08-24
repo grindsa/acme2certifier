@@ -1,0 +1,67 @@
+name: "enroll_default_headerinfo"
+description: "enroll_default_headerinfo"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network ${{ inputs.NAME_SPACE }} curlimages/curl -f http://acme-srv/directory
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network ${{ inputs.NAME_SPACE }} curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh with template in acme_srv.cfg (WebServer)"
+    run: |
+      sudo rm -rf acme-sh/
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network ${{ inputs.NAME_SPACE }}  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.${{ inputs.NAME_SPACE }} --alpn --standalone --debug 3 --output-insecure
+      awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.${{ inputs.NAME_SPACE }}_ecc/ca.cer
+      openssl verify -CAfile cert-1.pem acme-sh/acme-sh.${{ inputs.NAME_SPACE }}_ecc/acme-sh.${{ inputs.NAME_SPACE }}.cer
+      openssl x509 -in acme-sh/acme-sh.${{ inputs.NAME_SPACE }}_ecc/acme-sh.${{ inputs.NAME_SPACE }}.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
+    run: |
+      sudo rm -rf lego/
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.${{ inputs.NAME_SPACE }} --http run
+      sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
+      sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh with template submitted in command line (WebServerModified)"
+    run: |
+      sudo rm -rf acme-sh/
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network ${{ inputs.NAME_SPACE }} --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.${{ inputs.NAME_SPACE }} --alpn --standalone --useragent template=WebServerModified --keylength 2048 --debug 3 --output-insecure
+      openssl verify -CAfile cert-1.pem acme-sh/acme-sh.${{ inputs.NAME_SPACE }}/acme-sh.${{ inputs.NAME_SPACE }}.cer
+      openssl x509 -in acme-sh/acme-sh.${{ inputs.NAME_SPACE }}/acme-sh.${{ inputs.NAME_SPACE }}.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll lego with template submitted in command line (WebServerModified)"
+    run: |
+      sudo rm -rf lego/
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent template=WebServerModified --key-type=rsa2048 -d lego.${{ inputs.NAME_SPACE }} --http run
+      sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
+      sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
