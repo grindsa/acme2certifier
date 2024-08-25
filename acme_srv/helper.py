@@ -439,10 +439,12 @@ def cryptography_version_get(logger: logging.Logger) -> int:
     logger.debug('Helper.cryptography_version_get()')
     import cryptography
 
-    version_list = cryptography.__version__.split('.')
-    if version_list:
-        major_version = int(version_list[0])
-    else:
+    try:
+        version_list = cryptography.__version__.split('.')
+        if version_list:
+            major_version = int(version_list[0])
+    except Exception as err:
+        logger.error('cryptography_version_get(): Error: %s', err)
         major_version = 36
 
     logger.debug('cryptography_version_get() ended with %s', major_version)
