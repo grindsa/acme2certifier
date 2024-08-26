@@ -37,28 +37,6 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DJANGO_DB: psql
 
-    - name: "Prepare Postgres environment"
-      run: |
-        sudo mkdir -p examples/Docker/data/pgsql/
-        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
-        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
-        sudo chmod 600 examples/Docker/data/pgsql/pgpass
-
-    - name: "Install postgres"
-      working-directory: examples/Docker/
-      run: |
-        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure postgres"
-      working-directory: examples/Docker/
-      run: |
-        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-
     - name: "Setup openssl ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -73,60 +51,8 @@ jobs:
         cd examples/Docker/
         docker-compose restart
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
-
-    - name: "Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "Check certificate reusage"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
-
-    - name: "Enroll Lego"
-      run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
-
-    - name: "Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-
-    - name: "Register certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "Enroll certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-
-    - name: "Check timeout"
-      working-directory: examples/Docker/
-      run: |
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+    - name: "Enrollment"
+      uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
@@ -182,21 +108,10 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "Check timeout"
-      run: |
-        docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
-
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "Check certificate reusage"
-      run: |
-        docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
+    - name: "Enrollment"
+      uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
+      with:
+        DEPLOYMENT_TYPE: "rpm"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -237,33 +152,6 @@ jobs:
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: psql
 
-    - name: "Prepare Postgres environment"
-      run: |
-        sudo mkdir -p examples/Docker/data/pgsql/
-        sudo cp .github/a2c.psql examples/Docker/data/pgsql/a2c.psql
-        sudo cp .github/pgpass examples/Docker/data/pgsql/pgpass
-        sudo chmod 600 examples/Docker/data/pgsql/pgpass
-
-    - name: "Install postgres"
-      working-directory: examples/Docker/
-      run: |
-        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure postgres"
-      working-directory: examples/Docker/
-      run: |
-        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
     - name: "Setup openssl ca_handler"
       run: |
         mkdir -p data/volume/acme_ca/certs
@@ -283,38 +171,10 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
+    - name: "Enrollment"
+      uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
       with:
-        time: 5s
-
-    - name: "Check timeout"
-      run: |
-        docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
-
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
-
-    - name: "Check certificate reusage"
-      run: |
-        docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
-
+        DEPLOYMENT_TYPE: "rpm"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
