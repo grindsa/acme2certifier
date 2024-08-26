@@ -1,5 +1,10 @@
 name: "enroll_102_profile"
 description: "wf enrollment 102 profile"
+inputs:
+  RECONFIGURE:
+    description: "Reconfigure the workflow"
+    required: true
+    default: "false"
 
 runs:
   using: "composite"
@@ -113,6 +118,7 @@ runs:
     shell: bash
 
   - name: "EAB with headerinfo - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
+    if: ${{ inputs.RECONFIGURE == 'false' }}
     id: acmefail02
     continue-on-error: true
     run: |
@@ -122,13 +128,22 @@ runs:
     shell: bash
 
   - name: "EAB with headerinfo - 04 - check  result "
-    if: steps.acmefail02.outcome != 'failure'
+    if: ${{ (inputs.RECONFIGURE == 'false') && (steps.acmefail02.outcome != 'failure') }}
     run: |
       echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
       exit 1
     shell: bash
 
+  - name: "EAB with headerinfo - 04 - Enroll acme with a allowed fqdn after reconfiguration"
+    if: ${{ inputs.RECONFIGURE == 'true' }}
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh.acme --standalone --debug 3 --output-insecure
+    shell: bash
+
   - name: "EAB with headerinfo - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
+    if: ${{ inputs.RECONFIGURE == 'false' }}
     id: legofail02
     continue-on-error: true
     run: |
@@ -136,11 +151,18 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
     shell: bash
 
-  - name: "EAB with headerinfo - 04a - check  result "
-    if: steps.legofail02.outcome != 'failure'
+  - name: "EAB with headerinfo - 04a - check  result"
+    if: ${{ (inputs.RECONFIGURE == 'false') && (steps.legofail02.outcome != 'failure') }}
     run: |
       echo "legofail outcome is ${{steps.legofail02.outcome }}"
       exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 04 - Enroll legowith a allowed fqdn after reconfiguration"
+    if: ${{ inputs.RECONFIGURE == 'true' }}
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run
     shell: bash
 
   - name: "EAB with headerinfo - 05 - Enroll acme with default values from acme.cfg"
