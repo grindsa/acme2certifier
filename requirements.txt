@@ -18,3 +18,4 @@ pyasn1_modules
 requests_pkcs12
 requests_gssapi
 gssapi
+pyyaml

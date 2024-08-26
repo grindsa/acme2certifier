@@ -164,6 +164,8 @@ jobs:
 
     - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
       run: |
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
@@ -187,7 +189,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
         cd examples/Docker/
         docker-compose restart
       env:
@@ -199,6 +200,23 @@ jobs:
 
     - name: "EAB with headerinfo - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+
+    - name: "EAB with headerinfo - Reconfigure key_file without restarting"
+      run: |
+        sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '26,27d' examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" examples/Docker/data/kid_profiles.json
+
+    - name: "EAB with headerinfo - Enrollment after reconfiguration"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+      with:
+        RECONFIGURE: true
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -428,6 +446,21 @@ jobs:
 
     - name: "EAB with headerinfo - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+
+    - name: "EAB with headerinfo - Reconfigure key_file without restarting"
+      run: |
+        sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '26,27d' data/acme_ca/kid_profiles.json
+        sudo sed -i "s/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" data/acme_ca/kid_profiles.json
+
+    - name: "Update configuration"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh update
+
+    - name: "EAB with headerinfo - Enrollment after reconfiguration"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+      with:
+        RECONFIGURE: true
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
