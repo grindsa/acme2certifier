@@ -38,37 +38,15 @@ case "$1" in
       rm /etc/apache2/sites-enabled/000-default.conf
     elif [ "$2" = "nginx" ]; then
       echo "configure nginx"
-      sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf
-      sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf
       cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
       cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
       rm /etc/nginx/sites-enabled/default
       ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
       ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
-
-      sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" /var/www/acme2certifier/examples/nginx/acme2certifier.ini
-      sed -i "s/nginx/www-data/g" /var/www/acme2certifier/examples/nginx/acme2certifier.ini
-      echo "plugins=python3" >> /var/www/acme2certifier/examples/nginx/acme2certifier.ini
       cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier
-
-      cat <<EOT > /tmp/acme2certifier.service
-[Unit]
-Description=uWSGI instance to serve acme2certifier
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/acme2certifier
-Environment="PATH=/var/www/acme2certifier"
-ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
-
-[Install]
-WantedBy=multi-user.target
-EOT
-        mv /tmp/acme2certifier.service /etc/systemd/system/acme2certifier.service
-        systemctl start acme2certifier
-        systemctl enable acme2certifier
+      cp /var/www/acme2certifier/examples/nginx/acme2certifier.service /etc/systemd/system/acme2certifier.service
+      systemctl start acme2certifier
+      systemctl enable acme2certifier
     fi
 
     echo "configure django"
