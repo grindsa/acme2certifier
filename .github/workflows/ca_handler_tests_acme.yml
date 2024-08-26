@@ -62,29 +62,7 @@ jobs:
         CONTAINER_BUILD: false
 
     - name: "Setup le-sim"
-      run: |
-        sudo mkdir -p examples/Docker/data-le
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data-le/ca_handler.py
-        sudo mkdir -p examples/Docker/data-le/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data-le/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data-le/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data-le/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data-le/acme_srv.cfg
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Test http://acme-le-sim/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
-
-    - name: "Enroll from le-sim"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-le-sim --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        sudo rm -rf acme-sh/*
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
     - name: "Setup acme ca_handler"
       run: |
@@ -94,7 +72,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: http://le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
@@ -171,29 +149,9 @@ jobs:
         CONTAINER_BUILD: false
 
     - name: "Setup le-sim"
-      run: |
-        sudo mkdir -p examples/Docker/data-le
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data-le/ca_handler.py
-        sudo mkdir -p examples/Docker/data-le/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data-le/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data-le/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data-le/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True\nsectigo_sim: True/g" examples/Docker/data-le/acme_srv.cfg
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:devel
-
-    - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
       with:
-        time: 10s
-
-    - name: "Test http://acme-le-sim/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
-
-    - name: "Enroll from le-sim"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-le-sim --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        sudo rm -rf acme-sh/*
+        SECTIGO_SIM: true
 
     - name: "Setup openssl ca_handler"
       run: |
@@ -203,7 +161,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: http://le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
@@ -274,33 +232,33 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
 
-    - name: "Setup acme-le-sims"
+    - name: "Setup acme-le-sim-1"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      with:
+        LESIM_NAME: acme-le-sim-1
+
+    - name: "Setup acme-le-sim-2"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      with:
+        LESIM_NAME: acme-le-sim-2
+
+    - name: "Reconfigure acme-le-sim-2"
       run: |
-        sudo mkdir -p examples/Docker/acme-le-sim-1
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/acme-le-sim-1/ca_handler.py
-        sudo mkdir -p examples/Docker/acme-le-sim-1/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/acme-le-sim-1/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/acme-le-sim-1/acme_srv.cfg
-        sudo chmod 777 examples/Docker/acme-le-sim-1/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/acme-le-sim-1/acme_srv.cfg
-        cp -R examples/Docker/acme-le-sim-1 examples/Docker/acme-le-sim-2
-
-        sudo mkdir -p examples/Docker/acme-le-sim-2/xca
-        sudo chmod -R 777 examples/Docker/acme-le-sim-2/xca
-        sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/acme-le-sim-2/xca/$XCA_DB_NAME
-        sudo chmod 777 examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_name: root-ca" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_key: root-ca" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/acme-le-sim-2/acme_srv.cfg
-
-        docker run -d -p 81:80 --rm -id --network acme --name=acme-le-sim-1 -v "$(pwd)/examples/Docker/acme-le-sim-1":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-        docker run -d -p 82:80 --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/examples/Docker/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
+        docker stop acme-le-sim-2
+        sudo mkdir acme-le-sim-2/xca
+        sudo chmod -R 777 acme-le-sim-2/xca
+        sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
+        sudo chmod 777 acme-le-sim-2/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > acme-le-sim-2/acme_srv.cfg
+        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
+        # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
+        docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -312,18 +270,8 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim-1/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-1/directory
-
     - name: "Test http://acme-le-sim2/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
-
-    - name: "Enroll from acme-le-sim-1"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-1 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
-        sudo rm -rf acme-sh/*
 
     - name: "Enroll from acme-le-sim-2"
       run: |
@@ -367,124 +315,8 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "EAB - 01 - Enroll acme.sh without acme_url"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-
-    - name: "EAB - 01 - Enroll lego without acme_url"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i root-ca
-
-    - name: "EAB with headerinfo - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
-      id: acmefail01
-      continue-on-error: true
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent acme_url=http://foo.bar -d acme-sh.acme --standalone --debug 3 --output-insecure
-
-    - name: "EAB with headerinfo - 02a - check  result "
-      if: steps.acmefail01.outcome != 'failure'
-      run: |
-        echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 02b - Enroll acme with a template_name taken from header_info included in kid.json"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent acme_url=http://acme-le-sim-1.acme -d acme-sh.acme --standalone --debug 3 --output-insecure
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
-
-    - name: "EAB with headerinfo - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
-      id: legofail01
-      continue-on-error: true
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent acme_url=http://foo.bar -d lego.acme --http run
-
-    - name: "EAB with headerinfo - 02a - check  result "
-      if: steps.legofail01.outcome != 'failure'
-      run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent acme_url=http://acme-le-sim-1.acme -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i sub-ca
-
-    - name: "EAB - 03 - Enroll acme with a acme_url and key taken from kid.json"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-
-    - name: "EAB without headerinfo - 03 - Enroll lego with a profile_name/ca_name taken from kid.json"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg  -k rsa2048 -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i root-ca
-
-    - name: "EAB with headerinfo - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
-      id: acmefail02
-      continue-on-error: true
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh. --standalone --keylength 2048 --debug 3 --output-insecure
-
-    - name: "EAB with headerinfo - 04 - check  result "
-      if: steps.acmefail02.outcome != 'failure'
-      run: |
-        echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
-      id: legofail02
-      continue-on-error: true
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -k rsa2048 -d lego.acme --http run
-
-    - name: "EAB with headerinfo - 04a - check  result "
-      if: steps.legofail02.outcome != 'failure'
-      run: |
-        echo "legofail outcome is ${{steps.legofail02.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 05 - Enroll acme with default values from acme.cfg"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_03 --eab-hmac-key YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
-
-    - name: "EAB with headerinfo - 05 - Enroll lego with default values from acme.cfg"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -k rsa2048 -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i sub-ca
+    - name: "Profiling - enrollment"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -498,8 +330,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/acme-sh/
-        sudo cp -rp examples/Docker/acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
-        sudo cp -rp examples/Docker/acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
+        sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
+        sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         docker logs acme-le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
@@ -547,47 +379,8 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
 
-    - name: "Create folders"
-      run: |
-        mkdir acme-sh
-
-    - name: "Setup smallstep"
-      run: |
-        sudo mkdir -p step
-        sudo chmod -R 777 step
-        docker run -d -v "$(pwd)/step":/home/step \
-            -p 9000:9000 -p 443:443 \
-            --network acme \
-            --name step-ca \
-            -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
-            -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
-            smallstep/step-ca
-
-    - name: "Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 20s
-
-    - name: "Configure smallstep"
-      run: |
-        docker ps
-        docker exec -i step-ca step ca provisioner add acme --type ACME
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
-        docker restart step-ca
-
-    - name: "Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 20s
-
-    - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
-
-    - name: "Enroll from smallstep using acme-sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
-        sudo rm -rf acme-sh/*
+    - name: "Instanciate smallstep"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
     - name: "Setup acme ca_handler"
       run: |
@@ -699,30 +492,8 @@ jobs:
         name: acme2certifier-${{ github.run_id }}.noarch.rpm
         path: data/
 
-    - name: "Prepare setup le-sim"
-      run: |
-        sudo mkdir -p examples/Docker/data-le
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data-le/ca_handler.py
-        sudo mkdir -p examples/Docker/data-le/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data-le/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data-le/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data-le/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data-le/acme_srv.cfg
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Test http://acme-le-sim/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
-
-    - name: "Enroll from le-sim"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-le-sim --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        sudo rm -rf acme-sh/*
+    - name: "Setup le-sim"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
     - name: "Prepare setup acme_ca_handler"
       run: |
@@ -732,7 +503,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
+        sudo echo "acme_url: http://le-sim" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
 
@@ -750,7 +521,7 @@ jobs:
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs acme-le-sim
+        docker logs le-sim > ${{ github.workspace }}/artifact/le-sim.log
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
@@ -795,31 +566,10 @@ jobs:
         name: acme2certifier-${{ github.run_id }}.noarch.rpm
         path: data/
 
-    - name: "Prepare setup le-sim "
-      run: |
-        sudo mkdir -p examples/Docker/data-le
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data-le/ca_handler.py
-        sudo mkdir -p examples/Docker/data-le/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data-le/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data-le/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data-le/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True\nsectigo_sim: True/g" examples/Docker/data-le/acme_srv.cfg
-        # docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-        docker run -d -p 80:80 --rm -id --network acme --name=acme-le-sim -v "$(pwd)/examples/Docker/data-le":/var/www/acme2certifier/volume/ grindsa/acme2certifier:devel
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
+    - name: "Setup le-sim"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
       with:
-        time: 10s
-
-    - name: "Test http://acme-le-sim/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim/directory
-
-    - name: "Enroll from le-sim"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-le-sim --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        sudo rm -rf acme-sh/*
+        SECTIGO_SIM: true
 
     - name: "Prepare setup acme_ca_handler"
       run: |
@@ -829,7 +579,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
+        sudo echo "acme_url: http://le-sim" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
 
@@ -891,55 +641,47 @@ jobs:
         name: acme2certifier-${{ github.run_id }}.noarch.rpm
         path: data/
 
-    - name: "Prepare setup le-sim"
+
+    - name: "Setup acme-le-sim-1"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      with:
+        LESIM_NAME: acme-le-sim-1
+
+    - name: "Setup acme-le-sim-2"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      with:
+        LESIM_NAME: acme-le-sim-2
+
+    - name: "Reconfigure acme-le-sim-2"
       run: |
-        sudo mkdir -p examples/Docker/acme-le-sim-1
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/acme-le-sim-1/ca_handler.py
-        sudo mkdir -p examples/Docker/acme-le-sim-1/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/acme-le-sim-1/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/acme-le-sim-1/acme_srv.cfg
-        sudo chmod 777 examples/Docker/acme-le-sim-1/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/acme-le-sim-1/acme_srv.cfg
-        cp -R examples/Docker/acme-le-sim-1 examples/Docker/acme-le-sim-2
-
-        sudo mkdir -p examples/Docker/acme-le-sim-2/xca
-        sudo chmod -R 777 examples/Docker/acme-le-sim-2/xca
-        sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/acme-le-sim-2/xca/$XCA_DB_NAME
-        sudo chmod 777 examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_name: root-ca" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_key: root-ca" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/acme-le-sim-2/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/acme-le-sim-2/acme_srv.cfg
-
-        docker run -d -p 81:80 --rm -id --network acme --name=acme-le-sim-1 -v "$(pwd)/examples/Docker/acme-le-sim-1":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-        docker run -d -p 82:80 --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/examples/Docker/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
+        docker stop acme-le-sim-2
+        sudo mkdir acme-le-sim-2/xca
+        sudo chmod -R 777 acme-le-sim-2/xca
+        sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
+        sudo chmod 777 acme-le-sim-2/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > acme-le-sim-2/acme_srv.cfg
+        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
+        # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
+        docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
-    - name: "Test http://acme-le-sim-1/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-1/directory
-
     - name: "Test http://acme-le-sim2/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
-
-    - name: "Enroll from le-sim"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-1 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
 
     - name: "Enroll from acme-le-sim-2"
       run: |
@@ -989,125 +731,8 @@ jobs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB - 01 - Enroll acme.sh without acme_url"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-
-    - name: "EAB - 01 - Enroll lego without acme_url"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i root-ca
-
-    - name: "EAB with headerinfo - 02a - Enroll acme with a template_name taken from header_info NOT included in kid.json (to fail)"
-      id: acmefail01
-      continue-on-error: true
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent acme_url=http://foo.bar -d acme-sh.acme --standalone --debug 3 --output-insecure
-
-    - name: "EAB with headerinfo - 02a - check  result "
-      if: steps.acmefail01.outcome != 'failure'
-      run: |
-        echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 02b - Enroll acme with a template_name taken from header_info included in kid.json"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent acme_url=http://acme-le-sim-1.acme -d acme-sh.acme --standalone --debug 3 --output-insecure
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
-
-    - name: "EAB with headerinfo - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
-      id: legofail01
-      continue-on-error: true
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent acme_url=http://foo.bar -d lego.acme --http run
-
-    - name: "EAB with headerinfo - 02a - check  result "
-      if: steps.legofail01.outcome != 'failure'
-      run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent acme_url=http://acme-le-sim-1.acme -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i sub-ca
-
-    - name: "EAB - 03 - Enroll acme with a acme_url and key taken from kid.json"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-
-    - name: "EAB without headerinfo - 03 - Enroll lego with a profile_name/ca_name taken from kid.json"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg  -k rsa2048 -d lego.acme --http run
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i root-ca
-
-    - name: "EAB with headerinfo - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
-      id: acmefail02
-      continue-on-error: true
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh. --standalone --keylength 2048 --debug 3 --output-insecure
-
-    - name: "EAB with headerinfo - 04 - check  result "
-      if: steps.acmefail02.outcome != 'failure'
-      run: |
-        echo "acmefail outcome is ${{steps.acmefail02.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
-      id: legofail02
-      continue-on-error: true
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -k rsa2048 -d lego.acme --http run
-
-    - name: "EAB with headerinfo - 04a - check  result "
-      if: steps.legofail02.outcome != 'failure'
-      run: |
-        echo "legofail outcome is ${{steps.legofail02.outcome }}"
-        exit 1
-
-    - name: "EAB with headerinfo - 05 - Enroll acme with default values from acme.cfg"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_03 --eab-hmac-key YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --debug 3
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i sub-ca
-
-    - name: "EAB with headerinfo - 05 - Enroll lego with default values from acme.cfg"
-      run: |
-        sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -k rsa2048 -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i sub-ca
+    - name: "Profiling - enrollment"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -1117,13 +742,13 @@ jobs:
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
         sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp examples/Docker/acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
-        sudo cp -rp examples/Docker/acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
+        sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
+        sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
         docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        docker logs acme-le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
-        docker logs acme-le-sim-2 > ${{ github.workspace }}/artifact/acme-le-sim-2.log
+        docker logs le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
+        docker logs le-sim-2 > ${{ github.workspace }}/artifact/acme-le-sim-2.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh acme-le-sim-1.log acme-le-sim-2.log
 
     - name: "[ * ] uploading artificates"
@@ -1159,42 +784,8 @@ jobs:
         name: acme2certifier-${{ github.run_id }}.noarch.rpm
         path: data/
 
-    - name: "Setup smallstep"
-      run: |
-        mkdir step
-        sudo chmod -R 777 step
-        docker run -d -v "$(pwd)/step":/home/step \
-            -p 9000:9000 -p 443:443 \
-            --network acme \
-            --name step-ca \
-            -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
-            -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
-            smallstep/step-ca
-
-    - name: "Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 20s
-
-    - name: "Configure smallstep"
-      run: |
-        docker ps
-        docker exec -i step-ca step ca provisioner add acme --type ACME
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
-        docker restart step-ca
-
-    - name: "Sleep for 20s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 20s
-
-    - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
-
-    - name: "Enroll from smallstep using acme-sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
+    - name: "Instanciate smallstep"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
     - name: "Prepare setup acme_ca_handler"
       run: |

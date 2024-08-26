@@ -31,34 +31,16 @@ jobs:
         CONTAINER_BUILD: false
         DJANGO_DB: mariadb
 
-    - name: "Install mariadb"
-      if: matrix.dbhandler == 'django'
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data/mysql
-        # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-
-    - name: "Sleep for 10s"
-      if: matrix.dbhandler == 'django'
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure mariadb"
-      if: matrix.dbhandler == 'django'
-      working-directory: examples/Docker/
-      run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
-
     - name: "Configure acme2certifier"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        echo "" >> examples/Docker/data/acme_srv.cfg
+        echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
     - name: "Install a2c 0.19.3"
       run: |
@@ -99,11 +81,8 @@ jobs:
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        # docker logs acme2certifier_acme-srv_1
-        # docker exec mariadbsrv mysqldump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
@@ -170,9 +149,6 @@ jobs:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
-    - name: List files
-      run: ls -la /tmp/
-
     - name: "Setup environment for alma installation"
       run: |
         docker network create acme
@@ -224,7 +200,7 @@ jobs:
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
         sudo docker cp data/nginx acme-srv:/etc
@@ -312,9 +288,6 @@ jobs:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
-    - name: List files
-      run: ls -la /tmp/
-
     - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
@@ -336,23 +309,8 @@ jobs:
         sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
-    - name: "Install mariadb"
-      working-directory: examples/Docker/
-      run: |
-        # docker run --name mariadbsrv --network acme -v $PWD/data/mysql:/var/lib/mysql -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure mariadb"
-      working-directory: examples/Docker/
-      run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
+    - name: "Instanciate mariadb"
+      uses: ./.github/actions/mariadb_prep
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
@@ -387,7 +345,7 @@ jobs:
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
@@ -472,9 +430,6 @@ jobs:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
-    - name: List files
-      run: ls -la /tmp/
-
     - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
@@ -529,7 +484,7 @@ jobs:
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
@@ -614,9 +569,6 @@ jobs:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
-    - name: List files
-      run: ls -la /tmp/
-
     - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
@@ -638,32 +590,8 @@ jobs:
         sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
         sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
-    - name: "postgres environment"
-      run: |
-        sudo mkdir -p /tmp/data/pgsql
-        sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
-        sudo cp .github/pgpass /tmp//data/pgsql/pgpass
-        sudo chmod 600 /tmp/data/pgsql/pgpass
-
-    - name: "Install postgres"
-      working-directory: /tmp
-      run: |
-        docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Configure postgres"
-      working-directory: /tmp
-      run: |
-        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+    - name: "Instanciate postgres"
+      uses: ./.github/actions/psql_prep
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
@@ -698,7 +626,7 @@ jobs:
         cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
         docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
 
-    - name: "[ RUN ] Execute install scipt"
+    - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 

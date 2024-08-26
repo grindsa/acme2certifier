@@ -19,9 +19,9 @@ runs:
     shell: bash
 
   - name: "Upload deb package"
-    uses: actions/upload-artifact@master
+    uses: actions/upload-artifact@v4
     with:
       name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
-      path: ${{ github.workspace }}
+      path: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
 
 
