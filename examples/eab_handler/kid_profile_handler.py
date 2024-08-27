@@ -216,8 +216,8 @@ class EABhandler(object):
         mac_key = None
         try:
             if self.key_file and kid:
-                with open(self.key_file, encoding='utf8') as json_file:
-                    data_dic = json.load(json_file)
+                with open(self.key_file, encoding='utf8') as key_file_content:
+                    data_dic = self.keyfile_content_load(key_file_content.read())
                     if kid in data_dic and 'hmac' in data_dic[kid]:
                         mac_key = data_dic[kid]['hmac']
         except Exception as err:
