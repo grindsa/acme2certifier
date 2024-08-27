@@ -1,0 +1,88 @@
+name: "enroll_102_profile"
+description: "wf enrollment 102 profile"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "container"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Enroll acme.sh"
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+    shell: bash
+
+  - name: "Check timeout"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
+      fi
+    shell: bash
+
+  - name: "Enroll acme.sh"
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+    shell: bash
+
+  - name: "Check certificate reusage"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
+      fi
+    shell: bash
+
+  - name: "Enroll Lego"
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
+    shell: bash
+
+  - name: "Check timeout"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      fi
+    shell: bash
+
+  - name: "Register certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    shell: bash
+
+  - name: "Enroll certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --issuance-timeout 180
+    shell: bash
+
+  - name: "Check timeout"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      fi
+    shell: bash
