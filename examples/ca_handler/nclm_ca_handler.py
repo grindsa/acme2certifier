@@ -569,18 +569,24 @@ class CAhandler(object):
 
     def _template_list_get(self) -> Dict[str, str]:
         """ get list of templates """
-        self.logger.debug('CAhandler._template_id_lookup(%s)', self.tsg_info_dic['id'])
+        self.logger.debug('CAhandler._template_list_get(%s)', self.tsg_info_dic['id'])
         try:
             template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._template_id_lookup() returned error: %s', err_)
             template_list = []
 
+        if 'template' in template_list and 'items' in template_list['template']:
+            tmpl_cnt = len(template_list['template']['items'])
+        else:
+            tmpl_cnt = 0
+
+        self.logger.debug('CAhandler._template_list_get() ended with: %s templates', tmpl_cnt)
         return template_list
 
     def _templates_enumerate(self, template_list: Dict[str, str]):
         """ get template id based on name """
-        self.logger.debug('CAhandler._template_id_lookup() for template: %s', self.template_info_dic['name'])
+        self.logger.debug('CAhandler._templates_enumerate() for template: %s', self.template_info_dic['name'])
 
         for template in template_list['template']['items']:
             if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
