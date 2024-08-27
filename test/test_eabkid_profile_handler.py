@@ -74,7 +74,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.key_file = 'file'
         self.assertFalse(self.eabhandler.mac_key_get(None))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_009_mac_key_get(self, mock_json):
         """ test mac_key_get json reader return bogus values """
@@ -82,7 +82,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'foo', 'bar'}
         self.assertFalse(self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_010_mac_key_get(self, mock_json):
         """ test mac_key_get json match """
@@ -90,7 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'kid': {'hmac': 'mac', 'foo': 'bar'}}
         self.assertEqual('mac', self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_011_mac_key_get(self, mock_json):
         """ test mac_key_get json no match """
@@ -98,7 +98,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'kid1': 'mac'}
         self.assertFalse(self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_012_mac_key_get(self, mock_json):
         """ test mac_key_get json load exception """
