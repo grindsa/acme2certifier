@@ -5,6 +5,13 @@ runs:
   using: "composite"
   steps:
 
+  - name: "Create folders"
+    run: |
+      sudo mkdir -p lego
+      sudo mkdir -p acme-sh
+      sudo mkdir -p certbot
+    shell: bash
+
   - name: "No profile - Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.3
     with:

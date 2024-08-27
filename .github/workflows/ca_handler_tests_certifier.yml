@@ -13,7 +13,7 @@ jobs:
     name: "certifier_handler_tests"
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 2
+      # max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -22,17 +22,23 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders"
-      run: |
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
-
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Setup tunnel"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
+      with:
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
 
     - name: "No profile - Setup a2c with certifier_ca_handler"
       run: |
@@ -41,11 +47,13 @@ jobs:
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -62,11 +70,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 101" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -85,11 +95,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 102" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -107,11 +119,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -129,11 +143,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
@@ -168,11 +184,13 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
@@ -212,11 +230,20 @@ jobs:
       with:
         RECONFIGURE: true
 
-    - name: "Check container configuration"
-      uses: ./.github/actions/container_check
+    - name: "kid-file in yaml format - Reconfiguration"
+      run: |
+        sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" examples/Docker/data/acme_srv.cfg
+        sudo pip3 install yq
+        sudo pip3 install jq
+        sudo sh -c "cat examples/Docker/data/kid_profiles.json | yq -y '.' > examples/Docker/data/kid_profiles.yml"
+        sudo rm examples/Docker/data/kid_profiles.json
+        sudo sed -i '33,34d' examples/Docker/data/kid_profiles.yml
+        # sudo cat examples/Docker/data/kid_profiles.yml
+
+    - name: "kid-file in yaml format - Enrollment after reconfiguration"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
       with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+        RECONFIGURE: true
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -246,8 +273,10 @@ jobs:
   certifier_handler_tests_rpm:
     name: "certifier_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # needs: certifier_handler_tests
     strategy:
       fail-fast: false
+      # max-parallel: 1
       matrix:
         rhversion: [8, 9]
     steps:
@@ -261,10 +290,17 @@ jobs:
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
 
-    - name: "Create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
+    - name: "Setup tunnel"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
+      with:
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
 
     - name: "No profile - Setup a2c with certifier_ca_handler"
       run: |
@@ -274,11 +310,13 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -297,11 +335,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 101" >> data/acme_srv.cfg
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
@@ -322,11 +362,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 102" >> data/acme_srv.cfg
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
@@ -347,11 +389,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
@@ -372,11 +416,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 100" >> data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
@@ -411,11 +457,13 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
         sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
         sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 100" >> data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
@@ -458,6 +506,24 @@ jobs:
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh update
 
     - name: "EAB with headerinfo - Enrollment after reconfiguration"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
+      with:
+        RECONFIGURE: true
+
+    - name: "kid-file in yaml format - Reconfiguration"
+      run: |
+        sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" data/acme_srv.cfg
+        sudo pip3 install yq
+        sudo pip3 install jq
+        sudo sh -c "cat data/acme_ca/kid_profiles.json | yq -y '.' > data/acme_ca/kid_profiles.yml"
+        sudo rm data/acme_ca/kid_profiles.json
+        sudo sed -i '33,34d' data/acme_ca/kid_profiles.yml
+
+    - name: "kid-file in yaml format - update a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "kid-file in yaml format - Enrollment after reconfiguration"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
       with:
         RECONFIGURE: true
