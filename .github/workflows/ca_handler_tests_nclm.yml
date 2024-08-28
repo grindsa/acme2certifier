@@ -53,17 +53,6 @@ jobs:
         NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
         NCLM_CA_ID_LIST: ${{ secrets.NCLM_CA_ID_LIST }}
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
-
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
 
