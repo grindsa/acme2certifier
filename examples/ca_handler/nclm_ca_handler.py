@@ -7,7 +7,7 @@ import json
 from typing import List, Tuple, Dict
 import requests
 # pylint: disable=e0401, r0913
-from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc
 
 
 class CAhandler(object):
@@ -708,12 +708,12 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert: str, rev_reason: str, rev_date: str) -> Tuple[int, str, str]:
+    def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = uts_to_date_utc(uts_now())) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
         # get serial from pem file and convert to formated hex
-        serial = f'0{cert_serial_get(self.logger, cert, hexformat=True)}'
+        serial = f'{cert_serial_get(self.logger, cert, hexformat=True)}'
         hex_serial = ':'.join(serial[i:i + 2] for i in range(0, len(serial), 2))
 
         # search for certificate
