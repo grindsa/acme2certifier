@@ -55,8 +55,6 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
-      #with:
-      #  USE_CERTBOT: false
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       run: |
@@ -71,8 +69,8 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
-      #with:
-      #  USE_CERTBOT: false
+      with:
+        USE_RSA: true
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
