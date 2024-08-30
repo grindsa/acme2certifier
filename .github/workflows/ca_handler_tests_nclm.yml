@@ -77,9 +77,10 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/acme-sh/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/certbot/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/lego/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
