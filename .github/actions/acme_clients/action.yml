@@ -251,28 +251,15 @@ runs:
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
-    - name: "HTTPS - Register certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
-      run: |
-        echo "##### HTTPS - Register certbot #####"
-        if [ "$USE_RSA" == "false" ]; then
-          echo "use ECC"
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://$ACME_SERVER:$HTTPS_PORT --no-eff-email --no-verify-ssl
-        else
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server https://$ACME_SERVER:$HTTPS_PORT --no-eff-email --no-verify-ssl --key-type rsa
-        fi
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        USE_RSA: ${{ inputs.USE_RSA }}
-
     - name: "HTTPS - Enroll certbot"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
         echo "##### HTTPS - Enroll certbot #####"
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl -d certbot.acme --cert-name certbot
+        if [ "$USE_RSA" == "false" ]; then
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+        else:
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot.acme --cert-name certbot
+
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
@@ -287,6 +274,7 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
 
     - name: "HTTPS - Revoke certbot"
       if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
@@ -299,29 +287,15 @@ runs:
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
-    - name: "HTTP - Register certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
-      run: |
-        echo "##### HTTP - Register certbot #####"
-        sudo rm -rf certbot/*
-        if [ "$USE_RSA" == "false" ]; then
-          echo "use ECC"
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://$ACME_SERVER:$HTTP_PORT --no-eff-email
-        else
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://$ACME_SERVER:$HTTP_PORT --no-eff-email --key-type rsa
-        fi
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        USE_RSA: ${{ inputs.USE_RSA }}
-
     - name: "HTTP - Enroll certbot #####"
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
-        echo "##### HTTP - Enroll certbot"
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+        echo "##### HTTPS - Enroll certbot #####"
+        if [ "$USE_RSA" == "false" ]; then
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+        else:
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot.acme --cert-name certbot
+
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
             sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
