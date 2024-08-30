@@ -70,7 +70,11 @@ runs:
 
     - name: "HTTPS - Enroll lego"
       run: |
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme --tls run
+        if [ "$USE_RSA" == "false" ]; then
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego.acme --tls run
+        else
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --tls run
+        fi
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
