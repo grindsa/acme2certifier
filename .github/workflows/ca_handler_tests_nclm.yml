@@ -165,12 +165,46 @@ jobs:
 
     - name: "Execute install scipt"
       run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+      env:
+        EXEC_SCRIPT: ${{ matrix.execscript }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
-      # with:
-      #  USE_CERTBOT: false
+
+    - name: "Reconfigure nclm handler to test enrollment from MSCA"
+      if: matrix.execscript == 'rpm_tester.sh'
+      run: |
+        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/acme_srv.cfg
+        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/acme_srv.cfg
+      env:
+        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
+        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
+        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
+
+    - name: "Reconfigure nclm handler to test enrollment from MSCA"
+      if: matrix.execscript == 'django_tester.sh'
+      run: |
+        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
+        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
+      env:
+        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
+        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
+        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
+
+    - name: "Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+      env:
+        EXEC_SCRIPT: ${{ matrix.execscript }}
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+      with:
+        USE_RSA: true
+
+
+
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
