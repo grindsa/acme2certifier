@@ -108,6 +108,12 @@ runs:
     - name: "HTTPS - Renew acme.sh"
       if: ${{ inputs.RENEWAL == 'true' }}
       run: |
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+           ECC="_ecc"
+        else
+          echo "use RSA"
+        fi
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://$ACME_SERVER:$HTTPS_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -175,6 +181,12 @@ runs:
     - name: "HTTP - Renew acme.sh"
       if: ${{ inputs.RENEWAL == 'true' }}
       run: |
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+           ECC="_ecc"
+        else
+          echo "use RSA"
+        fi
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://$ACME_SERVER:$HTTP_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
