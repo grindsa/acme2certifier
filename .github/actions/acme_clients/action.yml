@@ -47,11 +47,11 @@ runs:
         sudo cp .github/acme2certifier_cabundle.pem lego/
         if [ -f cert-2.pem ]; then
           echo "delete cert-2.pem"
-          rm -f client-2.pem
+          rm -f cert-2.pem
         fi
         if [ -f cert-1.pem ]; then
           echo "delete cert-1.pem"
-          rm -f client-1.pem
+          rm -f cert-1.pem
         fi
       shell: bash
 
