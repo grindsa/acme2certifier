@@ -130,6 +130,7 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
 
     - name: "HTTPS - Revoke HTTP-01 single domain acme.sh"
       if: ${{ inputs.REVOCATION == 'true' }}
