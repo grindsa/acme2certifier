@@ -204,15 +204,17 @@ jobs:
         USE_RSA: true
 
 
-
-
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
+      continue-on-error: true
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/acme-sh/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/certbot/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/data/lego/
         sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
