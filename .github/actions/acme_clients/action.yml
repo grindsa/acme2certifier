@@ -98,11 +98,11 @@ runs:
         echo "##### HTTPS - Enroll acme.sh #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 1 --output-insecure --insecure
           ECC="_ecc"
         else
           echo "use RSA"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 1 --output-insecure --insecure
         fi
 
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
@@ -133,7 +133,7 @@ runs:
         else
           echo "use RSA"
         fi
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://$ACME_SERVER:$HTTPS_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server https://$ACME_SERVER:$HTTPS_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 1 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -179,11 +179,11 @@ runs:
         sudo rm -rf acme-sh/*
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER:$HTTP_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER:$HTTP_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 1 --output-insecure --insecure
           ECC="_ecc"
          else
           echo "use RSA"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER:$HTTP_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER:$HTTP_PORT  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --keylength 2048 --debug 1 --output-insecure --insecure
         fi
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -212,7 +212,7 @@ runs:
         else
           echo "use RSA"
         fi
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://$ACME_SERVER:$HTTP_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://$ACME_SERVER:$HTTP_PORT  --force --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 1 --output-insecure --insecure
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme${ECC}/ca.cer
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -259,6 +259,7 @@ runs:
           docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
         else:
           docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot.acme --cert-name certbot
+        fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -272,7 +273,6 @@ runs:
       env:
         VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         USE_RSA: ${{ inputs.USE_RSA }}
 
@@ -295,6 +295,7 @@ runs:
           docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
         else:
           docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot.acme --cert-name certbot
+        fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
