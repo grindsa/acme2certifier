@@ -116,6 +116,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
