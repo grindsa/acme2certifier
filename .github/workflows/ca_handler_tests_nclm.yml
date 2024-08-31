@@ -86,7 +86,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         mkdir -p ${{ github.workspace }}/artifact/clients
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        sudo cp *.pem ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/certbot/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/lego/
@@ -229,7 +229,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/clients
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        sudo cp *.pem ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/certbot/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/lego/
