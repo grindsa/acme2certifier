@@ -55,6 +55,8 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        HOSTNAME_SUFFIX: ${{ github.run_id }}
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       run: |
@@ -71,6 +73,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         USE_RSA: true
+        HOSTNAME_SUFFIX: ${{ github.run_id }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -173,6 +176,8 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        HOSTNAME_SUFFIX: ${{ github.run_id }}
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -204,7 +209,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         USE_RSA: true
-
+        HOSTNAME_SUFFIX: ${{ github.run_id }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
