@@ -22,6 +22,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
@@ -56,7 +61,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        HOSTNAME_SUFFIX: ${{ github.run_id }}
+        HOSTNAME_SUFFIX: ${{ env.UUID }}
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       run: |
@@ -73,7 +78,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         USE_RSA: true
-        HOSTNAME_SUFFIX: ${{ github.run_id }}
+        HOSTNAME_SUFFIX: ${{ env.UUID }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -177,7 +182,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        HOSTNAME_SUFFIX: ${{ github.run_id }}
+        HOSTNAME_SUFFIX: ${{ env.UUID }}
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -209,7 +214,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         USE_RSA: true
-        HOSTNAME_SUFFIX: ${{ github.run_id }}
+        HOSTNAME_SUFFIX: ${{ env.UUID }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
