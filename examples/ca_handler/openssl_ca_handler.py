@@ -135,6 +135,7 @@ class CAhandler(object):
             elif ext_name.lower() == 'subjectkeyidentifier':
                 self.logger.info('CAhandler.cert_extesion_dic_parse(): subjectKeyIdentifier')
                 _tmp_dic['name'] = SubjectKeyIdentifier.from_public_key(cert.public_key())
+                _tmp_dic['critical'] = False
             elif ext_name.lower() == 'authoritykeyidentifier':
                 self.logger.info('CAhandler.cert_extesion_dic_parse(): authorityKeyIdentifier')
                 _tmp_dic['name'] = AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key())
