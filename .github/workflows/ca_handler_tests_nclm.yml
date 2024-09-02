@@ -63,6 +63,11 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
 
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       run: |
         sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" examples/Docker/data/acme_srv.cfg
@@ -188,6 +193,11 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
+
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       if: matrix.execscript == 'rpm_tester.sh'
