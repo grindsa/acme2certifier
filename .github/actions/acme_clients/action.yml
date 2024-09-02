@@ -269,9 +269,9 @@ runs:
       run: |
         echo "##### HTTPS - Enroll certbot #####"
         if [ "$USE_RSA" == "false" ]; then
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot --issuance-timeout 120
         else
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot --issuance-timeout 120
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -307,9 +307,9 @@ runs:
       run: |
         echo "##### HTTPS - Enroll certbot #####"
         if [ "$USE_RSA" == "false" ]; then
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot --issuance-timeout 120
         else
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.acme --cert-name certbot --issuance-timeout 120
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
