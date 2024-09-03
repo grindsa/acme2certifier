@@ -14,11 +14,22 @@ metadata:
 spec:
   hostname: acme-srv
   dnsPolicy: "None"
+  automountServiceAccountToken: false
   dnsConfig:
     nameservers:
       - DNSMASQ_IP
   containers:
     - name: acme2certifier
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "256Mi"
+          storage: "1Gi"
+          ephemeral-storage: "1Gi"
+        limits:
+          memory: "512Mi"
+          storage: "1Gi"
+          ephemeral-storage: "1Gi"
       image: grindsa/acme2certifier:devel
       imagePullPolicy: Never
       ports:
