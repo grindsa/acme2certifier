@@ -1084,85 +1084,85 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
     @patch('requests.get')
-    def test_092___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - all ok """
+    def test_092_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - all ok """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name', 'id': 'id'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
-        self.cahandler._tsg_id_lookup()
+        self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_093___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - multipe returned 1st matches """
+    def test_093_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - multipe returned 1st matches """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name', 'id': 'id'}, {'name': 'name1', 'id': 'id1'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
-        self.cahandler._tsg_id_lookup()
+        self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_094___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - multipe returned 2nd matches """
+    def test_094_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - multipe returned 2nd matches """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name1', 'id': 'id1'}, {'name': 'name', 'id': 'id'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
-        self.cahandler._tsg_id_lookup()
+        self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': 'id'}, self.cahandler.tsg_info_dic)
 
     @patch('requests.get')
-    def test_095___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - id is missing """
+    def test_095_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - id is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'targetSystemGroups': [{'name': 'name'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._tsg_id_lookup()
+            self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
-        self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'name': 'name'}", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._container_id_lookup() incomplete response: {'name': 'name'}", lcm.output)
 
     @patch('requests.get')
-    def test_096___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - name is missing """
+    def test_096_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - name is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'targetSystemGroups': [{'foo': 'bar', 'id': 'id'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._tsg_id_lookup()
+            self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
-        self.assertIn("ERROR:test_a2c:CAhandler._tsg_id_lookup() incomplete response: {'foo': 'bar', 'id': 'id'}", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._container_id_lookup() incomplete response: {'foo': 'bar', 'id': 'id'}", lcm.output)
 
     @patch('requests.get')
-    def test_097___tsg_id_lookup(self, mock_get):
-        """ CAhandler._tsg_id_lookup() - targetSystemGroups is missing """
+    def test_097_container_id_lookup(self, mock_get):
+        """ CAhandler._container_id_lookup() - targetSystemGroups is missing """
         self.cahandler.api_host = 'api_host'
         mockresponse = Mock()
         mockresponse.json = lambda: {'tsg': [{'foo': 'bar', 'id': 'id'}]}
         mock_get.return_value = mockresponse
         self.cahandler.tsg_info_dic = {'name': 'name', 'id': None}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._tsg_id_lookup()
+            self.cahandler._container_id_lookup()
         self.assertEqual({'name': 'name', 'id': None}, self.cahandler.tsg_info_dic)
-        self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() no target-system-groups found for filter: name...', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._container_id_lookup() no target-system-groups found for filter: name...', lcm.output)
 
     @patch('requests.get')
-    def test_098__tsg_id_lookup(self, mock_req):
+    def test_098_container_id_lookup(self, mock_req):
         """ CAhandler._request_import - req raises an exception """
         self.cahandler.api_host = 'api_host'
-        mock_req.side_effect = Exception('exc_tsg_id_lookup')
+        mock_req.side_effect = Exception('exc_container_id_lookup')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._tsg_id_lookup())
-        self.assertIn('ERROR:test_a2c:CAhandler._tsg_id_lookup() returned error: exc_tsg_id_lookup', lcm.output)
+            self.assertFalse(self.cahandler._container_id_lookup())
+        self.assertIn('ERROR:test_a2c:CAhandler._container_id_lookup() returned error: exc_container_id_lookup', lcm.output)
 
     @patch('requests.get')
     def test_099__template_id_lookup(self, mock_get):
@@ -1321,7 +1321,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_113__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter """
         self.cahandler.__enter__()
@@ -1333,7 +1333,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_114__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter  with host already defined """
         self.cahandler.api_host = 'api_host'
@@ -1346,7 +1346,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_115__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with header defined """
         self.cahandler.headers = 'header'
@@ -1359,7 +1359,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_116__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with error defined """
         self.cahandler.error = 'error'
@@ -1372,7 +1372,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_117__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with tst_info_dic defined """
         self.cahandler.tsg_info_dic = {'id': 'foo'}
@@ -1385,7 +1385,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_load')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._login')
-    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._tsg_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._container_id_lookup')
     def test_118__enter__(self, mock_lookup, mock_login, mock_check, mock_load):
         """ test enter with error defined """
         self.cahandler.tsg_info_dic = {'id': 'foo'}
