@@ -20,7 +20,8 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-RUN pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && pip3 install supervisor --break-system-packages && \
+RUN pip3 install impacket --break-system-packages && rm /usr/local/bin/*.py && rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
+    pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && pip3 install supervisor --break-system-packages && \
     cp /var/www/acme2certifier/examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py && \
 	cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
