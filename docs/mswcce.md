@@ -20,6 +20,8 @@ When using the handler please be aware of the following limitations:
 
 - install the [impacket](https://github.com/SecureAuthCorp/impacket) via pip (the module is already part of the docker images)
 
+Some malware scanners like Microsoft Defender classify the impacket module as hacking-tool (see [forta/impacket#1762](https://github.com/fortra/impacket/issues/1762) or [forta/impacket#1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). Main reason for the alarms are not the library itself but rather the example script coming along with it.  To avoid hazzle with your CSIRT team created to install slimmed down versions of for [RH8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RH9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) which do not contain the scripts flagged by the scanners.
+
 ```bash
 root@rlh:~# pip install impacket
 ```
