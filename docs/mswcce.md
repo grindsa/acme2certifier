@@ -16,15 +16,41 @@ When using the handler please be aware of the following limitations:
 3. (optional): In case you are installing from RPM or DEB and plan to use kerberos authentication you need an updated [impacket modules of version 0.11 or higher](https://github.com/fortra/impacket) as older versions have issues with the handling of utf8-encoded passwords. If you have no clue from where to get these packaages feel free to use the one being part of [the a2c github repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs)
 4. You need to have a set of credentials with permissions to access the service and enrollment templates
 
-## Installation
+## Local Installation
 
-- install the [impacket](https://github.com/SecureAuthCorp/impacket) via pip (the module is already part of the docker images)
+- install the [impacket](https://github.com/fortra/impacket) module
 
-Some malware scanners like Microsoft Defender classify the impacket module as hacking-tool (see [forta/impacket#1762](https://github.com/fortra/impacket/issues/1762) or [forta/impacket#1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). Main reason for the alarms are not the library itself but rather the example script coming along with it.  To avoid hazzle with your CSIRT team created to install slimmed down versions of for [RH8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RH9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) which do not contain the scripts flagged by the scanners.
+*IMPORTANT*:
+
+Some malware scanners like Microsoft Defender classify the impacket module as hacking-tool (see [forta/impacket#1762](https://github.com/fortra/impacket/issues/1762) or [forta/impacket#1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). Main reason for the alarms are not the library itself but rather the example script coming along with it.  To avoid hazzle with your CSIRT team I suggest to install a slimmed down versions impacket which which do not contain the scripts flagged by the scanners. Packages for [RH8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RH9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) can be found in my [SBOM repo](https://github.com/grindsa/sbom/tree/main/rpm-repo)
+
+In case you install impacket from pip or form sources I suggest to:
+
+- download the impacket package:
 
 ```bash
-root@rlh:~# pip install impacket
+pip3 download impacket --no-deps
 ```
+
+- unpack the archive
+
+```bash
+ tar xvfz impacket-0.11.0.tar.gz
+```
+
+- delete all files and subdirectories in `examples` sub-directory
+
+```bash
+rm -rf impacket-0.11.0/examples/*
+```
+
+- install the package
+
+```bash
+python3 setup.py install
+```
+
+## Configuration
 
 - modify the server configuration (acme_srv/acme_srv.cfg) and add the following parameters
 
