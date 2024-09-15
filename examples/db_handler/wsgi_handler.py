@@ -310,8 +310,8 @@ class DBstore(object):
 
     def _db_open(self):
         """ opens db and sets cursor """
-        # self.logger.debug('DBStore._db_open()')
         self.dbs = sqlite3.connect(self.db_name)
+        # self.dbs = sqlite3.connect(self.db_name, timeout=10)
         self.dbs.row_factory = sqlite3.Row
         self.cursor = self.dbs.cursor()
 
