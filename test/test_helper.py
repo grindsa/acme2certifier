@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -122,6 +122,10 @@ class TestACMEHandler(unittest.TestCase):
         self.eab_profile_list_check = eab_profile_list_check
         self.eab_profile_check = eab_profile_check
         self.eab_profile_header_info_check = eab_profile_header_info_check
+        self.cn_validate = cn_validate
+        self.csr_subject_get = csr_subject_get
+        self.eab_profile_subject_string_check = eab_profile_subject_string_check
+        self.eab_profile_subject_check = eab_profile_subject_check
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -2905,6 +2909,22 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_string.called)
         self.assertFalse(mock_list.called)
 
+    @patch('acme_srv.helper.eab_profile_subject_check')
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_363_eab_profile_check(self, mock_string, mock_list, mock_subject):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = None
+        mock_subject.return_value = 'mock_subject'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"subject": ["listValue"]}
+        self.cahandler.eab_profile_list_check.return_value = 'eab_list_check'
+        mock_list.return_value = None
+        self.assertEqual('mock_subject', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertFalse(mock_list.called)
+        self.assertTrue(mock_subject.called)
+
     @patch('cryptography.__version__', '3.4.7')
     def test_363_cryptography_version_get_success(self):
         self.assertEqual(3, self.cryptography_version_get(self.logger))
@@ -2915,12 +2935,132 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertEqual(36, self.cryptography_version_get(self.logger))
         self.assertIn("ERROR:test_a2c:cryptography_version_get(): Error: 'NoneType' object has no attribute 'split'", lcm.output)
 
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_365_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = True
+        mock_fqdn.return_value = True
+        self.assertFalse(self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertFalse(mock_fqdn.called)
 
-    #@patch('cryptography.__version__', new_callable=lambda: None)
-    #def test_364_cryptography_version_get_missing_version(self):
-    #    with self.assertRaises(AttributeError):
-    #        cryptography_version_get()
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_366_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = True
+        self.assertFalse(self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertTrue(mock_fqdn.called)
 
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_367_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = False
+        self.assertEqual('Profile subject check failed: CN validation failed', self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertTrue(mock_fqdn.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_368_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = False
+        self.assertEqual('Profile subject check failed: commonName missing', self.cn_validate(self.logger, None))
+        self.assertFalse(mock_fqdn.called)
+
+    def test_369_csr_subject_get(self):
+        """ test csr_subject_get() """
+        csr = 'MIICwDCCAagCAQAwVDESMBAGA1UEAwwJbGVnby5hY21lMQ0wCwYDVQQKDARhY21lMQwwCgYDVQQLDANmb28xCzAJBgNVBAYTAlVTMRQwEgYDVQQFEwswMC0xMS0yMi0zMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM5AKMmB3o8LLEEGuHo0Ipl4K8z9m3EyM9teSVocQz39DK8s2dKpx8MrsVkTg6M3fuL4yPlim8v0+unPtB18dFeThkijHetxL5x08pVvMVwa7Cjk/22e5IRgBGSQYCO6KCUsNh2vhH93r7x71wlTV3sYe2t0HaEdGqBxdct76J9kyeCY06Br+4PMR7afRvHv4vFH6Y2+hSD4oOd5cSTZXnNWcWRbjNFY7aytzl4JpJiEK0ealDMSf/ZP0n8Sdx1vCx8amaozrLg5z3eLULiAUUgCtqOWOgNLQFNSqjyhZmMTZGGJcTgb43KAKWsO3bfM6rvNTZRbrM7dAsg/bQsK6mMCAwEAAaAnMCUGCSqGSIb3DQEJDjEYMBYwFAYDVR0RBA0wC4IJbGVnby5hY21lMA0GCSqGSIb3DQEBCwUAA4IBAQA19j8Lge9Vqxc/hvWYcU1Kx3KBx5TN97PK0wQFPIIWX20/JRoodzfrMSqO0EgZWB+czoRi8G+2ezbK13sV02dKovo8ISoSvgSZtt53UKBz+JmQd7Q7G1vONZ7d2PT0nTUN4fTA5YQs5nys3O8/2oOxJiJO6IyhmpiVqUbrlU6Harb4MfjNTb+teSQRSCOAX/8U9TdPwuAi6rXdWjXAUxBDQySWkW/B3pd77Ztt5nDFP2DT+7f7mAoWG4+XY6iXcXs1GsDA4XRTx2rCvhQtQomVGAKFwd8aTpHL/ZwNt1GOw6oMZkKKf+axVA1pvAYGhey/4x3uwKf654VB3e2iOCea'
+        result_dic = {'commonName': 'lego.acme', 'organizationName': 'acme', 'organizationalUnitName': 'foo', 'countryName': 'US', 'serialNumber': '00-11-22-33'}
+        self.assertEqual(result_dic, self.csr_subject_get(self.logger, csr))
+
+    def test_370_csr_subject_get(self):
+        """ test csr_subject_get() """
+        csr = 'MIICcDCCAVgCAQAwADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANOKk0E61QJ2K/NiGSO0aJyqrLfmHytPr35ptLwNdfKQ/8Vb2uoHYAvxVEO9weNTQVlZ9ApkJquBTRoSdqTy6p87inh8JwzFM/neJAsMg2ZiH3gRRRfmIb/4Kce0BUQ66DFSV8sWThyv13EcL+pZYdqRvONujVn7XVPbmB2ZI8qI4iXswRq45mFBW5Dyt3Rlw+KOBu1ejo0lqB2FGQiBONxQrFDyF4nVWN3R9BlhuybSF4Elhos7pkiEfrE+8EzYy+7yMEiDh1m+TmwZRNEdtSWNORF51CF3bYUz8pvpt66vKGi/F6k2iljelw1kNsswZAciNi2jG7S0M+MWMFi680sCAwEAAaArMCkGCSqGSIb3DQEJDjEcMBowGAYDVR0RBBEwD4INZm9vLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAivCrcL+uVzDdykT87073atC4B2DHky5bzL+iI8C+BkPq0jRdcVkExMrUtTdtp8Ot1zQHtYc/c/Tj+aYDZ6SdMYtrtHUgxS5JyFh0p+MEvkgZHcWOVC+VlWA+lC9kdX3WetsGT6xqCG4l+BpgCUERghFJ5/+K0bbCI4jT/5ZCT7+pO0qZtw0eg6tQBLPSXzXN98x3nmuaw9PzO1rVG5IMItyU+TlX3pJRXKpqSOHEbeaGWHizMUlbDKzoIiUf+11I9RwTeLlp/HPG8uvRc/zZ1einZPLQgow5kU15jFQSgQtzFHV4ZxuYmWN7oMIruwBNP1hkoTNL1kJcPeOwtEdOMw=='
+        self.assertFalse(self.csr_subject_get(self.logger, csr))
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_371_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': 'bar1'}
+        self.assertEqual('Profile subject check failed for foo', self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_372_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': 'bar'}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_373_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        self.assertEqual('Profile subject check failed for foo', self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_374_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar2'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_375_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        mock_validate.return_value = 'error'
+        self.assertEqual('error', self.eab_profile_subject_string_check(self.logger, profile_dic, 'commonName', 'bar'))
+        self.assertTrue(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_376_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        mock_validate.return_value = 'error'
+        self.assertEqual('Profile subject check failed for bar', self.eab_profile_subject_string_check(self.logger, profile_dic, 'bar', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_377_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = ['o', 'ou', 'cn']
+        self.assertEqual('o', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_378_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, 'ou', 'cn']
+        self.assertEqual('ou', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_379_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, False, 'cn']
+        self.assertEqual('cn', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_378_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, False, False]
+        self.assertEqual('Profile subject check failed', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
 
 if __name__ == '__main__':
     unittest.main()
