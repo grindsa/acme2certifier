@@ -2983,10 +2983,17 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(self.csr_subject_get(self.logger, csr))
 
     @patch('acme_srv.helper.cn_validate')
-    def test_371_eab_profile_subjet_string_check(self, mock_validate):
+    def test_370_eab_profile_subjet_string_check(self, mock_validate):
         """ test eab_profile_subject_string_check() """
         profile_dic = {'foo': 'bar1'}
         self.assertEqual('Profile subject check failed for foo', self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_371_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': '*'}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
         self.assertFalse(mock_validate.called)
 
     @patch('acme_srv.helper.cn_validate')

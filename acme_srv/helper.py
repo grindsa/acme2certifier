@@ -1754,7 +1754,7 @@ def eab_profile_subject_string_check(logger: logging.Logger, profile_subject_dic
         # check if CN is a valid IP address or fqdn
         error = cn_validate(logger, value)
     elif key in profile_subject_dic:
-        if isinstance(profile_subject_dic[key], str) and value == profile_subject_dic[key]:
+        if isinstance(profile_subject_dic[key], str) and (value == profile_subject_dic[key] or profile_subject_dic[key] == '*'):
             logger.debug('Helper.eab_profile_subject_check() successul for string : %s', key)
             del profile_subject_dic[key]
         elif isinstance(profile_subject_dic[key], list) and value in profile_subject_dic[key]:
