@@ -5,6 +5,25 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.35
+
+**Features and Improvements**:
+
+- [#153](https://github.com/grindsa/acme2certifier/issues/153) Kerberos support in [mscertsrv_handler](docs/mscertsrv.md)
+- allowed_domainlist checking in [mswcce_handler](docs/mswcce.md)
+- `timeout` parameter in [ms-wcce_handler](docs/mswcce.md) to specify an enrollment timeout
+- new [tool to validate eab-files](docs/eab_profiling.md#profile-verification)
+- [#165](https://github.com/grindsa/acme2certifier/issues/165) [EAB profiling](docs/eab_profiling.md#enrollment-profiling-via-external-account-binding) for ejbca_handler
+- [#166](https://github.com/grindsa/acme2certifier/issues/166) [EAB profiling](docs/acme_ca.md#eab-profiling) for acme_ca_handler
+- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 22.04](docs/a2c-ubuntu-loadbalancing.md)
+- [#165](https://github.com/grindsa/acme2certifier/issues/165) documentaion of [external database support](docs/external_database_support.md) via django_handler
+
+**Bugfixes**:
+
+- `acme_srv.cfg` will be preserved in case of RPM updates
+- apache2_wsgi docker image will be tagged with `latest`
+- [#166](https://github.com/grindsa/acme2certifier/issues/166) workaround for failed account lookups on smallstep-ca
+
 # Changes in 0.34
 
 **Features and Improvements**:
