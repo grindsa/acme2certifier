@@ -7,14 +7,14 @@
 2. Install "Extra Packages for Enterprise Linux (EPEL)"
 
 ```bash
-$ sudo yum install -y epel-release
-$ sudo yum update -y
+sudo yum install -y epel-release
+sudo yum update -y
 ```
 
 3. Install the RPM packages
 
 ```bash
-$ sudo yum -y localinstall /tmp/acme2certifier/acme2certifier-0.23.1-1.0.noarch.rpm
+sudo yum -y localinstall /tmp/acme2certifier/acme2certifier-0.23.1-1.0.noarch.rpm
 ```
 
 In case you install on Redhat 8.x you need to upgrade following packages
@@ -39,13 +39,13 @@ Depending on your ca_handler you may need additional modules:
 4. Copy NGINX configuration file
 
 ```bash
-$ cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 ```
 
 5. Copy NGINX ssl configuration file (optional)
 
 ```bash
-$ cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
+cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
 5. Create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/` or use the example stored in the examples directory
@@ -54,15 +54,15 @@ $ cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.
 8. Enable and start the acme2certifier service
 
 ```bash
-$ systemctl enable acme2certifier.service
-$ systemctl start acme2certifier.service
+sudo systemctl enable acme2certifier.service
+sudo systemctl start acme2certifier.service
 ```
 
 9. Enable and start the nginx service
 
 ```bash
-$ systemctl enable nginx.service
-$ systemctl start nginx.service
+sudo systemctl enable nginx.service
+sudo systemctl start nginx.service
 ```
 
 10. Test the server by accessing the directory resource
