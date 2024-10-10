@@ -557,7 +557,7 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     return subject
 
 
-def csr_pubkey_get(logger, csr, encoding='pem'):
+def csr_pubkey_get(logger: logging.Logger, csr, encoding='pem'):
     """ get public key from certificate request """
     logger.debug('Helper.csr_pubkey_get()')
     csr_obj = csr_load(logger, csr)
@@ -1685,7 +1685,7 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
             # profiling enabled - check profile
             error = eab_profile_check(logger, cahandler, csr, handler_hifield)
         else:
-            logger.error('eab_profile_header_info_check(): eab_profiling enabled but no handler defined')
+            logger.error('Helper.eab_profile_header_info_check(): eab_profiling enabled but no handler defined')
             error = 'Eab_profiling enabled but no handler defined'
 
     elif cahandler.header_info_field:
@@ -1696,7 +1696,7 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
             setattr(cahandler, handler_hifield, hil_value)
             error = None
         else:
-            logger.debug('eab_profile_header_info_check(): no header_info field found')
+            logger.debug('Helper.eab_profile_header_info_check(): no header_info field found')
             error = None
     else:
         # no profiling - no header_info_field
