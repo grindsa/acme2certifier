@@ -38,6 +38,7 @@ Requires:       python3-josepy
 Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
+Requires:       python3-pyyaml
 Requires(post): policycoreutils
 
 BuildArch:		noarch

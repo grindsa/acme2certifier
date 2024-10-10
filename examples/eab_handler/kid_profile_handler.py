@@ -129,7 +129,7 @@ class EABhandler(object):
         if check_list:
             # cover a cornercase with empty checklist (no san, no cn)
             if False in check_list:
-                result = "allowed_domainlist checking failed"
+                result = "Either CN or SANs are not allowed by profile"
             else:
                 result = False
 

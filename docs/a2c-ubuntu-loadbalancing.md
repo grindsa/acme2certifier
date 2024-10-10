@@ -239,9 +239,9 @@ SHOW SLAVE STATUS\G
 
 ### Test master-master replication
 
-#### on ub2204-c1
+#### test replication on ub2204-c1
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -253,9 +253,9 @@ sudo mysql -u  root
 CREATE DATABASE testdb;
 ```
 
-#### on ub2204-c2
+#### test replication on ub2204-c2
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -287,7 +287,7 @@ MariaDB [(none)]>
 DROP DATABASE testdb;
 ```
 
-#### on ub2204-c1
+#### verify deletion on ub2204-c1
 
 - back on ub2204-c1 check the databases to make sure that "testdb" is not present anymore
 
@@ -342,7 +342,8 @@ sudo apt-get install -y lsyncd
 sudo mkdir /etc/lsyncd /var/log/lsyncd
 ```
 
-### on ub2204-c1
+### configuration on ub2204-c1
+
 - test passwordless ssh access by logging in to ub2204-c2
 
 ```bash
@@ -382,7 +383,7 @@ sudo systemctl restart lsyncd
 sudo systemctl enable lsyncd
 ```
 
-### on ub2204-c2
+### configuration on ub2204-c2
 
 - test passwordless ssh access by logging in to ub2204-c1
 
@@ -424,7 +425,7 @@ sudo systemctl enable lsyncd
 
 ### Test replication
 
-#### on ub2204-c1
+#### test repliasyncronizationtion on ub2204-c1
 
 - create a file in `/var/www/acme2certifier/volume` directory
 
@@ -432,7 +433,7 @@ sudo systemctl enable lsyncd
 sudo touch /var/www/acme2certifier/volume/test.txt
 ```
 
-#### on ub2204-c2
+#### test syncronization on ub2204-c2
 
 - verify that the '/var/www/acme2certifier/volume/test.txt' has been syncronized to ub2204-c2 (please note that replication can take up to 20s)
 
@@ -446,7 +447,7 @@ sudo ls -la /var/www/acme2certifier/volume
 sudo rm /var/www/acme2certifier/volume/test.txt
 ```
 
-#### on ub2204-c1
+#### verify removal on ub2204-c1
 
 - back on ub2204-c1 check `/var/www/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
 
@@ -509,9 +510,9 @@ sudo systemctl enable apache2.service
 sudo systemctl start apache2.service
 ```
 
-### on ub2204-c1
+### setup on ub2204-c1
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -536,7 +537,6 @@ python3 /var/www/acme2certifier/tools/django_secret_keygen.py
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
   - configure a connection to mariadb as shown below
-
 
 ```python
 SECRET_KEY = '+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e'
@@ -600,11 +600,12 @@ sudo systemctl restart apache2.service
 ```bash
 curl http://ub2204-c1.bar.local/directory
 ```
+
 ```bash
 {"newAccount": "http://ub2204-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c1.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c1.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c1.bar.local/acme_srv/revokecert"}
 ```
 
-### on ub2204-c2
+### setup on ub2204-c2
 
 - generate a new django secret and note it down
 
@@ -648,6 +649,7 @@ sudo systemctl restart apache2.service
 ```bash
 curl http://ub2204-c2.bar.local/directory
 ```
+
 ```bash
 {"newAccount": "http://ub2204-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c2.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c2.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c2.bar.local/acme_srv/revokecert"}
 ```

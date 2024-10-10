@@ -193,6 +193,12 @@ class Challenge(object):
             except Exception as err_:
                 self.logger.warning('Challenge._config_load() dns_server_list failed with error: %s', err_)
 
+            if 'dns_validation_pause_timer' in config_dic['Challenge']:
+                try:
+                    self.dns_validation_pause_timer = int(config_dic['Challenge']['dns_validation_pause_timer'])
+                except Exception as err_:
+                    self.logger.warning('Challenge._config_load() failed to load dns_validation_pause_timer: %s', err_)
+
         self.logger.debug('Challenge._config_dns_load() ended')
 
     def _config_challenge_load(self, config_dic: Dict[str, str]):
@@ -208,12 +214,6 @@ class Challenge(object):
                     self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
                 except Exception as err_:
                     self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
-
-            if 'dns_validation_pause_timer' in config_dic['Challenge']:
-                try:
-                    self.dns_validation_pause_timer = int(config_dic['Challenge']['dns_validation_pause_timer'])
-                except Exception as err_:
-                    self.logger.warning('Challenge._config_load() failed to load dns_validation_pause_timer: %s', err_)
 
         self.logger.debug('Challenge._config_challenge_load() ended')
 
@@ -258,12 +258,14 @@ class Challenge(object):
 
     def _name_get(self, url: str) -> str:
         """ get challenge """
-        self.logger.debug('Challenge.get_name(%s)', url)
+        self.logger.debug('Challenge.get_name()')
 
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic['path'].replace(self.path_dic['chall_path'], '')
         if '/' in challenge_name:
             (challenge_name, _sinin) = challenge_name.split('/', 1)
+
+        self.logger.debug('Challenge.get_name() ended with: %s', challenge_name)
         return challenge_name
 
     def _new(self, authz_name: str, mtype: str, token: str = None, value: str = None) -> Dict[str, str]:

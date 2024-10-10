@@ -7,7 +7,7 @@ import json
 from typing import List, Tuple, Dict
 import requests
 # pylint: disable=e0401, r0913
-from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, csr_cn_get, b64_encode, b64_url_recode, convert_string_to_byte, csr_san_get, cert_serial_get, date_to_uts_utc, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc
 
 
 class CAhandler(object):
@@ -47,7 +47,11 @@ class CAhandler(object):
         """  generic wrapper for an API post call """
         self.logger.debug('CAhandler._api_post()')
         try:
-            api_response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
+            response = requests.post(url=url, json=data, headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout)
+            try:
+                api_response = response.json()
+            except Exception as err_:
+                api_response = {'status': response.status_code}
         except Exception as err_:
             self.logger.error('CAhandler._api_post() returned error: %s', err_)
             api_response = str(err_)
@@ -569,18 +573,24 @@ class CAhandler(object):
 
     def _template_list_get(self) -> Dict[str, str]:
         """ get list of templates """
-        self.logger.debug('CAhandler._template_id_lookup(%s)', self.tsg_info_dic['id'])
+        self.logger.debug('CAhandler._template_list_get(%s)', self.tsg_info_dic['id'])
         try:
             template_list = requests.get(self.api_host + '/policy/ca/7/templates?entityRef=CONTAINER&entityId=' + str(self.tsg_info_dic['id']) + '&allowedOnly=true&enroll=true', headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
         except Exception as err_:
             self.logger.error('CAhandler._template_id_lookup() returned error: %s', err_)
             template_list = []
 
+        if 'template' in template_list and 'items' in template_list['template']:
+            tmpl_cnt = len(template_list['template']['items'])
+        else:
+            tmpl_cnt = 0
+
+        self.logger.debug('CAhandler._template_list_get() ended with: %s templates', tmpl_cnt)
         return template_list
 
     def _templates_enumerate(self, template_list: Dict[str, str]):
         """ get template id based on name """
-        self.logger.debug('CAhandler._template_id_lookup() for template: %s', self.template_info_dic['name'])
+        self.logger.debug('CAhandler._templates_enumerate() for template: %s', self.template_info_dic['name'])
 
         for template in template_list['template']['items']:
             if 'allowed' in template and template['allowed'] and 'linkType' in template and template['linkType'].lower() == 'template':
@@ -641,16 +651,22 @@ class CAhandler(object):
         if 'id' in self.template_info_dic and self.template_info_dic['id']:
             data_dic['template'] = {'selectedId': self.template_info_dic['id']}
 
-        self._api_post(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/enroll', data_dic)
-        # wait for certificate enrollment to get finished
-        time.sleep(self.wait_interval)
-        cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
-        if cert_id:
-            (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+        response = self._api_post(self.api_host + self.endpoint_dic['tsg'] + str(self.tsg_info_dic['id']) + '/enroll', data_dic)
+        if 'status' in response and response['status'] <= 300:
+            # wait for certificate enrollment to get finished
+            time.sleep(self.wait_interval)
+            cert_id = self._cert_id_lookup(csr_cn, csr_san_list)
+            if cert_id:
+                (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+            else:
+                error = f'certifcate id lookup failed for:  {csr_cn}, {csr_san_list}'
+                self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  %s, %s', csr_cn, csr_san_list)
         else:
-            error = f'certifcate id lookup failed for:  {csr_cn}, {csr_san_list}'
-            self.logger.error('CAhandler.eroll(): certifcate id lookup failed for:  %s, %s', csr_cn, csr_san_list)
-
+            if 'message' in response:
+                error = f'enrollment failed: {response["message"]}'
+            else:
+                error = f'enrollment failed: {response}'
+            self.logger.error('CAhandler.eroll(): enrollment failed: %s', response)
         return (error, cert_bundle, cert_raw)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
@@ -702,12 +718,12 @@ class CAhandler(object):
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def revoke(self, cert: str, rev_reason: str, rev_date: str) -> Tuple[int, str, str]:
+    def revoke(self, cert: str, rev_reason: str = 'unspecified', rev_date: str = uts_to_date_utc(uts_now())) -> Tuple[int, str, str]:
         """ revoke certificate """
         self.logger.debug('CAhandler.revoke()')
 
         # get serial from pem file and convert to formated hex
-        serial = f'0{cert_serial_get(self.logger, cert, hexformat=True)}'
+        serial = f'{cert_serial_get(self.logger, cert, hexformat=True)}'
         hex_serial = ':'.join(serial[i:i + 2] for i in range(0, len(serial), 2))
 
         # search for certificate

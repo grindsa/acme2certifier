@@ -439,10 +439,12 @@ def cryptography_version_get(logger: logging.Logger) -> int:
     logger.debug('Helper.cryptography_version_get()')
     import cryptography
 
-    version_list = cryptography.__version__.split('.')
-    if version_list:
-        major_version = int(version_list[0])
-    else:
+    try:
+        version_list = cryptography.__version__.split('.')
+        if version_list:
+            major_version = int(version_list[0])
+    except Exception as err:
+        logger.error('cryptography_version_get(): Error: %s', err)
         major_version = 36
 
     logger.debug('cryptography_version_get() ended with %s', major_version)
@@ -557,7 +559,7 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     return subject
 
 
-def csr_pubkey_get(logger, csr, encoding='pem'):
+def csr_pubkey_get(logger: logging.Logger, csr, encoding='pem'):
     """ get public key from certificate request """
     logger.debug('Helper.csr_pubkey_get()')
     csr_obj = csr_load(logger, csr)
@@ -1741,7 +1743,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     logger.debug('Helper.eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
     result = None
-    if hasattr(cahandler, key):
+    if hasattr(cahandler, key) and key != 'allowed_domainlist':
         new_value, error = header_info_field_validate(logger, csr, cahandler.header_info_field, key, value)
         if new_value:
             logger.debug('Helper.eab_profile_list_check(): setting attribute: %s to %s', key, new_value)

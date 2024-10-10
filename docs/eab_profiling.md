@@ -6,8 +6,12 @@ Starting with  version 0.34 acme2certifier supports the configuration of account
 
 Currently the following ca-handlers had been modified and do support this feature:
 
-- [Insta certifier/NetGuard Certificate manager](certifier.md)
+- [generic ACME](acme_ca.md)
+- [EJBCA](ejbca.md)
 - [Insta ActiveCMS](asa.md)
+- [Insta certifier/NetGuard Certificate manager](certifier.md)
+- [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
+- [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](mswcce.md)
 - [XCA](xca.md)
 
 In case you need support for a different ca-handler feel free to raise an [issue](https://github.com/grindsa/acme2certifier/issues/new).

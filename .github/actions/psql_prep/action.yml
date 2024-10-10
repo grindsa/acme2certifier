@@ -1,0 +1,45 @@
+name: "psql_prep"
+description: "bring up and configure psql instance"
+inputs:
+  NAME_SPACE:
+    description: "Name space"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "postgres environment"
+      run: |
+        sudo mkdir -p /tmp/data/pgsql
+        sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
+        sudo cp .github/pgpass /tmp//data/pgsql/pgpass
+        sudo chmod 600 /tmp/data/pgsql/pgpass
+      shell: bash
+
+    - name: "Install postgres"
+      working-directory: /tmp
+      run: |
+        docker run --name postgresdbsrv --network $NAME_SPACE -e POSTGRES_PASSWORD=foobar -d postgres
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Configure postgres"
+      working-directory: /tmp
+      run: |
+        docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network $NAME_SPACE postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s

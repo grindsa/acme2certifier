@@ -1,0 +1,44 @@
+name: "enroll_w_headerinfo"
+description: "enroll_w_headerinfo"
+inputs:
+  ASA_CA_NAME1:
+    description: "ASA CA 1"
+    required: true
+  ASA_CA_NAME2:
+    description: "ASA CA 2"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Register certbot"
+    run: |
+      sudo rm -rf certbot/*
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    shell: bash
+
+  - name: "Enroll certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Not After : Jun  9 17:17:00 2030 GMT"
+    shell: bash
+
+  - name: "Revoke certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+    shell: bash
