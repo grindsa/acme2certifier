@@ -20,6 +20,7 @@ cat /etc/hosts
 192.168.14.136 alma9-c1.bar.local alma9-c1
 192.168.14.137 alma9-c2.bar.local alma9-c2
 ```
+
 Furthermore, the EPEL-repository need ot be enabled on both nodes.
 
 ```bash
@@ -53,7 +54,7 @@ sudo systemctl enable mariadb
 sudo systemctl status mariadb
 ```
 
-- modify ` /etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
+- modify `/etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
 
 ```cfg
 # listen on external address
@@ -246,9 +247,9 @@ SHOW SLAVE STATUS\G
 
 ### Test master-master replication
 
-#### on alma9-c1
+#### test on alma9-c1
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -260,9 +261,9 @@ sudo mysql -u  root
 CREATE DATABASE testdb;
 ```
 
-#### on alma9-c2
+#### test on alma9-c2
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -274,7 +275,7 @@ sudo mysql -u  root
 SHOW DATABASES;
 ```
 
-```
+```SQL
 +--------------------+
 | Database           |
 +--------------------+
@@ -294,7 +295,7 @@ MariaDB [(none)]>
 DROP DATABASE testdb;
 ```
 
-#### on alma9-c1
+#### verification on alma9-c1
 
 - back on alma9-c1 check the databases to make sure that "testdb" is not present anymore
 
@@ -342,7 +343,7 @@ sudo mkdir -p /opt/acme2certifier/volume
 sudo yum install -y lsyncd
 ```
 
-### on alma9-c1
+### configuration on alma9-c1
 
 - test passwordless ssh access by logging in to alma9-c2
 
@@ -383,7 +384,7 @@ sudo systemctl restart lsyncd
 sudo systemctl enable lsyncd
 ```
 
-### on alma9-c2
+### configuration on alma9-c2
 
 - test passwordless ssh access by logging in to alma9-c1
 
@@ -425,7 +426,7 @@ sudo systemctl enable lsyncd
 
 ### Test replication
 
-#### on alma9-c1
+#### test replication on alma9-c1
 
 - create a file in `/opt/acme2certifier/volume` directory
 
@@ -433,7 +434,7 @@ sudo systemctl enable lsyncd
 sudo touch /opt/acme2certifier/volume/test.txt
 ```
 
-#### on alma9-c2
+#### test replication on alma9-c2
 
 - verify that the '/opt/acme2certifier/volume/test.txt' has been syncronized to alma9-c2 (please note that replication can take up to 20s)
 
@@ -447,7 +448,7 @@ sudo ls -la /opt/acme2certifier/volume
 sudo rm /opt/acme2certifier/volume/test.txt
 ```
 
-#### on alma9-c1
+#### verify deletion on alma9-c1
 
 - back on alma9-c1 check `/opt/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
 
@@ -512,7 +513,7 @@ sudo systemctl start nginx
 
 ### on alma9-c1
 
--  open the mysql commandline client
+- open the mysql commandline client
 
 ```bash
 sudo mysql -u  root
@@ -537,7 +538,6 @@ python3 /opt/acme2certifier/tools/django_secret_keygen.py
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
   - configure a connection to mariadb as shown below
-
 
 ```python
 SECRET_KEY = '+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e'
@@ -601,6 +601,7 @@ sudo systemctl restart acme2certifier.service
 ```bash
 curl http://alma9-c1.bar.local/directory
 ```
+
 ```bash
 {"newAccount": "http://alma9-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c1.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c1.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c1.bar.local/acme_srv/revokecert"}
 ```
@@ -649,6 +650,7 @@ sudo systemctl restart acme2certifier.service
 ```bash
 curl http://alma9-c2.bar.local/directory
 ```
+
 ```bash
 {"newAccount": "http://alma9-c2.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://alma9-c2.bar.local/acme_srv/key-change", "newNonce": "http://alma9-c2.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://alma9-c2.bar.local/acme_srv/neworders", "revokeCert": "http://alma9-c2.bar.local/acme_srv/revokecert"}
 ```

@@ -5,7 +5,7 @@
 A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the below tasks will can be found in `examples/install_scripts` directory.
 
 1. Install apache2 and the corresponding wsgi module
-$ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
+$ sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 
 2. check if the wsgi module is activated in your apache configuration
 
@@ -26,13 +26,17 @@ sudo pip3 install -r requirements.txt
 
 5. copy the file `examples/apache2/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to you needs.
 
-6. in case you would like to activate TLS copy the file `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs. Do not forget to place the key-bundle. This
-
-file must contain the following certificate data in pem format:
+6. in case you would like to activate TLS copy the file `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs. Do not forget to place the key-bundle. This file must contain the following certificate data in pem format:
 
 - the private key
 - the end-entity certificate
 - intermediate CA certificates, sorted from leaf to root (root CA certificate should not be included for security reasons)
+
+Further, the ssl module needs to be activated
+
+```bash
+sudo a2enmod ssl
+```
 
 7. activate the virtual server(s)
 

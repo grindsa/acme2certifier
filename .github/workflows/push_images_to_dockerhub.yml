@@ -70,10 +70,12 @@ jobs:
         run: |
           echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
 
       - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
       - run: echo "APP tag is ${{ env.APP_NAME }}"
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+      - run: echo "BUILD_NAME is ${{ env.BUILD_NAME}}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -98,15 +100,35 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build
+      - name: Build with latest tag
         uses: docker/build-push-action@v5
+        if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
+        with:
+          push: true
+          tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:latest
+          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
+          platforms: linux/arm64, linux/amd64
+
+      - name: Build without latest tag
+        uses: docker/build-push-action@v5
+        if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
         with:
           push: true
           tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
           platforms: linux/arm64, linux/amd64
 
-      - name: Push image to GHCR
+      - name: Push image with latest tag to GHCR
+        if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} \
+            --tag ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
+            --tag ghcr.io/grindsa/acme2certifier:latest \
+            grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+
+      - name: Push image without latest tag to GHCR
+        if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
         run: |
           docker buildx imagetools create \
             --tag ghcr.io/grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} \
@@ -177,10 +199,10 @@ jobs:
         with:
           time: 5s
 
-      - name: "Test if http://acme-srv/directory is accessable"
+      - name: "Test if http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Test if https://acme-srv/directory is accessable"
+      - name: "Test if https://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
       - name: "Prepare acme.sh container"

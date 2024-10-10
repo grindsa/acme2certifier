@@ -80,7 +80,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "[ TEST ] Test if directory ressource is accessable"
+    - name: "[ TEST ] Test if directory ressource is accessible"
       run: |
         get-Process python
         Invoke-RestMethod -Uri http://127.0.0.1:8080/directory -NoProxy -TimeoutSec 5
@@ -107,7 +107,7 @@ jobs:
       with:
         time: 5s
 
-    - name: "[ TEST ] Test if directory ressource is accessable"
+    - name: "[ TEST ] Test if directory ressource is accessible"
       run: |
         get-Process python
         Invoke-RestMethod -SkipCertificateCheck -Uri https://localhost -NoProxy -TimeoutSec 5

@@ -7,12 +7,16 @@ ENV APACHE_LOG_DIR /var/log/apache2
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends -y tzdata && \
-    apt-get install --no-install-recommends -y \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
     python3-pip \
     apache2 \
     apache2-data \
     libapache2-mod-wsgi-py3 \
     curl \
+    krb5-user \
+    libgssapi-krb5-2 \
+    libkrb5-3 \
+    python3-gssapi \
     python3-django \
     python3-mysqldb \
     python3-pymysql \

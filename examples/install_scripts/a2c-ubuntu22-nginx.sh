@@ -8,7 +8,7 @@
 # 1 install needed packages
 echo "## Install missing packages"
 sudo apt-get update
-sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl
+sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 
 # 3 install needed python modules
 echo "## Install missing pythom modules"

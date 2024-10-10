@@ -73,7 +73,7 @@ The acme-client can then specify the profile_name as part of its user-agent stri
 Example for acme.sh:
 
 ```bash
-docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profile_name=<profile-name>foo --debug 3 --output-insecure
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent profile_name=<profile-name> --debug 3 --output-insecure
 ```
 
 Example for lego:

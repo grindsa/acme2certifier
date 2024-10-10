@@ -1,0 +1,97 @@
+name: "ejbca_prep"
+description: "ejbca_prep"
+inputs:
+  RUNNER_IP:
+    description: "Runner IP"
+    required: true
+  WORKING_DIR:
+    description: "Working directory"
+    required: true
+    default: ${{ github.workspace }}
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Prepare Environment"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      mkdir -p data/acme_ca
+      mkdir -p /tmp/openxpki
+      sudo chmod -R 777 data
+      sudo sh -c "echo '$OPENXPKI_IP openxpki' >> /etc/hosts"
+      sudo cat /etc/hosts
+    env:
+      OPENXPKI_IP: ${{ inputs.RUNNER_IP }}
+    shell: bash
+
+  - name: "Instanciate OpenXPKI server"
+    working-directory: /tmp/openxpki
+    run: |
+      sudo apt-get install -y docker-compose
+      git clone https://github.com/openxpki/openxpki-docker.git
+      cd openxpki-docker/
+      git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
+      cd openxpki-config/
+      # git checkout a86981e2929e68f3fe3530a83bdb7a4436dfd604
+      cd ..
+      sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
+      sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
+      sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
+      sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
+      sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
+      cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
+      docker-compose up &
+    shell: bash
+
+  - name: "Sleep for 60s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 60s
+
+  - name: "Fix 1st time start issues with OpenXPKI server"
+    working-directory: /tmp/openxpki/openxpki-docker
+    run: |
+      docker ps
+      docker stop openxpki-docker_openxpki-server_1
+      docker start openxpki-docker_openxpki-server_1
+    shell: bash
+
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Configure OpenXPKI server"
+    working-directory: /tmp/openxpki
+    run: |
+      docker ps
+      docker exec -id openxpki-docker_openxpki-server_1 /bin/bash /etc/openxpki/contrib/sampleconfig.sh
+      docker exec -id openxpki-docker_openxpki-client_1 apt-get install -y libjson-pp-perl
+    shell: bash
+
+  - name: "Sleep for 45s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 45s
+
+  - name: "Enroll keys for Client-authentication via scep"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      sudo openssl genrsa -out data/acme_ca/client_key.pem 2048
+      sudo openssl req -new -key data/acme_ca/client_key.pem -subj '/CN=a2c:pkiclient,O=acme' -outform der | base64 > /tmp/request.pem
+      curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure  | base64 -d > /tmp/cert.p7b
+      sudo openssl pkcs7 -print_certs -in /tmp/cert.p7b -inform der -out data/acme_ca/client_crt.pem
+      sudo openssl pkcs12 -export -out data/acme_ca/client_crt.p12 -inkey  data/acme_ca/client_key.pem -in data/acme_ca/client_crt.pem -passout pass:Test1234
+      sudo openssl rsa -noout -modulus -in data/acme_ca/client_key.pem | openssl md5
+      sudo openssl x509 -noout -modulus -in data/acme_ca/client_crt.pem  | openssl md5
+      sudo chmod a+r data/acme_ca/client_key.pem
+      sudo chmod a+r data/acme_ca/client_crt.pem
+      sudo chmod a+r data/acme_ca/client_crt.p12
+      curl https://$OPENXPKI_IP:8443/.well-known/est/cacerts --insecure | base64 -d > /tmp/cacert.p7b
+      sudo openssl pkcs7 -print_certs -in /tmp/cacert.p7b -inform der -out data/acme_ca/ca_bundle.pem
+      sudo chmod a+rw data/acme_ca/ca_bundle.pem
+      sudo openssl s_client -connect $OPENXPKI_IP:8443 2>/dev/null </dev/null |  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >> data/acme_ca/ca_bundle.pem
+    env:
+      OPENXPKI_IP: ${{ inputs.RUNNER_IP }}
+    shell: bash

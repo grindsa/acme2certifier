@@ -1,0 +1,72 @@
+name: "deb_build"
+description: "Build deb package"
+outputs:
+  deb_file_name:
+    description: "Name of the debian package file"
+    value: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Retrieve Version from version.py
+      run: |
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+      shell: bash
+
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+      shell: bash
+
+    - name: "Install Firefox from Mozilla"
+      run: |
+        sudo apt-get update
+        sudo install -d -m 0755 /etc/apt/keyrings
+        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee -a /etc/apt/sources.list.d/mozilla.list > /dev/null
+        echo '
+        Package: *
+        Pin: origin packages.mozilla.org
+        Pin-Priority: 1000
+        ' | sudo tee /etc/apt/preferences.d/mozilla
+        sudo apt update && sudo apt install -y firefox --allow-downgrades
+      shell: bash
+
+    - name: "Prepare environment to build deb package"
+      run: |
+        sudo apt-get update && sudo apt-get -y upgrade
+        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper  --allow-downgrades
+        rm setup.py
+        rm -f examples/ngnix/acme2certifier.te
+        rm -f examples/nginx/supervisord.conf
+        rm -f examples/nginx/uwsgi.service
+        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
+        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv_ssl.conf
+        sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
+        sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
+        echo "plugins=python3" >> examples/nginx/acme2certifier.ini
+        cat <<EOT > examples/nginx/acme2certifier.service
+        [Unit]
+        Description=uWSGI instance to serve acme2certifier
+        After=network.target
+
+        [Service]
+        User=www-data
+        Group=www-data
+        WorkingDirectory=/var/www/acme2certifier
+        Environment="PATH=/var/www/acme2certifier"
+        ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
+
+        [Install]
+        WantedBy=multi-user.target
+        EOT
+        cp -R examples/install_scripts/debian ./
+        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
+        cd ../
+        tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
+      shell: bash
+
+    - name: "Build debian package"
+      run: |
+        dpkg-buildpackage -uc -us
+        dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
+      shell: bash
