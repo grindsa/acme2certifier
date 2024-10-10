@@ -2751,7 +2751,8 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         cahandler.hi_field = 'pre_hi_field'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('Eab_profiling enabled but no handler defined', self.eab_profile_header_info_check(self.logger, cahandler, 'csr', 'hi_field'))
-        self.assertIn('ERROR:test_a2c:eab_profile_header_info_check(): eab_profiling enabled but no handler defined', lcm.output)
+        self.assertIn('ERROR:test_a2c:Helper.eab_profile_header_info_check(): eab_profiling enabled but no handler defined', lcm.output)
+
         self.assertEqual('pre_hi_field', cahandler.hi_field)
         self.assertFalse(mock_eab.called)
         self.assertFalse(mock_lookup.called)
@@ -2836,7 +2837,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual('eab_list_check', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
         self.assertFalse(mock_string.called)
         self.assertFalse(mock_list.called)
-
 
 if __name__ == '__main__':
     unittest.main()
