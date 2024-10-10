@@ -74,7 +74,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eabhandler.key_file = 'file'
         self.assertFalse(self.eabhandler.mac_key_get(None))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_009_mac_key_get(self, mock_json):
         """ test mac_key_get json reader return bogus values """
@@ -82,7 +82,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'foo', 'bar'}
         self.assertFalse(self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_010_mac_key_get(self, mock_json):
         """ test mac_key_get json match """
@@ -90,7 +90,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'kid': {'hmac': 'mac', 'foo': 'bar'}}
         self.assertEqual('mac', self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_011_mac_key_get(self, mock_json):
         """ test mac_key_get json no match """
@@ -98,7 +98,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.return_value = {'kid1': 'mac'}
         self.assertFalse(self.eabhandler.mac_key_get('kid'))
 
-    @patch('json.load')
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
     @patch("builtins.open", mock_open(read_data='foo'), create=True)
     def test_012_mac_key_get(self, mock_json):
         """ test mac_key_get json load exception """
@@ -246,30 +246,49 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['foo.bar', 'bar.foo'], self.eabhandler._cn_add(csr, san_list))
 
     @patch("builtins.open", mock_open(read_data='{"foo": "bar"}'), create=True)
-    def test_034_profiles_load(self):
+    def test_034_key_file_load(self):
         """ CAhandler._cn_add() """
         self.eabhandler.key_file = 'file'
-        self.assertEqual({'foo': 'bar'}, self.eabhandler._profiles_load())
+        self.assertEqual({'foo': 'bar'}, self.eabhandler.key_file_load())
 
-    @patch("builtins.open", mock_open(read_data='foobar'), create=True)
-    def test_035_profiles_load(self):
-        """ CAhandler._cn_add() """
+    @patch("builtins.open", mock_open(read_data='foobar:\n  foo: foobar'), create=True)
+    def test_035_key_file_load(self):
+        """ CAhandler._key_file_load() """
         self.eabhandler.key_file = 'file'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.eabhandler._profiles_load())
-        self.assertIn('ERROR:test_a2c:EABhandler._profiles_load() error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+            self.assertEqual({'foobar': {'foo': 'foobar'}}, self.eabhandler.key_file_load())
+        self.assertIn('ERROR:test_a2c:EABhandler.keyfile_content_load(): error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch("builtins.open", mock_open(read_data='{"foo": "bar"}'), create=True)
-    def test_036_profiles_load(self):
-        """ CAhandler._cn_add() """
+    def test_036_key_file_load(self):
+        """ CAhandler._key_file_load() """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.eabhandler._profiles_load())
-        self.assertIn('ERROR:test_a2c:EABhandler._profiles_load() no key_file specified', lcm.output)
+            self.assertFalse(self.eabhandler.key_file_load())
+        self.assertIn('ERROR:test_a2c:EABhandler.key_file_load() no key_file specified', lcm.output)
+
+    @patch("builtins.open", mock_open(read_data='foobar: ='), create=True)
+    def test_037_key_file_load(self):
+        """ CAhandler._key_file_load() """
+        self.eabhandler.key_file = 'file'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.eabhandler.key_file_load())
+        self.assertIn('ERROR:test_a2c:EABhandler.keyfile_content_load(): error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertIn("ERROR:test_a2c:EABhandler.keyfile_content_load(): error: could not determine a constructor for the tag \'tag:yaml.org,2002:value\'\n  in \"<unicode string>\", line 1, column 9:\n    foobar: =\n            ^", lcm.output)
+
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.keyfile_content_load')
+    @patch("builtins.open", mock_open(read_data='{"foo": "bar"}'), create=True)
+    def test_038_key_file_load(self, mock_load):
+        """ CAhandler._key_file_load() """
+        self.eabhandler.key_file = 'file'
+        mock_load.side_effect = Exception('ex_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.eabhandler.key_file_load())
+        self.assertIn('ERROR:test_a2c:EABhandler.key_file_load() error: ex_load', lcm.output)
 
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._wllist_check')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._cn_add')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._chk_san_lists_get')
-    def test_037_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
+    def test_039_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """ test EABhanlder._allowed_domains_check() """
         mock_san.return_value = (['foo'], [])
         mock_cn.return_value = ['foo', 'bar']
@@ -279,7 +298,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._wllist_check')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._cn_add')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._chk_san_lists_get')
-    def test_038_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
+    def test_040_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """ test EABhanlder._allowed_domains_check() """
         mock_san.return_value = (['foo'], [False])
         mock_cn.return_value = ['foo', 'bar']
@@ -289,15 +308,15 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._wllist_check')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._cn_add')
     @patch('examples.eab_handler.kid_profile_handler.EABhandler._chk_san_lists_get')
-    def test_039_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
+    def test_041_allowed_domains_check(self, mock_san, mock_cn, mock_wlc):
         """ test EABhanlder._allowed_domains_check() """
         mock_san.return_value = (['foo'], [])
         mock_cn.return_value = ['foo', 'bar']
         mock_wlc.side_effect = [False, True]
         self.assertEqual('allowed_domainlist checking failed', self.eabhandler.allowed_domains_check('csr', ['domain', 'list']))
 
-    @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
-    def test_040_eab_profile_get(self, mock_prof):
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.key_file_load')
+    def test_042_eab_profile_get(self, mock_prof):
         """ test EABhandler._eab_profile_get() """
         mock_prof.return_value = {'eab_kid': {'cahandler': {'foo_parameter': 'bar_parameter'}}}
         models_mock = MagicMock()
@@ -307,8 +326,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'foo_parameter': 'bar_parameter'}, self.eabhandler.eab_profile_get('csr'))
 
 
-    @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
-    def test_041_eab_profile_get(self, mock_prof):
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.key_file_load')
+    def test_043_eab_profile_get(self, mock_prof):
         """ test EABhandler._eab_profile_get() """
         mock_prof.return_value = {'eab_kid': {'cahandler1': {'foo_parameter': 'bar_parameter'}}}
         models_mock = MagicMock()
@@ -317,8 +336,8 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get('csr'))
 
-    @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
-    def test_042_eab_profile_get(self, mock_prof):
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.key_file_load')
+    def test_044_eab_profile_get(self, mock_prof):
         """ test EABhandler._eab_profile_get() """
         mock_prof.return_value = {'eab_kid': {'cahandler': {'foo_parameter': 'bar_parameter'}}}
         models_mock = MagicMock()
@@ -327,8 +346,8 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get('csr'))
 
-    @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
-    def test_043_eab_profile_get(self, mock_prof):
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.key_file_load')
+    def test_045_eab_profile_get(self, mock_prof):
         """ test EABhandler._eab_profile_get() """
         mock_prof.return_value = {'eab_kid': {'cahandler': {'foo_parameter': 'bar_parameter'}}}
         models_mock = MagicMock()
@@ -337,8 +356,8 @@ class TestACMEHandler(unittest.TestCase):
         patch.dict('sys.modules', modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get('csr'))
 
-    @patch('examples.eab_handler.kid_profile_handler.EABhandler._profiles_load')
-    def test_044_eab_profile_get(self, mock_prof):
+    @patch('examples.eab_handler.kid_profile_handler.EABhandler.key_file_load')
+    def test_046_eab_profile_get(self, mock_prof):
         """ test EABhandler._eab_profile_get() """
         mock_prof.return_value = {'eab_kid': {'cahandler': {'foo_parameter': 'bar_parameter'}}}
         models_mock = MagicMock()
