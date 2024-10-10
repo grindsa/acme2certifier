@@ -6,9 +6,9 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.33.x  | :white_check_mark: |
-| 0.32.x  | :white_check_mark: |
-| < 0.32  | :x:  |
+| 0.35.x  | :white_check_mark: |
+| 0.34.x  | :white_check_mark: |
+| < 0.34  | :x:  |
 
 ## Reporting a Vulnerability
 

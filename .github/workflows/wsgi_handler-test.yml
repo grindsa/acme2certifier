@@ -19,6 +19,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mkdir -p data
         docker network create acme
         sudo touch data/acme_srv.cfg
@@ -88,6 +89,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (nginx_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sed -i "s/apache2/nginx/g" .env
         sudo mkdir -p data
         docker network create acme

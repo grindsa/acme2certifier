@@ -106,7 +106,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.side_effect = Exception('ex_json_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.eabhandler.mac_key_get('kid'))
-        self.assertIn('ERROR:test_a2c:EABhandler.mac_key_get() error: ex_json_load', lcm.output)
+        self.assertIn('ERROR:test_a2c:EABhandler.key_file_load() error: ex_json_load', lcm.output)
 
 if __name__ == '__main__':
 
