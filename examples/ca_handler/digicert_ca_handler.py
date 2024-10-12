@@ -333,6 +333,9 @@ class CAhandler(object):
                 'skip_approval': True
             }
             code, detail = self._api_put(revocation_url, data_dic)
+            if code == 204:
+                # rewrite reponse code to not confuse with success
+                code = 200
         else:
             code = 500
             detail = 'Failed to parse certificate serial'
