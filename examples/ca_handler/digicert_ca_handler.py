@@ -280,13 +280,15 @@ class CAhandler(object):
         if not csr_cn:
             # lookup first san
             san_list = csr_san_get(self.logger, csr)
-            if len(san_list) > 0:
+            if san_list and len(san_list) > 0:
                 for san in san_list:
                     try:
                         csr_cn = san.split(':')[1]
                         break
                     except Exception as err:
                         self.logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+            else:
+                self.logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
 
         self.logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
         return csr_cn

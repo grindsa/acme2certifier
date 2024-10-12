@@ -784,7 +784,19 @@ class TestACMEHandler(unittest.TestCase):
         """ test _csr_cn_lookup() """
         mock_cnget.return_value = None
         mock_san_get.return_value = ['foosan1', 'foo:san2']
-        self.assertEqual('san2', self.cahandler._csr_cn_lookup('csr'))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('san2', self.cahandler._csr_cn_lookup('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() split failed: list index out of range', lcm.output)
+
+    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    def test_057__csr_cn_lookup(self, mock_cnget, mock_san_get):
+        """ test _csr_cn_lookup() """
+        mock_cnget.return_value = None
+        mock_san_get.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler._csr_cn_lookup('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() no SANs found in CSR', lcm.output)
 
 if __name__ == '__main__':
 
