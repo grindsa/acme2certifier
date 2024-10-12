@@ -653,7 +653,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_048_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -672,7 +672,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_049_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -691,7 +691,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_050_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -710,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_051_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -729,7 +729,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_052enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -761,6 +761,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_serial.return_value = None
         mock_put.return_value = ('code', 'content')
         self.assertEqual((500, None, 'Failed to parse certificate serial'), self.cahandler.revoke('cert'))
+
+    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    def test_055__csr_cn_lookup(self, mock_cnget, mock_san_get):
+        """ test _csr_cn_lookup() """
+        mock_cnget.return_value = 'cn'
+        mock_san_get.return_value = ['foo:san1', 'foo:san2']
+        self.assertEqual('cn', self.cahandler._csr_cn_lookup('csr'))
+
+    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    def test_056__csr_cn_lookup(self, mock_cnget, mock_san_get):
+        """ test _csr_cn_lookup() """
+        mock_cnget.return_value = None
+        mock_san_get.return_value = ['foo:san1', 'foo:san2']
+        self.assertEqual('san1', self.cahandler._csr_cn_lookup('csr'))
+
+    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
+    def test_056__csr_cn_lookup(self, mock_cnget, mock_san_get):
+        """ test _csr_cn_lookup() """
+        mock_cnget.return_value = None
+        mock_san_get.return_value = ['foosan1', 'foo:san2']
+        self.assertEqual('san2', self.cahandler._csr_cn_lookup('csr'))
 
 if __name__ == '__main__':
 
