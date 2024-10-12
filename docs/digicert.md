@@ -45,6 +45,8 @@ eab_profiling: <True|False>
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
 
+*Important:* the DigiCert API expectes a CommonName to be set. Hence, certbot cannot be used for certificate enrollment.
+
 ## Passing a cert_type from client to server
 
 The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a [certificate type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
