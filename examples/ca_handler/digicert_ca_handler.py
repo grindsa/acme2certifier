@@ -5,7 +5,7 @@ from typing import Tuple, Dict
 import json
 import requests
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load
+from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get
 
 
 CONTENT_TYPE = 'application/json'
@@ -201,7 +201,6 @@ class CAhandler(object):
                     'years': self.order_validity
                 }
             }
-
             # enroll certificate
             code, content = self._api_post(order_url, data_dic)
         else:
@@ -273,6 +272,25 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_check() ended with: %s', error)
         return error
 
+    def _csr_cn_lookup(self, csr: str) -> str:
+        """ lookup  CN/ 1st san from CSR """
+        self.logger.debug('CAhandler._csr_cn_lookup()')
+
+        csr_cn = csr_cn_get(self.logger, csr)
+        if not csr_cn:
+            # lookup first san
+            san_list = csr_san_get(self.logger, csr)
+            if len(san_list) > 0:
+                for san in san_list:
+                    try:
+                        csr_cn = san.split(':')[1]
+                        break
+                    except Exception as err:
+                        self.logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+
+        self.logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
+        return csr_cn
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -290,7 +308,7 @@ class CAhandler(object):
             error = self._csr_check(csr)
 
             if not error:
-                csr_cn = csr_cn_get(self.logger, csr)
+                csr_cn = self._csr_cn_lookup(csr)
                 code, content = self._order_send(csr, csr_cn)
 
                 if code in (200, 201):
