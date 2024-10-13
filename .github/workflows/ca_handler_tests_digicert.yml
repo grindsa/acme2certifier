@@ -2,7 +2,7 @@ name: CA handler Tests - Digicert CertCentral
 
 on:
   push:
-    branches: [ 'devel', 'master', 'digicert' ]
+    branches: [ 'devel', 'master', 'digicert', 'digicert_wf']
   pull_request:
     branches: [ devel ]
   schedule:
@@ -244,7 +244,7 @@ jobs:
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-        sudo chmod 777 777 data/volume/acme_ca/kid_profiles.json
+        sudo chmod 777 data/volume/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
         sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
