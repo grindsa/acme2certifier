@@ -2,7 +2,7 @@ name: CA handler Tests - Digicert CertCentral
 
 on:
   push:
-    branches: [ devel, master, digicert ]
+    branches: [ 'devel', 'master', 'digicert' ]
   pull_request:
     branches: [ devel ]
   schedule:
