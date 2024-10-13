@@ -147,16 +147,17 @@ class CAhandler(object):
         """" load config from file """
         self.logger.debug('CAhandler._config_load()')
 
-        config_dic = dict(load_config(self.logger, 'CAhandler'))
+        config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
-            self.api_url = config_dic.get('CAhandler', {}).get('api_url', 'https://www.digicert.com/services/v2/')
-            self.api_key = config_dic.get('CAhandler', {}).get('api_key', None)
-            self.cert_type = config_dic.get('CAhandler', {}).get('cert_type', 'ssl_basic')
-            self.signature_hash = config_dic.get('CAhandler', {}).get('signature_hash', 'sha256')
-            self.order_validity = config_dic.get('CAhandler', {}).get('order_validity', 1)
-            self.request_timeout = config_dic.get('CAhandler', {}).get('request_timeout', 10)
-            self.organization_id = config_dic.get('CAhandler', {}).get('organization_id', None)
-            self.organization_name = config_dic.get('CAhandler', {}).get('organization_name', None)
+            cfg_dic = dict(config_dic['CAhandler'])
+            self.api_url = cfg_dic.get('api_url', 'https://www.digicert.com/services/v2/')
+            self.api_key = cfg_dic.get('api_key', None)
+            self.cert_type = cfg_dic.get('cert_type', 'ssl_basic')
+            self.signature_hash = cfg_dic.get('signature_hash', 'sha256')
+            self.order_validity = cfg_dic.get('order_validity', 1)
+            self.request_timeout = cfg_dic.get('request_timeout', 10)
+            self.organization_id = cfg_dic.get('organization_id', None)
+            self.organization_name = cfg_dic.get('organization_name', None)
 
             if 'allowed_domainlist' in config_dic['CAhandler']:
                 try:
