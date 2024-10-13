@@ -319,7 +319,7 @@ class CAhandler(object):
                     cert_bundle, cert_raw, poll_indentifier = self._order_response_parse(content)
                 else:
                     if 'errors' in content:
-                        error = f'Error during order creation: {code} - {content['errors']}'
+                        error = f"Error during order creation: {code} - {content['errors']}"
                     else:
                         error = f'Error during order creation: {code} - {content}'
 
