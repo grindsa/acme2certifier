@@ -35,7 +35,7 @@ eab_profiling: <True|False>
 - api_key - required - API key to access the API
 - organization_name - required - Organization name as specified in DigiCert CertCentral
 - allowed_domainlist: list of domain-names allowed for enrollment in json format (example: ["bar.local$, bar.foo.local])
-- api_url - optional - DigiCert CertCentral (default: https://www.digicert.com/services/v2/)
+- api_url - optional - URL of the CertCentral API
 - organization_id - optional - organization id - configuration prevents additional rest-lookups
 - cert_type - optional - [certificte type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be isused. (default: ssl_basic)
 - signature_hash - optional - hash algorithm used for certificate signing - (default: sha256)
