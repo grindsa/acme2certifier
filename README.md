@@ -32,7 +32,7 @@ should be straight forward. As of today the following handlers are available:
 | [Insta ActiveCMS](docs/asa.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md) | :white_check_mark: | :x: | :white_check_mark: |
 | [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md) | :white_check_mark: | :x: | :white_check_mark: |
-| [NetGuard Certificate Lifecycle Manager](docs/nclm.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [NetGuard Certificate Lifecycle Manager](docs/nclm.md) | :white_check_mark: | :white_check_mark: | :x: |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | [Openssl](docs/openssl.md) | :white_check_mark: | :white_check_mark: | :x: |
 | [OpenXPKI](docs/openxpki.md) | :white_check_mark: | :white_check_mark: | :x: |
