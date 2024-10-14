@@ -651,7 +651,7 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
     return extension_list
 
 
-def csr_subject_get(logger: logging.Logger, csr: str) -> str:
+def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
     """ get subject from csr as a list of tuples """
     logger.debug('Helper.csr_subject_get()')
     # pylint: disable=w0212
