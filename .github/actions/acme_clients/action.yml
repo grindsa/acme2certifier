@@ -48,8 +48,8 @@ runs:
     - name: "Create directories"
       run: |
         mkdir -p acme-sh/
-        mkdir -p certbot/
-        mkdir -p lego/ca
+        sudo mkdir -p certbot/
+        sudo mkdir -p lego/ca
         sudo cp .github/acme2certifier_cabundle.pem certbot/
         sudo cp .github/acme2certifier_cabundle.pem lego/
         if [ -f cert-2.pem ]; then
