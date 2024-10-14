@@ -29,8 +29,9 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-RUN pip3 install impacket --break-system-packages \\
-    && rm /usr/local/bin/*.py && rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
+RUN pip3 install impacket --break-system-packages && \
+    rm /usr/local/bin/*.py && \
+    rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
     pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
@@ -42,7 +43,7 @@ RUN pip3 install impacket --break-system-packages \\
     rm /var/www/acme2certifier/requirements.txt && \
     cp /var/www/acme2certifier/examples/Docker/apache2/django/docker-entrypoint.sh /docker-entrypoint.sh && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/db_handler &&\
+    rm -rf /var/www/acme2certifier/examples/db_handler && \
     rm -rf /var/www/acme2certifier/examples/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
