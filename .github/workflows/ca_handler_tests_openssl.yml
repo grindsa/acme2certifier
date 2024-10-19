@@ -124,7 +124,7 @@ jobs:
         sudo echo -e "\nopenssl_conf: volume/acme_ca/openssl.cnf" >> examples/Docker/data/acme_srv.cfg
         sudo touch examples/Docker/data/acme_ca/openssl.cnf
         sudo chmod 777 examples/Docker/data/acme_ca/openssl.cnf
-        sudo echo -e "[extensions]\nbasicConstraints = critical, CA:FALSE\nsubjectKeyIdentifier = critical, hash, issuer:always\nauthorityKeyIdentifier = keyid:always, issuer:always" >> examples/Docker/data/acme_ca/openssl.cnf
+        sudo echo -e "[extensions]\nbasicConstraints = critical, CA:FALSE\nsubjectKeyIdentifier = hash, issuer:always\nauthorityKeyIdentifier = keyid:always, issuer:always" >> examples/Docker/data/acme_ca/openssl.cnf
         sudo echo -e "keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, keyAgreement\nextendedKeyUsage = critical, serverAuth, OCSPSigning\n" >> examples/Docker/data/acme_ca/openssl.cnf
         cd examples/Docker/
         docker-compose restart
