@@ -73,10 +73,11 @@ class Certsrv(object):
         the password parameter the path to a (unencrypted) private key.
     """
     # pylint: disable=r0913
-    def __init__(self, server, username, password, auth_method="basic",
+    def __init__(self, server, url, username, password, auth_method="basic",
                  cafile=None, verify=True, timeout=TIMEOUT, proxies=None):
 
         self.server = server
+        self.url = url
         self.timeout = timeout
         self.auth_method = auth_method
         self.session = requests.Session()
@@ -197,7 +198,11 @@ class Certsrv(object):
             "SaveCert": "yes",
         }
 
-        url = "https://{0}/certsrv/certfnsh.asp".format(self.server)
+        url = ""
+        if self.url:
+            url = "{0}/certfnsh.asp".format(self.url)
+        else:
+            url = "https://{0}/certsrv/certfnsh.asp".format(self.server)
 
         response = self._post(url, data=data)
 
@@ -241,7 +246,12 @@ class Certsrv(object):
                 while fetching the cert.
         """
 
-        cert_url = "https://{0}/certsrv/certnew.cer".format(self.server)
+        cert_url = ""
+        if self.url:
+            cert_url = "{0}/certnew.cer".format(self.url)
+        else:
+            cert_url = "https://{0}/certsrv/certnew.cer".format(self.server)
+
         params = {"ReqID": req_id, "Enc": encoding}
 
         response = self._get(cert_url, params=params)
@@ -270,7 +280,11 @@ class Certsrv(object):
         Returns:
             The newest CA certificate from the server.
         """
-        url = "https://{0}/certsrv/certcarc.asp".format(self.server)
+        url = ""
+        if self.url:
+            url = "{0}/certcarc.asp".format(self.url)
+        else:
+            url = "https://{0}/certsrv/certcarc.asp".format(self.server)
 
         response = self._get(url)
 
@@ -278,7 +292,11 @@ class Certsrv(object):
         # so that we get the newest CA cert.
         renewals = re.search(r"var nRenewals=(\d+);", response.text).group(1)
 
-        cert_url = "https://{0}/certsrv/certnew.cer".format(self.server)
+        cert_url = ""
+        if self.url:
+            cert_url = "{0}/certnew.cer".format(self.url)
+        else:
+            cert_url = "https://{0}/certsrv/certnew.cer".format(self.server)
         params = {"ReqID": "CACert", "Enc": encoding, "Renewal": renewals}
 
         response = self._get(cert_url, params=params)
@@ -301,14 +319,23 @@ class Certsrv(object):
         Returns:
             The CA chain from the server, in PKCS#7 format.
         """
-        url = "https://{0}/certsrv/certcarc.asp".format(self.server)
+        url = ""
+        if self.url:
+            url = "{0}/certcarc.asp".format(self.url)
+        else:
+            url = "https://{0}/certsrv/certcarc.asp".format(self.server)
 
         response = self._get(url)
 
         # We have to check how many renewals this server has had, so that we get the newest chain
         renewals = re.search(r"var nRenewals=(\d+);", response.text).group(1)
 
-        chain_url = "https://{0}/certsrv/certnew.p7b".format(self.server)
+        chain_url = ""
+        if self.url:
+            chain_url = "{0}/certnew.p7b".format(self.url)
+        else:
+            chain_url = "https://{0}/certsrv/certnew.p7b".format(self.server)
+
         params = {"ReqID": "CACert", "Renewal": renewals, "Enc": encoding}
 
         chain_response = self._get(chain_url, params=params)
@@ -327,7 +354,11 @@ class Certsrv(object):
         Returns:
             True if authentication succeeded, False if it failed.
         """
-        url = "https://{0}/certsrv/".format(self.server)
+        url = ""
+        if self.url:
+            url = "{0}".format(self.url)
+        else:
+            url = "https://{0}/certsrv/".format(self.server)
 
         try:
             self._get(url)

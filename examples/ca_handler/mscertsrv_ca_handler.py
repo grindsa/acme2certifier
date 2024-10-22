@@ -18,6 +18,7 @@ class CAhandler(object):
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
+        self.url = None
         self.user = None
         self.password = None
         self.auth_method = 'basic'
@@ -120,8 +121,20 @@ class CAhandler(object):
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
             self.host = config_dic['CAhandler']['host']
-
         self.logger.debug('CAhandler._config_hostname_load() ended')
+
+    def _config_url_load(self, config_dic: Dict[str, str]):
+        if 'url_variable' in config_dic['CAhandler']:
+            try:
+                self.url = os.environ[config_dic['CAhandler']['url_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load url_variable:%s', err)
+        if 'url' in config_dic['CAhandler']:
+            if self.url:
+                self.logger.info('CAhandler._config_load() overwrite url')
+            self.url = config_dic['CAhandler']['url']
+
+        self.logger.debug('CAhandler._config_url_load() ended')
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load hostname """
@@ -170,6 +183,7 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
             # load parameters from config dic
             self._config_hostname_load(config_dic)
+            self._config_url_load(config_dic)
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
@@ -296,13 +310,13 @@ class CAhandler(object):
 
         self._parameter_overwrite(csr)
 
-        if self.host and self.user and self.password and self.template:
+        if (self.host or self.url) and self.user and self.password and self.template:
 
             result = self._domainlist_check(csr)
 
             if result:
                 # setup certserv
-                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
+                ca_server = Certsrv(self.host, self.url, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
                 # check connection and credentials
                 auth_check = self._check_credentials(ca_server)
