@@ -1,0 +1,92 @@
+name: "container_prep"
+description: "Prepare environment for container installation"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DJANGO_DB:
+    description: "Django database"
+    required: false
+  CONTAINER_BUILD:
+    description: "Build container"
+    required: true
+    default: "true"
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+  IPV6:
+    description: "IPv6"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup environment"
+      run: |
+        echo "IPv6 is $IPV6"
+        if [ "$IPV6" == "false" ]; then
+          echo "create v4 namespace"
+          docker network create $NAME_SPACE
+        else
+          echo "create v6 namespace"
+          docker network create $NAME_SPACE --ipv6 --subnet "fdbb:6445:65b4:0a60::/64"
+        fi
+        sudo mkdir -p examples/Docker/data
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+        if [ -z "$DJANGO_DB" ]; then
+            sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        else
+            sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
+        fi
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
+      shell: bash
+
+    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      if: inputs.CONTAINER_BUILD == 'true'
+      uses: ./.github/actions/container_build
+      with:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+
+    - name: "Prepare container environment file (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      if: inputs.CONTAINER_BUILD != 'true'
+      working-directory: examples/Docker/
+      run: |
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+      env:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      shell: bash
+
+    - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      if: inputs.CONTAINER_BUILD == 'true'
+      uses: ./.github/actions/container_up
+      with:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Postgres"
+      if: inputs.DJANGO_DB == 'psql'
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

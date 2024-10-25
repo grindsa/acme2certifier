@@ -1,0 +1,32 @@
+name: "container_check"
+description: "Check container configuration"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker-compose file"
+    required: false
+    default: "examples/Docker/"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Logs"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+          docker-compose logs | grep -i $WEB_SRV
+          if [ "$DB_HANDLER" == "django" ]; then
+              docker-compose logs | grep -i migrations
+          else
+            docker-compose logs | grep -i $DB_HANDLER
+          fi
+      env:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      shell: bash

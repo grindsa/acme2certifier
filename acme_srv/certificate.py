@@ -42,12 +42,13 @@ class Certificate(object):
 
     def _account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
         """ check account """
-        self.logger.debug('Certificate.issuer_check()')
+        self.logger.debug('Certificate._account_check()')
         try:
             result = self.dbstore.certificate_account_check(account_name, b64_url_recode(self.logger, certificate))
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Certificate._account_check(): %s', err_)
             result = None
+        self.logger.debug('Certificate._account_check() ended with: %s', result)
         return result
 
     def _authz_check(self, identifier_dic: Dict[str, str], certificate: str) -> List[str]:

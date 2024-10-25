@@ -434,17 +434,58 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     return ski_value
 
 
+def cryptography_version_get(logger: logging.Logger) -> int:
+    """ get version number of cryptography module """
+    logger.debug('Helper.cryptography_version_get()')
+    # pylint: disable=c0415
+    import cryptography
+
+    try:
+        version_list = cryptography.__version__.split('.')
+        if version_list:
+            major_version = int(version_list[0])
+    except Exception as err:
+        logger.error('cryptography_version_get(): Error: %s', err)
+        major_version = 36
+
+    logger.debug('cryptography_version_get() ended with %s', major_version)
+    return major_version
+
+
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
     """ get extenstions from certificate certificate """
     logger.debug('Helper.cert_extensions_get()')
 
-    cert = cert_load(logger, certificate, recode=recode)
-
-    extension_list = []
-    for extension in cert.extensions:
-        extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
+    crypto_module_version = cryptography_version_get(logger)
+    if crypto_module_version < 36:
+        logger.debug('Helper.cert_extensions_get(): using pyopenssl')
+        extension_list = cert_extensions_py_openssl_get(logger, certificate, recode)
+    else:
+        cert = cert_load(logger, certificate, recode=recode)
+        extension_list = []
+        for extension in cert.extensions:
+            extension_list.append(convert_byte_to_string(base64.b64encode(extension.value.public_bytes())))
 
     logger.debug('Helper.cert_extensions_get() ended with: %s', extension_list)
+    return extension_list
+
+
+def cert_extensions_py_openssl_get(logger, certificate, recode=True):
+    """ get extenstions from certificate certificate """
+    logger.debug('cert_extensions_py_openssl_get()')
+    if recode:
+        pem_file = build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    else:
+        pem_file = certificate
+
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
+    extension_list = []
+    ext_count = cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = cert.get_extension(i)
+        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
+
+    logger.debug('cert_extensions_py_openssl_get() ended with: %s', extension_list)
     return extension_list
 
 
@@ -608,6 +649,22 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
 
     logger.debug('Helper.csr_extensions_get() ended with: %s', extension_list)
     return extension_list
+
+
+def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
+    """ get subject from csr as a list of tuples """
+    logger.debug('Helper.csr_subject_get()')
+    # pylint: disable=w0212
+
+    csr_obj = csr_load(logger, csr)
+    subject_dic = {}
+    # get subject and look for common name
+    subject = csr_obj.subject
+    for attr in subject:
+        subject_dic[attr.oid._name] = attr.value
+
+    logger.debug('Helper.csr_subject_get() ended')
+    return subject_dic
 
 
 def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
@@ -1668,6 +1725,75 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
     return error
 
 
+def cn_validate(logger: logging.Logger, cn: str) -> bool:
+    """ validate common name """
+    logger.debug('Helper.cn_validate(%s)', cn)
+
+    error = False
+    if cn:
+        # check if CN is a valid IP address
+        result = validate_ip(logger, cn)
+        if not result:
+            # check if CN is a valid fqdn
+            result = validate_fqdn(logger, cn)
+        if not result:
+            error = 'Profile subject check failed: CN validation failed'
+    else:
+        error = 'Profile subject check failed: commonName missing'
+
+    logger.debug('Helper.cn_validate() ended with: %s', error)
+    return error
+
+
+def eab_profile_subject_string_check(logger: logging.Logger, profile_subject_dic, key: str, value: str) -> str:
+    """ check if a for a string value taken from profile if its a variable inside a class and apply value """
+    logger.debug('Helper.eab_profile_subject_string_check(): string: key: %s, value: %s', key, value)
+
+    error = False
+    if key == 'commonName':
+        # check if CN is a valid IP address or fqdn
+        error = cn_validate(logger, value)
+    elif key in profile_subject_dic:
+        if isinstance(profile_subject_dic[key], str) and (value == profile_subject_dic[key] or profile_subject_dic[key] == '*'):
+            logger.debug('Helper.eab_profile_subject_check() successul for string : %s', key)
+            del profile_subject_dic[key]
+        elif isinstance(profile_subject_dic[key], list) and value in profile_subject_dic[key]:
+            logger.debug('Helper.eab_profile_subject_check() successul for list : %s', key)
+            del profile_subject_dic[key]
+        else:
+            logger.error('Helper.eab_profile_subject_check() failed for: %s: value: %s expected: %s', key, value, profile_subject_dic[key])
+            error = f'Profile subject check failed for {key}'
+    else:
+        logger.error('Helper.eab_profile_subject_check() failed for: %s', key)
+        error = f'Profile subject check failed for {key}'
+
+    logger.debug('Helper.eab_profile_subject_string_check() ended')
+    return error
+
+
+def eab_profile_subject_check(logger: logging.Logger, csr: str, profile_subject_dic: str) -> str:
+    """ check subject against profile information"""
+    logger.debug('Helper.eab_profile_subject_check()')
+    error = None
+
+    # get subject from csr
+    subject_dic = csr_subject_get(logger, csr)
+
+    # check if all profile subject entries are in csr
+    for key, value in subject_dic.items():
+        error = eab_profile_subject_string_check(logger, profile_subject_dic, key, value)
+        if error:
+            break
+
+    # check if we have any entries left in the profile_subject_dic
+    if not error and profile_subject_dic:
+        logger.error('Helper.eab_profile_subject_check() failed for: %s', list(profile_subject_dic.keys()))
+        error = 'Profile subject check failed'
+
+    logger.debug('Helper.eab_profile_subject_check() ended with: %s', error)
+    return error
+
+
 def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifield: str) -> str:
     """ check eab profile"""
     logger.debug('Helper.eab_profile_check()')
@@ -1676,7 +1802,9 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
     with cahandler.eab_handler(logger) as eab_handler:
         eab_profile_dic = eab_handler.eab_profile_get(csr)
         for key, value in eab_profile_dic.items():
-            if isinstance(value, str):
+            if key == 'subject':
+                result = eab_profile_subject_check(logger, csr, value)
+            elif isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
                 # check if we need to execute a function from the handler
@@ -1684,8 +1812,8 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
                     result = cahandler.eab_profile_list_check(eab_handler, csr, key, value)
                 else:
                     result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
-                if result:
-                    break
+            if result:
+                break
 
         # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
         if cahandler.header_info_field and handler_hifield not in eab_profile_dic:
@@ -1703,7 +1831,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     logger.debug('Helper.eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
     result = None
-    if hasattr(cahandler, key):
+    if hasattr(cahandler, key) and key != 'allowed_domainlist':
         new_value, error = header_info_field_validate(logger, csr, cahandler.header_info_field, key, value)
         if new_value:
             logger.debug('Helper.eab_profile_list_check(): setting attribute: %s to %s', key, new_value)
