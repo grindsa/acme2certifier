@@ -19,11 +19,18 @@ sudo pip3 install pyopenssl --upgrade
 # 5 configure apache2
 sudo cp examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
 
+# 6 enable ssl
+sudo cp examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo mkdir -p /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier.pem /var/www/acme2certifier/volume/
+sudo a2enmod ssl
+
 # 7 activate a2c
 sudo a2ensite acme2certifier.conf
+sudo a2ensite acme2certifier_ssl.conf
 
 # 8 create data directory
-sudo mkdir /var/www/acme2certifier
+sudo mkdir -p /var/www/acme2certifier
 
 # 9 copy main wsgi file
 sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier

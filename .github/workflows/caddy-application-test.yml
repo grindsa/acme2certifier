@@ -23,20 +23,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
         DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Setup openssl ca_handler"
       run: |
@@ -57,11 +48,8 @@ jobs:
       with:
         time: 10s
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
 
     - name: "Create caddy folder and copy configuratation files"
       run: |
@@ -82,6 +70,13 @@ jobs:
       run: |
         docker logs caddy 2>&1 | grep "successfully downloaded available certificate chains"
         docker logs caddy 2>&1 | grep "certificate obtained successfully"
+        docker logs caddy 2>&1 | grep "got renewal info"
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

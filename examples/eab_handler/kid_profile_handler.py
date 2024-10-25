@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """ eab json handler """
 from __future__ import print_function
+import yaml
 import json
 import re
 from typing import List, Tuple
@@ -173,14 +174,31 @@ class EABhandler(object):
         self.logger.debug('EABhandler._eab_profile_get() ended with: %s', bool(profile_dic))
         return profile_dic
 
+    def keyfile_content_load(self, key_file_content) -> dict:
+        """ load profiles from key_file """
+        self.logger.debug('EABhandler.keyfile_content_load()')
+
+        try:
+            profiles_dic = json.loads(key_file_content)
+        except Exception as err:
+            self.logger.error('EABhandler.keyfile_content_load(): error: {0}'.format(err))
+            try:
+                profiles_dic = yaml.safe_load(key_file_content)
+            except Exception as err:
+                self.logger.error('EABhandler.keyfile_content_load(): error: {0}'.format(err))
+                profiles_dic = {}
+
+        self.logger.debug('EABhandler.keyfile_content_load() ended with %s', bool(profiles_dic))
+        return profiles_dic
+
     def key_file_load(self):
         """ load profiles from key_file """
         self.logger.debug('EABhandler.key_file_load()')
 
         if self.key_file:
             try:
-                with open(self.key_file, encoding='utf8') as json_file:
-                    profiles_dic = json.load(json_file)
+                with open(self.key_file, encoding='utf8') as key_file_content:
+                    profiles_dic = self.keyfile_content_load(key_file_content.read())
             except Exception as err:
                 self.logger.error('EABhandler.key_file_load() error: {0}'.format(err))
                 profiles_dic = {}
@@ -198,8 +216,8 @@ class EABhandler(object):
         mac_key = None
         try:
             if self.key_file and kid:
-                with open(self.key_file, encoding='utf8') as json_file:
-                    data_dic = json.load(json_file)
+                with open(self.key_file, encoding='utf8') as key_file_content:
+                    data_dic = self.keyfile_content_load(key_file_content.read())
                     if kid in data_dic and 'hmac' in data_dic[kid]:
                         mac_key = data_dic[kid]['hmac']
         except Exception as err:
