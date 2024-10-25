@@ -1,14 +1,46 @@
 # -*- coding: utf-8 -*-
 """ CA handler using Digicert CertCentralAPI"""
 from __future__ import print_function
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
+import datetime
+import os
 import json
 import requests
+from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get
+from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get, header_info_get
 
 
 CONTENT_TYPE = 'application/json'
+
+
+# hardcoded Entrust Root Certification Authority - G2
+ENTRUST_ROOT_CA = '''-----BEGIN CERTIFICATE-----
+MIIEPjCCAyagAwIBAgIESlOMKDANBgkqhkiG9w0BAQsFADCBvjELMAkGA1UEBhMC
+VVMxFjAUBgNVBAoTDUVudHJ1c3QsIEluYy4xKDAmBgNVBAsTH1NlZSB3d3cuZW50
+cnVzdC5uZXQvbGVnYWwtdGVybXMxOTA3BgNVBAsTMChjKSAyMDA5IEVudHJ1c3Qs
+IEluYy4gLSBmb3IgYXV0aG9yaXplZCB1c2Ugb25seTEyMDAGA1UEAxMpRW50cnVz
+dCBSb290IENlcnRpZmljYXRpb24gQXV0aG9yaXR5IC0gRzIwHhcNMDkwNzA3MTcy
+NTU0WhcNMzAxMjA3MTc1NTU0WjCBvjELMAkGA1UEBhMCVVMxFjAUBgNVBAoTDUVu
+dHJ1c3QsIEluYy4xKDAmBgNVBAsTH1NlZSB3d3cuZW50cnVzdC5uZXQvbGVnYWwt
+dGVybXMxOTA3BgNVBAsTMChjKSAyMDA5IEVudHJ1c3QsIEluYy4gLSBmb3IgYXV0
+aG9yaXplZCB1c2Ugb25seTEyMDAGA1UEAxMpRW50cnVzdCBSb290IENlcnRpZmlj
+YXRpb24gQXV0aG9yaXR5IC0gRzIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
+AoIBAQC6hLZy254Ma+KZ6TABp3bqMriVQRrJ2mFOWHLP/vaCeb9zYQYKpSfYs1/T
+RU4cctZOMvJyig/3gxnQaoCAAEUesMfnmr8SVycco2gvCoe9amsOXmXzHHfV1IWN
+cCG0szLni6LVhjkCsbjSR87kyUnEO6fe+1R9V77w6G7CebI6C1XiUJgWMhNcL3hW
+wcKUs/Ja5CeanyTXxuzQmyWC48zCxEXFjJd6BmsqEZ+pCm5IO2/b1BEZQvePB7/1
+U1+cPvQXLOZprE4yTGJ36rfo5bs0vBmLrpxR57d+tVOxMyLlbc9wPBr64ptntoP0
+jaWvYkxN4FisZDQSA/i2jZRjJKRxAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRqciZ60B7vfec7aVHUbI2fkBJmqzAN
+BgkqhkiG9w0BAQsFAAOCAQEAeZ8dlsa2eT8ijYfThwMEYGprmi5ZiXMRrEPR9RP/
+jTkrwPK9T3CMqS/qF8QLVJ7UG5aYMzyorWKiAHarWWluBh1+xLlEjZivEtRh2woZ
+Rkfz6/djwUAFQKXSt/S1mja/qYh2iARVBCuch38aNzx+LaUa2NSJXsq9rD1s2G2v
+1fN2D807iDginWyTmsQ9v4IbZT+mD12q/OWyFcq1rca8PdCE6OoGcrBNOTJ4vz4R
+nAuknZoh8/CbCzB428Hch0P+vGOaysXCHMnHjf87ElgI5rY97HosTvuDls4MPGmH
+VHOkc8KT/1EQrBVUAdj8BbGJoX90g5pJ19xOe4pIb4tF9g==
+-----END CERTIFICATE-----
+'''
 
 
 class CAhandler(object):
@@ -16,8 +48,18 @@ class CAhandler(object):
 
     def __init__(self, _debug: bool = None, logger: object = None):
         self.logger = logger
-        self.api_url = ''
-        self.api_key = 'foo'
+        self.api_url = 'https://api.entrust.net/enterprise/v2'
+        self.client_cert = None
+        self.cert_passphrase = None
+        self.username = None
+        self.password = None
+        self.organization_name = None
+        self.certtype = 'STANDARD_SSL'
+        self.cert_validity_days = 365
+        self.entrust_root_cert = ENTRUST_ROOT_CA
+        self.proxy = None
+        self.session = None
+        self.request_timeout = 10
 
         self.allowed_domainlist = []
         self.header_info_field = False
@@ -26,7 +68,7 @@ class CAhandler(object):
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
-        if not self.api_key:
+        if not self.session:
             self._config_load()
         return self
 
@@ -52,12 +94,11 @@ class CAhandler(object):
         """ post data to API """
         self.logger.debug('CAhandler._api_get()')
         headers = {
-            'X-DC-DEVKEY': self.api_key,
             'Content-Type': CONTENT_TYPE
         }
 
         try:
-            api_response = requests.get(url=url, headers=headers, proxies=self.proxy, timeout=self.request_timeout)
+            api_response = self.session.get(url=url, headers=headers, proxies=self.proxy, timeout=self.request_timeout)
             code = api_response.status_code
             try:
                 content = api_response.json()
@@ -75,12 +116,11 @@ class CAhandler(object):
         """ post data to API """
         self.logger.debug('CAhandler._api_post()')
         headers = {
-            'X-DC-DEVKEY': self.api_key,
             'Content-Type': CONTENT_TYPE
         }
 
         try:
-            api_response = requests.post(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
+            api_response = self.session.post(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
             code = api_response.status_code
             if api_response.text:
                 try:
@@ -101,12 +141,11 @@ class CAhandler(object):
         """ post data to API """
         self.logger.debug('CAhandler._api_put()')
         headers = {
-            'X-DC-DEVKEY': self.api_key,
             'Content-Type': CONTENT_TYPE
         }
 
         try:
-            api_response = requests.put(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
+            api_response = self.session.put(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
             code = api_response.status_code
             if api_response.text:
                 try:
@@ -123,19 +162,19 @@ class CAhandler(object):
 
         return code, content
 
-    def _config_check(self) -> str:
-        """ check config """
-        self.logger.debug('CAhandler._config_check()')
+    def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
+        """ get certificates """
+        self.logger.debug('CAhandler._certificates_get_from_serial()')
 
-        error = None
-        for ele in ['api_url', 'api_key', 'organization_name']:
-            if not getattr(self, ele):
-                error = f'{ele} parameter in missing in config file'
-                self.logger.error('CAhandler._config_check() ended with error: %s', error)
-                break
+        code, content = self._api_get(self.api_url + f'/certificates?serialNumber={cert_serial}')
 
-        self.logger.debug('CAhandler._config_check() ended with: %s', error)
-        return error
+        if code == 200 and 'certificates' in content:
+            cert_list = content['certificates']
+        else:
+            cert_list = []
+
+        self.logger.debug('CAhandler._certificates_get_from_serial() ended with code: %s and %s certificate', code, len(cert_list))
+        return cert_list
 
     def _config_load(self):
         """" load config from file """
@@ -144,14 +183,14 @@ class CAhandler(object):
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
             cfg_dic = dict(config_dic['CAhandler'])
-            self.api_url = cfg_dic.get('api_url', 'https://www.digicert.com/services/v2/')
-            self.api_key = cfg_dic.get('api_key', None)
-            self.cert_type = cfg_dic.get('cert_type', 'ssl_basic')
-            self.signature_hash = cfg_dic.get('signature_hash', 'sha256')
-            self.order_validity = cfg_dic.get('order_validity', 1)
-            self.request_timeout = cfg_dic.get('request_timeout', 10)
-            self.organization_id = cfg_dic.get('organization_id', None)
+            self.api_url = cfg_dic.get('api_url', 'https://api.entrust.net/enterprise/v2')
+            self.request_timeout = int(cfg_dic.get('request_timeout', 10))
+            self.cert_validity_days = int(cfg_dic.get('cert_validity_days', 365))
+            self.username = cfg_dic.get('username', None)
+            self.password = cfg_dic.get('password', None)
             self.organization_name = cfg_dic.get('organization_name', None)
+            self.certtype = cfg_dic.get('certtype', 'STANDARD_SSL')
+            self._config_session_load(config_dic)
 
             if 'allowed_domainlist' in config_dic['CAhandler']:
                 try:
@@ -159,6 +198,8 @@ class CAhandler(object):
                 except Exception as err:
                     self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
                     self.allowed_domainlist = 'failed to parse'
+        # load root CA
+        self._config_root_load(config_dic)
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
@@ -167,6 +208,265 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
+    def _config_passphrase_load(self, config_dic: Dict[str, str]):
+        """ load passphrase """
+        self.logger.debug('CAhandler._config_passphrase_load()')
+        if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
+            if 'cert_passphrase_variable' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from environment variable')
+                try:
+                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                except Exception as err:
+                    self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s', err)
+
+            if 'cert_passphrase' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
+                if self.cert_passphrase:
+                    self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
+                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+        self.logger.debug('CAhandler._config_passphrase_load() ended')
+
+    def _config_root_load(self, config_dic: Dict[str, str]):
+        """ load root CA """
+        self.logger.debug('CAhandler._config_root_load()')
+
+        if 'entrust_root_cert' in config_dic['CAhandler']:
+            if os.path.isfile(config_dic['CAhandler']['entrust_root_cert']):
+                self.logger.debug('CAhandler._config_root_load(): load root CA from config file')
+                with open(config_dic['CAhandler']['entrust_root_cert'], 'r', encoding='utf8') as ca_file:
+                    self.entrust_root_cert = ca_file.read()
+            else:
+                self.logger.error('CAhandler._config_root_load(): root CA file configured but not not found. Using default one.')
+
+        self.logger.debug('CAhandler._config_root_load() ended')
+
+    def _config_session_load(self, config_dic: Dict[str, str]):
+        """ load session """
+        self.logger.debug('CAhandler._config_session_load()')
+
+        with requests.Session() as self.session:
+            # client auth via pem files
+            if 'client_cert' in config_dic['CAhandler'] and 'client_key' in config_dic['CAhandler']:
+                self.logger.debug('CAhandler._config_session_load() cert and key in pem format')
+                self.session.cert = (config_dic['CAhandler']['client_cert'], config_dic['CAhandler']['client_key'])
+
+            else:
+                self._config_passphrase_load(config_dic)
+                if 'client_cert' in config_dic['CAhandler'] and self.cert_passphrase:
+                    self.session.mount(self.api_url, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
+                else:
+                    self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
+            self.session.auth = (self.username, self.password)
+
+        self.logger.debug('CAhandler._config_session_load() ended')
+
+    def _csr_cn_lookup(self, csr: str) -> str:
+        """ lookup  CN/ 1st san from CSR """
+        self.logger.debug('CAhandler._csr_cn_lookup()')
+
+        csr_cn = csr_cn_get(self.logger, csr)
+        if not csr_cn:
+            # lookup first san
+            san_list = csr_san_get(self.logger, csr)
+            if san_list and len(san_list) > 0:
+                for san in san_list:
+                    try:
+                        csr_cn = san.split(':')[1]
+                        break
+                    except Exception as err:
+                        self.logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+            else:
+                self.logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
+
+        self.logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
+        return csr_cn
+
+    def _org_domain_cfg_check(self) -> str:
+        """ check organizations """
+        self.logger.debug('CAhandler._organizations_check()')
+
+        error = None
+        org_dic = self._organizations_get()
+        if self.organization_name not in org_dic:
+            error = f'Organization {self.organization_name} not found in Entrust API'
+            self.logger.error('CAhandler._organizations_check() ended with error: %s', error)
+        else:
+            domain_list = self._domains_get(org_dic[self.organization_name])
+            if not self.allowed_domainlist:
+                self.logger.info('CAhandler._organizations_check(): allowed_domainlist is empty, using domains from Entrust API')
+                self.allowed_domainlist = domain_list
+
+        self.logger.debug('CAhandler._organizations_check() ended with %s', error)
+        return error
+
+    def _organizations_get(self) -> Dict[str, str]:
+        """ get organizations """
+        self.logger.debug('CAhandler._organizations_get()')
+
+        code, content = self._api_get(self.api_url + '/organizations')
+
+        org_dic = {}
+        if code == 200 and 'organizations' in content:
+            self.logger.debug('CAhandler._organizations_get() ended with code: 200')
+            for org in content['organizations']:
+                if org['verificationStatus'] == 'APPROVED':
+                    org_dic[org['name']] = org['clientId']
+
+        self.logger.debug('CAhandler._organizations_get() ended with code: %s', code)
+        return org_dic
+
+    def _domains_get(self, org_id: str) -> List[str]:
+        """ get domains """
+        self.logger.debug('CAhandler._domains_get()')
+
+        code, content = self._api_get(self.api_url + f'/clients/{org_id}/domains')
+
+        api_domain_list = []
+        if code == 200 and 'domains' in content:
+            self.logger.debug('CAhandler._domains_get() ended with code: 200')
+
+            for domain in content['domains']:
+                if domain['verificationStatus'] == 'APPROVED':
+                    api_domain_list.append(domain['domainName'])
+
+        self.logger.debug('CAhandler._domains_get() ended with code: %s', code)
+        return api_domain_list
+
+    def _credential_check(self):
+        """ test connection to Entrust api """
+        self.logger.debug('CAhandler._credential_check()')
+
+        error = None
+        code, content = self._api_get(self.api_url + '/application/version')
+        if code != 200:
+            error = f'Connection to Entrust API failed: {content}'
+
+        self.logger.debug('CAhandler._credential_check() ended with code: %s', code)
+        return error
+
+    def _config_check(self) -> str:
+        """ check config """
+        self.logger.debug('CAhandler._config_check()')
+
+        error = None
+        for ele in ['api_url', 'username', 'password', 'organization_name']:
+            if not getattr(self, ele):
+                error = f'{ele} parameter in missing in config file'
+                self.logger.error('CAhandler._config_check() ended with error: %s', error)
+                break
+
+        self.logger.debug('CAhandler._config_check() ended with: %s', error)
+        return error
+
+    def _enroll_check(self, csr: str) -> str:
+        """ check csr """
+        self.logger.debug('CAhandler._enroll_check()')
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, 'cert_type')
+
+        if not error:
+            error = self._config_check()
+
+        if not error:
+            error = self._credential_check()
+
+        if not error:
+            error = self._org_domain_cfg_check()
+
+        if not error:
+            # check for allowed domainlist
+            error = self._allowed_domainlist_check(csr)
+
+        self.logger.debug('CAhandler._enroll_check() ended with %s', error)
+        return error
+
+    def _trackingid_get(self, cert_raw: str) -> int:
+        """ get tracking id """
+        self.logger.debug('CAhandler._trackingid_get()')
+
+        tracking_id = None
+        # we misuse header_info_get() to get the tracking id from database
+        pid_list = header_info_get(self.logger, csr=cert_raw, vlist=['poll_identifier'], field_name='cert_raw')
+        if pid_list and len(pid_list) > 0:
+            tracking_id = pid_list[0]['poll_identifier']
+
+        if not tracking_id:
+            # lookup through Entrust API
+            self.logger.info('CAhandler._trackingid_get(): tracking_id not found in database. Lookup trough Entrust API')
+            cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
+            certificate_list = self._certificates_get_from_serial(cert_serial)
+            if certificate_list and len(certificate_list) > 0:
+                tracking_id = certificate_list[0]['trackingId']
+
+        self.logger.debug('CAhandler._trackingid_get() ended with %s', tracking_id)
+        return tracking_id
+
+    def _response_parse(self, content: Dict[str, str]) -> Tuple[str, str]:
+        """ parse response """
+        self.logger.debug('CAhandler._response_parse()')
+
+        cert_bundle = None
+        cert_raw = None
+        poll_indentifier = None
+
+        if 'trackingId' in content:
+            poll_indentifier = content['trackingId']
+        if 'endEntityCert' in content and 'chainCerts' in content:
+            cert_raw = b64_encode(self.logger, cert_pem2der(content['endEntityCert']))
+            for cnt, ca_cert in enumerate(content['chainCerts']):
+                if cnt == 0:
+                    cert_bundle = ca_cert + '\n'
+                else:
+                    cert_bundle += ca_cert + '\n'
+
+            # add Entrust Root CA
+            cert_bundle += self.entrust_root_cert + '\n'
+
+        self.logger.debug('CAhandler._response_parse() ended')
+        return cert_bundle, cert_raw, poll_indentifier
+
+    def _enroll(self, csr: str) -> Tuple[str, str]:
+        """ enroll certificate """
+        self.logger.debug('CAhandler._enroll()')
+
+        error = None
+        cert_raw = None
+        cert_bundle = None
+        poll_indentifier = None
+
+        # get CN and SANs
+        cn = self._csr_cn_lookup(csr)
+
+        # calculate cert expiry date
+        certexpirydate = datetime.datetime.now() + datetime.timedelta(days=self.cert_validity_days)
+
+        data_dic = {
+            'csr': csr,
+            'signingAlg': 'SHA-2',
+            'eku': "SERVER_AND_CLIENT_AUTH",
+            'cn': cn,
+            'org': self.organization_name,
+            'endUserKeyStorageAgreement': True,
+            'certType': self.certtype,
+            "certExpiryDate": certexpirydate.strftime('%Y-%m-%d')
+        }
+
+        code, content = self._api_post(self.api_url + '/certificates', data_dic)
+
+        if code == 201:
+
+            cert_bundle, cert_raw, poll_indentifier = self._response_parse(content)
+
+        else:
+            if 'errors' in content:
+                error = f"Error during order creation: {code} - {content['errors']}"
+            else:
+                error = f'Error during order creation: {code} - {content}'
+            self.logger.error('CAhandler._enroll() failed with error: %s', error)
+
+        self.logger.debug('CAhandler._enroll() ended with code: %s', code)
+        return error, cert_bundle, cert_raw, poll_indentifier
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
@@ -177,14 +477,13 @@ class CAhandler(object):
         cert_raw = None
         poll_indentifier = None
 
-        # check configuration
-        error = self._config_check()
+        error = self._enroll_check(csr)
 
         if not error:
-            pass
+            error, cert_bundle, cert_raw, poll_indentifier = self._enroll(csr)
 
         self.logger.debug('Certificate.enroll() ended')
-        return (error, cert_bundle, cert_raw, poll_indentifier)
+        return error, cert_bundle, cert_raw, poll_indentifier
 
     def poll(self, _cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """
@@ -204,7 +503,24 @@ class CAhandler(object):
 
         code = None
         message = None
-        detail = 'Method not implemented.'
+        detail = None
+
+        # get tracking id as input for revocation call
+        tracking_id = self._trackingid_get(certificate_raw)
+        # tracking_id = 7347070
+
+        if tracking_id:
+            code, content = self._api_post(self.api_url + f'/certificates/{tracking_id}/revocations', {'crlReason': _rev_reason, 'revocationComment': 'revoked by acme2certifier'})
+            if code == 200:
+                message = 'Certificate revoked'
+            else:
+                code = 500
+                message = 'urn:ietf:params:acme:error:serverInternal'
+                detail = content
+        else:
+            code = 500
+            message = 'urn:ietf:params:acme:error:serverInternal'
+            detail = 'Failed to get tracking id'
 
         self.logger.debug('CAhandler.poll() ended')
 

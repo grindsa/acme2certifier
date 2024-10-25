@@ -831,14 +831,14 @@ def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
     return result
 
 
-def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 'name', 'header_info')) -> List[str]:
+def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 'name', 'header_info'), field_name: str = 'csr') -> List[str]:
     """ lookup header information """
     logger.debug('Helper.header_info_get()')
 
     try:
         from acme_srv.db_handler import DBstore  # pylint: disable=c0415
         dbstore = DBstore(logger=logger)
-        result = dbstore.certificates_search('csr', csr, vlist)
+        result = dbstore.certificates_search(field_name, csr, vlist)
     except Exception as err:
         result = []
         logger.error('Helper.header_info_get(): error: %s', err)
