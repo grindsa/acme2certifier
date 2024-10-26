@@ -314,7 +314,7 @@ class CAhandler(object):
             result = self._domainlist_check(csr)
 
             if result:
-              
+
                 # check for eab profiling and header_info
                 error = eab_profile_header_info_check(self.logger, self, csr, 'template')
 
