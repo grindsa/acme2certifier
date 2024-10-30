@@ -171,6 +171,7 @@ class CAhandler(object):
         if code == 200 and 'certificates' in content:
             cert_list = content['certificates']
         else:
+            self.logger.error('CAhandler._certificates_get_from_serial() for %s failed with code: %s', cert_serial, code)
             cert_list = []
 
         self.logger.debug('CAhandler._certificates_get_from_serial() ended with code: %s and %s certificate', code, len(cert_list))
@@ -184,8 +185,15 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
             cfg_dic = dict(config_dic['CAhandler'])
             self.api_url = cfg_dic.get('api_url', 'https://api.entrust.net/enterprise/v2')
-            self.request_timeout = int(cfg_dic.get('request_timeout', 10))
-            self.cert_validity_days = int(cfg_dic.get('cert_validity_days', 365))
+            try:
+                self.request_timeout = int(cfg_dic.get('request_timeout', 10))
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse request_timeout %s', err)
+            try:
+                self.cert_validity_days = int(cfg_dic.get('cert_validity_days', 365))
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse cert_validity_days %s', err)
+
             self.username = cfg_dic.get('username', None)
             self.password = cfg_dic.get('password', None)
             self.organization_name = cfg_dic.get('organization_name', None)
@@ -198,8 +206,8 @@ class CAhandler(object):
                 except Exception as err:
                     self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
                     self.allowed_domainlist = 'failed to parse'
-        # load root CA
-        self._config_root_load(config_dic)
+            # load root CA
+            self._config_root_load(config_dic)
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
@@ -229,7 +237,6 @@ class CAhandler(object):
     def _config_root_load(self, config_dic: Dict[str, str]):
         """ load root CA """
         self.logger.debug('CAhandler._config_root_load()')
-
         if 'entrust_root_cert' in config_dic['CAhandler']:
             if os.path.isfile(config_dic['CAhandler']['entrust_root_cert']):
                 self.logger.debug('CAhandler._config_root_load(): load root CA from config file')
@@ -304,13 +311,15 @@ class CAhandler(object):
         self.logger.debug('CAhandler._organizations_get()')
 
         code, content = self._api_get(self.api_url + '/organizations')
-
         org_dic = {}
         if code == 200 and 'organizations' in content:
             self.logger.debug('CAhandler._organizations_get() ended with code: 200')
             for org in content['organizations']:
-                if org['verificationStatus'] == 'APPROVED':
-                    org_dic[org['name']] = org['clientId']
+                if 'verificationStatus' in org and org['verificationStatus'] == 'APPROVED':
+                    if 'name' in org and 'clientId' in org:
+                        org_dic[org['name']] = org['clientId']
+        else:
+            self.logger.error('CAhandler._organizations_get(): malformed response')
 
         self.logger.debug('CAhandler._organizations_get() ended with code: %s', code)
         return org_dic
@@ -326,8 +335,11 @@ class CAhandler(object):
             self.logger.debug('CAhandler._domains_get() ended with code: 200')
 
             for domain in content['domains']:
-                if domain['verificationStatus'] == 'APPROVED':
-                    api_domain_list.append(domain['domainName'])
+                if 'verificationStatus' in domain and domain['verificationStatus'] == 'APPROVED':
+                    if 'domainName' in domain:
+                        api_domain_list.append(domain['domainName'])
+        else:
+            self.logger.error('CAhandler._domains_get(): malformed response')
 
         self.logger.debug('CAhandler._domains_get() ended with code: %s', code)
         return api_domain_list
@@ -388,16 +400,20 @@ class CAhandler(object):
         tracking_id = None
         # we misuse header_info_get() to get the tracking id from database
         pid_list = header_info_get(self.logger, csr=cert_raw, vlist=['poll_identifier'], field_name='cert_raw')
-        if pid_list and len(pid_list) > 0:
-            tracking_id = pid_list[0]['poll_identifier']
+        for ele in pid_list:
+            if 'poll_identifier' in ele:
+                tracking_id = ele['poll_identifier']
+                break
 
         if not tracking_id:
             # lookup through Entrust API
             self.logger.info('CAhandler._trackingid_get(): tracking_id not found in database. Lookup trough Entrust API')
             cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
             certificate_list = self._certificates_get_from_serial(cert_serial)
-            if certificate_list and len(certificate_list) > 0:
-                tracking_id = certificate_list[0]['trackingId']
+            for ele in certificate_list:
+                if 'trackingId' in ele:
+                    tracking_id = ele['trackingId']
+                    break
 
         self.logger.debug('CAhandler._trackingid_get() ended with %s', tracking_id)
         return tracking_id
@@ -421,8 +437,10 @@ class CAhandler(object):
                     cert_bundle += ca_cert + '\n'
 
             # add Entrust Root CA
-            cert_bundle += self.entrust_root_cert + '\n'
-
+            if cert_bundle:
+                cert_bundle += self.entrust_root_cert + '\n'
+            else:
+                cert_bundle = self.entrust_root_cert + '\n'
         self.logger.debug('CAhandler._response_parse() ended')
         return cert_bundle, cert_raw, poll_indentifier
 
@@ -455,9 +473,7 @@ class CAhandler(object):
         code, content = self._api_post(self.api_url + '/certificates', data_dic)
 
         if code == 201:
-
             cert_bundle, cert_raw, poll_indentifier = self._response_parse(content)
-
         else:
             if 'errors' in content:
                 error = f"Error during order creation: {code} - {content['errors']}"
@@ -507,7 +523,6 @@ class CAhandler(object):
 
         # get tracking id as input for revocation call
         tracking_id = self._trackingid_get(certificate_raw)
-        # tracking_id = 7347070
 
         if tracking_id:
             code, content = self._api_post(self.api_url + f'/certificates/{tracking_id}/revocations', {'crlReason': _rev_reason, 'revocationComment': 'revoked by acme2certifier'})
