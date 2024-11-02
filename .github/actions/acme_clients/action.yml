@@ -1,4 +1,4 @@
-name: "acme_clients"
+name: "acme_clients - enroll, renew and revoke certificates"
 description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
 inputs:
   ACME_SERVER:
@@ -86,9 +86,9 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "HTTPS - Enroll lego"
+    - name: "HTTP - Enroll lego"
       run: |
-        echo "##### HTTPS - Enroll lego #####"
+        echo "##### HTTP - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
           docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
@@ -102,6 +102,19 @@ runs:
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "HTTP - Revoke lego"
+      if: ${{ inputs.REVOCATION == 'true' }}
+      run: |
+        echo "#### HTTP - Revoke lego"
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
@@ -392,7 +405,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTPS - Revoke lego #####"
-        # docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}

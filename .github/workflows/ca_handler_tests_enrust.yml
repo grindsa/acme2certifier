@@ -1,0 +1,154 @@
+name: CA handler Tests - Entrust Enterprise API
+
+on:
+  push:
+    branches: [ 'devel', 'master', 'entrust', 'entrust_wf']
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  entrust_handler_tests:
+    name: "entrust_handler_tests"
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        websrv: ['apache2']
+        dbhandler: ['wsgi']
+        # dbhandler: ['wsgi', 'django']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "create folder"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        NAME_SPACE: rm-rf.ninja
+
+    - name: "Setup a2c with entrust_ca_handler"
+      run: |
+        sudo mkdir -p examples/Docker/data/
+        sudo touch examples/Docker/data/entrust_cert.p12
+        sudo chmod a+rw examples/Docker/data/entrust_cert.p12
+        sudo echo $ENTRUST_CERT | base64 --decode > examples/Docker/data/entrust_cert.p12
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/entrust_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "client_cert: volume/entrust_cert.p12" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_passphrase: $ENTRUST_CERT_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "organization_name: $ENTRUST_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "username: $ENTRUST_USERNAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $ENTRUST_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "certtype: $ENTRUST_CERTTYPE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_validity_days: 10" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 20" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        # cd examples/Docker/
+        # docker-compose restart
+      env:
+        ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
+        ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
+        ENTRUST_ORGNAME: ${{ secrets.ENTRUST_ORGNAME }}
+        ENTRUST_USERNAME: ${{ secrets.ENTRUST_USER }}
+        ENTRUST_PASSWORD: ${{ secrets.ENTRUST_PASSWORD }}
+        ENTRUST_CERTTYPE: ${{ secrets.ENTRUST_CERTTYPE }}
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/wf_specific/entrust_ca_handler/enroll
+      with:
+        NAME_SPACE: rm-rf.ninja
+        USE_CERTBOT: false
+        USE_RSA: true
+
+    - name: "EAB - Setup a2c with entrust_ca_handler"
+      run: |
+        sudo mkdir -p examples/Docker/data/
+        sudo touch examples/Docker/data/entrust_cert.p12
+        sudo chmod a+rw examples/Docker/data/entrust_cert.p12
+        sudo echo $ENTRUST_CERT | base64 --decode > examples/Docker/data/entrust_cert.p12
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/entrust_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "client_cert: volume/entrust_cert.p12" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_passphrase: $ENTRUST_CERT_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "organization_name: $ENTRUST_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "username: $ENTRUST_USERNAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $ENTRUST_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "certtype: $ENTRUST_CERTTYPE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "cert_validity_days: 10" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 20" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"STANDARD_SSL\", \"ADVANTAGE_SSL\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ADVANTAGE_SSL\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/*.example.net/*.rm-rf.ninja/" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
+        ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
+        ENTRUST_ORGNAME: ${{ secrets.ENTRUST_ORGNAME }}
+        ENTRUST_USERNAME: ${{ secrets.ENTRUST_USER }}
+        ENTRUST_PASSWORD: ${{ secrets.ENTRUST_PASSWORD }}
+        ENTRUST_CERTTYPE: ${{ secrets.ENTRUST_CERTTYPE }}
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/wf_specific/entrust_ca_handler/enroll_eab
+      with:
+        USE_RSA: true
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        # touch ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: entrust_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
