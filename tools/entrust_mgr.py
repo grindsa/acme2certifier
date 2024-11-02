@@ -18,6 +18,7 @@ def arg_parse():
     parser = argparse.ArgumentParser(description='enturst_mgr.py - a simple enturst certificate mananger')
     parser.add_argument('-d', '--debug', help='debug mode', action="store_true", default=False)
     parser.add_argument('-p', '--pagination', help='amout of certificates to be fetch with a single rest-call', default=200)
+    parser.add_argument('-s', '--sortby', help='sortby fieldname [trackigId, status, serialNumber, expiresAfter]', default='trackingId')
     clist = parser.add_mutually_exclusive_group()
     clist.add_argument('-a', '--filteractive', help='filter output to active accounts', action="store_true", default=False)
     clist.add_argument('-r', '--revoke', help='revoke <transaction_id>', default=None)
@@ -29,7 +30,8 @@ def arg_parse():
         'debug': args.debug,
         'filteractive': args.filteractive,
         'revoke': args.revoke,
-        'pagination': int(args.pagination)
+        'pagination': int(args.pagination),
+        'sortby': args.sortby
     }
     return (debug, config_dic)
 
@@ -54,7 +56,7 @@ if __name__ == '__main__':
             else:
                 # get list of certificates
                 cert_list = ca_handler.certificates_get(limit=CONFIG_DIC['pagination'])
-                for cert in cert_list:
+                for cert in sorted(cert_list, key=lambda k: k[CONFIG_DIC['sortby']]):
                     if (CONFIG_DIC['filteractive'] and cert['status'] == 'ACTIVE') or not CONFIG_DIC['filteractive']:
                         print(cert)
         else:
