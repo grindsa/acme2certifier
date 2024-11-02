@@ -377,10 +377,10 @@ runs:
         echo "##### HTTPS - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
          else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
