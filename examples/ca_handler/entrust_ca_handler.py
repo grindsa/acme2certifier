@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" CA handler using Digicert CertCentralAPI"""
+""" CA handler using Entrust ECS Enterprise"""
 from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
@@ -344,16 +344,16 @@ class CAhandler(object):
         self.logger.debug('CAhandler._domains_get() ended with code: %s', code)
         return api_domain_list
 
-    def _credential_check(self):
+    def credential_check(self):
         """ test connection to Entrust api """
-        self.logger.debug('CAhandler._credential_check()')
+        self.logger.debug('CAhandler.credential_check()')
 
         error = None
         code, content = self._api_get(self.api_url + '/application/version')
         if code != 200:
             error = f'Connection to Entrust API failed: {content}'
 
-        self.logger.debug('CAhandler._credential_check() ended with code: %s', code)
+        self.logger.debug('CAhandler.credential_check() ended with code: %s', code)
         return error
 
     def _config_check(self) -> str:
@@ -381,7 +381,7 @@ class CAhandler(object):
             error = self._config_check()
 
         if not error:
-            error = self._credential_check()
+            error = self.credential_check()
 
         if not error:
             error = self._org_domain_cfg_check()
@@ -484,6 +484,42 @@ class CAhandler(object):
         self.logger.debug('CAhandler._enroll() ended with code: %s', code)
         return error, cert_bundle, cert_raw, poll_indentifier
 
+    def revoke_by_trackingid(self, tracking_id: int, _rev_reason: str = 'unspecified') -> Tuple[int, str]:
+        """ revoke certificate """
+        self.logger.debug('CAhandler.revoke_by_trackingid()')
+        code, content = self._api_post(self.api_url + f'/certificates/{tracking_id}/revocations', {'crlReason': _rev_reason, 'revocationComment': 'revoked by acme2certifier'})
+        self.logger.debug('CAhandler.revoke_by_trackingid() ended with code: %s', code)
+        return code, content
+
+    def certificates_get(self, limit=200) -> List[str]:
+        """ get certificates """
+        self.logger.debug('CAhandler.certificates_get()')
+
+        offset = 0
+        code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
+
+        cert_list = []
+        total = 999
+        while(len(cert_list) < total):
+            self.logger.info('fetching certs offset: %s, limit: %s, total: %s, buffered: %s', offset, limit, total, len(cert_list))
+            code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
+
+            if code == 200 and offset == 0 and 'summary' in content and 'total' in content['summary']:
+                self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
+                total = content['summary']['total']   # get total number of certificates
+
+            if code == 200 and 'certificates' in content:
+                cert_list.extend(content['certificates'])
+                offset = offset + limit
+
+            else:
+                self.logger.error('CAhandler.certificates_get() failed with code: %s', code)
+                break
+
+        self.logger.debug('CAhandler.certificates_get() ended with code: %s and %s certificate', code, len(cert_list))
+        return cert_list
+
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -525,7 +561,7 @@ class CAhandler(object):
         tracking_id = self._trackingid_get(certificate_raw)
 
         if tracking_id:
-            code, content = self._api_post(self.api_url + f'/certificates/{tracking_id}/revocations', {'crlReason': _rev_reason, 'revocationComment': 'revoked by acme2certifier'})
+            code, content = self.revoke_by_trackingid(tracking_id, _rev_reason)
             if code == 200:
                 message = 'Certificate revoked'
             else:
