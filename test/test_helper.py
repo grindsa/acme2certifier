@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -38,6 +38,7 @@ class TestACMEHandler(unittest.TestCase):
         self.ca_handler_load = ca_handler_load
         self.cert_dates_get = cert_dates_get
         self.cert_extensions_get = cert_extensions_get
+        self.cert_extensions_py_openssl_get = cert_extensions_py_openssl_get
         self.certid_asn1_get = certid_asn1_get
         self.certid_check = certid_check
         self.cert_pubkey_get = cert_pubkey_get
@@ -56,6 +57,7 @@ class TestACMEHandler(unittest.TestCase):
         self.config_check = config_check
         self.convert_byte_to_string = convert_byte_to_string
         self.convert_string_to_byte = convert_string_to_byte
+        self.cryptography_version_get = cryptography_version_get
         self.csr_cn_get = csr_cn_get
         self.csr_dn_get = csr_dn_get
         self.csr_extensions_get = csr_extensions_get
@@ -120,6 +122,10 @@ class TestACMEHandler(unittest.TestCase):
         self.eab_profile_list_check = eab_profile_list_check
         self.eab_profile_check = eab_profile_check
         self.eab_profile_header_info_check = eab_profile_header_info_check
+        self.cn_validate = cn_validate
+        self.csr_subject_get = csr_subject_get
+        self.eab_profile_subject_string_check = eab_profile_subject_string_check
+        self.eab_profile_subject_check = eab_profile_subject_check
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -1300,7 +1306,9 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         result = 'MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF'
         self.assertEqual(result, self.b64_encode(self.logger, self.cert_pem2der(cert)))
 
-    def test_170_helper_cert_extensions_get(self):
+    @patch('acme_srv.helper.cert_extensions_py_openssl_get')
+    @patch('acme_srv.helper.cryptography_version_get')
+    def test_170_helper_cert_extensions_get(self, mock_version, mock_py):
         """ test cert_san_get for a single SAN and recode = False"""
         cert = """-----BEGIN CERTIFICATE-----
 MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UE
@@ -1328,12 +1336,63 @@ SN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ
 CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0
 klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 -----END CERTIFICATE-----"""
+        mock_version.return_value = 36
         self.assertEqual(['MAA=', 'BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==', 'AwIDuA==', 'MAoGCCsGAQUFBwMC', 'MA+CDWVzdGNsaWVudC5lc3Q=', 'AwIFoA==', 'Fg94Y2EgY2VydGlmaWNhdGU='], self.cert_extensions_get(self.logger, cert, recode=False))
+        self.assertFalse(mock_py.called)
 
-    def test_171_helper_cert_extensions_get(self):
+    @patch('acme_srv.helper.cert_extensions_py_openssl_get')
+    @patch('acme_srv.helper.cryptography_version_get')
+    def test_171_helper_cert_extensions_get(self, mock_version, mock_py):
         """ test cert_san_get for a single SAN and recode = True"""
         cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
+        mock_version.return_value = 36
         self.assertEqual(['MAA=', 'BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==', 'AwIDuA==', 'MAoGCCsGAQUFBwMC', 'MA+CDWVzdGNsaWVudC5lc3Q=', 'AwIFoA==', 'Fg94Y2EgY2VydGlmaWNhdGU='], self.cert_extensions_get(self.logger, cert, recode=True))
+        self.assertFalse(mock_py.called)
+
+    @patch('acme_srv.helper.cert_extensions_py_openssl_get')
+    @patch('acme_srv.helper.cryptography_version_get')
+    def test_172_helper_cert_extensions_get(self, mock_version, mock_py):
+        """ test cert_san_get for a single SAN and recode = True"""
+        cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
+        mock_version.return_value = 34
+        mock_py.return_value = ['foo', 'bar']
+        self.assertEqual(['foo', 'bar'], self.cert_extensions_get(self.logger, cert, recode=True))
+        self.assertTrue(mock_py.called)
+
+    def test_172_helper_cert_extensions_py_openssl_get(self):
+        """ test cert_san_get for a single SAN and recode = False"""
+        cert = """-----BEGIN CERTIFICATE-----
+MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UE
+CxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUy
+MDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEi
+MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrd
+Fj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytm
+VB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/f
+ZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDe
+NDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfyt
+hBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMB
+AAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW
+2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQR
+MA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIB
+DQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eA
+XbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3ak
+AZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7
+WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1Ixrd
+BPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6
+lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKW
+JfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1
+kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWD
+SN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ
+2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2
+CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0
+klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
+-----END CERTIFICATE-----"""
+        self.assertEqual(['MAA=', 'BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==', 'AwIDuA==', 'MAoGCCsGAQUFBwMC', 'MA+CDWVzdGNsaWVudC5lc3Q=', 'AwIFoA==', 'Fg94Y2EgY2VydGlmaWNhdGU='], self.cert_extensions_py_openssl_get(self.logger, cert, recode=False))
+
+    def test_173_cert_extensions_py_openssl_get(self):
+        """ test cert_san_get for a single SAN and recode = True"""
+        cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
+        self.assertEqual(['MAA=', 'BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==', 'AwIDuA==', 'MAoGCCsGAQUFBwMC', 'MA+CDWVzdGNsaWVudC5lc3Q=', 'AwIFoA==', 'Fg94Y2EgY2VydGlmaWNhdGU='], self.cert_extensions_py_openssl_get(self.logger, cert, recode=True))
 
     def test_172_csr_dn_get(self):
         """" test csr_dn_get """
@@ -2683,9 +2742,22 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual('error', self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'foo', 'bar'))
         self.assertEqual('foo', cahandler.foo)
 
+    def test_351_eab_profile_list_check(self):
+        """ test _eab_profile_list_check() test allowed domain check if cahander contains attribute """
+        cahandler = FakeDBStore()
+        eabhandler = Mock()
+        eabhandler.allowed_domains_check.return_value = False
+        cahandler.allowed_domainlist = ['foo', 'foobar']
+        cahandler.foo = 'foo'
+        cahandler.header_info_field = None
+        self.eab_profile_list_check(self.logger, cahandler, eabhandler, 'csr', 'allowed_domainlist', ['bar'])
+        self.assertEqual('foo', cahandler.foo)
+        self.assertTrue(eabhandler.allowed_domains_check.called)
+        self.assertEqual(['foo', 'foobar'], cahandler.allowed_domainlist)
+
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_351_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_352_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2696,7 +2768,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_352_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_353_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2710,7 +2782,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_353_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_354_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2726,7 +2798,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_354_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_355_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -2741,7 +2813,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_355_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_356_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -2758,7 +2830,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_check')
     @patch('acme_srv.helper.header_info_lookup')
-    def test_356_eab_profile_header_info_check(self, mock_lookup, mock_eab):
+    def test_357_eab_profile_header_info_check(self, mock_lookup, mock_eab):
         """ test eab_profile_header_info_check() """
         cahandler = FakeDBStore()
         cahandler.eab_profiling = True
@@ -2774,7 +2846,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_357_eab_profile_check(self, mock_string, mock_list):
+    def test_358_eab_profile_check(self, mock_string, mock_list):
         """ test _eab_profile_check()"""
         self.cahandler = MagicMock()
         self.csr = "testCSR"
@@ -2786,7 +2858,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_358_eab_profile_check(self, mock_string, mock_list):
+    def test_359_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2799,7 +2871,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch('acme_srv.helper.header_info_lookup')
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_359_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_360_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2813,7 +2885,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch('acme_srv.helper.header_info_lookup')
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_360_eab_profile_check(self, mock_string, mock_list, mock_hil):
+    def test_361_eab_profile_check(self, mock_string, mock_list, mock_hil):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2826,7 +2898,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.eab_profile_list_check')
     @patch('acme_srv.helper.eab_profile_string_check')
-    def test_361_eab_profile_check(self, mock_string, mock_list):
+    def test_362_eab_profile_check(self, mock_string, mock_list):
         self.cahandler = MagicMock()
         self.csr = "testCSR"
         self.handler_hifield = "testField"
@@ -2837,6 +2909,165 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertFalse(mock_string.called)
         self.assertFalse(mock_list.called)
 
+    @patch('acme_srv.helper.eab_profile_subject_check')
+    @patch('acme_srv.helper.eab_profile_list_check')
+    @patch('acme_srv.helper.eab_profile_string_check')
+    def test_363_eab_profile_check(self, mock_string, mock_list, mock_subject):
+        self.cahandler = MagicMock()
+        self.csr = "testCSR"
+        self.handler_hifield = None
+        mock_subject.return_value = 'mock_subject'
+        self.cahandler.eab_handler.return_value.__enter__.return_value.eab_profile_get.return_value = {"subject": ["listValue"]}
+        self.cahandler.eab_profile_list_check.return_value = 'eab_list_check'
+        mock_list.return_value = None
+        self.assertEqual('mock_subject', self.eab_profile_check(self.logger, self.cahandler, self.csr, self.handler_hifield))
+        self.assertFalse(mock_string.called)
+        self.assertFalse(mock_list.called)
+        self.assertTrue(mock_subject.called)
+
+    @patch('cryptography.__version__', '3.4.7')
+    def test_363_cryptography_version_get_success(self):
+        self.assertEqual(3, self.cryptography_version_get(self.logger))
+
+    @patch('cryptography.__version__', None)
+    def test_364_cryptography_version_get_success(self):
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(36, self.cryptography_version_get(self.logger))
+        self.assertIn("ERROR:test_a2c:cryptography_version_get(): Error: 'NoneType' object has no attribute 'split'", lcm.output)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_365_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = True
+        mock_fqdn.return_value = True
+        self.assertFalse(self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertFalse(mock_fqdn.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_366_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = True
+        self.assertFalse(self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertTrue(mock_fqdn.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_367_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = False
+        self.assertEqual('Profile subject check failed: CN validation failed', self.cn_validate(self.logger, 'foo.bar.com'))
+        self.assertTrue(mock_fqdn.called)
+
+    @patch('acme_srv.helper.validate_fqdn')
+    @patch('acme_srv.helper.validate_ip')
+    def test_368_cn_validate(self, mock_ip, mock_fqdn):
+        """ test cn_validate() """
+        mock_ip.return_value = False
+        mock_fqdn.return_value = False
+        self.assertEqual('Profile subject check failed: commonName missing', self.cn_validate(self.logger, None))
+        self.assertFalse(mock_fqdn.called)
+
+    def test_369_csr_subject_get(self):
+        """ test csr_subject_get() """
+        csr = 'MIICwDCCAagCAQAwVDESMBAGA1UEAwwJbGVnby5hY21lMQ0wCwYDVQQKDARhY21lMQwwCgYDVQQLDANmb28xCzAJBgNVBAYTAlVTMRQwEgYDVQQFEwswMC0xMS0yMi0zMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM5AKMmB3o8LLEEGuHo0Ipl4K8z9m3EyM9teSVocQz39DK8s2dKpx8MrsVkTg6M3fuL4yPlim8v0+unPtB18dFeThkijHetxL5x08pVvMVwa7Cjk/22e5IRgBGSQYCO6KCUsNh2vhH93r7x71wlTV3sYe2t0HaEdGqBxdct76J9kyeCY06Br+4PMR7afRvHv4vFH6Y2+hSD4oOd5cSTZXnNWcWRbjNFY7aytzl4JpJiEK0ealDMSf/ZP0n8Sdx1vCx8amaozrLg5z3eLULiAUUgCtqOWOgNLQFNSqjyhZmMTZGGJcTgb43KAKWsO3bfM6rvNTZRbrM7dAsg/bQsK6mMCAwEAAaAnMCUGCSqGSIb3DQEJDjEYMBYwFAYDVR0RBA0wC4IJbGVnby5hY21lMA0GCSqGSIb3DQEBCwUAA4IBAQA19j8Lge9Vqxc/hvWYcU1Kx3KBx5TN97PK0wQFPIIWX20/JRoodzfrMSqO0EgZWB+czoRi8G+2ezbK13sV02dKovo8ISoSvgSZtt53UKBz+JmQd7Q7G1vONZ7d2PT0nTUN4fTA5YQs5nys3O8/2oOxJiJO6IyhmpiVqUbrlU6Harb4MfjNTb+teSQRSCOAX/8U9TdPwuAi6rXdWjXAUxBDQySWkW/B3pd77Ztt5nDFP2DT+7f7mAoWG4+XY6iXcXs1GsDA4XRTx2rCvhQtQomVGAKFwd8aTpHL/ZwNt1GOw6oMZkKKf+axVA1pvAYGhey/4x3uwKf654VB3e2iOCea'
+        result_dic = {'commonName': 'lego.acme', 'organizationName': 'acme', 'organizationalUnitName': 'foo', 'countryName': 'US', 'serialNumber': '00-11-22-33'}
+        self.assertEqual(result_dic, self.csr_subject_get(self.logger, csr))
+
+    def test_370_csr_subject_get(self):
+        """ test csr_subject_get() """
+        csr = 'MIICcDCCAVgCAQAwADCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANOKk0E61QJ2K/NiGSO0aJyqrLfmHytPr35ptLwNdfKQ/8Vb2uoHYAvxVEO9weNTQVlZ9ApkJquBTRoSdqTy6p87inh8JwzFM/neJAsMg2ZiH3gRRRfmIb/4Kce0BUQ66DFSV8sWThyv13EcL+pZYdqRvONujVn7XVPbmB2ZI8qI4iXswRq45mFBW5Dyt3Rlw+KOBu1ejo0lqB2FGQiBONxQrFDyF4nVWN3R9BlhuybSF4Elhos7pkiEfrE+8EzYy+7yMEiDh1m+TmwZRNEdtSWNORF51CF3bYUz8pvpt66vKGi/F6k2iljelw1kNsswZAciNi2jG7S0M+MWMFi680sCAwEAAaArMCkGCSqGSIb3DQEJDjEcMBowGAYDVR0RBBEwD4INZm9vLmJhci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAivCrcL+uVzDdykT87073atC4B2DHky5bzL+iI8C+BkPq0jRdcVkExMrUtTdtp8Ot1zQHtYc/c/Tj+aYDZ6SdMYtrtHUgxS5JyFh0p+MEvkgZHcWOVC+VlWA+lC9kdX3WetsGT6xqCG4l+BpgCUERghFJ5/+K0bbCI4jT/5ZCT7+pO0qZtw0eg6tQBLPSXzXN98x3nmuaw9PzO1rVG5IMItyU+TlX3pJRXKpqSOHEbeaGWHizMUlbDKzoIiUf+11I9RwTeLlp/HPG8uvRc/zZ1einZPLQgow5kU15jFQSgQtzFHV4ZxuYmWN7oMIruwBNP1hkoTNL1kJcPeOwtEdOMw=='
+        self.assertFalse(self.csr_subject_get(self.logger, csr))
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_370_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': 'bar1'}
+        self.assertEqual('Profile subject check failed for foo', self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_371_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': '*'}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_372_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': 'bar'}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_373_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        self.assertEqual('Profile subject check failed for foo', self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_374_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        self.assertFalse(self.eab_profile_subject_string_check(self.logger, profile_dic, 'foo', 'bar2'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_375_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        mock_validate.return_value = 'error'
+        self.assertEqual('error', self.eab_profile_subject_string_check(self.logger, profile_dic, 'commonName', 'bar'))
+        self.assertTrue(mock_validate.called)
+
+    @patch('acme_srv.helper.cn_validate')
+    def test_376_eab_profile_subjet_string_check(self, mock_validate):
+        """ test eab_profile_subject_string_check() """
+        profile_dic = {'foo': ['bar1', 'bar2', 'bar3']}
+        mock_validate.return_value = 'error'
+        self.assertEqual('Profile subject check failed for bar', self.eab_profile_subject_string_check(self.logger, profile_dic, 'bar', 'bar'))
+        self.assertFalse(mock_validate.called)
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_377_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = ['o', 'ou', 'cn']
+        self.assertEqual('o', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_378_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, 'ou', 'cn']
+        self.assertEqual('ou', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_379_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, False, 'cn']
+        self.assertEqual('cn', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
+
+    @patch('acme_srv.helper.eab_profile_subject_string_check')
+    @patch('acme_srv.helper.csr_subject_get')
+    def test_378_eab_profile_subject_check(self, mock_cn, mock_strchk):
+        """ test eab_profile_subject_check() """
+        profile_dic = {'foo': 'bar'}
+        mock_cn.return_value = {'o': 'o', 'ou': 'ou', 'cn': 'cn'}
+        mock_strchk.side_effect = [False, False, False]
+        self.assertEqual('Profile subject check failed', self.eab_profile_subject_check(self.logger, 'csr', profile_dic))
 
 if __name__ == '__main__':
     unittest.main()

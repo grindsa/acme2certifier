@@ -26,13 +26,17 @@ sudo pip3 install -r requirements.txt
 
 5. copy the file `examples/apache2/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to you needs.
 
-6. in case you would like to activate TLS copy the file `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs. Do not forget to place the key-bundle. This
-
-file must contain the following certificate data in pem format:
+6. in case you would like to activate TLS copy the file `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs. Do not forget to place the key-bundle. This file must contain the following certificate data in pem format:
 
 - the private key
 - the end-entity certificate
 - intermediate CA certificates, sorted from leaf to root (root CA certificate should not be included for security reasons)
+
+Further, the ssl module needs to be activated
+
+```bash
+sudo a2enmod ssl
+```
 
 7. activate the virtual server(s)
 

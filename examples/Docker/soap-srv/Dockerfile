@@ -4,25 +4,22 @@ LABEL maintainer="grindelsack@gmail.com"
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install --no-install-recommends tzdata && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
-    python3-pip \
     apache2 \
     apache2-data \
-    libapache2-mod-wsgi-py3 \
     curl \
     krb5-user \
+    libapache2-mod-wsgi-py3 \
     libgssapi-krb5-2 \
     libkrb5-3 \
     python3-gssapi \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 
 # install python requirements
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt
-
-
-# create folders for acme2certifier
-RUN mkdir -p /usr/local/soap-srv/acme_srv && \
+RUN pip3 install -r /tmp/requirements.txt &&\
+    mkdir -p /usr/local/soap-srv/acme_srv && \
 	mkdir -p /usr/local/soap-srv/examples/ca_handler
 
 COPY examples/soap/mock_soap_srv.py /usr/local/soap-srv/

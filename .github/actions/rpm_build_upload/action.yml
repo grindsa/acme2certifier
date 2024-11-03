@@ -1,0 +1,26 @@
+name: "rpm_build_upload"
+description: "Build and Upload package"
+outputs:
+  rpm_file_name:
+    description: "Name of the RPM package file"
+    value: acme2certifier-${{ github.run_id }}.noarch.rpm
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Build rpm package"
+    id: rpm_build
+    uses: ./.github/actions/rpm_build
+
+  - name: "Rename rpm package"
+    run: |
+      sudo mv ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/acme2certifier-*.noarch.rpm ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/acme2certifier-${{ github.run_id }}.noarch.rpm
+    shell: bash
+
+  - name: "Upload RPM package"
+    uses: actions/upload-artifact@master
+    with:
+      name: acme2certifier-${{ github.run_id }}.noarch.rpm
+      path: ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/
+

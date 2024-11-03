@@ -22,7 +22,6 @@ root@rlh:~# pip install django-rename-app
  ```cfg
  INSTALLED_APPS = [
      ...
-     'django_rename_app',
      'acme_srv'
      ...
  ]

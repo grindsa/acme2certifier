@@ -1,0 +1,49 @@
+name: "smallstep_prep"
+description: "smallstep_prep"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Setup smallstep"
+    run: |
+      sudo mkdir -p step
+      sudo chmod -R 777 step
+      docker run -d -v "$(pwd)/step":/home/step \
+          -p 9000:9000 -p 443:443 \
+          --network acme \
+          --name step-ca \
+          -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
+          -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
+          smallstep/step-ca
+    shell: bash
+
+  - name: "Sleep for 20s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 20s
+
+  - name: "Configure smallstep"
+    run: |
+      docker ps
+      docker exec -i step-ca step ca provisioner add acme --type ACME
+      docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
+      docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
+      docker restart step-ca
+    shell: bash
+
+  - name: "Sleep for 20s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 20s
+
+  - name: "Test https://step-ca.acme/acme/acme/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f https://step-ca:9000/acme/acme/directory --insecure
+    shell: bash
+
+  - name: "Enroll from smallstep using acme-sh"
+    run: |
+      mkdir -p acme-sh
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server https://step-ca:9000/acme/acme/directory --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --insecure --output-insecure --force
+      sudo rm -rf acme-sh/*
+    shell: bash
