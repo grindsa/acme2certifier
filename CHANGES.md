@@ -10,7 +10,7 @@ and pick the appropriate release branch.
 **Features and Improvements**:
 
 - [ca handler](docs/digicert.md) using the [DigiCert CertCentral API](https://dev.digicert.com/en/certcentral-apis.html)
-- [ca handler](docs/entrust.md) using the [Entrust ECS Enterprise APIl](https://www.entrust.com/products/digital-certificates/tls-ssl/entrust-certificate-services)
+- [ca handler](docs/entrust.md) using the Entrust ECS Enterprise APIl
 - [EAB Profiling support](docs/eab_profiling.md) in Microsoft CA handlers
 - [#187](https://github.com/grindsa/acme2certifier/pull/187) url option for mscertsrv ca handler
 - subject profiling feature
