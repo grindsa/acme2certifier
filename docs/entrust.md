@@ -2,7 +2,7 @@
 <!-- wiki-title CA handler for Entrust ECS Enterprise -->
 # Connecting to Entrust ECS Enterprise
 
-This handler can be used to enroll certificates from [Entrust ECS Enterprise APIl](https://www.entrust.com/products/digital-certificates/tls-ssl/entrust-certificate-services).
+This handler can be used to enroll certificates from Entrust ECS Enterprise API.
 
 ## Prerequisites
 
