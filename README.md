@@ -25,6 +25,7 @@ should be straight forward. As of today the following handlers are available:
 | E - Certificte Enrollment, R - Certificte Revocation, P - [EAB Profiling](docs/eab_profiling.md) |E|R|P|
 | :-------- | - | - | - |
 | [DigiCert® CertCentral](docs/digicert.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Entrust ECS Enterprise](docs/entrust.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | [EJBCA](docs/ejbca.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md) | :x: | :x: | :white_check_mark: |
 | [Generic CMPv2 protocol handler](docs/cmp.md) | :white_check_mark: | :x: | :x: |
