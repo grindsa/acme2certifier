@@ -21,19 +21,23 @@ on [rfc8555](https://tools.ietf.org/html/rfc8555)
 - ca_handler.py - interface towards CA server. The intention of this library
 is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
 should be straight forward. As of today the following handlers are available:
-  - [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)
-  - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
-  - [Insta ActiveCMS](docs/asa.md)
-  - [EJBCA](docs/ejbca.md)
-  - [OpenXPKI](docs/openxpki.md)
-  - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
-  - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md)
-  - [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md)
-  - [Generic EST protocol handler](docs/est.md)
-  - [Generic CMPv2 protocol handler](docs/cmp.md)
-  - [Openssl](docs/openssl.md)
-  - [XCA](docs/xca.md)
-  - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)
+
+| E - Certificte Enrollment, R - Certificte Revocation, P - [EAB Profiling](docs/eab_profiling.md) |E|R|P|
+| :-------- | - | - | - |
+| [DigiCert® CertCentral](docs/digicert.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [EJBCA](docs/ejbca.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md) | :x: | :x: | :white_check_mark: |
+| [Generic CMPv2 protocol handler](docs/cmp.md) | :white_check_mark: | :x: | :x: |
+| [Generic EST protocol handler](docs/est.md) | :white_check_mark: | :x: | :x: |
+| [Insta ActiveCMS](docs/asa.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md) | :white_check_mark: | :x: | :white_check_mark: |
+| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md) | :white_check_mark: | :x: | :white_check_mark: |
+| [NetGuard Certificate Lifecycle Manager](docs/nclm.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Openssl](docs/openssl.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [OpenXPKI](docs/openxpki.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [XCA](docs/xca.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)| :white_check_mark: | :x: | :x: |
 
 For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
 

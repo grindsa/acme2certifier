@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check  # pylint: disable=e0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check, config_eab_profile_load  # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -18,6 +18,7 @@ class CAhandler(object):
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
         self.host = None
+        self.url = None
         self.user = None
         self.password = None
         self.auth_method = 'basic'
@@ -28,6 +29,8 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.header_info_field = False
         self.verify = True
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -120,8 +123,20 @@ class CAhandler(object):
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
             self.host = config_dic['CAhandler']['host']
-
         self.logger.debug('CAhandler._config_hostname_load() ended')
+
+    def _config_url_load(self, config_dic: Dict[str, str]):
+        if 'url_variable' in config_dic['CAhandler']:
+            try:
+                self.url = os.environ[config_dic['CAhandler']['url_variable']]
+            except Exception as err:
+                self.logger.error('CAhandler._config_load() could not load url_variable:%s', err)
+        if 'url' in config_dic['CAhandler']:
+            if self.url:
+                self.logger.info('CAhandler._config_load() overwrite url')
+            self.url = config_dic['CAhandler']['url']
+
+        self.logger.debug('CAhandler._config_url_load() ended')
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """ load hostname """
@@ -170,9 +185,12 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
             # load parameters from config dic
             self._config_hostname_load(config_dic)
+            self._config_url_load(config_dic)
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
             self._config_parameters_load(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             self._config_headerinfo_load(config_dic)
 
         # load proxy config
@@ -259,17 +277,11 @@ class CAhandler(object):
 
         return (error, cert_bundle, cert_raw)
 
-    def _parameter_overwrite(self, csr: str):
+    def _parameter_overwrite(self, _csr: str):
         """ overwrite overwrite krb5.conf or user-template """
         if self.krb5_config:
             self.logger.info('CAhandler.enroll(): load krb5config from %s', self.krb5_config)
             os.environ['KRB5_CONFIG'] = self.krb5_config
-
-        # lookup http header information from request
-        if self.header_info_field:
-            user_template = self._template_name_get(csr)
-            if user_template:
-                self.template = user_template
 
     def _domainlist_check(self, csr: str) -> bool:
         """ check if domain is in allowed domainlist """
@@ -296,25 +308,32 @@ class CAhandler(object):
 
         self._parameter_overwrite(csr)
 
-        if self.host and self.user and self.password and self.template:
+        if (self.host or self.url) and self.user and self.password and self.template:
 
+            # check if domain is in allowed domainlis
             result = self._domainlist_check(csr)
 
             if result:
-                # setup certserv
-                ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
-                # check connection and credentials
-                auth_check = self._check_credentials(ca_server)
+                # check for eab profiling and header_info
+                error = eab_profile_header_info_check(self.logger, self, csr, 'template')
 
-                if auth_check:
+                if not error:
+                    # setup certserv
+                    ca_server = Certsrv(self.host, self.url, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
+                    # check connection and credentials
+                    auth_check = self._check_credentials(ca_server)
 
-                    # enroll certificate
-                    (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+                    if auth_check:
 
+                        # enroll certificate
+                        (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+
+                    else:
+                        self.logger.error('Connection or Credentialcheck failed')
+                        error = 'Connection or Credentialcheck failed.'
                 else:
-                    self.logger.error('Connection or Credentialcheck failed')
-                    error = 'Connection or Credentialcheck failed.'
+                    self.logger.error('EAB profile check failed')
             else:
                 self.logger.error('SAN/CN check failed')
                 error = 'SAN/CN check failed'

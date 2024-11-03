@@ -1,0 +1,56 @@
+name: "enroll_no_template"
+description: "enroll_no_template"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "No template - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "No template - Enroll acme.sh"
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout
+      openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Basic Constraints: critical"
+      openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "Digital Signature, Key Encipherment"
+      openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -text -noout | grep "TLS Web Server Authentication"
+    shell: bash
+
+  - name: "No template - Register certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+    shell: bash
+
+  - name: "No template - Enroll HTTP-01 single domain certbot"
+    run: |
+      docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  certbot/live/certbot/cert.pem
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Basic Constraints: critical"
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "Digital Signature, Key Encipherment"
+      sudo openssl x509 -in certbot/archive/certbot/cert1.pem -text -noout | grep "TLS Web Server Authentication"
+    shell: bash
+
+  - name: "No template - Enroll lego"
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Basic Constraints: critical"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Digital Signature, Key Encipherment"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "TLS Web Server Authentication"
+    shell: bash
+
+  - name: "Delete acme-sh, letsencypt and lego folders"
+    run: |
+      sudo rm -rf  lego/*
+      sudo rm -rf  acme-sh/*
+      sudo rm -rf  certbot/*
+    shell: bash

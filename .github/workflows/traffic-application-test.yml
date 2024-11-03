@@ -31,34 +31,19 @@ jobs:
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
     - run: echo "runner hostname is ${{ env.RUNNER_HOSTNAME }}"
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
         DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "setup openssl ca_handler"
+    - name: "Setup openssl ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        docker-compose logs
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -71,7 +56,7 @@ jobs:
     - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "setup and instanciate traefik"
+    - name: "Setup and instanciate traefik"
       run: |
         mkdir traefik
         sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
@@ -85,7 +70,7 @@ jobs:
       with:
         time: 30s
 
-    - name: "check for certificate"
+    - name: "Check for certificate"
       working-directory: traefik
       run: |
         sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'

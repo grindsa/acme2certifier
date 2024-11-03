@@ -1,0 +1,206 @@
+name: "enroll_w_headerinfo"
+description: "enroll_w_headerinfo"
+inputs:
+  ASA_CA_NAME1:
+    description: "ASA CA 1"
+    required: true
+  ASA_CA_NAME2:
+    description: "ASA CA 2"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+  - name: "EAB with headerinfo - Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "EAB with headerinfo - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB with headerinfo - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "EAB with headerinfo - 01 - Enroll acme.sh without profile_name"
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
+      awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep -i "Key Encipherment, Data Encipherment"
+    shell: bash
+
+  - name: "EAB with headerinfo - 01 - Enroll lego without profile_name"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -k rsa2048 -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep -i "Key Encipherment, Data Encipherment"
+    shell: bash
+
+  - name: "EAB with headerinfo - 02a - Enroll acme with a profile_name taken from header_info NOT included in kid.json (to fail)"
+    id: acmefail01
+    continue-on-error: true
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent profile_name=unknown -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
+    shell: bash
+
+  - name: "EAB with headerinfo - 02a - check  result "
+    if: steps.acmefail01.outcome != 'failure'
+    run: |
+      echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 02b - Enroll acme with a profile_name taken from header_info included in kid.json"
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent profile_name=ACME -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
+      awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 02a - Enroll lego with a profile_name taken from header_info NOT included in kid.json (to fail)"
+    id: legofail01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent profile_name=unknown -k rsa2048 -d lego.acme --http run
+    shell: bash
+
+  - name: "EAB with headerinfo - 02a - check  result "
+    if: steps.legofail01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 02b - Enroll lego with a profile_name taken from header_info included in kid.json"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent profile_name=ACME -k rsa2048 -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 03 - Enroll acme with a profile_name/ca_name taken from kid.json"
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone  --keylength 2048 --debug 3 --output-insecure
+      awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME2 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep -i "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 03 - Enroll lego with a profile_name/ca_name taken from kid.json"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg  -k rsa2048 -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME2 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep -i "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
+    id: acmefail021
+    continue-on-error: true
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
+    shell: bash
+
+  - name: "EAB with headerinfo - 04 - check  result "
+    if: steps.acmefail021.outcome != 'failure'
+    run: |
+      echo "acmefail outcome is ${{steps.acmefail021.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
+    id: legofail021
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -k rsa2048 -d lego.acme --http run
+    shell: bash
+
+  - name: "EAB with headerinfo - 04a - check  result "
+    if: steps.legofail021.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail021.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 05 - Enroll acme with default values from acme.cfg"
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_03 --eab-hmac-key YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
+      awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 05 - Enroll lego with default values from acme.cfg"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -k rsa2048 -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature"
+    shell: bash
+
+  - name: "EAB with headerinfo - 06 - Enroll acme with not allowed headerinfo-field (should fail)"
+    id: acmefail03
+    continue-on-error: true
+    run: |
+      sudo rm -rf acme-sh/*
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent profile_id=101 -d acme-sh.acme --keylength 2048  --standalone --debug 3 --output-insecure
+    shell: bash
+
+  - name: "EAB with headerinfo - 06 - check  result "
+    if: steps.acmefail03.outcome != 'failure'
+    run: |
+      echo "acmefail outcome is ${{steps.acmefail03.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB with headerinfo - 06 - Enroll lego with not allowed headerinfo-field (should fail)"
+    id: legofail03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --user-agent profile_id=101 -k rsa2048 -d lego.acme --http run
+    shell: bash
+
+  - name: "EAB with headerinfo - 06 - check  result "
+    if: steps.legofail03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail03.outcome }}"
+      exit 1
+    shell: bash

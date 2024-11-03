@@ -22,12 +22,6 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "create folders"
-      run: |
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
-
     - name: "Get runner ip"
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
@@ -35,20 +29,11 @@ jobs:
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
-      working-directory: examples/Docker/
-      run: |
-        sudo apt-get install -y docker-compose
-        sudo mkdir -p data
-        sed -i "s/wsgi/$DB_HANDLER/g" .env
-        sed -i "s/apache2/$WEB_SRV/g" .env
-        cat .env
-        docker network create acme
-        docker-compose up -d
-        docker-compose logs
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
         DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Create ssh environment on ramdisk"
       run: |
@@ -72,10 +57,6 @@ jobs:
 
     - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_bundle.pem
         sudo touch examples/Docker/data/ra_cert.pem
         sudo touch examples/Docker/data/ra_key.pem
@@ -99,7 +80,6 @@ jobs:
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        docker-compose logs
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -123,13 +103,10 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        sudo rm -rf acme-sh/*
 
     - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_bundle.pem
         sudo touch examples/Docker/data/ra_cert.pem
         sudo chmod 777 examples/Docker/data/*.pem
@@ -152,7 +129,6 @@ jobs:
         sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        docker-compose logs
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -160,6 +136,11 @@ jobs:
         CMP_TRUSTED: ${{ secrets.CMP_TRUSTED }}
         CMP_REF: ${{ secrets.CMP_REF }}
         CMP_SECRET: ${{ secrets.CMP_SECRET }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -177,6 +158,11 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -204,32 +190,12 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: 9
 
     - name: "Get runner ip"
       run: |
@@ -237,11 +203,6 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
-
-    - name: "Create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
 
     - name: "Create ssh environment on ramdisk"
       run: |
@@ -300,20 +261,20 @@ jobs:
         CMP_RA_CERT: ${{ secrets.CMP_RA_CERT }}
         CMP_TRUSTED: ${{ secrets.CMP_TRUSTED }}
 
-    - name: "[ PREPARE ] Almalinux instance"
-      run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
     - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh"
       run: |
@@ -346,32 +307,12 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: Retrieve Version from version.py
-      run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-
-    - name: update version number in spec file
-      run: |
-        # sudo sed -i "s/Source0:.*/Source0:        %{name}-%{version}.tar.gz/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        cat examples/install_scripts/rpm/acme2certifier.spec
-
-    - name: build RPM package
-      id: rpm
-      uses: grindsa/rpmbuild@alma9
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
       with:
-        spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-    - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
-
-    - name: "Setup environment for alma installation"
-      run: |
-        docker network create acme
-        sudo mkdir -p data
-        sudo chmod -R 777 data
-        sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: 9
 
     - name: "Get runner ip"
       run: |
@@ -379,11 +320,6 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
-
-    - name: "Create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
 
     - name: "Create ssh environment on ramdisk"
       run: |
@@ -442,20 +378,20 @@ jobs:
         CMP_REF: ${{ secrets.CMP_REF }}
         CMP_SECRET: ${{ secrets.CMP_SECRET }}
 
-    - name: "Prepare Almalinux instance"
-      run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-
     - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
     - name: "Enroll acme.sh"
       run: |
