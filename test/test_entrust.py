@@ -844,16 +844,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['bar.foo'], self.cahandler._domains_get(1))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_064__credential_check(self, mock_api):
+    def test_064_credential_check(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (500, 'foo')
-        self.assertEqual('Connection to Entrust API failed: foo', self.cahandler._credential_check())
+        self.assertEqual('Connection to Entrust API failed: foo', self.cahandler.credential_check())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_065__credential_check(self, mock_api):
+    def test_065_credential_check(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (200, 'foo')
-        self.assertFalse(self.cahandler._credential_check())
+        self.assertFalse(self.cahandler.credential_check())
 
     def test_066_oonfig_check(self):
         """ test _config_check() """
@@ -896,7 +896,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._credential_check')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
     def test_071_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
@@ -915,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._credential_check')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
     def test_072_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
@@ -934,7 +934,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._credential_check')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
     def test_073_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
@@ -953,7 +953,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._credential_check')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
     def test_074_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
@@ -972,7 +972,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._credential_check')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
     def test_075_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
@@ -1184,6 +1184,58 @@ class TestACMEHandler(unittest.TestCase):
         mock_track.return_value = None
         mock_req.return_value = (200, 'response')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Failed to get tracking id'), self.cahandler.revoke('csr'))
+
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_094_certificates_get(self, mock_req):
+        """ test certificates_get() """
+        mock_req.return_value = (500, 'response')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler.certificates_get())
+        self.assertIn('ERROR:test_a2c:CAhandler.certificates_get() failed with code: 500', lcm.output)
+
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_095_certificates_get(self, mock_req):
+        """ test certificates_get() """
+        content = {'certificates': [1, 2, 3, 4], 'summary': {'total': 4}}
+        mock_req.return_value = (200, content)
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual([1, 2, 3, 4], self.cahandler.certificates_get())
+        self.assertIn('INFO:test_a2c:fetching certs offset: 0, limit: 200, total: 1, buffered: 0', lcm.output)
+
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_096_certificates_get(self, mock_req):
+        """ test certificates_get() """
+        response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 8}})
+        response2 = (200, {'certificates': [5, 6, 7, 8]})
+        mock_req.side_effect = [response1, response2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], self.cahandler.certificates_get())
+        self.assertIn('INFO:test_a2c:fetching certs offset: 0, limit: 200, total: 1, buffered: 0', lcm.output)
+        self.assertIn('INFO:test_a2c:fetching certs offset: 200, limit: 200, total: 8, buffered: 4', lcm.output)
+
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_097_certificates_get(self, mock_req):
+        """ test certificates_get() """
+        response1 = (200, {'certificates': [1, 2, 3, 4]})
+        response2 = (200, {'certificates': [5, 6, 7, 8]})
+        mock_req.side_effect = [response1, response2]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.cahandler.certificates_get())
+        self.assertIn("ERROR:test_a2c:CAhandler.certificates_get() failed did not get any total value: {'certificates': [1, 2, 3, 4]}", lcm.output)
+
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_098_certificates_get(self, mock_req):
+        """ test certificates_get() """
+        response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 9}})
+        response2 = (200, {'certificates': [5, 6, 7, 8]})
+        response3 = (200, {'certificates': [5, 6, 7, 8]})
+        mock_req.side_effect = [response1, response2, response3]
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], self.cahandler.certificates_get())
+        self.assertIn('INFO:test_a2c:fetching certs offset: 0, limit: 200, total: 1, buffered: 0', lcm.output)
+        self.assertIn('INFO:test_a2c:fetching certs offset: 200, limit: 200, total: 9, buffered: 4', lcm.output)
+        self.assertIn('INFO:test_a2c:fetching certs offset: 400, limit: 200, total: 9, buffered: 8', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler.certificates_get() failed to get new data', lcm.output)
 
 
 if __name__ == '__main__':
