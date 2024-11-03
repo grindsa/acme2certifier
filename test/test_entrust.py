@@ -669,7 +669,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_session_load(config_dic)
         self.assertTrue(mock_sl.called)
         self.assertTrue(self.cahandler.session)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file', lcm.output)
+        self.assertIn('WARNING:test_a2c:CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file', lcm.output)
         self.assertFalse(mock_pkcs12.called)
 
     @patch('examples.ca_handler.entrust_ca_handler.csr_san_get')
