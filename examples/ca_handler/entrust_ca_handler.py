@@ -8,7 +8,7 @@ import json
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get, header_info_get
+from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get, header_info_get, b64_url_recode
 
 
 CONTENT_TYPE = 'application/json'
@@ -165,6 +165,11 @@ class CAhandler(object):
     def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
         """ get certificates """
         self.logger.debug('CAhandler._certificates_get_from_serial()')
+
+        # for some reason entrust custs leading zeros from serial number
+        if cert_serial.startswith('0'):
+            self.logger.info('CAhandler._certificates_get_from_serial() remove leading zeros from serial number')
+            cert_serial = cert_serial.lstrip('0')
 
         code, content = self._api_get(self.api_url + f'/certificates?serialNumber={cert_serial}')
 
@@ -399,7 +404,9 @@ class CAhandler(object):
 
         tracking_id = None
         # we misuse header_info_get() to get the tracking id from database
-        pid_list = header_info_get(self.logger, csr=cert_raw, vlist=['poll_identifier'], field_name='cert_raw')
+        cert_recode = b64_url_recode(self.logger, cert_raw)
+        pid_list = header_info_get(self.logger, csr=cert_recode, vlist=['poll_identifier'], field_name='cert_raw')
+
         for ele in pid_list:
             if 'poll_identifier' in ele:
                 tracking_id = ele['poll_identifier']
