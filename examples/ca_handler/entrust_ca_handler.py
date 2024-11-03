@@ -495,30 +495,39 @@ class CAhandler(object):
         """ get certificates """
         self.logger.debug('CAhandler.certificates_get()')
 
+        # set initial values
         offset = 0
-        code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
-
         cert_list = []
-        total = 999
+        prev_data = []
+        total = 1
         while(len(cert_list) < total):
             self.logger.info('fetching certs offset: %s, limit: %s, total: %s, buffered: %s', offset, limit, total, len(cert_list))
             code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
-
-            if code == 200 and offset == 0 and 'summary' in content and 'total' in content['summary']:
-                self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
-                total = content['summary']['total']   # get total number of certificates
-
-            if code == 200 and 'certificates' in content:
-                cert_list.extend(content['certificates'])
-                offset = offset + limit
-
+            if code == 200:
+                # updte loop limit or throw error
+                if offset == 0:
+                    if 'summary' in content and 'total' in content['summary']:
+                        self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
+                        total = content['summary']['total']   # get total number of certificates
+                    else:
+                        self.logger.error('CAhandler.certificates_get() failed did not get any total value: %s', content)
+                        break
+                # extend certificate list or throw error
+                if 'certificates' in content:
+                    # cover cases where we wont get new data as we have to avoid loops
+                    if prev_data == content['certificates']:
+                        self.logger.error('CAhandler.certificates_get() failed to get new data')
+                        break
+                    else:
+                        cert_list.extend(content['certificates'])
+                        prev_data = content['certificates']
+                        offset = offset + limit
             else:
                 self.logger.error('CAhandler.certificates_get() failed with code: %s', code)
                 break
 
         self.logger.debug('CAhandler.certificates_get() ended with code: %s and %s certificate', code, len(cert_list))
         return cert_list
-
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
