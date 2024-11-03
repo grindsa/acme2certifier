@@ -299,6 +299,29 @@ class CAhandler(object):
         self.logger.debug('CAhandler._domainlist_check() ended with: %s', result)
         return result
 
+    def _enroll(self, csr: str) -> Tuple[str, str, str]:
+        """ enroll certificate """
+        self.logger.debug('CAhandler._enroll()')
+        # setup certserv
+        ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+        # check connection and credentials
+        auth_check = self._check_credentials(ca_server)
+
+        if auth_check:
+            # enroll certificate
+            (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+        else:
+            self.logger.error('Connection or Credentialcheck failed')
+            error = 'Connection or Credentialcheck failed.'
+
+        self.logger.debug('CAhandler._enroll() ended with error: %s', error)
+        return (error, cert_bundle, cert_raw)
+
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """ enroll certificate from via MS certsrv """
         self.logger.debug('CAhandler.enroll(%s)', self.template)
@@ -314,24 +337,11 @@ class CAhandler(object):
             result = self._domainlist_check(csr)
 
             if result:
-
                 # check for eab profiling and header_info
                 error = eab_profile_header_info_check(self.logger, self, csr, 'template')
-
                 if not error:
-                    # setup certserv
-                    ca_server = Certsrv(self.host, self.url, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
-                    # check connection and credentials
-                    auth_check = self._check_credentials(ca_server)
-
-                    if auth_check:
-
-                        # enroll certificate
-                        (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
-
-                    else:
-                        self.logger.error('Connection or Credentialcheck failed')
-                        error = 'Connection or Credentialcheck failed.'
+                    # enroll certificate
+                    (error, cert_bundle, cert_raw) = self._enroll(csr)
                 else:
                     self.logger.error('EAB profile check failed')
             else:
