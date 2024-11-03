@@ -262,7 +262,7 @@ class CAhandler(object):
                 if 'client_cert' in config_dic['CAhandler'] and self.cert_passphrase:
                     self.session.mount(self.api_url, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
                 else:
-                    self.logger.error('CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
+                    self.logger.warning('CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
             self.session.auth = (self.username, self.password)
 
         self.logger.debug('CAhandler._config_session_load() ended')
@@ -500,7 +500,7 @@ class CAhandler(object):
         cert_list = []
         prev_data = []
         total = 1
-        while(len(cert_list) < total):
+        while len(cert_list) < total:
             self.logger.info('fetching certs offset: %s, limit: %s, total: %s, buffered: %s', offset, limit, total, len(cert_list))
             code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
             if code == 200:
@@ -515,13 +515,13 @@ class CAhandler(object):
                 # extend certificate list or throw error
                 if 'certificates' in content:
                     # cover cases where we wont get new data as we have to avoid loops
-                    if prev_data == content['certificates']:
-                        self.logger.error('CAhandler.certificates_get() failed to get new data')
-                        break
-                    else:
+                    if prev_data != content['certificates']:
                         cert_list.extend(content['certificates'])
                         prev_data = content['certificates']
                         offset = offset + limit
+                    else:
+                        self.logger.error('CAhandler.certificates_get() failed to get new data')
+                        break
             else:
                 self.logger.error('CAhandler.certificates_get() failed with code: %s', code)
                 break
