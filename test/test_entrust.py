@@ -229,6 +229,14 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._certificates_get_from_serial('serial'))
         self.assertIn('ERROR:test_a2c:CAhandler._certificates_get_from_serial() for serial failed with code: 200', lcm.output)
 
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
+    def test_023_certificates_get_from_serial(self, mock_api):
+        """ test certificates_get_from_serial """
+        mock_api.return_value = (200, {'certificates': ['foo', 'bar']})
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(['foo', 'bar'], self.cahandler._certificates_get_from_serial('0serial'))
+        self.assertIn('INFO:test_a2c:CAhandler._certificates_get_from_serial() remove leading zeros from serial number', lcm.output)
+
     @patch('examples.ca_handler.entrust_ca_handler.config_headerinfo_load')
     @patch('examples.ca_handler.entrust_ca_handler.config_eab_profile_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
