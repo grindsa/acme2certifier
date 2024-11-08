@@ -44,7 +44,8 @@ if __name__ == '__main__':
     LOGGER = logger_setup(DEBUG)
 
     with CAhandler(logger=LOGGER) as ca_handler:
-        if not ca_handler.credential_check():
+        result = ca_handler.credential_check()
+        if not result:
 
             if CONFIG_DIC['revoke']:
                 print("Revoking certificate with transaction_id: ", CONFIG_DIC['revoke'])
@@ -60,5 +61,5 @@ if __name__ == '__main__':
                     if (CONFIG_DIC['filteractive'] and cert['status'] == 'ACTIVE') or not CONFIG_DIC['filteractive']:
                         print(cert)
         else:
-            print("Credential check failed")
+            print("Credential check failed: ", result)
             sys.exit(1)
