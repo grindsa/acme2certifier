@@ -303,7 +303,7 @@ class CAhandler(object):
         """ enroll certificate """
         self.logger.debug('CAhandler._enroll()')
         # setup certserv
-        ca_server = Certsrv(self.host, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
+        ca_server = Certsrv(self.host, self.url, self.user, self.password, self.auth_method, self.ca_bundle, verify=self.verify, proxies=self.proxy)
 
         error = None
         cert_bundle = None
