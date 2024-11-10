@@ -193,7 +193,7 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "Header-info - Setup asa_ca_handler with header-info"
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
       run: |
         sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -879,7 +879,7 @@ jobs:
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
 
-    - name: "Header-info - Setup asa_ca_handler with header-info"
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
       run: |
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -1338,6 +1338,7 @@ jobs:
     - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
+        sudo apt-get install -y docker-compose
         sudo mkdir -p data
         docker network create acme
         docker-compose up -d
