@@ -265,6 +265,7 @@ class CAhandler(object):
             else:
                 self._config_passphrase_load(config_dic)
                 if 'client_cert' in config_dic['CAhandler'] and self.cert_passphrase:
+                    self.logger.debug('CAhandler._config_session_load() cert and passphrase')
                     self.session.mount(self.api_url, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
                 else:
                     self.logger.warning('CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
