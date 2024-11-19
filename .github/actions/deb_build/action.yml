@@ -28,13 +28,13 @@ runs:
         Pin: origin packages.mozilla.org
         Pin-Priority: 1000
         ' | sudo tee /etc/apt/preferences.d/mozilla
-        sudo apt update && sudo apt install firefox
+        sudo apt update && sudo apt install -y firefox --allow-downgrades
       shell: bash
 
     - name: "Prepare environment to build deb package"
       run: |
         sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
+        sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper  --allow-downgrades
         rm setup.py
         rm -f examples/ngnix/acme2certifier.te
         rm -f examples/nginx/supervisord.conf

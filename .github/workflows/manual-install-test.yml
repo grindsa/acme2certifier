@@ -33,6 +33,8 @@ jobs:
 
     - name: "Local modification to get a2c running"
       run: |
+        sudo chmod a+w /etc/hosts
+        sudo echo ${{ env.RUNNER_IP }} acme-srv >> /etc/hosts
         sudo apt-get install -y socat
         sudo sed -i "s/Listen 80/Listen 8080/g" /etc/apache2/ports.conf
         sudo sed -i "s/Listen 443/Listen 1443/g" /etc/apache2/ports.conf
@@ -49,7 +51,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        ACME_SERVER: ${{ env.RUNNER_IP }}
+        ACME_SERVER: acme-srv
         HTTP_PORT: 8080
         HTTPS_PORT: 1443
 
@@ -90,6 +92,8 @@ jobs:
 
     - name: "Local modification to get a2c running"
       run: |
+        sudo chmod a+w /etc/hosts
+        sudo echo ${{ env.RUNNER_IP }} acme-srv >> /etc/hosts
         sudo apt-get install -y socat
         sudo sed -i "s/listen 80/listen 8080/g" /etc/nginx/sites-enabled/acme_srv.conf
         sudo sed -i "s/listen [::]:80/listen [::]:8080/g" /etc/nginx/sites-enabled/acme_srv.conf
@@ -107,7 +111,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        ACME_SERVER: ${{ env.RUNNER_IP }}
+        ACME_SERVER: acme-srv
         HTTP_PORT: 8080
         HTTPS_PORT: 1443
 
@@ -284,6 +288,8 @@ jobs:
 
     - name: "Modfiy configuration to allow certifiate enrollment"
       run: |
+        sudo chmod a+w /etc/hosts
+        sudo echo ${{ env.RUNNER_IP }} acme-srv >> /etc/hosts
         # sudo apt-get install -y socat
         sudo sed -i "s/Listen 80/Listen 8080/g" /etc/apache2/ports.conf
         sudo sed -i "s/Listen 443/Listen 1443/g" /etc/apache2/ports.conf
@@ -300,7 +306,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        ACME_SERVER: ${{ env.RUNNER_IP }}
+        ACME_SERVER: acme-srv
         HTTP_PORT: 8080
         HTTPS_PORT: 1443
 
@@ -403,6 +409,8 @@ jobs:
 
     - name: "Modfiy configuration to allow certifiate enrollment"
       run: |
+        sudo chmod a+w /etc/hosts
+        sudo echo ${{ env.RUNNER_IP }} acme-srv >> /etc/hosts
         sudo sed -i "s/listen 80/listen 8080/g" /etc/nginx/sites-enabled/acme_srv.conf
         sudo sed -i "s/listen [::]:80/listen [::]:8080/g" /etc/nginx/sites-enabled/acme_srv.conf
         sudo sed -i "s/listen 443/listen 1443/g" /etc/nginx/sites-enabled/acme_srv_ssl.conf
@@ -418,7 +426,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        ACME_SERVER: ${{ env.RUNNER_IP }}
+        ACME_SERVER: acme-srv
         HTTP_PORT: 8080
         HTTPS_PORT: 1443
 

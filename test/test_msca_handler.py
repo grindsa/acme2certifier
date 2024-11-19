@@ -796,6 +796,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
+    def test_059__config_url_load(self):
+        """ test _config_url_load()"""
+        config_dic = {'CAhandler': {'url': 'foo'}}
+        self.cahandler._config_url_load(config_dic)
+        self.assertEqual( 'foo', self.cahandler.url)
+
+    @patch.dict('os.environ', {'url_variable': 'foo1'})
+    def test_060__config_url_load(self):
+        """ test _config_url_load()"""
+        config_dic = {'CAhandler': {'url_variable': 'url_variable'}}
+        self.cahandler._config_url_load(config_dic)
+        self.assertEqual( 'foo1', self.cahandler.url)
+
+    @patch.dict('os.environ', {'url_variable': 'foo1'})
+    def test_061__config_url_load(self):
+        """ test _config_url_load()"""
+        config_dic = {'CAhandler': {'url_variable': 'url_variable', 'url': 'foo'}}
+        self.cahandler._config_url_load(config_dic)
+        self.assertEqual( 'foo', self.cahandler.url)
+
+    @patch.dict('os.environ', {'url_variable': 'foo1'})
+    def test_062__config_url_load(self):
+        """ test _config_url_load()"""
+        config_dic = {'CAhandler': {'url_variable': 'doesnotexist'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.cahandler._config_url_load(config_dic)
+        self.assertFalse(self.cahandler.url)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load url_variable:'doesnotexist'", lcm.output)
 
 if __name__ == '__main__':
 
