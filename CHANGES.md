@@ -5,6 +5,28 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.36
+
+**Features and Improvements**:
+
+- [ca handler](docs/digicert.md) using the [DigiCert CertCentral API](https://dev.digicert.com/en/certcentral-apis.html)
+- [ca handler](docs/entrust.md) using the Entrust ECS Enterprise APIl
+- [EAB Profiling support](docs/eab_profiling.md) in Microsoft CA handlers
+- [#187](https://github.com/grindsa/acme2certifier/pull/187) url option for mscertsrv ca handler
+- subject profiling feature
+- [strip down python-impacket module](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md#local-installation) in docker images
+- [strip down impacket RPM package](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel9)
+- YAML config file format supported in [EAB-Profiling feature](docs/eab_profiling.md)
+- Upgrade Container images to Ubuntu 24.04
+
+**Bugfixes**:
+
+- openssl-ca-handler: basicConstraints extension will not be marked as critical anymore
+- openssl-ca-handler: subjectkeyidentifier extension will not be marked as critical anymore
+- fall-back option to python-openssl for Redhat deployments
+- detect and handle django installations on Debian/Ubunto systems
+- automated schema updates in case of RPM updates
+
 # Changes in 0.35
 
 **Features and Improvements**:

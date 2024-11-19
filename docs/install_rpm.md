@@ -31,7 +31,7 @@ Backports of these packages being part of RHEL9 can be found in the [the a2c rpm
 
 Depending on your ca_handler you may need additional modules:
 
-- [python3-impacket-0.11.0-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-1.el8.noarch.rpm) when using [MS wcce handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md)
+- [python3-impacket-0.11.0-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) when using [MS wcce handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md)
 - [python3-ntlm-auth-1.5.0-2.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-ntlm-auth-1.5.0-2.el8.noarch.rpm) when using [MS wse handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mscertsrv.md)
 - [python3-requests_ntlm-1.1.0-14.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-requests_ntlm-1.1.0-14.el8.noarch.rpm) when using [MS wse handler](https://github.com/grindsa/acme2certifier/blob/master/docs/mscertsrv.md)
 - [python3-requests-pkcs12-1.16-1.el8.noarch.rpm](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-requests-pkcs12-1.16-1.el8.noarch.rpm) when using [EST](https://github.com/grindsa/acme2certifier/blob/master/docs/est.md) or [EJBCA](https://github.com/grindsa/acme2certifier/blob/master/docs/ejbca.md) handler
