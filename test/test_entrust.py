@@ -1227,9 +1227,9 @@ class TestACMEHandler(unittest.TestCase):
         response1 = (200, {'certificates': [1, 2, 3, 4]})
         response2 = (200, {'certificates': [5, 6, 7, 8]})
         mock_req.side_effect = [response1, response2]
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertRaises(Exception) as err:
             self.assertFalse(self.cahandler.certificates_get())
-        self.assertIn("ERROR:test_a2c:CAhandler.certificates_get() failed did not get any total value: {'certificates': [1, 2, 3, 4]}", lcm.output)
+        self.assertEqual('Certificates lookup failed: did not get any total value', str(err.exception))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
     def test_098_certificates_get(self, mock_req):
