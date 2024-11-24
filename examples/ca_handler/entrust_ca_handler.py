@@ -504,7 +504,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._total_get()')
         total = 1
 
-        if 'summary' in content and 'total' in content['summary']:
+        if isinstance(content, dict) and 'summary' in content and 'total' in content['summary']:
             self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
             total = content['summary']['total']   # get total number of certificates
         else:
