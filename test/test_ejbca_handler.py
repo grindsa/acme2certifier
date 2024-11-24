@@ -523,7 +523,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session.get.return_value  = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._status_get()
-        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host parameter is misisng in configuration', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._status_get(): api_host parameter is missing in configuration', lcm.output)
 
     def test_051__status_get(self):
         """ test _cert_status_check exception """
