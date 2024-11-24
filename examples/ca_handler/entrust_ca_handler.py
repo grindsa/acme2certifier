@@ -499,6 +499,21 @@ class CAhandler(object):
         self.logger.debug('CAhandler.revoke_by_trackingid() ended with code: %s', code)
         return code, content
 
+    def _total_get(self, content: str) -> int:
+        """ get total number of certificates """
+        self.logger.debug('CAhandler._total_get()')
+        total = 1
+
+        if 'summary' in content and 'total' in content['summary']:
+            self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
+            total = content['summary']['total']   # get total number of certificates
+        else:
+            self.logger.error('CAhandler.certificates_get() failed did not get any total value: %s', content)
+            raise StopIteration('Certificates lookup failed: did not get any total value')
+
+        self.logger.debug('CAhandler._total_get() ended with %s', total)
+        return total
+
     def certificates_get(self, limit=200) -> List[str]:
         """ get certificates """
         self.logger.debug('CAhandler.certificates_get()')
@@ -512,14 +527,10 @@ class CAhandler(object):
             self.logger.info('fetching certs offset: %s, limit: %s, total: %s, buffered: %s', offset, limit, total, len(cert_list))
             code, content = self._api_get(self.api_url + f'/certificates?limit={limit}&offset={offset}')
             if code == 200:
-                # updte loop limit or throw error
                 if offset == 0:
-                    if 'summary' in content and 'total' in content['summary']:
-                        self.logger.debug('CAhandler.certificates_get() total number of certificates: %s', content['summary']['total'])
-                        total = content['summary']['total']   # get total number of certificates
-                    else:
-                        self.logger.error('CAhandler.certificates_get() failed did not get any total value: %s', content)
-                        break
+                    # updte totals or throw error
+                    total = self._total_get(content)
+
                 # extend certificate list or throw error
                 if 'certificates' in content:
                     # cover cases where we wont get new data as we have to avoid loops

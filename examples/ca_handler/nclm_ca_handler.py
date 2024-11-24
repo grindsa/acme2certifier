@@ -73,7 +73,6 @@ class CAhandler(object):
                     # pylint: disable=R1723
                     if 'id' in ca_:
                         ca_id = ca_['id']
-                        # csrenroll = ca_['csrenroll']
                         break
                     else:
                         self.logger.error('ca_id.lookup() policyLinkId field is missing  ...')
@@ -155,7 +154,7 @@ class CAhandler(object):
         cert_id = None
         issuer_loop = False
 
-        if 'urls' in cert_dic and 'issuer' in cert_dic['urls']:
+        if isinstance(cert_dic, dict) and 'urls' in cert_dic and 'issuer' in cert_dic['urls']:
             self.logger.debug('CAhandler._cert_bundle_build() fetch issuer : %s', cert_dic['urls']['issuer'])
             cert_dic = requests.get(self.api_host + cert_dic['urls']['issuer'], headers=self.headers, verify=self.ca_bundle, proxies=self.proxy, timeout=self.request_timeout).json()
             if 'urls' in cert_dic and 'certificate' in cert_dic['urls']:
