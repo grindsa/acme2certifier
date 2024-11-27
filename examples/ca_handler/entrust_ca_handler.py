@@ -8,7 +8,7 @@ import json
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_cn_get, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, csr_san_get, header_info_get, b64_url_recode
+from acme_srv.helper import load_config, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, header_info_get, b64_url_recode, request_operation, csr_cn_lookup
 
 
 CONTENT_TYPE = 'application/json'
@@ -97,19 +97,8 @@ class CAhandler(object):
             'Content-Type': CONTENT_TYPE
         }
 
-        try:
-            api_response = self.session.get(url=url, headers=headers, proxies=self.proxy, timeout=self.request_timeout)
-            code = api_response.status_code
-            try:
-                content = api_response.json()
-            except Exception as err_:
-                self.logger.error('CAhandler._api_get() returned error during json parsing: %s', err_)
-                content = str(err_)
-        except Exception as err_:
-            self.logger.error('CAhandler._api_get() returned error: %s', err_)
-            code = 500
-            content = str(err_)
-
+        code, content = request_operation(self.logger, method='get', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=None)
+        self.logger.debug('CAhandler._api_get() ended with code: %s', code)
         return code, content
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
@@ -118,23 +107,8 @@ class CAhandler(object):
         headers = {
             'Content-Type': CONTENT_TYPE
         }
-
-        try:
-            api_response = self.session.post(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
-            code = api_response.status_code
-            if api_response.text:
-                try:
-                    content = api_response.json()
-                except Exception as err_:
-                    self.logger.error('CAhandler._api_post() returned error during json parsing: %s', err_)
-                    content = str(err_)
-            else:
-                content = None
-        except Exception as err_:
-            self.logger.error('CAhandler._api_post() returned error: %s', err_)
-            code = 500
-            content = str(err_)
-
+        code, content = request_operation(self.logger, method='post', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
+        self.logger.debug('CAhandler._api_post() ended with code: %s', code)
         return code, content
 
     def _api_put(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
@@ -143,23 +117,9 @@ class CAhandler(object):
         headers = {
             'Content-Type': CONTENT_TYPE
         }
+        code, content = request_operation(self.logger, method='put', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
 
-        try:
-            api_response = self.session.put(url=url, headers=headers, json=data, proxies=self.proxy, timeout=self.request_timeout)
-            code = api_response.status_code
-            if api_response.text:
-                try:
-                    content = api_response.json()
-                except Exception as err_:
-                    self.logger.error('CAhandler._api_put() returned error during json parsing: %s', err_)
-                    content = str(err_)
-            else:
-                content = None
-        except Exception as err_:
-            self.logger.error('CAhandler._api_put() returned error: %s', err_)
-            code = 500
-            content = str(err_)
-
+        self.logger.debug('CAhandler._api_put() ended with code: %s', code)
         return code, content
 
     def _certificates_get_from_serial(self, cert_serial: str) -> List[str]:
@@ -272,27 +232,6 @@ class CAhandler(object):
             self.session.auth = (self.username, self.password)
 
         self.logger.debug('CAhandler._config_session_load() ended')
-
-    def _csr_cn_lookup(self, csr: str) -> str:
-        """ lookup  CN/ 1st san from CSR """
-        self.logger.debug('CAhandler._csr_cn_lookup()')
-
-        csr_cn = csr_cn_get(self.logger, csr)
-        if not csr_cn:
-            # lookup first san
-            san_list = csr_san_get(self.logger, csr)
-            if san_list and len(san_list) > 0:
-                for san in san_list:
-                    try:
-                        csr_cn = san.split(':')[1]
-                        break
-                    except Exception as err:
-                        self.logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
-            else:
-                self.logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
-
-        self.logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
-        return csr_cn
 
     def _org_domain_cfg_check(self) -> str:
         """ check organizations """
@@ -462,7 +401,7 @@ class CAhandler(object):
         poll_indentifier = None
 
         # get CN and SANs
-        cn = self._csr_cn_lookup(csr)
+        cn = csr_cn_lookup(self.logger, csr)
 
         # calculate cert expiry date
         certexpirydate = datetime.datetime.now() + datetime.timedelta(days=self.cert_validity_days)
