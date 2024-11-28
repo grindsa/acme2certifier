@@ -16,7 +16,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] SOAP server"
+    - name: "Prepare SOAP server"
       run: |
         sudo mkdir -p examples/Docker/data
         docker network create acme
@@ -38,7 +38,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Build and start SOAP server"
+    - name: "Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
         sudo apt-get install -y docker-compose
@@ -46,25 +46,19 @@ jobs:
         docker-compose -f soap_srv.yml up -d
         docker-compose -f soap_srv.yml logs
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mv ../../.dockerignore.acme ../../.dockerignore
         docker-compose up -d
-        docker-compose logs
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
-
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] setup a2c with pkcs7_ca_handler"
+    - name: "Setup a2c with pkcs7_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo cp test/ca/sub-ca-key.pem examples/Docker/data/key.pem
@@ -82,31 +76,11 @@ jobs:
         cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        docker-compose logs
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
-
-    - name: "[ ENROLL ] lego"
-      run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+      with:
+        REVOCATION: "false"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -135,7 +109,7 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] SOAP server"
+    - name: "Prepare SOAP server"
       run: |
         sudo mkdir -p examples/Docker/data
         docker network create acme
@@ -157,7 +131,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "[ PREPARE ] Build and start SOAP server"
+    - name: "Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
         sudo apt-get install -y docker-compose
@@ -165,25 +139,23 @@ jobs:
         docker-compose -f soap_srv.yml up -d
         docker-compose -f soap_srv.yml logs
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
+    - name: "Build docker-compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mv ../../.dockerignore.acme ../../.dockerignore
         docker-compose up -d
         docker-compose logs
 
-    - name: "[ PREPARE ] create letsencrypt and lego folder"
-      run: |
-        mkdir certbot
-        mkdir lego
-
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "[ PREPARE ] setup a2c with pkcs7_ca_handler"
+    - name: "Setup a2c with pkcs7_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo cp examples/soap/mock_signer.py examples/Docker/data/
@@ -204,31 +176,11 @@ jobs:
         cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        docker-compose logs
 
-    - name: "[ PREPARE ] prepare acme.sh container"
-      run: |
-        sudo mkdir acme-sh
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ REGISTER] certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-    - name: "[ ENROLL ] HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
-
-    - name: "[ ENROLL ] lego"
-      run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+      with:
+        REVOCATION: "false"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

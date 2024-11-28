@@ -1,0 +1,27 @@
+name: "rpm_build_upload"
+description: "Build and Upload package"
+outputs:
+  deb_file_name:
+    description: "Name of the RPM package file"
+    value: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Build deb package"
+    id: deb_build
+    uses: ./.github/actions/deb_build
+
+  - name: "Rename deb package"
+    run: |
+      sudo mv ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb ./acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
+    shell: bash
+
+  - name: "Upload deb package"
+    uses: actions/upload-artifact@v4
+    with:
+      name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
+      path: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
+
+

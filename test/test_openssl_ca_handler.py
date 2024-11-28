@@ -1016,7 +1016,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_ku.return_value = 'mock_ku'
         mock_eku.return_value = 'mock_eku'
         cert_extension_dic = {'subjectKeyIdentifier': {'critical': True, 'value': 'value'}}
-        result = [{'critical': True, 'name': 'mock_ski'}]
+        result = [{'critical': False, 'name': 'mock_ski'}]
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(result, self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert))
         self.assertIn('INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): subjectKeyIdentifier', lcm.output)

@@ -42,12 +42,13 @@ class Certificate(object):
 
     def _account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
         """ check account """
-        self.logger.debug('Certificate.issuer_check()')
+        self.logger.debug('Certificate._account_check()')
         try:
             result = self.dbstore.certificate_account_check(account_name, b64_url_recode(self.logger, certificate))
         except Exception as err_:
             self.logger.critical('acme2certifier database error in Certificate._account_check(): %s', err_)
             result = None
+        self.logger.debug('Certificate._account_check() ended with: %s', result)
         return result
 
     def _authz_check(self, identifier_dic: Dict[str, str], certificate: str) -> List[str]:
@@ -279,7 +280,7 @@ class Certificate(object):
         self.logger.debug('Certificate._csr_check() ended with %s', csr_check_result)
         return csr_check_result
 
-    def _enroll(self, csr: str, ca_handler: object) -> Tuple[str, str, str, str]:
+    def _enroll(self, csr: str) -> Tuple[str, str, str, str]:
         self.logger.debug('Certificate._enroll()')
         if self.cert_reusage_timeframe:
             (error, certificate, certificate_raw, poll_identifier) = self._cert_reusage_check(csr)
@@ -289,7 +290,8 @@ class Certificate(object):
 
         if not certificate or not certificate_raw:
             self.logger.debug('Certificate._enroll(): trigger enrollment')
-            (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
+            with self.cahandler(self.debug, self.logger) as ca_handler:
+                (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
         else:
             self.logger.info('Certificate._enroll(): reuse existing certificate')
 
@@ -320,15 +322,15 @@ class Certificate(object):
             if self.hooks:
                 try:
                     self.hooks.success_hook(certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier)
-                    self.logger.debug('Certificate._enroll_and_store: success_hook successful')
+                    self.logger.debug('Certificate._store: success_hook successful')
                 except Exception as err:
-                    self.logger.error('Certificate._enroll_and_store: success_hook exception: %s', err)
+                    self.logger.error('Certificate._store: success_hook exception: %s', err)
                     if not self.ignore_success_hook_failure:
                         error = (None, 'success_hook_error', str(err))
 
         except Exception as err_:
             result = None
-            self.logger.critical('acme2certifier database error in Certificate._enroll_and_store(): %s', err_)
+            self.logger.critical('acme2certifier database error in Certificate._store(): %s', err_)
 
         self.logger.error('Certificate._store() ended')
         return (result, error)
@@ -363,9 +365,9 @@ class Certificate(object):
         if self.hooks:
             try:
                 self.hooks.pre_hook(certificate_name, order_name, csr)
-                self.logger.debug('Certificate._enroll_and_store(): pre_hook successful')
+                self.logger.debug('Certificate._pre_hooks_process(): pre_hook successful')
             except Exception as err:
-                self.logger.error('Certificate._enroll_and_store(): pre_hook exception: %s', err)
+                self.logger.error('Certificate._pre_hooks_process(): pre_hook exception: %s', err)
                 if not self.ignore_pre_hook_failure:
                     hook_error = (None, 'pre_hook_error', str(err))
 
@@ -373,15 +375,15 @@ class Certificate(object):
         return hook_error
 
     def _post_hooks_process(self, certificate_name: str, order_name: str, csr: str, error: str) -> List[str]:
-        self.logger.debug('Certificate._pre_hooks_process(%s, %s', certificate_name, order_name)
+        self.logger.debug('Certificate._post_hooks_process(%s, %s', certificate_name, order_name)
 
         hook_error = []
         if self.hooks:
             try:
                 self.hooks.post_hook(certificate_name, order_name, csr, error)
-                self.logger.debug('Certificate._enroll_and_store(): post_hook successful')
+                self.logger.debug('Certificate._post_hooks_process(): post_hook successful')
             except Exception as err:
-                self.logger.error('Certificate._enroll_and_store(): post_hook exception: %s', err)
+                self.logger.error('Certificate._post_hooks_process(): post_hook exception: %s', err)
                 if not self.ignore_post_hook_failure:
                     hook_error = (None, 'post_hook_error', str(err))
 
@@ -399,18 +401,16 @@ class Certificate(object):
         if hook_error:
             return hook_error
 
-        with self.cahandler(self.debug, self.logger) as ca_handler:
+        # enroll certificate
+        (error, certificate, certificate_raw, poll_identifier) = self._enroll(csr)
 
-            # enroll certificate
-            (error, certificate, certificate_raw, poll_identifier) = self._enroll(csr, ca_handler)
-
-            if certificate:
-                (result, error) = self._store(certificate, certificate_raw, poll_identifier, certificate_name, order_name, csr)
-                if error:
-                    return error
-            else:
-                self.logger.error('acme2certifier enrollment error: %s', error)
-                (result, error, detail) = self._enrollerror_handler(error, poll_identifier, order_name, certificate_name)
+        if certificate:
+            (result, error) = self._store(certificate, certificate_raw, poll_identifier, certificate_name, order_name, csr)
+            if error:
+                return error
+        else:
+            self.logger.error('acme2certifier enrollment error: %s', error)
+            (result, error, detail) = self._enrollerror_handler(error, poll_identifier, order_name, certificate_name)
 
         hook_error = self._post_hooks_process(certificate_name, order_name, csr, error)
         if hook_error:
@@ -788,6 +788,7 @@ class Certificate(object):
         # only continue if self.csr_check returned True
         if csr_check_result:
             twrv = ThreadWithReturnValue(target=self._enroll_and_store, args=(certificate_name, csr, order_name))
+            twrv.daemon = True
             twrv.start()
             enroll_result = twrv.join(timeout=self.enrollment_timeout)
             self.logger.debug('Certificate.enroll_and_store() ThreadWithReturnValue ended')

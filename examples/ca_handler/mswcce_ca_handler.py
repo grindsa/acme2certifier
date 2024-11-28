@@ -17,7 +17,9 @@ from acme_srv.helper import (
     proxy_check,
     build_pem_file,
     header_info_get,
-    allowed_domainlist_check
+    allowed_domainlist_check,
+    eab_profile_header_info_check,
+    config_eab_profile_load
 )
 
 
@@ -39,6 +41,8 @@ class CAhandler(object):
         self.allowed_domainlist = []
         self.header_info_field = None
         self.timeout = 5
+        self.eab_handler = None
+        self.eab_profiling = False
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -161,6 +165,8 @@ class CAhandler(object):
             self._config_host_load(config_dic)
             self._config_credentials_load(config_dic)
             self._config_parameters_load(config_dic)
+            # load profiling
+            self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
@@ -224,12 +230,6 @@ class CAhandler(object):
         """ check if csr is allowed """
         self.logger.debug('CAhandler._csr_check()')
 
-        # lookup http header information from request
-        if self.header_info_field:
-            user_template = self._template_name_get(csr)
-            if user_template:
-                self.template = user_template
-
         if self.allowed_domainlist:
             if self.allowed_domainlist != 'ADLFAILURE':
                 # check sans / cn against list of allowed comains from config
@@ -241,6 +241,50 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._csr_check() ended with: %s', result)
         return result
+
+    def _enroll(self, csr: str) -> Tuple[str, str, str]:
+        """enroll certificate via MS-WCCE"""
+        self.logger.debug("CAhandler._enroll(%s)", self.template)
+        error = None
+        cert_raw = None
+        cert_bundle = None
+
+        # create request
+        request = self.request_create()
+
+        # reformat csr
+        csr = build_pem_file(self.logger, None, csr, 64, True)
+
+        # pylint: disable=W0511
+        # currently getting certificate chain is not supported
+        ca_pem = self._file_load(self.ca_bundle)
+
+        try:
+            # request certificate
+            cert_raw = convert_byte_to_string(
+                request.get_cert(convert_string_to_byte(csr))
+            )
+            # replace crlf with lf
+            cert_raw = cert_raw.replace("\r\n", "\n")
+        except Exception as err_:
+            cert_raw = None
+            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+
+        if cert_raw:
+            if ca_pem:
+                cert_bundle = cert_raw + ca_pem
+            else:
+                cert_bundle = cert_raw
+
+            cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
+            cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
+            cert_raw = cert_raw.replace("\n", "")
+        else:
+            self.logger.error("cert bundling failed")
+            error = "cert bundling failed"
+
+        self.logger.debug("CAhandler._enroll() ended with error: %s", error)
+        return error, cert_raw, cert_bundle
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate via MS-WCCE"""
@@ -257,39 +301,16 @@ class CAhandler(object):
         result = self._csr_check(csr)
 
         if result:
-            # create request
-            request = self.request_create()
 
-            # recode csr
-            csr = build_pem_file(self.logger, None, csr, 64, True)
+            # check for eab profiling and header_info
+            error = eab_profile_header_info_check(self.logger, self, csr, 'template')
 
-            # pylint: disable=W0511
-            # currently getting certificate chain is not supported
-            ca_pem = self._file_load(self.ca_bundle)
+            if not error:
+                # enroll certificate
+                (error, cert_raw, cert_bundle) = self._enroll(csr)
 
-            try:
-                # request certificate
-                cert_raw = convert_byte_to_string(
-                    request.get_cert(convert_string_to_byte(csr))
-                )
-                # replace crlf with lf
-                cert_raw = cert_raw.replace("\r\n", "\n")
-            except Exception as err_:
-                cert_raw = None
-                self.logger.error("ca_server.get_cert() failed with error: %s", err_)
-
-            if cert_raw:
-                if ca_pem:
-                    cert_bundle = cert_raw + ca_pem
-                else:
-                    cert_bundle = cert_raw
-
-                cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
-                cert_raw = cert_raw.replace("\n", "")
             else:
-                self.logger.error("cert bundling failed")
-                error = "cert bundling failed"
+                self.logger.error('EAB profile check failed')
         else:
             self.logger.error('SAN/CN check failed')
             error = 'SAN/CN check failed'
