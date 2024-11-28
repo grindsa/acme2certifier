@@ -1862,7 +1862,8 @@ def eab_profile_string_check(logger, cahandler, key, value):
 
     logger.debug('Helper.eab_profile_string_check() ended')
 
-def request_operation(logger: logging.Logger, headers: Dict[str, str] = {}, proxy: Dict[str, str] = {}, timeout: int = 20, url: str = None, session=requests, method: str = 'GET', payload: Dict[str, str] = None):
+
+def request_operation(logger: logging.Logger, headers: Dict[str, str] = None, proxy: Dict[str, str] = None, timeout: int = 20, url: str = None, session=requests, method: str = 'GET', payload: Dict[str, str] = None):
     """ check if a for a string value taken from profile if its a variable inside a class and apply value """
     logger.debug('Helper.api_operation(): method: %s', method)
 

@@ -4,7 +4,8 @@
 
 ## Pre-requisites
 
-- NCLM 19.0.0 or higher needs to be up and running
+- NCLM 24.2.0 or higher needs to be up and running
+- the external REST-API needs to be enabled
 - username and password to access NCLM via REST-Service
 - is a container created in NCLM which can be used to store the certificates
 
