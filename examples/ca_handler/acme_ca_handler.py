@@ -80,8 +80,10 @@ class CAhandler(object):
         self.email = config_dic['CAhandler'].get('acme_account_email', None)
 
         if 'ssl_verify' in config_dic['CAhandler']:
-            self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
-
+            try:
+                self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse ssl_verify: %s', err)
         self.logger.debug('CAhandler._config_account_load() ended')
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
