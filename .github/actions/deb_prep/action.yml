@@ -1,0 +1,85 @@
+name: "deb_prep"
+description: "Prepare environment for deb installation"
+inputs:
+  GH_SBOM_USER:
+    description: "GIT user for SBOM repo"
+    required: true
+  GH_SBOM_TOKEN:
+    description: "GIT token for SBOM repo"
+    required: true
+  DJANGO_DB:
+    description: "Django database"
+  DEB_BUILD:
+    description: "Build DEB"
+    required: true
+    default: "true"
+  NAME_SPACE:
+    description: "Name space"
+    required: true
+    default: "acme"
+  IPV6:
+    description: "IPv6"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Build deb package"
+      if: inputs.DEB_BUILD == 'true'
+      id: deb_build
+      uses: ./.github/actions/deb_build
+
+    - name: "Setup environment for ubuntu installation"
+      run: |
+        echo "IPv6 is $IPV6"
+        if [ "$IPV6" == "false" ]; then
+          echo "create v4 namespace"
+          docker network create $NAME_SPACE
+        else
+          echo "create v6 namespace"
+          docker network create $NAME_SPACE --ipv6 --subnet "fdbb:6445:65b4:0a60::/64"
+        fi
+        sudo mkdir -p data/volume/acme2certifier
+        sudo mkdir -p data/nginx
+        sudo chmod -R 777 data
+        sudo cp examples/Docker/ubuntu-systemd/deb_tester.sh data
+        sudo cp examples/Docker/ubuntu-systemd/django_tester.sh data
+        sudo cp .github/acme2certifier_cert.pem data/volume/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem data/volume/acme2certifier_key.pem
+        sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
+
+        if [ -z "$DJANGO_DB" ]; then
+            sudo cp .github/django_settings.py data/volume/acme2certifier/settings.py
+        else
+            sudo cp .github/django_settings_$DJANGO_DB.py data/volume/acme2certifier/settings.py
+        fi
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IPV6: ${{ inputs.IPV6 }}
+      shell: bash
+
+    - name: "Instanciate Ubuntu 22.04"
+      run: |
+        docker run -d --name acme-srv --network $NAME_SPACE --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Postgres"
+      if: inputs.DJANGO_DB == 'psql'
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+
+
+

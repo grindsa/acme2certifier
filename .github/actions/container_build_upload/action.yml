@@ -1,0 +1,37 @@
+name: "container_build_upload"
+description: "Build and Upload Container"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Build container"
+    uses: ./.github/actions/container_build
+    with:
+      DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      WEB_SRV: ${{ inputs.WEB_SRV }}
+
+  - name: "Save container"
+    run: |
+      docker images
+      mkdir -p /tmp/a2c
+      docker save acme2certifier/$DB_HANDLER > /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
+      gzip /tmp/a2c/a2c-${{ github.run_id }}.$WEB_SRV.$DB_HANDLER.tar
+    shell: bash
+    env:
+      DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      WEB_SRV: ${{ inputs.WEB_SRV }}
+
+  - name: "Upload container package"
+    uses: actions/upload-artifact@master
+    with:
+      name: a2c-${{ github.run_id }}.${{ inputs.WEB_SRV }}.${{ inputs.DB_HANDLER }}.tar.gz
+      path: /tmp/a2c

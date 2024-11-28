@@ -16,14 +16,16 @@ def initialize():  # nopep8
     import django
     # pylint: disable=E1101
     django.setup()
+    return django.VERSION[0]
 
 
-initialize()
+DJANGO_VERSION = initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
 from django.db.models import QuerySet  # nopep8
 from acme_srv.models import Account, Authorization, Cahandler, Certificate, Challenge, Cliaccount, Housekeeping, Nonce, Order, Status  # nopep8
-import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
+if DJANGO_VERSION < 4:
+    import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
 
 class DBstore(object):
@@ -80,7 +82,7 @@ class DBstore(object):
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup(%s:%s)', mkey, value)
         account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name', 'contact', 'alg', 'created_at')[:1]
-        if account_dict:
+        if account_dict.exists():
             result = account_dict[0]
         else:
             result = None
@@ -152,7 +154,7 @@ class DBstore(object):
         if 'status' in data_dic:
             data_dic['status'] = self._status_getinstance(data_dic['status'], 'name')
 
-        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
+        if DJANGO_VERSION < 4 and settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.authorization_update(): patching transaction to transform all atomic blocks into immediate transactions')
             with transaction.atomic(immediate=True):
                 # update authorization
@@ -183,7 +185,7 @@ class DBstore(object):
         """ search cahandler for a given id """
         self.logger.debug('DBStore.cahandler_lookup(%s:%s)', mkey, value)
         cahandler_dict = Cahandler.objects.filter(**{mkey: value}).values('name', 'value1', 'value2', 'created_at')[:1]
-        if cahandler_dict:
+        if cahandler_dict.exists():
             result = cahandler_dict[0]
         else:
             result = None
@@ -199,7 +201,7 @@ class DBstore(object):
         # replace orderstatus with an instance
         data_dic['status'] = self._status_getinstance(data_dic['status'])
 
-        if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
+        if DJANGO_VERSION < 4 and settings.DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3':
             self.logger.debug('DBStore.challenge_add(): patching transaction to transform all atomic blocks into immediate transactions')
             with transaction.atomic(immediate=True):
                 obj, _created = Challenge.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -327,7 +329,7 @@ class DBstore(object):
         self.logger.debug('DBStore.cli_jwk_load(%s)', aname)
         account_dict = Cliaccount.objects.filter(name=aname).values('reportadmin', 'cliadmin', 'certificateadmin')[:1]
         permissions_dict = {}
-        if account_dict:
+        if account_dict.exists():
             permissions_dict = account_dict[0]
         return permissions_dict
 

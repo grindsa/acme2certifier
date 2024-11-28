@@ -12,9 +12,19 @@ spec:
       labels:
         app: webserver-app
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: webserver-app
           image: nginx:1.8
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+              ephemeral-storage: "1Gi"
 ---
 apiVersion: v1
 kind: Service

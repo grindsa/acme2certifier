@@ -1,0 +1,31 @@
+name: "container_build"
+description: "Build Container"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker-compose file"
+    required: false
+    default: "examples/Docker/"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        sudo apt-get install -y docker-compose
+        sed -i "s/wsgi/$DB_HANDLER/g" .env
+        sed -i "s/apache2/$WEB_SRV/g" .env
+        # cat .env
+        docker-compose build
+      shell: bash
+      env:
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
