@@ -62,6 +62,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
+        VERIFY_CERT: false
 
     - name: "Generate UUID"
       run: |
@@ -91,10 +92,10 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         mkdir -p ${{ github.workspace }}/artifact/clients
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/certbot/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/lego/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data clients
@@ -193,6 +194,7 @@ jobs:
       uses: ./.github/actions/acme_clients
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
+        VERIFY_CERT: false
 
     - name: "Generate UUID"
       run: |
@@ -239,10 +241,10 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/clients
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo cp *.pem ${{ github.workspace }}/artifact/data/
+        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/certbot/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/lego/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
         sudo rm ${{ github.workspace }}/artifact/data/*.rpm
         docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf

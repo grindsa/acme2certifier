@@ -97,6 +97,7 @@ class Challenge(object):
         for _ele in range(0, 5):
 
             result, invalid = self._challenge_validate_loop(challenge_name, challenge_dic, payload, jwk_thumbprint)
+            # pylint: disable=r1723
             if result or invalid:
                 # break loop if we got any good or bad response
                 break

@@ -26,12 +26,12 @@ eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: volume/kid_profiles.json
 ```
 
-The `key_file` allows the specification enrollmenmt parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below an example configuration to be used for [Insta Certifier](certifier.md) with some explaination:
+The `key_file` allows the specification enrollmenmt parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:
 
 ```json
 {
   "keyid_00": {
-    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "hmac": "hmac-key",
     "cahandler": {
       "profile_id": "profile_1",
       "allowed_domainlist": ["*.example.com", "*.example.org", "*.example.fi"],
@@ -41,14 +41,14 @@ The `key_file` allows the specification enrollmenmt parameters per (external) ac
     }
   },
   "keyid_01": {
-    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "hmac": "hmac-key",
     "cahandler": {
       "profile_id": ["profile_1", "profile_2", "profile_3"],
-      "allowed_domainlist": ["*.example.fi", "*.acme"],
+      "allowed_domainlist": ["*.example.fi", "*.acme"]
     }
   },
   "keyid_02": {
-    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+    "hmac": "hmac-key"
   }
 }
 ```
@@ -56,6 +56,75 @@ The `key_file` allows the specification enrollmenmt parameters per (external) ac
 - Acme-accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SAN/Common names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
 - Acme-accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment paramters will be taken from acme_srv.cfg
 - Acme-accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg`
+
+Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality than the above json configuration
+
+```yaml
+---
+{
+---
+keyid_00:
+  hmac: "hmac-key"
+  cahandler:
+    profile_id: "profile_1"
+    allowed_domainlist:
+    - "*.example.com"
+    - "*.example.org"
+    - "*.example.fi"
+    ca_name: "non_default_ca"
+    api_user: "non_default_api_user"
+    api_password: "api_password"
+keyid_01:
+  hmac: "hmac-key"
+  cahandler:
+    profile_id:
+    - "profile_1"
+    - "profile_2"
+    - "profile_3"
+    allowed_domainlist:
+    - "*.example.fi"
+    - "*.acme"
+keyid_02:
+  hmac: "hmac-key"
+```
+
+## subject profiling
+
+Starting from v0.36 the eab-profiling feature can be used to check and white-list the certificate subject DN.
+
+Attribute names must follow [RFC3039](https://www.rfc-editor.org/rfc/rfc3039.html#section-3.1.2); every RDN can be white-listed as:
+
+- string - attribute in CSR DN must match this value
+- list - attribute in CSR DN must match one of the list entries
+- "*" - any value matches as long as the attribute is present
+
+The below example configuration will only allow CSR matching the following ciriterias:
+
+- serial number can be of any value but must be included
+- organizationalUnitName must be either "acme1" or "acme2"
+- organizationName must be "acme corp"
+- countryName must be "AC"
+- additional CSR DN such as localityName or stateOrProvinceName are not allowed
+
+```json
+...
+{
+  "keyid_00": {
+    "hmac": "hmac-key",
+    "cahandler": {
+      "template_name": ["template", "acme"],
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "subject": {
+        "serialNumber": "*",
+        "organizationName": "acme corp",
+        "organizationalUnitName": ["acme1", "acme2"],
+        "countryName": "AC"
+       }
+    }
+  }
+}
+...
+```
 
 ## Profile verification
 

@@ -82,7 +82,7 @@ class DBstore(object):
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup(%s:%s)', mkey, value)
         account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name', 'contact', 'alg', 'created_at')[:1]
-        if account_dict:
+        if account_dict.exists():
             result = account_dict[0]
         else:
             result = None
@@ -185,7 +185,7 @@ class DBstore(object):
         """ search cahandler for a given id """
         self.logger.debug('DBStore.cahandler_lookup(%s:%s)', mkey, value)
         cahandler_dict = Cahandler.objects.filter(**{mkey: value}).values('name', 'value1', 'value2', 'created_at')[:1]
-        if cahandler_dict:
+        if cahandler_dict.exists():
             result = cahandler_dict[0]
         else:
             result = None
@@ -329,7 +329,7 @@ class DBstore(object):
         self.logger.debug('DBStore.cli_jwk_load(%s)', aname)
         account_dict = Cliaccount.objects.filter(name=aname).values('reportadmin', 'cliadmin', 'certificateadmin')[:1]
         permissions_dict = {}
-        if account_dict:
+        if account_dict.exists():
             permissions_dict = account_dict[0]
         return permissions_dict
 

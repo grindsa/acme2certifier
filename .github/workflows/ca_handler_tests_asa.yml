@@ -196,7 +196,7 @@ jobs:
       with:
         PROFILE: ${{ secrets.ASA_PROFILE1 }}
 
-    - name: "Header-info - Setup asa_ca_handler with header-info"
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
       run: |
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
@@ -446,7 +446,7 @@ jobs:
       with:
         PROFILE: ${{ secrets.ASA_PROFILE1 }}
 
-    - name: "Header-info - Setup asa_ca_handler with header-info"
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
       run: |
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -600,3 +600,4 @@ jobs:
       with:
         name: asa_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
