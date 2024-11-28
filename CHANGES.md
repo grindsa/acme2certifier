@@ -9,6 +9,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- refactored [NCLM ca handler](docs/nclm.md) using the external REST-API
 - [ca handler](docs/digicert.md) using the [DigiCert CertCentral API](https://dev.digicert.com/en/certcentral-apis.html)
 - [ca handler](docs/entrust.md) using the Entrust ECS Enterprise APIl
 - [EAB Profiling support](docs/eab_profiling.md) in Microsoft CA handlers
