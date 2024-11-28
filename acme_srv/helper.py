@@ -437,6 +437,7 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
 def cryptography_version_get(logger: logging.Logger) -> int:
     """ get version number of cryptography module """
     logger.debug('Helper.cryptography_version_get()')
+    # pylint: disable=c0415
     import cryptography
 
     try:
@@ -484,7 +485,7 @@ def cert_extensions_py_openssl_get(logger, certificate, recode=True):
         ext = cert.get_extension(i)
         extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
 
-    logger.debug('cert_extensions_py_openssl_get() ended with: {0}'.format(extension_list))
+    logger.debug('cert_extensions_py_openssl_get() ended with: %s', extension_list)
     return extension_list
 
 
@@ -648,6 +649,22 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
 
     logger.debug('Helper.csr_extensions_get() ended with: %s', extension_list)
     return extension_list
+
+
+def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
+    """ get subject from csr as a list of tuples """
+    logger.debug('Helper.csr_subject_get()')
+    # pylint: disable=w0212
+
+    csr_obj = csr_load(logger, csr)
+    subject_dic = {}
+    # get subject and look for common name
+    subject = csr_obj.subject
+    for attr in subject:
+        subject_dic[attr.oid._name] = attr.value
+
+    logger.debug('Helper.csr_subject_get() ended')
+    return subject_dic
 
 
 def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
@@ -814,14 +831,14 @@ def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
     return result
 
 
-def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 'name', 'header_info')) -> List[str]:
+def header_info_get(logger: logging.Logger, csr: str, vlist: List[str] = ('id', 'name', 'header_info'), field_name: str = 'csr') -> List[str]:
     """ lookup header information """
     logger.debug('Helper.header_info_get()')
 
     try:
         from acme_srv.db_handler import DBstore  # pylint: disable=c0415
         dbstore = DBstore(logger=logger)
-        result = dbstore.certificates_search('csr', csr, vlist)
+        result = dbstore.certificates_search(field_name, csr, vlist)
     except Exception as err:
         result = []
         logger.error('Helper.header_info_get(): error: %s', err)
@@ -1708,6 +1725,75 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
     return error
 
 
+def cn_validate(logger: logging.Logger, cn: str) -> bool:
+    """ validate common name """
+    logger.debug('Helper.cn_validate(%s)', cn)
+
+    error = False
+    if cn:
+        # check if CN is a valid IP address
+        result = validate_ip(logger, cn)
+        if not result:
+            # check if CN is a valid fqdn
+            result = validate_fqdn(logger, cn)
+        if not result:
+            error = 'Profile subject check failed: CN validation failed'
+    else:
+        error = 'Profile subject check failed: commonName missing'
+
+    logger.debug('Helper.cn_validate() ended with: %s', error)
+    return error
+
+
+def eab_profile_subject_string_check(logger: logging.Logger, profile_subject_dic, key: str, value: str) -> str:
+    """ check if a for a string value taken from profile if its a variable inside a class and apply value """
+    logger.debug('Helper.eab_profile_subject_string_check(): string: key: %s, value: %s', key, value)
+
+    error = False
+    if key == 'commonName':
+        # check if CN is a valid IP address or fqdn
+        error = cn_validate(logger, value)
+    elif key in profile_subject_dic:
+        if isinstance(profile_subject_dic[key], str) and (value == profile_subject_dic[key] or profile_subject_dic[key] == '*'):
+            logger.debug('Helper.eab_profile_subject_check() successul for string : %s', key)
+            del profile_subject_dic[key]
+        elif isinstance(profile_subject_dic[key], list) and value in profile_subject_dic[key]:
+            logger.debug('Helper.eab_profile_subject_check() successul for list : %s', key)
+            del profile_subject_dic[key]
+        else:
+            logger.error('Helper.eab_profile_subject_check() failed for: %s: value: %s expected: %s', key, value, profile_subject_dic[key])
+            error = f'Profile subject check failed for {key}'
+    else:
+        logger.error('Helper.eab_profile_subject_check() failed for: %s', key)
+        error = f'Profile subject check failed for {key}'
+
+    logger.debug('Helper.eab_profile_subject_string_check() ended')
+    return error
+
+
+def eab_profile_subject_check(logger: logging.Logger, csr: str, profile_subject_dic: str) -> str:
+    """ check subject against profile information"""
+    logger.debug('Helper.eab_profile_subject_check()')
+    error = None
+
+    # get subject from csr
+    subject_dic = csr_subject_get(logger, csr)
+
+    # check if all profile subject entries are in csr
+    for key, value in subject_dic.items():
+        error = eab_profile_subject_string_check(logger, profile_subject_dic, key, value)
+        if error:
+            break
+
+    # check if we have any entries left in the profile_subject_dic
+    if not error and profile_subject_dic:
+        logger.error('Helper.eab_profile_subject_check() failed for: %s', list(profile_subject_dic.keys()))
+        error = 'Profile subject check failed'
+
+    logger.debug('Helper.eab_profile_subject_check() ended with: %s', error)
+    return error
+
+
 def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifield: str) -> str:
     """ check eab profile"""
     logger.debug('Helper.eab_profile_check()')
@@ -1716,7 +1802,9 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
     with cahandler.eab_handler(logger) as eab_handler:
         eab_profile_dic = eab_handler.eab_profile_get(csr)
         for key, value in eab_profile_dic.items():
-            if isinstance(value, str):
+            if key == 'subject':
+                result = eab_profile_subject_check(logger, csr, value)
+            elif isinstance(value, str):
                 eab_profile_string_check(logger, cahandler, key, value)
             elif isinstance(value, list):
                 # check if we need to execute a function from the handler
@@ -1724,8 +1812,8 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
                     result = cahandler.eab_profile_list_check(eab_handler, csr, key, value)
                 else:
                     result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
-                if result:
-                    break
+            if result:
+                break
 
         # we need to reject situations where profiling is enabled but the header_hifiled is not defined in json
         if cahandler.header_info_field and handler_hifield not in eab_profile_dic:
@@ -1773,3 +1861,59 @@ def eab_profile_string_check(logger, cahandler, key, value):
         logger.error('Helper.eab_profile_string_check(): ignore string attribute: key: %s value: %s', key, value)
 
     logger.debug('Helper.eab_profile_string_check() ended')
+
+
+def request_operation(logger: logging.Logger, headers: Dict[str, str] = None, proxy: Dict[str, str] = None, timeout: int = 20, url: str = None, session=requests, method: str = 'GET', payload: Dict[str, str] = None):
+    """ check if a for a string value taken from profile if its a variable inside a class and apply value """
+    logger.debug('Helper.api_operation(): method: %s', method)
+
+    try:
+        if method.lower() == 'get':
+            api_response = session.get(url=url, headers=headers, proxies=proxy, timeout=timeout)
+        elif method.lower() == 'post':
+            api_response = session.post(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
+        elif method.lower() == 'put':
+            api_response = session.put(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
+        else:
+            logger.error('unknown request method: %s', method)
+            api_response = None
+
+        code = api_response.status_code
+        if api_response.text:
+            try:
+                content = api_response.json()
+            except Exception as err_:
+                logger.error('request_operation returned error during json parsing: %s', err_)
+                content = str(err_)
+        else:
+            content = None
+
+    except Exception as err_:
+        logger.error('request_operation returned error: %s', err_)
+        code = 500
+        content = str(err_)
+
+    logger.debug('Helper.request_operation() ended with: %s', code)
+    return code, content
+
+
+def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
+    """ lookup  CN/ 1st san from CSR """
+    logger.debug('CAhandler._csr_cn_lookup()')
+
+    csr_cn = csr_cn_get(logger, csr)
+    if not csr_cn:
+        # lookup first san
+        san_list = csr_san_get(logger, csr)
+        if san_list and len(san_list) > 0:
+            for san in san_list:
+                try:
+                    csr_cn = san.split(':')[1]
+                    break
+                except Exception as err:
+                    logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+        else:
+            logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
+
+    logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
+    return csr_cn
