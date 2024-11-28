@@ -1862,17 +1862,17 @@ def eab_profile_string_check(logger, cahandler, key, value):
 
     logger.debug('Helper.eab_profile_string_check() ended')
 
-def request_operation(logger: logging.Logger, headers: Dict[str, str], proxy: Dict[str, str] = {}, timeout: int = 20, url: str = None, method: str = 'GET', payload: Dict[str, str] = None):
+def request_operation(logger: logging.Logger, headers: Dict[str, str] = {}, proxy: Dict[str, str] = {}, timeout: int = 20, url: str = None, session=requests, method: str = 'GET', payload: Dict[str, str] = None):
     """ check if a for a string value taken from profile if its a variable inside a class and apply value """
     logger.debug('Helper.api_operation(): method: %s', method)
 
     try:
         if method.lower() == 'get':
-            api_response = requests.get(url=url, headers=headers, proxies=proxy, timeout=timeout)
+            api_response = session.get(url=url, headers=headers, proxies=proxy, timeout=timeout)
         elif method.lower() == 'post':
-            api_response = requests.post(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
+            api_response = session.post(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
         elif method.lower() == 'put':
-            api_response = requests.put(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
+            api_response = session.put(url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload)
         else:
             logger.error('unknown request method: %s', method)
             api_response = None
@@ -1882,17 +1882,17 @@ def request_operation(logger: logging.Logger, headers: Dict[str, str], proxy: Di
             try:
                 content = api_response.json()
             except Exception as err_:
-                logger.error('CAhandler._api_get() returned error during json parsing: %s', err_)
+                logger.error('request_operation returned error during json parsing: %s', err_)
                 content = str(err_)
         else:
             content = None
 
     except Exception as err_:
-        logger.error('CAhandler._api_get() returned error: %s', err_)
+        logger.error('request_operation returned error: %s', err_)
         code = 500
         content = str(err_)
 
-    logger.debug('Helper.api_operation() ended with: %s', code)
+    logger.debug('Helper.request_operation() ended with: %s', code)
     return code, content
 
 
