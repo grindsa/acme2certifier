@@ -97,7 +97,7 @@ class CAhandler(object):
             'Content-Type': CONTENT_TYPE
         }
 
-        code, content = request_operation(self.logger, method='get', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=None)
+        code, content = request_operation(self.logger, session=self.session, method='get', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=None)
         self.logger.debug('CAhandler._api_get() ended with code: %s', code)
         return code, content
 
@@ -107,7 +107,7 @@ class CAhandler(object):
         headers = {
             'Content-Type': CONTENT_TYPE
         }
-        code, content = request_operation(self.logger, method='post', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
+        code, content = request_operation(self.logger, session=self.session, method='post', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
         self.logger.debug('CAhandler._api_post() ended with code: %s', code)
         return code, content
 
@@ -117,7 +117,7 @@ class CAhandler(object):
         headers = {
             'Content-Type': CONTENT_TYPE
         }
-        code, content = request_operation(self.logger, method='put', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
+        code, content = request_operation(self.logger, session=self.session, method='put', url=url, headers=headers, proxy=self.proxy, timeout=self.request_timeout, payload=data)
 
         self.logger.debug('CAhandler._api_put() ended with code: %s', code)
         return code, content

@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check, csr_cn_lookup
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check, csr_cn_lookup, request_operation
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -127,6 +127,7 @@ class TestACMEHandler(unittest.TestCase):
         self.eab_profile_subject_string_check = eab_profile_subject_string_check
         self.eab_profile_subject_check = eab_profile_subject_check
         self.csr_cn_lookup = csr_cn_lookup
+        self.request_operation = request_operation
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -3105,6 +3106,118 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.csr_cn_lookup(self.logger, 'csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() no SANs found in CSR', lcm.output)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_063_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = lambda: {'get': 'get'}
+        mock_get.return_value = mockresponse_get
+        mockresponse_post = Mock()
+        mockresponse_post.status_code = 'status_code'
+        mockresponse_post.json = lambda: {'post': 'post'}
+        mock_post.return_value = mockresponse_post
+        mockresponse_put = Mock()
+        mockresponse_put.status_code = 'status_code'
+        mockresponse_put.json = lambda: {'put': 'put'}
+        mock_put.return_value = mockresponse_put
+        self.assertEqual(('status_code', {'get': 'get'}), self.request_operation(logger=self.logger, url='foo', method='get'))
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_put.called)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_064_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = lambda: {'get': 'get'}
+        mock_get.return_value = mockresponse_get
+        mockresponse_post = Mock()
+        mockresponse_post.status_code = 'status_code'
+        mockresponse_post.json = lambda: {'post': 'post'}
+        mock_post.return_value = mockresponse_post
+        mockresponse_put = Mock()
+        mockresponse_put.status_code = 'status_code'
+        mockresponse_put.json = lambda: {'put': 'put'}
+        mock_put.return_value = mockresponse_put
+        self.assertEqual(('status_code', {'post': 'post'}), self.request_operation(logger=self.logger, url='foo', method='post'))
+        self.assertFalse(mock_get.called)
+        self.assertTrue(mock_post.called)
+        self.assertFalse(mock_put.called)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_065_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = lambda: {'get': 'get'}
+        mock_get.return_value = mockresponse_get
+        mockresponse_post = Mock()
+        mockresponse_post.status_code = 'status_code'
+        mockresponse_post.json = lambda: {'post': 'post'}
+        mock_post.return_value = mockresponse_post
+        mockresponse_put = Mock()
+        mockresponse_put.status_code = 'status_code'
+        mockresponse_put.json = lambda: {'put': 'put'}
+        mock_put.return_value = mockresponse_put
+        self.assertEqual(('status_code', {'put': 'put'}), self.request_operation(logger=self.logger, url='foo', method='put'))
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertTrue(mock_put.called)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_066_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = 'string'
+        mock_get.return_value = mockresponse_get
+        self.assertEqual(('status_code', "'str' object is not callable"), self.request_operation(logger=self.logger, url='foo', method='get'))
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_put.called)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_067_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = 'string'
+        mockresponse_get.text = None
+        mock_get.return_value = mockresponse_get
+        self.assertEqual(('status_code', None), self.request_operation(logger=self.logger, url='foo', method='get'))
+        self.assertTrue(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_put.called)
+
+    @patch('acme_srv.helper.requests.put')
+    @patch('acme_srv.helper.requests.post')
+    @patch('acme_srv.helper.requests.get')
+    def test_068_request_operation(self, mock_get, mock_post, mock_put):
+        """ test request_operation() """
+        mockresponse_get = Mock()
+        mockresponse_get.status_code = 'status_code'
+        mockresponse_get.json = 'string'
+        mockresponse_get.text = None
+        mock_get.return_value = mockresponse_get
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((500, "'NoneType' object has no attribute 'status_code'"), self.request_operation(logger=self.logger, url='foo', method='unknown'))
+        self.assertIn("ERROR:test_a2c:request_operation returned error: 'NoneType' object has no attribute 'status_code'", lcm.output)
+        self.assertFalse(mock_get.called)
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_put.called)
 
 
 if __name__ == '__main__':

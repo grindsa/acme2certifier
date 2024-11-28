@@ -102,7 +102,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.return_value = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('status_code', "'str' object is not callable"), self.cahandler._api_post('url', 'data'))
-        self.assertIn("ERROR:test_a2c:CAhandler._api_post() returned error during json parsing: 'str' object is not callable", lcm.output)
+        self.assertIn("ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable", lcm.output)
 
     @patch('requests.post')
     def test_011__api_post(self, mock_req):
@@ -121,7 +121,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.side_effect = Exception('exc_api_post')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'exc_api_post'), self.cahandler._api_post('url', 'data'))
-        self.assertIn('ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post', lcm.output)
+        self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_post', lcm.output)
 
     @patch.object(requests, 'get')
     def test_013__api_get(self, mock_req):
@@ -141,7 +141,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.return_value = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('status_code', "'str' object is not callable"), self.cahandler._api_get('url'))
-        self.assertIn("ERROR:test_a2c:CAhandler._api_get() returned error during json parsing: 'str' object is not callable", lcm.output)
+        self.assertIn("ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable", lcm.output)
 
     @patch('requests.get')
     def test_015__api_get(self, mock_req):
@@ -151,7 +151,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.side_effect = Exception('exc_api_get')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'exc_api_get'), self.cahandler._api_get('url'))
-        self.assertIn('ERROR:test_a2c:CAhandler._api_get() returned error: exc_api_get', lcm.output)
+        self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_get', lcm.output)
 
     @patch.object(requests, 'put')
     def test_016__api_put(self, mock_req):
@@ -171,7 +171,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.return_value = mockresponse
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('status_code', "'str' object is not callable"), self.cahandler._api_put('url', 'data'))
-        self.assertIn("ERROR:test_a2c:CAhandler._api_put() returned error during json parsing: 'str' object is not callable", lcm.output)
+        self.assertIn("ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable", lcm.output)
 
     @patch('requests.put')
     def test_018__api_put(self, mock_req):
@@ -190,7 +190,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_req.side_effect = Exception('exc_api_put')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((500, 'exc_api_put'), self.cahandler._api_put('url', 'data'))
-        self.assertIn('ERROR:test_a2c:CAhandler._api_put() returned error: exc_api_put', lcm.output)
+        self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_put', lcm.output)
 
     def test_020__config_check(self):
         """ test _config_check() """
@@ -653,7 +653,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_052_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -672,7 +672,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_053_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -691,7 +691,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_054_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -710,7 +710,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_055_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -729,7 +729,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_response_parse')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._order_send')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_cn_lookup')
+    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
     def test_056_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
@@ -762,41 +762,14 @@ class TestACMEHandler(unittest.TestCase):
         mock_put.return_value = ('code', 'content')
         self.assertEqual((500, None, 'Failed to parse certificate serial'), self.cahandler.revoke('cert'))
 
-    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
-    def test_059__csr_cn_lookup(self, mock_cnget, mock_san_get):
-        """ test _csr_cn_lookup() """
-        mock_cnget.return_value = 'cn'
-        mock_san_get.return_value = ['foo:san1', 'foo:san2']
-        self.assertEqual('cn', self.cahandler._csr_cn_lookup('csr'))
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_put')
+    @patch('examples.ca_handler.digicert_ca_handler.cert_serial_get')
+    def test_059_revoke(self, mock_serial, mock_put):
+        """ test revoke() """
+        mock_serial.return_value = 'serial'
+        mock_put.return_value = (204, 'content')
+        self.assertEqual((200, None, 'content'), self.cahandler.revoke('cert'))
 
-    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
-    def test_060__csr_cn_lookup(self, mock_cnget, mock_san_get):
-        """ test _csr_cn_lookup() """
-        mock_cnget.return_value = None
-        mock_san_get.return_value = ['foo:san1', 'foo:san2']
-        self.assertEqual('san1', self.cahandler._csr_cn_lookup('csr'))
-
-    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
-    def test_061__csr_cn_lookup(self, mock_cnget, mock_san_get):
-        """ test _csr_cn_lookup() """
-        mock_cnget.return_value = None
-        mock_san_get.return_value = ['foosan1', 'foo:san2']
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual('san2', self.cahandler._csr_cn_lookup('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() split failed: list index out of range', lcm.output)
-
-    @patch('examples.ca_handler.digicert_ca_handler.csr_san_get')
-    @patch('examples.ca_handler.digicert_ca_handler.csr_cn_get')
-    def test_062__csr_cn_lookup(self, mock_cnget, mock_san_get):
-        """ test _csr_cn_lookup() """
-        mock_cnget.return_value = None
-        mock_san_get.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.cahandler._csr_cn_lookup('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() no SANs found in CSR', lcm.output)
 
 if __name__ == '__main__':
 
