@@ -2,12 +2,12 @@ name: CA handler Tests - Entrust Enterprise API
 
 on:
   push:
-    branches: [ 'devel', 'master']
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+    branches: [ 'disabled']
+  #pull_request:
+  #  branches: [ devel ]
+  #schedule:
+  #  # * is a special character in YAML so you have to quote this string
+  #  - cron:  '0 2 * * 6'
 
 jobs:
   entrust_handler_tests:
