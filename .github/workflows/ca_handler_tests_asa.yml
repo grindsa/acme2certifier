@@ -361,6 +361,7 @@ jobs:
     needs: asa_handler_headerinfo_tests
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [8, 9]
     steps:
