@@ -34,6 +34,7 @@ jobs:
     needs: container_build
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -179,6 +180,7 @@ jobs:
     needs: container_build
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -425,6 +427,7 @@ jobs:
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [8, 9]
     steps:
@@ -546,6 +549,7 @@ jobs:
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [8, 9]
     steps:
