@@ -1919,6 +1919,7 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
     logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
 
+
 def enrollment_config_log(logger: logging.Logger, obj: object, skiplist: List[str] = None):
     """ log enrollment configuration """
     logger.debug('Helper.enrollment_config_log()')
