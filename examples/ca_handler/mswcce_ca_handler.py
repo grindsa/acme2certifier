@@ -19,7 +19,8 @@ from acme_srv.helper import (
     header_info_get,
     allowed_domainlist_check,
     eab_profile_header_info_check,
-    config_eab_profile_load
+    config_eab_profile_load,
+    enrollment_config_log
 )
 
 
@@ -43,6 +44,7 @@ class CAhandler(object):
         self.timeout = 5
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -122,6 +124,11 @@ class CAhandler(object):
         self.template = config_dic.get('CAhandler', 'template', fallback=None)
 
         try:
+            self.enrollment_config_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            self.logger.warning('CAhandler._config_load() enrollment_config_log failed with error: %s', err_)
+
+        try:
             self.timeout = config_dic.getint('CAhandler', 'timeout', fallback=5)
         except Exception as err_:
             self.logger.warning('CAhandler._config_load() timeout failed with error: %s', err_)
@@ -186,6 +193,9 @@ class CAhandler(object):
     def request_create(self) -> Request:
         """create request object """
         self.logger.debug('CAhandler.request_create()')
+
+        if self.enrollment_config_log:
+            enrollment_config_log(self.logger, self)
 
         target = Target(
             domain=self.target_domain,
@@ -266,16 +276,16 @@ class CAhandler(object):
             )
             # replace crlf with lf
             cert_raw = cert_raw.replace("\r\n", "\n")
-        except Exception as err_:
+        except Exception as err:
             cert_raw = None
-            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+            self.logger.error("ca_server.get_cert() failed with error: %s", err)
+            error = 'Could not get certificate from CA server'
 
-        if cert_raw:
+        if not error and cert_raw:
             if ca_pem:
                 cert_bundle = cert_raw + ca_pem
             else:
                 cert_bundle = cert_raw
-
             cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")

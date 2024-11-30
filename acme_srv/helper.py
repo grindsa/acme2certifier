@@ -1712,6 +1712,7 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
         hil_value = header_info_lookup(logger, csr, cahandler.header_info_field, handler_hifield)
         if hil_value:
             logger.debug('Helper.eab_profile_header_info_check(): setting %s to %s', handler_hifield, hil_value)
+            logger.info('Received enrollment parameter: %s value: %s via headerinfo field', handler_hifield, hil_value)
             setattr(cahandler, handler_hifield, hil_value)
             error = None
         else:
@@ -1917,3 +1918,19 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
 
     logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
+
+def enrollment_config_log(logger: logging.Logger, obj: object, skiplist: List[str] = None):
+    """ log enrollment configuration """
+    logger.debug('Helper.enrollment_config_log()')
+
+    skip_list = ['logger', 'session', 'password', 'api_key', 'key', 'secret', 'token']
+
+    if skiplist:
+        skip_list.extend(skiplist)
+
+    enroll_parameter_list = []
+    for key, value in obj.__dict__.items():
+        if key.startswith('__') or key in skip_list:
+            continue
+        enroll_parameter_list.append(f'{key}: {value}')
+    logger.info('Enrollment configuration: %s', enroll_parameter_list)
