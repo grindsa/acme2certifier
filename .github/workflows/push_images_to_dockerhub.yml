@@ -60,6 +60,7 @@ jobs:
       - name: "Retrieve Version from version.py"
         run: |
           cat acme_srv/version.py
+          ls -la examples/ca_handler/*.py
 
 
 
