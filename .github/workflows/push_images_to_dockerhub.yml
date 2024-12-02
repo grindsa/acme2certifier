@@ -39,7 +39,7 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          VERSION=$(echo $1 | awk -F. '{print $2}')
+          VERSION=$(echo ${{ env.TAG_NAME }} | awk -F. '{print $2}')
           PRE_VERSION=$(($VERSION - 1))
           echo $PRE_VERSION
           for row in $(curl https://api.github.com/repos/grindsa/acme2certifier/tags | jq .[].name);
