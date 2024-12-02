@@ -8,11 +8,12 @@
 # 1 install needed packages
 echo "## Install missing packages"
 sudo apt-get update
-sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl
+sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 
 # 3 install needed python modules
 echo "## Install missing pythom modules"
 sudo pip3 install -r requirements.txt
+sudo pip3 install pyopenssl --upgrade
 
 # 8 create data directory
 echo "## Create directory structure required by acme2certifier"
@@ -30,9 +31,17 @@ sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_
 
 echo "## Modify nginx configuration file"
 sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
+sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv_ssl.conf
 sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+sudo cp examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
 sudo  rm /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
+sudo ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
+
+echo "## Add keyfile and certificate"
+sudo mkdir -p /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier_cert.pem /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier_key.pem /var/www/acme2certifier/volume/
 
 echo "## Modify uwsgi configuration file"
 sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini

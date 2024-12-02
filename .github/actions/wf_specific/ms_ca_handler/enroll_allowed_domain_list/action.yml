@@ -1,0 +1,55 @@
+name: "enroll_allowed_domain_list"
+description: "enroll_allowed_domain_list"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh with fqdn not part of allowed_domainlist (should fail)"
+    id: acmefail01
+    continue-on-error: true
+    run: |
+      sudo rm -rf acme-sh/
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.local --alpn --standalone --debug 3 --output-insecure
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Check result "
+    if: steps.acmefail01.outcome != 'failure'
+    run: |
+      echo "acmefail outcome is ${{steps.acmefail01.outcome }}"
+      exit 1
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh with fqdn part of allowed_domainlist"
+    run: |
+      sudo rm -rf acme-sh/
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure
+      openssl verify -CAfile cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}

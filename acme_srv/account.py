@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=C0209
 """ Account class """
 from __future__ import print_function
 import json
@@ -58,7 +57,7 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup('jwk', json.dumps(jwk))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Account._account_lookup(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Account._account_lookup(): %s', err_)
             result = None
 
         if result:
@@ -72,21 +71,21 @@ class Account(object):
             message = self.err_msg_dic['accountdoesnotexist']
             detail = None
 
-        self.logger.debug('Account._acount_lookup() ended with:{0}'.format(code))
+        self.logger.debug('Account._acount_lookup() ended with: %s', code)
         return (code, message, detail)
 
     def _account_add_check(self, account_name: str, data_dic: Dict[str, str]) -> Tuple[int, str, str]:
         """ perform database operation """
-        self.logger.debug('Account.account._account_add_check({0})'.format(account_name))
+        self.logger.debug('Account.account._account_add_check(%s)', account_name)
 
         try:
             (db_name, new) = self.dbstore.account_add(data_dic)
         except Exception as err_:
-            self.logger.critical('Account.account._add(): Database error: {0}'.format(err_))
+            self.logger.critical('Account.account._add(): Database error: %s', err_)
             db_name = None
             new = False
 
-        self.logger.debug('got account_name:{0} new:{1}'.format(db_name, new))
+        self.logger.debug('got account_name: %s new: %s', db_name, new)
 
         if new:
             code = 201
@@ -96,7 +95,7 @@ class Account(object):
             message = db_name
         detail = None
 
-        self.logger.debug('Account.account._account_add_check() ended with: {0}'.format(account_name))
+        self.logger.debug('Account.account._account_add_check() ended with: %s', account_name)
         return (code, message, detail)
 
     def _account_eab_add(self, payload: Dict[str, str], data_dic: Dict[str, str]) -> Dict[str, str]:
@@ -106,7 +105,7 @@ class Account(object):
         if payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
             if 'protected' in payload['externalaccountbinding']:
                 eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
-                self.logger.info('add eab_kid: {0} to data_dic'.format(eab_kid))
+                self.logger.info('add eab_kid: %s to data_dic', eab_kid)
                 if eab_kid:
                     data_dic['eab_kid'] = eab_kid
 
@@ -115,7 +114,7 @@ class Account(object):
 
     def _account_add(self, account_name: str, content: Dict[str, str], contact: List[str], payload: Dict[str, str]):
         """ prepare db insert and call DBstore helper """
-        self.logger.debug('Account.account._account_add({0})'.format(account_name))
+        self.logger.debug('Account.account._account_add(%s)', account_name)
 
         # ecc_only check
         if self.ecc_only and not content['alg'].startswith('ES'):
@@ -137,7 +136,7 @@ class Account(object):
             # check code to be returned
             (code, message, detail) = self._account_add_check(account_name, data_dic)
 
-        self.logger.debug('Account.account._account_add() ended with: {0}'.format(account_name))
+        self.logger.debug('Account.account._account_add() ended with: %s', account_name)
         return (code, message, detail)
 
     def _add(self, content: Dict[str, str], payload: Dict[str, str], contact: List[str]):
@@ -161,7 +160,7 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'incomplete protected payload'
 
-        self.logger.debug('Account.account._add() ended with:{0}'.format(code))
+        self.logger.debug('Account.account._add() ended with: %s', code)
         return (code, message, detail)
 
     def _contact_check(self, content: Dict[str, str]) -> Tuple[int, str, str]:
@@ -182,7 +181,7 @@ class Account(object):
             message = self.err_msg_dic['invalidcontact']
             detail = 'no contacts specified'
 
-        self.logger.debug('Account._contact_check() ended with:{0}'.format(code))
+        self.logger.debug('Account._contact_check() ended with: %s', code)
         return (code, message, detail)
 
     def _contact_list_build(self, payload: Dict[str, str]) -> List[str]:
@@ -206,7 +205,7 @@ class Account(object):
             try:
                 result = self.dbstore.account_update(data_dic)
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Account._contacts_update(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Account._contacts_update(): %s', err_)
                 result = None
 
             if result:
@@ -220,11 +219,11 @@ class Account(object):
 
     def _delete(self, aname: str) -> Tuple[int, str, str]:
         """ delete account """
-        self.logger.debug('Account._delete({0})'.format(aname))
+        self.logger.debug('Account._delete(%s)', aname)
         try:
             result = self.dbstore.account_delete(aname)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Account._delete(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Account._delete(): %s', err_)
             result = None
 
         if result:
@@ -236,12 +235,12 @@ class Account(object):
             message = self.err_msg_dic['accountdoesnotexist']
             detail = 'deletion failed'
 
-        self.logger.debug('Account._delete() ended with:{0}'.format(code))
+        self.logger.debug('Account._delete() ended with: %s', code)
         return (code, message, detail)
 
     def _eab_jwk_compare(self, protected: Dict[str, str], payload: Dict[str, str]) -> bool:
         """ compare jwk from outer header with jwk in eab playload """
-        self.logger.debug('_eab_jwk_compare()')
+        self.logger.debug('Account._eab_jwk_compare()')
         result = False
         if 'jwk' in protected:
             # convert outer jwk into string for better comparison
@@ -253,12 +252,12 @@ class Account(object):
                 if jwk_outer == jwk_inner:
                     result = True
 
-        self.logger.debug('_eab_jwk_compare() ended with: {0}'.format(result))
+        self.logger.debug('_eab_jwk_compare() ended with: %s', result)
         return result
 
     def _eab_kid_get(self, protected: str) -> str:
         """ get key identifier for eab validation """
-        self.logger.debug('_eab_kid_get()')
+        self.logger.debug('Account._eab_kid_get()')
         # load protected into json format
         protected_dic = json.loads(b64decode_pad(self.logger, protected))
         # extract kid
@@ -267,12 +266,12 @@ class Account(object):
         else:
             eab_key_id = None
 
-        self.logger.debug('_eab_kid_get() ended with: {0}'.format(eab_key_id))
+        self.logger.debug('Account._eab_kid_get() ended with: %s', eab_key_id)
         return eab_key_id
 
     def _eab_verify(self, payload: Dict[str, str]) -> Tuple[int, str, str]:
         """" check for external account binding """
-        self.logger.debug('_eab_check()')
+        self.logger.debug('Account._eab_verify()')
 
         # get key identifier
         eab_kid = self._eab_kid_get(payload['externalaccountbinding']['protected'])
@@ -293,18 +292,18 @@ class Account(object):
                 code = 403
                 message = self.err_msg_dic['unauthorized']
                 detail = 'eab signature verification failed'
-                self.logger.error('Account._eab_check() returned error: {0}'.format(error))
+                self.logger.error('Account._eab_check() returned error: %s', error)
         else:
             code = 403
             message = self.err_msg_dic['unauthorized']
             detail = 'eab kid lookup failed'
 
-        self.logger.debug('_eab_check() ended with: {0}'.format(code))
+        self.logger.debug('Account._eab_verify() ended with: %s', code)
         return (code, message, detail)
 
     def _eab_check(self, protected: Dict[str, str], payload: Dict[str, str]) -> Tuple[int, str, str]:
         """" check for external account binding """
-        self.logger.debug('_eab_check()')
+        self.logger.debug('Account._eab_check()')
 
         if self.eab_handler and protected and payload and 'externalaccountbinding' in payload and payload['externalaccountbinding']:
             # compare JWK from protected (outer) header if jwk included in payload of external account binding
@@ -323,7 +322,7 @@ class Account(object):
             message = self.err_msg_dic['externalaccountrequired']
             detail = 'external account binding required'
 
-        self.logger.debug('Account._eab_check() ended with:{0}'.format(code))
+        self.logger.debug('Account._eab_check() ended with: %s', code)
         return (code, message, detail)
 
     def _eab_signature_verify(self, content: Dict[str, str], mac_key: str) -> Tuple[bool, str]:
@@ -337,7 +336,8 @@ class Account(object):
         else:
             sig_check = False
             error = None
-        self.logger.debug('Account._eab_signature_verify() ended with: {0}'.format(sig_check))
+
+        self.logger.debug('Account._eab_signature_verify() ended with: %s: %s', sig_check, error)
         return (sig_check, error)
 
     def _header_url_compare(self, outer_protected: Dict[str, str], inner_protected: Dict[str, str]) -> Tuple[int, str, str]:
@@ -358,7 +358,7 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'url parameter differ in inner and outer jws'
 
-        self.logger.debug('Account._header_url_compare() ended with: {0}'.format(code))
+        self.logger.debug('Account._header_url_compare() ended with: %s', code)
         return (code, message, detail)
 
     def _info(self, account_obj: Dict[str, str]) -> Dict[str, str]:
@@ -374,7 +374,7 @@ class Account(object):
             if 'eab_kid' in account_obj and account_obj['eab_kid']:
                 response_dic['eab_kid'] = account_obj['eab_kid']
 
-        self.logger.debug('Account._info() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account._info() returns: %s', json.dumps(response_dic))
         return response_dic
 
     def _inner_jws_check(self, outer_protected: Dict[str, str], inner_protected: Dict[str, str]) -> Tuple[int, str, str]:
@@ -395,7 +395,7 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account._inner_jws_check() ended with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_jws_check() ended with: %s:%s', code, detail)
         return (code, message, detail)
 
     def _inner_payload_check(self, aname: str, outer_protected: Dict[str, str], inner_payload: Dict[str, str]) -> Tuple[int, str, str]:
@@ -425,12 +425,12 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'kid is missing in outer header'
 
-        self.logger.debug('Account._inner_payload_check() ended with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._inner_payload_check() ended with: %s:%s', code, detail)
         return (code, message, detail)
 
     def _key_change_validate(self, aname: str, outer_protected: Dict[str, str], inner_protected: Dict[str, str], inner_payload: Dict[str, str]):
         """ validate key_change before exectution """
-        self.logger.debug('Account._key_change_validate({0})'.format(aname))
+        self.logger.debug('Account._key_change_validate(%s)', aname)
         if 'jwk' in inner_protected:
             # check if we already have the key stored in DB
             key_exists = self._lookup(json.dumps(inner_protected['jwk']), 'jwk')
@@ -448,12 +448,12 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'inner jws is missing jwk'
 
-        self.logger.debug('Account._key_change_validate() ended with: {0}:{1}'.format(code, detail))
+        self.logger.debug('Account._key_change_validate() ended with: %s:%s', code, detail)
         return (code, message, detail)
 
     def _key_rollover(self, aname: str, protected: Dict[str, str], inner_protected: Dict[str, str], inner_payload: Dict[str, str]) -> Tuple[int, str, str]:
         """ key update after key change """
-        self.logger.debug('Account._key_rollover({0})'.format(aname))
+        self.logger.debug('Account._key_rollover(%s)', aname)
 
         (code, message, detail) = self._key_change_validate(aname, protected, inner_protected, inner_payload)
         if code == 200:
@@ -461,7 +461,7 @@ class Account(object):
             try:
                 result = self.dbstore.account_update(data_dic)
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Account._key_change(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Account._key_change(): %s', err_)
                 result = None
             if result:
                 code = 200
@@ -472,12 +472,12 @@ class Account(object):
                 message = self.err_msg_dic['serverinternal']
                 detail = 'key rollover failed'
 
-        self.logger.debug('Account._key_rollover() ended with: {0}'.format(code))
+        self.logger.debug('Account._key_rollover() ended with: %s', code)
         return (code, message, detail)
 
     def _key_change(self, aname: str, payload: Dict[str, str], protected: Dict[str, str]) -> Tuple[int, str, str]:
         """ key change for a given account """
-        self.logger.debug('Account._key_change({0})'.format(aname))
+        self.logger.debug('Account._key_change(%s)', aname)
 
         if 'url' in protected:
             if 'key-change' in protected['url']:
@@ -495,7 +495,7 @@ class Account(object):
             message = self.err_msg_dic['malformed']
             detail = 'malformed request'
 
-        self.logger.debug('Account._key_change() ended with: {0}'.format(code))
+        self.logger.debug('Account._key_change() ended with: %s', code)
         return (code, message, detail)
 
     def _keys_adjust(self, pub_key: Dict[str, str], old_key: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -514,13 +514,13 @@ class Account(object):
 
     def _key_compare(self, aname: str, old_key: Dict[str, str]) -> Tuple[int, str, str]:
         """ compare key with the one stored in database """
-        self.logger.debug('Account._key_compare({0})'.format(aname))
+        self.logger.debug('Account._key_compare(%s)', aname)
 
         # load current public key from database
         try:
             pub_key = self.dbstore.jwk_load(aname)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Account._key_compare(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Account._key_compare(): %s', err_)
             pub_key = None
 
         if old_key and pub_key:
@@ -540,7 +540,7 @@ class Account(object):
             message = self.err_msg_dic['unauthorized']
             detail = 'wrong public key'
 
-        self.logger.debug('Account._key_compare() ended with: {0}'.format(code))
+        self.logger.debug('Account._key_compare() ended with: %s', code)
         return (code, message, detail)
 
     def _config_load(self):
@@ -577,11 +577,11 @@ class Account(object):
 
     def _lookup(self, value: str, field: str = 'name') -> Dict[str, str]:
         """ lookup account """
-        self.logger.debug('Account._lookup({0}:{1})'.format(field, value))
+        self.logger.debug('Account._lookup(%s:%s)', field, value)
         try:
             result = self.dbstore.account_lookup(field, value)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Account._lookup(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Account._lookup(): %s', err_)
             result = None
         return result
 
@@ -618,11 +618,11 @@ class Account(object):
             message = self.err_msg_dic['serverinternal']
             detail = 'onlyReturnExisting without payload'
 
-        self.logger.debug('Account.onlyreturnexisting() ended with:{0}'.format(code))
+        self.logger.debug('Account.onlyreturnexisting() ended with: %s', code)
         return (code, message, detail)
 
     def _parse_deactivation(self, account_name: str, payload: Dict[str, str]) -> Tuple[int, str, str]:
-        self.logger.debug('Account._parse_deactivation({0})'.format(account_name))
+        self.logger.debug('Account._parse_deactivation(%s)', account_name)
         data = None
         # account deactivation
         if payload['status'].lower() == 'deactivated':
@@ -639,7 +639,7 @@ class Account(object):
 
     def _parse_contacts_update(self, account_name: str, payload: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
         """ update contacts """
-        self.logger.debug('Account._parse_contacts_update({0})'.format(account_name))
+        self.logger.debug('Account._parse_contacts_update(%s)', account_name)
         data = None
         (code, message, detail) = self._contacts_update(account_name, payload)
         if code == 200:
@@ -655,7 +655,7 @@ class Account(object):
 
     def _parse_query(self, account_name: str) -> Dict[str, str]:
         """ update contacts """
-        self.logger.debug('Account._parse_query({0})'.format(account_name))
+        self.logger.debug('Account._parse_query(%s)', account_name)
 
         # this is a query for account information
         account_obj = self._lookup(account_name)
@@ -672,7 +672,7 @@ class Account(object):
         """ check terms of service """
         self.logger.debug('Account._tos_check()')
         if 'termsofserviceagreed' in content:
-            self.logger.debug('tos:{0}'.format(content['termsofserviceagreed']))
+            self.logger.debug('tos:%s', content['termsofserviceagreed'])
             if content['termsofserviceagreed']:
                 code = 200
                 message = None
@@ -687,7 +687,7 @@ class Account(object):
             message = self.err_msg_dic['useractionrequired']
             detail = 'tosfalse'
 
-        self.logger.debug('Account._tos_check() ended with:{0}'.format(code))
+        self.logger.debug('Account._tos_check() ended with:%s', code)
         return (code, message, detail)
 
     def _new(self, code: int, payload: Dict[str, str], protected: Dict[str, str]) -> Tuple[int, str, str]:
@@ -717,7 +717,7 @@ class Account(object):
                 # add new account
                 (code, message, detail) = self._add(protected, payload, contact_list)
 
-        self.logger.debug('Account._new() ended with: {0}'.format(code))
+        self.logger.debug('Account._new() ended with: %s', code)
         return (code, message, detail)
 
     def new(self, content: Dict[str, str]) -> Dict[str, str]:
@@ -735,7 +735,7 @@ class Account(object):
             if code == 201:
                 response_dic['data'] = {
                     'status': 'valid',
-                    'orders': '{0}{1}{2}/orders'.format(self.server_name, self.path_dic['acct_path'], message),
+                    'orders': f'{self.server_name}{self.path_dic["acct_path"]}{message}/orders'
                 }
                 if 'contact' in payload:
                     response_dic['data']['contact'] = payload['contact']
@@ -743,7 +743,7 @@ class Account(object):
                 response_dic['data'] = detail
 
             response_dic['header'] = {}
-            response_dic['header']['Location'] = '{0}{1}{2}'.format(self.server_name, self.path_dic['acct_path'], message)
+            response_dic['header']['Location'] = f'{self.server_name}{self.path_dic["acct_path"]}{message}'
 
             # add exernal account binding
             if self.eab_check and 'externalaccountbinding' in payload:
@@ -757,7 +757,7 @@ class Account(object):
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Account.new() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account.new() returns: %s', json.dumps(response_dic))
         return response_dic
 
     def parse(self, content: Dict[str, str]) -> Dict[str, str]:
@@ -795,5 +795,5 @@ class Account(object):
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Account.account_parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Account.account_parse() returns: %s', json.dumps(response_dic))
         return response_dic

@@ -44,7 +44,7 @@ class Trigger(object):
                     csr_pubkey = csr_pubkey_get(self.logger, cert['csr'])
                     if csr_pubkey == cert_pubkey:
                         result_list.append({'cert_name': cert['name'], 'order_name': cert['order__name']})
-        self.logger.debug('Trigger._certname_lookup() ended with: {0}'.format(result_list))
+        self.logger.debug('Trigger._certname_lookup() ended with: %s', result_list)
 
         return result_list
 
@@ -61,9 +61,9 @@ class Trigger(object):
             try:
                 self.cahandler = ca_handler_module.CAhandler
             except Exception as err_:
-                self.logger.critical('Certificate._config_load(): loading CAhandler failed with err: {0}'.format(err_))
+                self.logger.critical('Certificate._config_load(): loading CAhandler failed with err: %s', err_)
 
-        self.logger.debug('ca_handler: {0}'.format(ca_handler_module))
+        self.logger.debug('ca_handler: %s', ca_handler_module)
         self.logger.debug('Certificate._config_load() ended.')
 
     def _cert_store(self, cert_bundle: str, cert_raw: str) -> Tuple[int, str, str]:
@@ -82,13 +82,13 @@ class Trigger(object):
                 try:
                     self.dbstore.certificate_add(data_dic)
                 except Exception as err_:
-                    self.logger.critical('acme2certifier database error in trigger._payload_process() add: {0}'.format(err_))
+                    self.logger.critical('acme2certifier database error in trigger._payload_process() add: %s', err_)
                 if 'order_name' in cert and cert['order_name']:
                     try:
                         # update order status to 5 (valid)
                         self.dbstore.order_update({'name': cert['order_name'], 'status': 'valid'})
                     except Exception as err_:
-                        self.logger.critical('acme2certifier database error in trigger._payload_process() upd: {0}'.format(err_))
+                        self.logger.critical('acme2certifier database error in trigger._payload_process() upd: %s', err_)
             code = 200
             message = 'OK'
             detail = None
@@ -118,7 +118,7 @@ class Trigger(object):
                 message = 'payload malformed'
                 detail = None
 
-        self.logger.debug('Trigger._payload_process() ended with: {0} {1}'.format(code, message))
+        self.logger.debug('Trigger._payload_process() ended with: %s %s', code, message)
         return (code, message, detail)
 
     def parse(self, content: str) -> Dict[str, str]:
@@ -151,5 +151,5 @@ class Trigger(object):
         if detail:
             response_dic['data']['detail'] = detail
 
-        self.logger.debug('Trigger.parse() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Trigger.parse() returns: %s', json.dumps(response_dic))
         return response_dic

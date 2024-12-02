@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """ soap-server mock providing endpoint for soap ca handler """
-# pylint: disable=c0209, c0413, e0401
+# pylint: disable=c0413, e0401
 import os
 import sys
 import argparse
 import tempfile
 import json
 import subprocess
-from typing import List, Tuple, Dict
+from typing import List, Dict
 from http.client import responses
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
 import xmltodict
@@ -45,9 +45,9 @@ def _csr_get(logger, soap_dic: Dict[str, str], soapenvelope: str, soapbody: str,
         if 'aur:CertificateRequestRaw' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
             csr = soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:CertificateRequestRaw']
         if 'aur:ProfileName' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
-            logger.info('got request profilename: {0}'.format(soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:ProfileName']))
+            logger.info('got request profilename: %s', soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:ProfileName'])
         if 'aur:Email' in soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]:
-            logger.info('got request email: {0}'.format(soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:Email']))
+            logger.info('got request email: %s', soap_dic[soapenvelope][soapbody][aurrequestcertificate][aurrequest]['aur:Email'])
 
     return csr
 
@@ -71,7 +71,7 @@ def _csr_lookup(logger, soap_dic: Dict[str, str]) -> str:
 def _opensslcmd_pem2pkcs7_convert(logger, tmp_dir: str, filename_list: List[str]) -> List[str]:
     """ build openssl command """
     logger.debug('_opensslcmd_pem2pkcs7_convert()')
-    cmd_list = ['openssl', 'crl2pkcs7', '-nocrl', '-outform', 'DER', '-out', '{0}/cert.p7b'.format(tmp_dir)]
+    cmd_list = ['openssl', 'crl2pkcs7', '-nocrl', '-outform', 'DER', '-out', f'{tmp_dir}/cert.p7b']
 
     for filename in filename_list:
         cmd_list.append('-certfile')
@@ -90,7 +90,7 @@ def _opensslcmd_csr_extract(logger, pkcs7_file: str, csr_file: str) -> List[str]
 
 def _file_load_binary(logger, filename: str) -> List[str]:
     """ load file at once """
-    logger.debug('file_open({0})'.format(filename))
+    logger.debug('file_open(%s)', filename)
     with open(filename, 'rb') as _file:
         lines = _file.read()
     return lines
@@ -98,7 +98,7 @@ def _file_load_binary(logger, filename: str) -> List[str]:
 
 def _file_load(logger, filename: str) -> List[str]:
     """ load file at once """
-    logger.debug('file_open({0})'.format(filename))
+    logger.debug('file_open(%s)', filename)
     with open(filename, 'r', encoding='utf8') as _file:
         lines = _file.read()
     return lines
@@ -106,14 +106,14 @@ def _file_load(logger, filename: str) -> List[str]:
 
 def _file_dump_binary(logger, filename: str, data_: str):
     """ dump content in binary format to file """
-    logger.debug('file_dump({0})'.format(filename))
+    logger.debug('file_dump(%s)', filename)
     with open(filename, 'wb') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
 
 
 def _file_dump(logger, filename: str, data_: str):
     """ dump content to  file """
-    logger.debug('file_dump({0})'.format(filename))
+    logger.debug('file_dump(%s)', filename)
     with open(filename, 'w', encoding='utf8') as file_:
         file_.write(data_)  # lgtm [py/clear-text-storage-sensitive-data]
 
@@ -125,16 +125,16 @@ def _pem2pkcs7_convert(logger, tmp_dir: str, pem: str) -> str:
     filename_list = []
     for cnt, certificate in enumerate(certificate_list):
         if certificate:
-            certificate = '{0}-----END CERTIFICATE-----\n'.format(certificate)
-            _file_dump(logger, '{0}/{1}.pem'.format(tmp_dir, cnt), certificate)
-            filename_list.append('{0}/{1}.pem'.format(tmp_dir, cnt))
+            certificate = f'{certificate}-----END CERTIFICATE-----\n'
+            _file_dump(logger, f'{tmp_dir}/{cnt}.pem', certificate)
+            filename_list.append(f'{tmp_dir}/{cnt}.pem')
 
     openssl_cmd = _opensslcmd_pem2pkcs7_convert(logger, tmp_dir, filename_list)
 
     rcode = subprocess.call(openssl_cmd)
 
     if not rcode:
-        content = b64_encode(logger, _file_load_binary(logger, '{0}/cert.p7b'.format(tmp_dir)))
+        content = b64_encode(logger, _file_load_binary(logger, f'{tmp_dir}/cert.p7b'))
     else:
         content = None
 
@@ -181,12 +181,12 @@ def _csr_extract(logger, tmp_dir: str, csr: str) -> str:
 
     if csr:
         # dump csr into a file
-        _file_dump_binary(logger, '{0}/file.p7b'.format(tmp_dir), b64_decode(logger, csr))
-        openssl_cmd = _opensslcmd_csr_extract(logger, '{0}/file.p7b'.format(tmp_dir), '{0}/csr.der'.format(tmp_dir))
+        _file_dump_binary(logger, f'{tmp_dir}/file.p7b', b64_decode(logger, csr))
+        openssl_cmd = _opensslcmd_csr_extract(logger, f'{tmp_dir}/file.p7b', f'{tmp_dir}/csr.der')
         rcode = subprocess.call(openssl_cmd)
 
         if not rcode:
-            content = convert_byte_to_string(b64_url_encode(logger, _file_load_binary(logger, '{0}/csr.der'.format(tmp_dir))))
+            content = convert_byte_to_string(b64_url_encode(logger, _file_load_binary(logger, f'{tmp_dir}/csr.der')))
         else:
             content = None
     else:
@@ -211,7 +211,7 @@ def request_process(logger, csr: str) -> bytes:
 
     # extract csr from pkcs7 construct
     csr = _csr_extract(logger, tmp_dir, csr)
-    logger.debug('csr: {0}'.format(csr))
+    logger.debug('csr: %s', csr)
 
     # enroll certificate
     (error, cert_bundle, _cert_raw, _unused) = ca_handler.enroll(csr)
@@ -222,17 +222,17 @@ def request_process(logger, csr: str) -> bytes:
         pkcs7 = None
 
     if not ERROR and pkcs7:
-        soap_response = """
+        soap_response = f"""
     <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <s:Body>
         <RequestCertificateResponse xmlns="http://monetplus.cz/services/kb/aurora">
         <RequestCertificateResult xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-            <IssuedCertificate>{0}</IssuedCertificate>
+            <IssuedCertificate>{pkcs7}</IssuedCertificate>
         </RequestCertificateResult>
         </RequestCertificateResponse>
     </s:Body>
     </s:Envelope>
-    """.format(pkcs7)
+    """
     else:
         soap_response = """
     <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -256,7 +256,7 @@ def soap_srv(environ, start_response) -> List[str]:
 
     if csr:
         # try:
-        status = "{0} {1}".format(HTTP_STATUS_CODE, responses[int(HTTP_STATUS_CODE)])
+        status = f"{HTTP_STATUS_CODE} {responses[int(HTTP_STATUS_CODE)]}"
         # Except Exception as error:
         # status = "500 Internal Server Error"
         headers = [("Content-type", "text/xml")]

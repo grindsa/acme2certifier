@@ -5,6 +5,108 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.36
+
+**Features and Improvements**:
+
+- refactored [NCLM ca handler](docs/nclm.md) using the external REST-API
+- [ca handler](docs/digicert.md) using the [DigiCert CertCentral API](https://dev.digicert.com/en/certcentral-apis.html)
+- [ca handler](docs/entrust.md) using the Entrust ECS Enterprise APIl
+- [EAB Profiling support](docs/eab_profiling.md) in Microsoft CA handlers
+- [#187](https://github.com/grindsa/acme2certifier/pull/187) url option for mscertsrv ca handler
+- subject profiling feature
+- [strip down python-impacket module](https://github.com/grindsa/acme2certifier/blob/master/docs/mswcce.md#local-installation) in docker images
+- [strip down impacket RPM package](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs/rhel9)
+- YAML config file format supported in [EAB-Profiling feature](docs/eab_profiling.md)
+- Upgrade Container images to Ubuntu 24.04
+
+**Bugfixes**:
+
+- openssl-ca-handler: basicConstraints extension will not be marked as critical anymore
+- openssl-ca-handler: subjectkeyidentifier extension will not be marked as critical anymore
+- fall-back option to python-openssl for Redhat deployments
+- detect and handle django installations on Debian/Ubunto systems
+- automated schema updates in case of RPM updates
+
+# Changes in 0.35
+
+**Features and Improvements**:
+
+- [#153](https://github.com/grindsa/acme2certifier/issues/153) Kerberos support in [mscertsrv_handler](docs/mscertsrv.md)
+- allowed_domainlist checking in [mswcce_handler](docs/mswcce.md)
+- `timeout` parameter in [ms-wcce_handler](docs/mswcce.md) to specify an enrollment timeout
+- new [tool to validate eab-files](docs/eab_profiling.md#profile-verification)
+- [#165](https://github.com/grindsa/acme2certifier/issues/165) [EAB profiling](docs/eab_profiling.md#enrollment-profiling-via-external-account-binding) for ejbca_handler
+- [#166](https://github.com/grindsa/acme2certifier/issues/166) [EAB profiling](docs/acme_ca.md#eab-profiling) for acme_ca_handler
+- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 22.04](docs/a2c-ubuntu-loadbalancing.md)
+- [#165](https://github.com/grindsa/acme2certifier/issues/165) documentaion of [external database support](docs/external_database_support.md) via django_handler
+
+**Bugfixes**:
+
+- `acme_srv.cfg` will be preserved in case of RPM updates
+- apache2_wsgi docker image will be tagged with `latest`
+- [#166](https://github.com/grindsa/acme2certifier/issues/166) workaround for failed account lookups on smallstep-ca
+
+# Changes in 0.34
+
+**Features and Improvements**:
+
+- [Enrollment profiling via external account binding](docs/eab_profiling.md)
+- [#144](https://github.com/grindsa/acme2certifier/issues/144) configuration option to supress product name
+- [#143](https://github.com/grindsa/acme2certifier/issues/143) template name as part of the user-agent field in wcce/wes handler
+- configuration option to limit the number of identifiers in a single order request
+- `burst` parameter in example nginx.conf to ratelimit incoming requests
+- [container images for arm64 plattforms](https://hub.docker.com/layers/grindsa/acme2certifier/apache2-wsgi/images/sha256-9092e98ad23fa94dfb17534333a9306ec447b274c2e4b5bbaee0b8bc41c6becc?context=repo)
+- regression tests on arm64 plattforms
+
+**Bugfixes**:
+
+- [#147](https://github.com/grindsa/acme2certifier/pull/147) correct content-type for problem+json message
+- updated [eab-example files](https://github.com/grindsa/acme2certifier/tree/master/examples/eab_handler) as hmac must be longer than 256bits
+- identifier sanitizing
+
+# Changes in 0.33.3
+
+**Features and Improvements**:
+
+- some smaller modifications run flawless on Redhat8 and derivates
+- Workflows to test rpm-deployment on RHEL8 and RHEL9
+
+# Changes in 0.33.2
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Bugfixes**:
+
+- [134](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping" -> value too long for "name" field
+- [135](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping dbversion ist set back to 0.23.1 after container restart
+
+# Changes in 0.33.1
+
+**Bugfixes**:
+
+- [132](https://github.com/grindsa/acme2certifier/issues/132) - returning serial numbers in hex-format with leading zero
+
+# Changes in 0.33
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Features and Improvements**:
+
+- Support [draft-ietf-acme-ari-02](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/02): Renewal Information (ARI) Extension
+- First version of [Insta ASA CA handler](docs/asa.md)
+- [winacme renewal-info workaround](https://github.com/grindsa/acme2certifier/issues/127)
+- better logging to ease troubleshootnig of eab
+- code refactoring to improve [f-string handling](https://pylint.pycqa.org/en/latest/user_guide/messages/convention/consider-using-f-string.html)
+
 # Changes in 0.32
 
 **Features and Improvements**:
@@ -56,7 +158,7 @@ and pick the appropriate release branch.
 **Features and Improvements**:
 
 - Support [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html): Certificates for IP addresses
-- Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+- Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/01): Renewal Information (ARI) Extension
 - Interoperability testing with [Caddy](https://caddyserver.com/docs/automatic-https) as part of regular regression
 
 # Changes in 0.28
@@ -288,7 +390,7 @@ and pick the appropriate release branch.
 **Features**:
 
 - [Generic ACME protocol handler](docs/acme_ca.md)
-- CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's SOAP API](https://blog.pki.dfn.de/tag/soap-api/))
+- CA handler for [acme2dfn](https://github.com/pfisterer/acme2dfn)
 - wsgi_db_handler: allow DB file path configuration
 - allow setting config file location via environment variable
 

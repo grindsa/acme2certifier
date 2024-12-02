@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """ database updater """
-# pylint: disable=E0401, C0413, C0209
+# pylint: disable=E0401, C0413
 import sys
 import json
 import argparse
@@ -47,7 +47,7 @@ def arg_parse():
         if os.path.exists(args.keyfile):
             config_dic['jwk'] = json.loads(file_load(args.keyfile))
         else:
-            print('Error: keyfile "{0}" does not exist'.format(args.keyfile))
+            print(f'Error: keyfile "{args.keyfile}" does not exist')
 
     return (debug, config_dic)
 

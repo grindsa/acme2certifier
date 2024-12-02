@@ -3,7 +3,7 @@ name: WSGI handler tests
 on:
   push:
   pull_request:
-    branches: [ devel, db_file_customization ]
+    branches: [ devel]
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron:  '0 2 * * 6'
@@ -12,55 +12,52 @@ jobs:
   a2_cust_db_file:
     name: "a2_cust_db_file"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (apache2_wsgi)"
-      working-directory: examples/Docker/
-      run: |
-        sudo mkdir -p data
-        docker network create acme
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 ../../.github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
-        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
-        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
-        sudo echo "[DBhandler]" >> data/acme_srv.cfg
-        sudo echo "dbfile: volume/a2c.db" >> data/acme_srv.cfg
-        sudo echo "[Directory]" >> data/acme_srv.cfg
-        sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
-        docker-compose up -d
-        docker-compose logs
-      env:
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: wsgi
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Prepare acme_srv.cfg with certifier_ca_handler"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/certifier_setup_no_profile
+      with:
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
         NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+        DATA_PATH: examples/Docker/data
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Restart a2c"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        sudo echo "[DBhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "dbfile: volume/a2c.db" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "[Directory]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "url_prefix: /foo" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
 
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
 
-    - name: "[ ENROLL ] lego"
-      run: |
-        mkdir lego
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: wsgi
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -72,40 +69,51 @@ jobs:
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: a2_custdb.tar.gz
+        name: a2_custdb.${{ matrix.websrv }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  nginx_cust_db_file:
-    name: "nginx_cust__db_file"
+  rpm_cust_db_file:
+    name: "rpm_cust_db_file"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8, 9]
     steps:
     - name: "checkout GIT"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: "[ PREPARE ] Build docker-compose (nginx_wsgi)"
-      working-directory: examples/Docker/
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+
+    - name: "Prepare acme_srv.cfg with certifier_ca_handler"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/certifier_setup_no_profile
+      with:
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        DATA_PATH: data
+
+    - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
-        sed -i "s/apache2/nginx/g" .env
-        sudo mkdir -p data
-        docker network create acme
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 ../../.github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
-        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
-        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "[DBhandler]" >> data/acme_srv.cfg
-        sudo echo "dbfile: volume/a2c.db" >> data/acme_srv.cfg
+        sudo echo "dbfile: /opt/acme2certifier/volume/a2c.db" >> data/acme_srv.cfg
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
-        docker-compose up -d
-        docker-compose logs
         sleep 5
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
@@ -114,37 +122,29 @@ jobs:
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
-    - name: "Test http://acme-srv/directory is accessable"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-    - name: "[ PREPARE ] prepare acme.sh container"
+    - name: "Execute install scipt"
       run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
-    - name: "[ ENROLL ] acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-    - name: "[ ENROLL ] lego"
-      run: |
-        mkdir lego
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
     - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: nginx_cust_db.tar.gz
+        name: rpm_cust_db_file-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/

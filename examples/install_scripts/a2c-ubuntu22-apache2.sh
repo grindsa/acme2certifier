@@ -6,22 +6,31 @@
 #   - execute this script with "sh ./examples/install_scripts/a2c-ubuntu22-apache2.sh"
 
 # 1 install needed packages
-sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data
+sudo apt-get update
+sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 
 # 2 check if mod wsgi got activated
 apache2ctl -M | grep -i wsgi
 
 # 4 install needed python modules
 sudo pip3 install -r requirements.txt
+sudo pip3 install pyopenssl --upgrade
 
 # 5 configure apache2
 sudo cp examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
 
+# 6 enable ssl
+sudo cp examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo mkdir -p /var/www/acme2certifier/volume/
+sudo cp .github/acme2certifier.pem /var/www/acme2certifier/volume/
+sudo a2enmod ssl
+
 # 7 activate a2c
 sudo a2ensite acme2certifier.conf
+sudo a2ensite acme2certifier_ssl.conf
 
 # 8 create data directory
-sudo mkdir /var/www/acme2certifier
+sudo mkdir -p /var/www/acme2certifier
 
 # 9 copy main wsgi file
 sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier

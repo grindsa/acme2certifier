@@ -4,8 +4,16 @@ case "$1" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    #if [ -d /tmp/acme2certifier/acme_ca ]; then
+    #  yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    #fi
+    if [ -d /tmp/acme2certifier/volume ]
+      then
+      echo "copying volume"
+      mkdir -p /opt/acme2certifier/volume
+      yes | cp -R /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/
+    fi
     systemctl restart acme2certifier.service
     systemctl restart nginx.service
     ;;
@@ -18,7 +26,7 @@ case "$1" in
 
     yum -y install epel-release
     yum -y localinstall /tmp/acme2certifier/*.rpm
-    yum -y install python3-PyMySQL python3-psycopg2 python3-pyyaml python3-mysqlclient
+    yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
 
     yes | cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
     yes | cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
@@ -42,6 +50,10 @@ case "$1" in
       then
       yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
     fi
+
+    cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+    head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf
+    echo "}" >> /etc/nginx/nginx.conf
 
     cd /opt/acme2certifier
     python3 manage.py makemigrations
