@@ -52,6 +52,14 @@ jobs:
             done
 
       - run: echo "old tag is ${{ env.OLD_TAG_NAME }}"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.OLD_TAG_NAME }}
+
+      - name: "Retrieve Version from version.py"
+        run: |
+          cat acme_srv/version.py
 
 
 
