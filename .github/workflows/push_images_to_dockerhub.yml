@@ -41,10 +41,12 @@ jobs:
         run: |
           VERSION=$(echo $1 | awk -F. '{print $2}')
           PRE_VERSION=$(($VERSION - 1))
+          echo $PRE_VERSION
           for row in $(curl https://api.github.com/repos/grindsa/acme2certifier/tags | jq .[].name);
             do
                 if [[ $row =~ $PRE_VERSION ]]; then
                   echo OLD_TAG_NAME=$(echo $row | sed s/\"//g) >> $GITHUB_ENV
+                  echo $row
                   break
                 fi
             done
