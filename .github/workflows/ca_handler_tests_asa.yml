@@ -1,0 +1,604 @@
+name: CA handler Tests - Insta ASA
+
+on:
+  push:
+  pull_request:
+    branches: [ devel ]
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 2 * * 6'
+
+jobs:
+  asa_handler_headerinfo_tests:
+    name: "asa_handler_headerinfo_tests"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: "wsgi"
+        WEB_SRV: "apache2"
+
+    - name: "Create lego folder"
+      run: |
+        mkdir lego
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "a2c configuration with standard profile"
+      run: |
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_POFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
+
+    - name: "Test http://acme-srv/directory is accessible again"
+      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Enroll lego with profileID ACME - could potenially fail"
+      continue-on-error: True
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
+
+    - name: "Enroll acme.sh with profileID ACME"
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --useragent profile_name=ACME --keylength 2048 --debug 3 --output-insecure
+        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
+
+    - name: "Enroll lego with profileID ACME"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
+
+    - name: "Enroll acme.sh with profileID ACME_2"
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://acme-srv --force -d acme-sh.acme --standalone --useragent profile_name=ACME_2 --keylength 2048 --debug 3 --output-insecure
+        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
+
+    - name: "Enroll lego with profileID ACME_2"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
+        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: asa_handler_headerinfo_tests.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  asa_handler_tests:
+    name: "asa_handler_tests"
+    runs-on: ubuntu-latest
+    needs: asa_handler_headerinfo_tests
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "create folders"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Setup a2c with asa_ca_handler with profile ${{ secrets.ASA_PROFILE1 }}"
+      run: |
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "${{ secrets.ASA_PROFILE1 }} - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
+      with:
+        PROFILE: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE2 }} - Reconfiguration of a2c with a new profile"
+      run: |
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE2" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+
+    - name: "${{ secrets.ASA_PROFILE2 }} - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
+      with:
+        PROFILE: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
+      run: |
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Hederinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_headerinfo
+      with:
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+
+    - name: "EAB without headerinfo - Setup asa_ca_handler"
+      run: |
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_name\"\: \[\"$ASA_PROFILE2\", \"$ASA_PROFILE1\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_name\"\: \"$ASA_PROFILE3\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"$ASA_CA_NAME2\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+        ASA_PROFILE3: ${{ secrets.ASA_PROFILE3 }}
+
+    - name: "EAB without headerinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_wo_headerinfo
+      with:
+        ASA_CA_NAME1: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+
+    - name: "EAB with headerinfo - Setup asa_ca_handler"
+      run: |
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_name\"\: \[\"$ASA_PROFILE2\", \"$ASA_PROFILE1\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_name\"\: \"$ASA_PROFILE3\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"$ASA_CA_NAME2\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+        ASA_PROFILE3: ${{ secrets.ASA_PROFILE3 }}
+
+    - name: "EAB with headerinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_w_headerinfo
+      with:
+        ASA_CA_NAME1: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+        cd examples/Docker
+        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: asa-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  asa_handler_tests_rpm:
+    name: "asa_handler_tests_rpm"
+    runs-on: ubuntu-latest
+    needs: asa_handler_headerinfo_tests
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8, 9]
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
+        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+
+    - name: "Create letsencrypt and lego folder"
+      run: |
+        mkdir certbot
+        mkdir lego
+        mkdir acme-sh
+
+    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Setup a2c with asa_ca_handler with profile ${{ secrets.ASA_PROFILE1 }}"
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE1 }} - Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+
+    - name: "${{ secrets.ASA_PROFILE1 }} - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
+      with:
+        PROFILE: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE2 }} - Setup a2c with asa_ca_handler with profile ${{ secrets.ASA_PROFILE1 }}"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE2" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE2 }} - reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "${{ secrets.ASA_PROFILE2 }} - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
+      with:
+        PROFILE: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Header-info - Setup asa_ca_handler with headerinfo"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+
+    - name: "Profile ${{ secrets.ASA_PROFILE2 }} - reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "Hederinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_headerinfo
+      with:
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+
+    - name: "EAB without headerinfo - Setup asa_ca_handler"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_name\"\: \[\"$ASA_PROFILE2\", \"$ASA_PROFILE1\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_name\"\: \"$ASA_PROFILE3\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"$ASA_CA_NAME2\"/" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+        ASA_PROFILE3: ${{ secrets.ASA_PROFILE3 }}
+
+    - name: "EAB without headerinfo - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "EAB without headerinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_wo_headerinfo
+      with:
+        ASA_CA_NAME1: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+
+    - name: "EAB with headerinfo - Setup asa_ca_handler"
+      run: |
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/asa_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "api_host: $ASA_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_user: $ASA_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $ASA_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "api_key: $ASA_API_KEY" >> data/acme_srv.cfg
+        sudo echo "ca_name: $ASA_CA_NAME" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_name\"\: \[\"$ASA_PROFILE2\", \"$ASA_PROFILE1\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_name\"\: \"$ASA_PROFILE3\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"$ASA_CA_NAME2\"/" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      env:
+        ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
+        ASA_API_USER: ${{ secrets.ASA_API_USER }}
+        ASA_API_PASSWORD: ${{ secrets.ASA_API_PASSWORD }}
+        ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
+        ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+        ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
+        ASA_PROFILE2: ${{ secrets.ASA_PROFILE2 }}
+        ASA_PROFILE3: ${{ secrets.ASA_PROFILE3 }}
+
+    - name: "EAB with headerinfo - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "EAB with headerinfo - enrollment"
+      uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_w_headerinfo
+      with:
+        ASA_CA_NAME1: ${{ secrets.ASA_CA_NAME }}
+        ASA_CA_NAME2: ${{ secrets.ASA_CA_NAME2 }}
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: asa_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+

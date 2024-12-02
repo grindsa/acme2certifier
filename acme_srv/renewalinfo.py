@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """ Nonce class """
-# pylint: disable=c0209
 from __future__ import print_function
 from typing import Dict
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
-from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now
+from acme_srv.helper import string_sanitize, certid_hex_get, uts_to_date_utc, error_dic_get, load_config, uts_now, cert_serial_get, cert_aki_get, b64_url_recode, b64_decode
 
 
 class Renewalinfo(object):
@@ -44,32 +43,89 @@ class Renewalinfo(object):
                 try:
                     self.renewaltreshold_pctg = float(config_dic['Renewalinfo']['renewaltreshold_pctg'])
                 except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: {0}'.format(err_))
+                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s', err_)
 
             if 'retry_after_timeout' in config_dic['Renewalinfo']:
                 try:
                     self.retry_after_timeout = int(config_dic['Renewalinfo']['retry_after_timeout'])
                 except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: {0}'.format(err_))
+                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s', err_)
 
-    def _lookup(self, certid_hex: str) -> Dict[str, str]:
-        """ lookup expiry dates based on renewal info """
-        self.logger.debug('Renewalinfo._lookup()')
+    def _cert_dic_lookup(self, renewalinfo_string: str) -> Dict[str, str]:
+        """ lookup certificate based on renewalinfo string """
+        self.logger.debug('Renewalinfo._cert_dic_lookup(%s)', renewalinfo_string)
+
+        if '.' in renewalinfo_string:
+            # draft-ietf-acme-ari-02
+            (serial, aki) = self._serial_aki_get(renewalinfo_string)
+            # lookup database for certificate data
+            cert_dic = self._draft02_lookup(serial, aki)
+
+        else:
+            # draft-ietf-acme-ari-01
+            (_mda, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
+            # lookup database for certificate data
+            cert_dic = self._draft01_lookup(certid_hex)
+
+        self.logger.debug('Renewalinfo._cert_dic_lookup(%s) - ended with: %s', renewalinfo_string, bool(cert_dic))
+        return cert_dic
+
+    def _cert_table_update(self):
+        """ add serial and aki to certificate table """
+        self.logger.debug('Renewalinfo._cert_table_update()')
+
+        try:
+            certificate_list = self.dbstore.certificates_search('serial', None, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'serial', 'aki'])
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Renewalinfo._cert_table_update(): %s', err_)
+            certificate_list = []
+
+        update_cnt = 0
+        for cert in certificate_list:
+            if 'cert_raw' in cert and cert['cert_raw'] and 'name' in cert and 'cert' in cert:
+                serial = cert_serial_get(self.logger, cert['cert_raw'], hexformat=True)
+                aki = cert_aki_get(self.logger, cert['cert_raw'])
+                data_dic = {'serial': serial, 'aki': aki, 'name': cert['name'], 'cert_raw': cert['cert_raw'], 'cert': cert['cert']}
+                self.dbstore.certificate_add(data_dic)
+                update_cnt += 1
+
+        self.logger.debug('Renewalinfo._cert_table_update(%s) - done', update_cnt)
+
+    def _draft01_lookup(self, certid_hex: str) -> Dict[str, str]:
+        """ lookup expiry dates based on certid accoridng to acme-ari-01 """
+        self.logger.debug('Renewalinfo._draft01_lookup()')
 
         try:
             result_dic = self.dbstore.certificate_lookup('renewal_info', certid_hex, ('id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'created_at'))
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Renewalinfo._lookup(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Renewalinfo._draft01_lookup(): %s', err_)
             result_dic = None
 
         return result_dic
 
-    def _renewalinfo_get(self, certid_hex: str) -> Dict[str, str]:
-        """ create dictionary containing renwal infor data """
-        self.logger.debug('Renewalinfo.get()')
+    def _draft02_lookup(self, serial: str, aki: str) -> Dict[str, str]:
+        """ lookup expiry dates based on certid accoridng to acme-ari-02 """
+        self.logger.debug('Renewalinfo._draft02_lookup()')
 
-        # lookup database for certificate data
-        cert_dic = self._lookup(certid_hex)
+        cert_dic = {}
+        try:
+            cert_list = self.dbstore.certificates_search('serial', serial, operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
+            if not cert_list and serial.startswith('0'):
+                # cover cornercase where serial is padded with leading zeros
+                cert_list = self.dbstore.certificates_search('serial', serial.lstrip('0'), operant='is', vlist=['id', 'name', 'cert', 'cert_raw', 'expire_uts', 'issue_uts', 'aki', 'created_at'])
+            for cert in cert_list:
+                if cert['aki'] == aki:
+                    cert_dic = cert
+                    break
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Renewalinfo._draft02_lookup(): %s', err_)
+
+        self.logger.debug('Renewalinfo._draft02_lookup() ended with: %s', bool(cert_dic))
+        return cert_dic
+
+    def _renewalinfo_generate(self, cert_dic: Dict[str, str]) -> Dict[str, str]:
+        """ create dictionary containing renwal info data """
+        self.logger.debug('Renewalinfo._renewalinfo_generate()')
 
         if 'expire_uts' in cert_dic and cert_dic['expire_uts']:
 
@@ -95,54 +151,89 @@ class Renewalinfo(object):
         else:
             renewalinfo_dic = {}
 
+        self.logger.debug('Renewalinfo._renewalinfo_generate() ended')
         return renewalinfo_dic
 
-    def renewalinfo_string_get(self, url: str) -> str:
+    def _renewalinfo_get(self, renewalinfo_string: str) -> Dict[str, str]:
+        """ get renewal info dictionary """
+        self.logger.debug('Renewalinfo._renewalinfo_get()')
+
+        cert_dic = self._cert_dic_lookup(renewalinfo_string)
+        rewalinfo_dic = self._renewalinfo_generate(cert_dic)
+
+        self.logger.debug('Renewalinfo._renewalinfo_get() ended with: %s', rewalinfo_dic)
+        return rewalinfo_dic
+
+    def _renewalinfo_string_get(self, url: str) -> str:
         """ get renewal string from url"""
         self.logger.debug('Renewalinfo.renewal_string_get()')
 
         # we need to workaround a strange issue in win-acme
-        url = url.replace('{0}{1}'.format(self.server_name, self.path_dic['renewalinfo'].rstrip('/')), '')
+        url = url.replace(f'{self.server_name}{self.path_dic["renewalinfo"].rstrip("/")}', '')
         url = url.lstrip('/')
 
         # sanitize renewal_info string
         renewalinfo_string = string_sanitize(self.logger, url)
 
-        self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: {0}'.format(renewalinfo_string))
+        self.logger.debug('Renewalinfo.renewal_string_get() - renewalinfo_string: %s', renewalinfo_string)
         return renewalinfo_string
+
+    def _serial_aki_get(self, renewalinfo_string: str) -> (str, str):
+        """ get serial and aki from renewalinfo string """
+        self.logger.debug('Renewalinfo._serial_aki_get()')
+
+        # split renewalinfo_string
+        renewalinfo_list = renewalinfo_string.split('.')
+
+        if len(renewalinfo_list) == 2:
+            serial = b64_decode(self.logger, b64_url_recode(self.logger, renewalinfo_list[1])).hex()
+            aki = b64_decode(self.logger, b64_url_recode(self.logger, renewalinfo_list[0])).hex()
+        else:
+            serial = None
+            aki = None
+
+        self.logger.debug('Renewalinfo._serial_aki_get() - serial: %s, aki: %s', serial, aki)
+        return (serial, aki)
 
     def get(self, url: str) -> Dict[str, str]:
         """ get renewal information """
         self.logger.debug('Renewalinfo.get()')
 
-        # parse renewalinfo
-        renewalinfo_string = self.renewalinfo_string_get(url)
+        # shousekeeping - add serial and aki to certificate table
+        if not self.dbstore.hkparameter_get('cert_aki_serial_update'):
+            self._cert_table_update()
+            self.logger.debug('Renewalinfo.get() - update housekeeping')
+            self.dbstore.hkparameter_add({'name': 'cert_aki_serial_update', 'value': True})
 
-        (mda, certid_hex) = certid_hex_get(self.logger, renewalinfo_string)
+        # parse renewalinfo string
+        renewalinfo_string = self._renewalinfo_string_get(url)
 
-        response_dic = {}
-        # we cannot verify the AKI thus we accept any value
-        if mda:
-            # get renewal window datas
-            rewalinfo_dic = self._renewalinfo_get(certid_hex)
+        # get renewal information
+        try:
+            rewalinfo_dic = self._renewalinfo_get(renewalinfo_string)
             if rewalinfo_dic:
-                response_dic['code'] = 200
-                # filter certificate and decode it
-                response_dic['data'] = rewalinfo_dic
-                # order status is processing - ratelimiting
-                response_dic['header'] = {'Retry-After': '{0}'.format(self.retry_after_timeout)}
+                rc_code = 200
             else:
-                response_dic['code'] = 404
-                response_dic['data'] = self.err_msg_dic['malformed']
+                rc_code = 404
+        except Exception as err_:
+            self.logger.error('Renewalinfo.get() - error: %s', err_)
+            rewalinfo_dic = {}
+            rc_code = 400
+
+        response_dic = {'code': rc_code}
+        if rewalinfo_dic:
+            # filter certificate and decode it
+            response_dic['data'] = rewalinfo_dic
+            # order status is processing - ratelimiting
+            response_dic['header'] = {'Retry-After': f'{self.retry_after_timeout}'.format()}
         else:
-            response_dic['code'] = 400
             response_dic['data'] = self.err_msg_dic['malformed']
 
         return response_dic
 
     def update(self, content: str) -> Dict[str, str]:
         """ update renewalinfo request """
-        self.logger.debug('Renewalinfo.update({0})')
+        self.logger.debug('Renewalinfo.update()')
 
         # check message
         (code, _message, _detail, _protected, payload, _account_name) = self.message.check(content)
@@ -150,9 +241,7 @@ class Renewalinfo(object):
         response_dic = {}
         if code == 200 and 'certid' in payload and 'replaced' in payload:
 
-            (_mda, certid_hex) = certid_hex_get(self.logger, payload['certid'])
-
-            cert_dic = self._lookup(certid_hex)
+            cert_dic = self._cert_dic_lookup(payload['certid'])
 
             if cert_dic and payload['replaced']:
                 cert_dic['replaced'] = True

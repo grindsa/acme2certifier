@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """ Order class """
-# pylint: disable=C0209, R0913
+# pylint: disable=R0913
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
@@ -40,12 +40,12 @@ class Authorization(object):
         try:
             self.dbstore.authorization_update({'name': authz_name, 'token': token, 'expires': expires})
         except Exception as err_:
-            self.logger.error('acme2certifier database error in Authorization._expiry_update({0}) update: {1}'.format(authz_name, err_))
+            self.logger.error('acme2certifier database error in Authorization._expiry_update(%s) update: %s', authz_name, err_)
 
         self.logger.debug('Authorization._expiry_update() ended')
 
     def _authz_lookup(self, authz_name: str, vlist: List[str] = None) -> Dict[str, str]:
-        self.logger.debug('Authorization._authz_lookup({0})'.format(authz_name))
+        self.logger.debug('Authorization._authz_lookup(%s)', authz_name)
 
         # lookup authorization based on name
         try:
@@ -54,7 +54,7 @@ class Authorization(object):
             else:
                 authz = self.dbstore.authorization_lookup('name', authz_name)
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Authorization._authz_lookup({0}) lookup: {1}'.format(authz_name, err_))
+            self.logger.critical('acme2certifier database error in Authorization._authz_lookup(%s) lookup: %s', authz_name, err_)
             authz = None
 
         self.logger.debug('Authorization._authz_lookup() ended')
@@ -62,7 +62,7 @@ class Authorization(object):
 
     def _challengeset_get(self, authz_info_dic: Dict[str, str], authz_name: str, token: str, tnauth: bool, expires: int) -> Dict[str, str]:
         """ get challenge set """
-        self.logger.debug('Authorization._challengeset_get({0})'.format(authz_name))
+        self.logger.debug('Authorization._challengeset_get(%s)', authz_name)
 
         with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
             # get challenge data (either existing or new ones)
@@ -109,8 +109,8 @@ class Authorization(object):
         """ return authzs information """
         self.logger.debug('Authorization._authz_info()')
 
-        authz_name = string_sanitize(self.logger, url.replace('{0}{1}'.format(self.server_name, self.path_dic['authz_path']), ''))
-        self.logger.debug('Authorization._authz_info({0})'.format(authz_name))
+        authz_name = string_sanitize(self.logger, url.replace(f'{self.server_name}{self.path_dic["authz_path"]}', ''))
+        self.logger.debug('Authorization._authz_info(%s)', authz_name)
 
         expires = uts_now() + self.validity
         token = generate_random_string(self.logger, 32)
@@ -136,7 +136,7 @@ class Authorization(object):
             # get challenge-set
             authz_info_dic['challenges'] = self._challengeset_get(authz_info_dic, authz_name, token, tnauth, expires)
 
-        self.logger.debug('Authorization._authz_info() returns: {0}'.format(json.dumps(authz_info_dic)))
+        self.logger.debug('Authorization._authz_info() returns: %s', json.dumps(authz_info_dic))
         return authz_info_dic
 
     def _config_load(self):
@@ -150,23 +150,23 @@ class Authorization(object):
                 try:
                     self.validity = int(config_dic['Authorization']['validity'])
                 except Exception:
-                    self.logger.warning('Authorization._config_load(): failed to parse validity: {0}'.format(config_dic['Authorization']['validity']))
+                    self.logger.warning('Authorization._config_load(): failed to parse validity: %s', config_dic['Authorization']['validity'])
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
         """ invalidate authorizations """
-        self.logger.debug('Authorization.invalidate({0})'.format(timestamp))
+        self.logger.debug('Authorization.invalidate(%s)', timestamp)
         if not timestamp:
             timestamp = uts_now()
-            self.logger.debug('Authorization.invalidate(): set timestamp to {0}'.format(timestamp))
+            self.logger.debug('Authorization.invalidate(): set timestamp to %s', timestamp)
 
         field_list = ['id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name']
         try:
             authz_list = self.dbstore.authorizations_expired_search('expires', timestamp, vlist=field_list, operant='<=')
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
+            self.logger.critical('acme2certifier database error in Authorization.invalidate(): %s', err_)
             authz_list = []
 
         output_list = []
@@ -181,9 +181,9 @@ class Authorization(object):
                     try:
                         self.dbstore.authorization_update(data_dic)
                     except Exception as err_:
-                        self.logger.critical('acme2certifier database error in Authorization.invalidate(): {0}'.format(err_))
+                        self.logger.critical('acme2certifier database error in Authorization.invalidate(): %s', err_)
 
-        self.logger.debug('Authorization.invalidate() ended: {0} authorizations identified'.format(len(output_list)))
+        self.logger.debug('Authorization.invalidate() ended: %s authorizations identified', len(output_list))
         return (field_list, output_list)
 
     def new_get(self, url: str) -> Dict[str, str]:
@@ -224,5 +224,5 @@ class Authorization(object):
         status_dic = {'code': code, 'type': message, 'detail': detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug('Authorization.new_post() returns: {0}'.format(json.dumps(response_dic)))
+        self.logger.debug('Authorization.new_post() returns: %s', json.dumps(response_dic))
         return response_dic

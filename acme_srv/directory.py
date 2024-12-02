@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """ Directory class """
-# pylint: disable=c0209, e0401, r0913
+# pylint: disable=e0401, r0913
 from __future__ import print_function
 import uuid
 from typing import Dict
 from .version import __version__, __dbversion__
 from .helper import load_config
 from .db_handler import DBstore
+
+
+GH_HOME = 'https://github.com/grindsa/acme2certifier'
 
 
 class Directory(object):
@@ -17,6 +20,8 @@ class Directory(object):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
         self.supress_version = False
+        self.suppress_product_information = False
+        self.home = GH_HOME
         self.tos_url = None
         self.version = __version__
         self.dbversion = __dbversion__
@@ -48,6 +53,13 @@ class Directory(object):
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.url_prefix = config_dic['Directory']['url_prefix']
 
+        self.home = config_dic.get('Directory', 'home', fallback=GH_HOME)
+
+        try:
+            self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback=False)
+        except Exception as err_:
+            self.logger.error('Directory._config_load() suppress_product_information not set: %s', err_)
+
         self.logger.debug('Directory._config_load() ended')
 
     def directory_get(self) -> Dict[str, str]:
@@ -62,16 +74,21 @@ class Directory(object):
             'revokeCert': self.server_name + self.url_prefix + '/acme/revokecert',
             'keyChange': self.server_name + self.url_prefix + '/acme/key-change',
             'renewalInfo': self.server_name + self.url_prefix + '/acme/renewal-info',
-            'meta': {
-                'home': 'https://github.com/grindsa/acme2certifier',
-                'author': 'grindsa <grindelsack@gmail.com>',
-                'name': 'acme2certifier'
-            },
+            'meta': {}
         }
 
-        # show version information in meta tags if not disabled....
-        if not self.supress_version:
-            d_dic['meta']['version'] = self.version
+        if not self.suppress_product_information:
+            d_dic['meta'] = {
+                'home': self.home,
+                'author': 'grindsa <grindelsack@gmail.com>',
+                'name': 'acme2certifier'
+            }
+            # show version information in meta tags if not disabled....
+            if not self.supress_version:
+                d_dic['meta']['version'] = self.version
+        else:
+            if self.home != GH_HOME:
+                d_dic['meta']['home'] = self.home
 
         # add terms of service
         if self.tos_url:
@@ -87,15 +104,16 @@ class Directory(object):
                 if version == self.dbversion:
                     d_dic['meta']['db_check'] = 'OK'
                 else:
-                    self.logger.error('acme2certifier database error: version mismatch: detected: {0}/ expected: {1}'.format(version, __dbversion__))
+                    self.logger.error('acme2certifier database error: version mismatch: detected: %s/ expected: %s', version, __dbversion__)
                     d_dic['meta']['db_check'] = 'NOK'
 
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Directory.dbversion_check(): {0}'.format(err_))
+                self.logger.critical('acme2certifier database error in Directory.dbversion_check(): %s', err_)
                 d_dic['meta']['db_check'] = 'NOK'
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
+
         return d_dic
 
     def servername_get(self) -> str:

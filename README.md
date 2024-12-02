@@ -14,30 +14,33 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier&branch=min)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier&branch=min)
 
-acme2certifier is development project to create an ACME protocol proxy. Main
-intention is to provide ACME services on CA servers which do not support this
-protocol yet. It consists of two libraries:
+acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet. It consists of two libraries:
 
 - acme_srv/*.py - a bunch of classes implementing ACME server functionality based
 on [rfc8555](https://tools.ietf.org/html/rfc8555)
 - ca_handler.py - interface towards CA server. The intention of this library
 is to be modular that an [adaption to other CA servers](docs/ca_handler.md)
 should be straight forward. As of today the following handlers are available:
-  - [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)
-  - [NetGuard Certificate Lifecycle Manager](docs/nclm.md)
-  - [EJBCA](docs/ejbca.md)
-  - [OpenXPKI](docs/openxpki.md)
-  - [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)
-  - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md)
-  - [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md)
-  - [Generic EST protocol handler](docs/est.md)
-  - [Generic CMPv2 protocol handler](docs/cmp.md)
-  - [Openssl](docs/openssl.md)
-  - [XCA](docs/xca.md)
-  - [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)
 
-For more up-to-date information and further documentation, please visit the
-project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
+| E - Certificte Enrollment, R - Certificte Revocation, P - [EAB Profiling](docs/eab_profiling.md) |E|R|P|
+| :-------- | - | - | - |
+| [DigiCert® CertCentral](docs/digicert.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Entrust ECS Enterprise](docs/entrust.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [EJBCA](docs/ejbca.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL](docs/acme_ca.md) | :x: | :x: | :white_check_mark: |
+| [Generic CMPv2 protocol handler](docs/cmp.md) | :white_check_mark: | :x: | :x: |
+| [Generic EST protocol handler](docs/est.md) | :white_check_mark: | :x: | :x: |
+| [Insta ActiveCMS](docs/asa.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md) | :white_check_mark: | :x: | :white_check_mark: |
+| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](docs/mswcce.md) | :white_check_mark: | :x: | :white_check_mark: |
+| [NetGuard Certificate Lifecycle Manager](docs/nclm.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Openssl](docs/openssl.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [OpenXPKI](docs/openxpki.md) | :white_check_mark: | :white_check_mark: | :x: |
+| [XCA](docs/xca.md) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [acme2dfn](https://github.com/pfisterer/acme2dfn) (external; ACME proxy for the [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)| :white_check_mark: | :x: | :x: |
+
+For more up-to-date information and further documentation, please visit the project's home page at: [https://github.com/grindsa/acme2certifier](https://github.com/grindsa/acme2certifier)
 
 ## ChangeLog
 
@@ -57,21 +60,18 @@ Following acme-clients are used for regular testing of server functionality
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
 - [win-acme](https://www.win-acme.com/)
 
-Other clients are on my list for later testing. In case you are bored, feel
-free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new)
-if something does not work as expected.
+Other clients are on my list for later testing. In case you are bored, feel free to test other ACME clients and raise [issues](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
 [Command-line parameters used for testing](docs/acme-clients.md)
 
-I am not a professional developer. Keep this in mind while laughing about my
-code and don’t forget to send patches.
+I am not a professional developer. Keep this in mind while laughing about my code and don’t forget to send patches.
 
 ## Features
 
 - ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant server implementation including
   - Support [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html): TLS Application‑Layer Protocol Negotiation (ALPN) Challenge Extension
   - Support [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html): Certificates for IP addresses
-  - Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/): Renewal Information (ARI) Extension
+  - Support [draft-ietf-acme-ari-02](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/02/) and [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/01/): Renewal Information (ARI) Extension
   - Support [TNAuthList identifiers](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-tnauthlist-13): [TNAuthList profile](docs/tnauthlist.md) of ACME Authority Token
   - Support [tkauth-01](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09) ACME Challenges Using an Authority Token
   - [Certificate polling](docs/poll.md) and [Call backs](docs/trigger.md) from CA servers. These calls are not standardized but important to use acme2certifier together with classical enterprise CA
@@ -87,12 +87,9 @@ Additional functionality will be added over time. If you are badly missing a cer
 
 ## Installation
 
-The proxy can run either as plain wsgi-script on either apache or nginx or as
-django project. Running acme2certifier as django project allows to use other
-database backends than SQLite.
+The proxy can run either as plain wsgi-script on either apache or nginx or as django project. Running acme2certifier as django project allows to use other database backends than SQLite.
 
-The fastest and most convenient way to install acme2certifier is to use docker
-containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
+The fastest and most convenient way to install acme2certifier is to use docker containers.  There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
 
 - [acme2certifier in Github container repository](https://github.com/grindsa?tab=packages&ecosystem=container)
 - [acme2certifier repository at hub.docker.com](https://hub.docker.com/r/grindsa/acme2certifier)
@@ -109,15 +106,11 @@ containers.  There are ready made images available at [dockerhub](https://hub.do
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of
-conduct, and the process for submitting pull requests.
-Please note that I have a life besides programming. Thus, expect a delay
-in answering.
+Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on my code of conduct, and the process for submitting pull requests. Please note that I have a life besides programming. Thus, expect a delay in answering.
 
 ## Versioning
 
-I use [SemVer](http://semver.org/) for versioning. For the versions available,
-see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
+I use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/grindsa/dkb-robo/tags).
 
 ## License
 
