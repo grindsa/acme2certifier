@@ -120,7 +120,7 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build with  2nd last release tag
+      - name: Build with 2nd latest release tag
         uses: docker/build-push-action@v5
         with:
           push: true
