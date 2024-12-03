@@ -134,10 +134,10 @@ jobs:
             --tag ghcr.io/grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
             grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
 
-      - name: Delete image from registry
-        run: |
-          docker images
-          docker rmi $(docker images grindsa/acme2certifier -q) --force
+      #- name: Delete image from registry
+      #  run: |
+      #    docker images
+      #    docker rmi $(docker images grindsa/acme2certifier -q) --force
 
       - name: Checkout code for latest release
         uses: actions/checkout@v4
