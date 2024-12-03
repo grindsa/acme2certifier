@@ -92,7 +92,7 @@ jobs:
       - run: echo "Old tag is ${{ env.OLD_TAG_NAME }}"
       - run: echo "BUILD_NAME is ${{ env.BUILD_NAME}}"
 
-      - name: Checkout code
+      - name: Checkout code for 2nd last release
         uses: actions/checkout@v4
         with:
           ref: ${{ env.OLD_TAG_NAME }}
@@ -136,9 +136,10 @@ jobs:
 
       - name: Delete image from registry
         run: |
+          docker images
           docker rmi $(docker images grindsa/acme2certifier -q) --force
 
-      - name: Checkout code
+      - name: Checkout code for latest release
         uses: actions/checkout@v4
 
       - name: Set up QEMU
