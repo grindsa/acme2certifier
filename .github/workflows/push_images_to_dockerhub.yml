@@ -128,6 +128,7 @@ jobs:
       - name: Build with 2nd latest release tag
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           tags: grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
