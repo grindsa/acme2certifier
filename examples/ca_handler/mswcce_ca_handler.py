@@ -20,7 +20,8 @@ from acme_srv.helper import (
     allowed_domainlist_check,
     eab_profile_header_info_check,
     config_eab_profile_load,
-    enrollment_config_log
+    enrollment_config_log,
+    config_enroll_config_log_load
 )
 
 
@@ -45,6 +46,7 @@ class CAhandler(object):
         self.eab_handler = None
         self.eab_profiling = False
         self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -123,10 +125,8 @@ class CAhandler(object):
         self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=None)
         self.template = config_dic.get('CAhandler', 'template', fallback=None)
 
-        try:
-            self.enrollment_config_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
-        except Exception as err_:
-            self.logger.warning('CAhandler._config_load() enrollment_config_log failed with error: %s', err_)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
         try:
             self.timeout = config_dic.getint('CAhandler', 'timeout', fallback=5)
@@ -195,7 +195,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler.request_create()')
 
         if self.enrollment_config_log:
-            enrollment_config_log(self.logger, self)
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         target = Target(
             domain=self.target_domain,

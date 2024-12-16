@@ -15,7 +15,7 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme import errors
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check
+from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check,  config_enroll_config_log_load, enrollment_config_log
 
 """
 Config file section:
@@ -50,6 +50,8 @@ class CAhandler(object):
         self.eab_profiling = False
         self.acme_keypath = None
         self.ssl_verify = True
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -121,6 +123,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
     def _challenge_filter(self, authzr: messages.AuthorizationResource, chall_type: str = 'http-01') -> messages.ChallengeBody:
         """ filter authorization for challenge """
@@ -503,6 +507,10 @@ class CAhandler(object):
         # check for eab profiling and header_info
         if not error:
             error = eab_profile_header_info_check(self.logger, self, csr, 'acme_url')
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['dbstore', 'eab_mack_key'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if not error:
             try:

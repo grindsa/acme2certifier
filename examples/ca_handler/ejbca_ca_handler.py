@@ -5,7 +5,7 @@ from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check,  config_enroll_config_log_load, enrollment_config_log
 
 
 class CAhandler(object):
@@ -27,6 +27,8 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -171,6 +173,9 @@ class CAhandler(object):
         for ele in ['api_host', 'cert_profile_name', 'ee_profile_name', 'ca_name', 'username', 'enrollment_code']:
             if not variable_dic[ele]:
                 self.logger.error('CAhandler._config_load(): configuration incomplete: parameter "%s" is missing in configuration file.', ele)
+
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
         self.logger.debug('CAhandler._config_load() ended')
 
     def _api_post(self, url: str, data: Dict[str, str]) -> Dict[str, str]:
@@ -206,6 +211,10 @@ class CAhandler(object):
 
         # prepare the CSR to be signed
         csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+
+        if self.enrollment_config_log:
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
+
         sign_response = self._sign(csr)
 
         if 'certificate' in sign_response and 'certificate_chain' in sign_response:

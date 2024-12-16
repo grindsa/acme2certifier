@@ -1655,6 +1655,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.xca_ca_handler.x509.CertificateBuilder')
     @patch('examples.ca_handler.xca_ca_handler.b64_encode')
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
@@ -1665,7 +1666,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_189_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_189_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1684,7 +1685,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_chain.called)
         self.assertTrue(mock_cvt.called)
         self.assertTrue(mock_builder.called)
+        self.assertFalse(mock_ecl.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.xca_ca_handler.x509.CertificateBuilder')
     @patch('examples.ca_handler.xca_ca_handler.b64_encode')
     @patch('examples.ca_handler.xca_ca_handler.convert_byte_to_string')
@@ -1695,7 +1698,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_190_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_190_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1705,6 +1708,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.template_name = 'template_name'
         mock_extlist.return_value = [{'name': 'name', 'critical': True}]
         mock_teml_load.return_value = [{'foo': 'bar'}, {'foo': 'bar'}]
+        self.cahandler.enrollment_config_log = True
         mock_builder.return_value.not_valid_before.return_value.not_valid_after.return_value.issuer_name.return_value.serial_number.return_value.public_key.return_value.add_extension.return_value.subject_name.return_value.sign.return_value.serial_number = 1234
         self.assertEqual(('mock_pem', 'mock_cvt'), self.cahandler._cert_sign('csr', 'request_name', 'ca_key', ca_cert, 'ca_id'))
         self.assertTrue(mock_teml_load.called)
@@ -1716,6 +1720,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_chain.called)
         self.assertTrue(mock_cvt.called)
         self.assertTrue(mock_builder.called)
+        self.assertTrue(mock_ecl.called)
 
     @patch('examples.ca_handler.xca_ca_handler.x509.CertificateBuilder')
     @patch('examples.ca_handler.xca_ca_handler.b64_encode')
