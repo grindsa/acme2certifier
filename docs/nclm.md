@@ -34,3 +34,6 @@ template_name: <template_name>
 - ca_name - name of the CA used to enroll certificates
 - tsg_name - name of the target system group to store the certificates
 - template_name - optional - name of the template to be applied to CSR
+- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- enrollment_config_log - optional - log enrollment parameters (default False)
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])

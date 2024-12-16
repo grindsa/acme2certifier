@@ -14,7 +14,7 @@ from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIden
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, config_headerinfo_load, config_eab_profile_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, config_headerinfo_load, config_eab_profile_load, eab_profile_header_info_check,  config_enroll_config_log_load, enrollment_config_log
 
 
 DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
@@ -41,6 +41,8 @@ class CAhandler(object):
         self.header_info_field = None
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -238,6 +240,10 @@ class CAhandler(object):
     def _cert_sign(self, csr: str, request_name: str, ca_key: object, ca_cert: object, ca_id: int) -> Tuple[str, str]:  # pylint: disable=R0913
         self.logger.debug('Certificate._cert_sign()')
 
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['dbs', 'passphrase'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
+
         # load template if configured
         if self.template_name:
             (dn_dic, template_dic) = self._template_load()
@@ -359,6 +365,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
     def _csr_import(self, csr, request_name):
         """ check existance of csr and load into db """

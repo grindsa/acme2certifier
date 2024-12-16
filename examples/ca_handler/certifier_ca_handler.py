@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log
 
 
 class CAhandler(object):
@@ -32,6 +32,8 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -135,6 +137,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get(%s)', csr)
         ca_dic = self._ca_get_properties('name', self.ca_name)
         cert_dic = {}
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['auth', 'api_password'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if 'href' in ca_dic:
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
@@ -257,6 +263,9 @@ class CAhandler(object):
                 self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
             except Exception:
                 self.request_timeout = 20
+
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
         # load profile_id
         self.profile_id = config_dic['CAhandler'].get('profile_id', None)

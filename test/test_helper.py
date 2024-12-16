@@ -3249,6 +3249,19 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.assertFalse(self.enrollment_config_log(self.logger, myclass, ['foo', 'bar']))
         self.assertIn("INFO:test_a2c:Enrollment configuration: ['foobar: foobar_val']", lcm.output)
 
+    def test_398_enrollment_config_log(self):
+        """ test enrollment_config_log() """
+        class myclass:
+            pass
+        myclass.foo = 'foo_val'
+        myclass.bar = 'bar_val'
+        myclass.foobar = 'foobar_val'
+        myclass.password = 'password_val'
+        myclass.secret = 'secret_val'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.enrollment_config_log(self.logger, myclass, 'ECLSLFAILURE'))
+        self.assertIn("ERROR:test_a2c:Enrollment configuration won't get logged due to a configuration error.", lcm.output)
+
 
 if __name__ == '__main__':
     unittest.main()
