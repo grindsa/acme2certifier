@@ -17,11 +17,12 @@ from acme_srv.helper import (
     proxy_check,
     build_pem_file,
     header_info_get,
-    allowed_domainlist_check,
     eab_profile_header_info_check,
     config_eab_profile_load,
     enrollment_config_log,
-    config_enroll_config_log_load
+    config_enroll_config_log_load,
+    config_allowed_domainlist_load,
+    allowed_domainlist_check_error
 )
 
 
@@ -127,6 +128,8 @@ class CAhandler(object):
 
         # load enrollment config log
         self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
 
         try:
             self.timeout = config_dic.getint('CAhandler', 'timeout', fallback=5)
@@ -138,13 +141,6 @@ class CAhandler(object):
             self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
         except Exception as err_:
             self.logger.warning('CAhandler._config_load() use_kerberos failed with error: %s', err_)
-
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            try:
-                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-            except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-                self.allowed_domainlist = 'ADLFAILURE'
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -236,22 +232,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
         return template_name
 
-    def _csr_check(self, csr: str) -> bool:
-        """ check if csr is allowed """
-        self.logger.debug('CAhandler._csr_check()')
-
-        if self.allowed_domainlist:
-            if self.allowed_domainlist != 'ADLFAILURE':
-                # check sans / cn against list of allowed comains from config
-                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            else:
-                result = False
-        else:
-            result = True
-
-        self.logger.debug('CAhandler._csr_check() ended with: %s', result)
-        return result
-
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler._enroll(%s)", self.template)
@@ -307,10 +287,10 @@ class CAhandler(object):
             self.logger.error("Config incomplete")
             return ("Config incomplete", None, None, None)
 
-        # check if csr is allowed
-        result = self._csr_check(csr)
+        # check for allowed domainlist
+        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
-        if result:
+        if not error:
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(self.logger, self, csr, 'template')
@@ -322,8 +302,7 @@ class CAhandler(object):
             else:
                 self.logger.error('EAB profile check failed')
         else:
-            self.logger.error('SAN/CN check failed')
-            error = 'SAN/CN check failed'
+            self.logger.error(error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

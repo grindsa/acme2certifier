@@ -255,10 +255,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'acct_path': '/acme/acct/', 'directory_path': '/directory'}, self.cahandler.path_dic)
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
-        self.assertFalse(self.cahandler.allowed_domainlist)
+        self.assertEqual('failed to parse', self.cahandler.allowed_domainlist)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file', lcm.output)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file', lcm.output)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertIn('WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
@@ -845,7 +845,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -876,13 +876,13 @@ class TestACMEHandler(unittest.TestCase):
         mock_pof.return_value = resp_pof
         mock_dumpcert.return_value = b'mock_dumpcert'
         mock_loadcert.return_value = 'mock_loadcert'
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = False
         self.assertEqual((None, 'fullchain', 'bW9ja19kdW1wY2VydA==', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_store.called)
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -913,7 +913,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_pof.return_value = resp_pof
         mock_dumpcert.return_value = b'mock_dumpcert'
         mock_loadcert.return_value = 'mock_loadcert'
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = False
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Bad ACME account: error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_store.called)
@@ -921,7 +921,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_reg.called)
         self.assertIn('ERROR:test_a2c:CAhandler.enroll: Bad ACME account: error', lcm.output)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -952,7 +952,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_pof.return_value = resp_pof
         mock_dumpcert.return_value = b'mock_dumpcert'
         mock_loadcert.return_value = 'mock_loadcert'
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = False
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('Error getting certificate: order_error', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler.enroll: Error getting certificate: order_error', lcm.output)
@@ -960,7 +960,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -968,7 +968,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
     def test_061_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk):
         """ test enroll exception during enrollment  """
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = False
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('ex_user_key_load', None, None, None), self.cahandler.enroll('csr'))
@@ -979,7 +979,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -988,19 +988,19 @@ class TestACMEHandler(unittest.TestCase):
     def test_062_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
         """ test enroll exception during enrollment  """
         mock_profilechk.return_value = False
-        mock_csrchk.return_value = False
+        mock_csrchk.return_value = 'error'
         self.cahandler.allowed_domainlist = ['allowed_domain']
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Either CN or SANs are not allowed by configuration', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by configuration', lcm.output)
+            self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. error', lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -1009,19 +1009,19 @@ class TestACMEHandler(unittest.TestCase):
     def test_063_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
         """ test enroll exception during enrollment  """
         mock_profilechk.return_value = False
-        mock_csrchk.return_value = False
+        mock_csrchk.return_value = 'error'
         self.cahandler.allowed_domainlist = ['allowed_domain']
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Either CN or SANs are not allowed by configuration', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. Either CN or SANs are not allowed by configuration', lcm.output)
+            self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. error', lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._order_issue')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -1052,7 +1052,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_pof.return_value = resp_pof
         mock_dumpcert.return_value = b'mock_dumpcert'
         mock_loadcert.return_value = 'mock_loadcert'
-        mock_csrchk.return_value = True
+        mock_csrchk.return_value = False
         mock_issue.return_value = ('error', 'cert', 'raw')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('error', 'cert', 'raw', None), self.cahandler.enroll('csr'))

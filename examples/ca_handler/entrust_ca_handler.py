@@ -8,7 +8,7 @@ import json
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_pem2der, b64_encode, allowed_domainlist_check, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, header_info_get, b64_url_recode, request_operation, csr_cn_lookup,  config_enroll_config_log_load, enrollment_config_log
+from acme_srv.helper import load_config, cert_pem2der, b64_encode, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, header_info_get, b64_url_recode, request_operation, csr_cn_lookup, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 CONTENT_TYPE = 'application/json'
@@ -76,21 +76,6 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """ cose the connection at the end of the context """
-
-    def _allowed_domainlist_check(self, csr: str) -> str:
-        """ check allowed domainlist """
-        self.logger.debug('CAhandler._allowed_domainlist_check()')
-
-        error = None
-        # check CN and SAN against black/whitlist
-        if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            if not result:
-                error = 'Either CN or SANs are not allowed by configuration'
-
-        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
-        return error
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """ post data to API """
@@ -167,15 +152,11 @@ class CAhandler(object):
             self.certtype = cfg_dic.get('certtype', 'STANDARD_SSL')
             self._config_session_load(config_dic)
 
-            if 'allowed_domainlist' in config_dic['CAhandler']:
-                try:
-                    self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-                except Exception as err:
-                    self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-                    self.allowed_domainlist = 'failed to parse'
             # load root CA
             self._config_root_load(config_dic)
 
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
@@ -330,14 +311,14 @@ class CAhandler(object):
             error = self._config_check()
 
         if not error:
-            error = self.credential_check()
-
-        if not error:
             error = self._org_domain_cfg_check()
 
         if not error:
             # check for allowed domainlist
-            error = self._allowed_domainlist_check(csr)
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+
+        if not error:
+            error = self.credential_check()
 
         self.logger.debug('CAhandler._enroll_check() ended with %s', error)
         return error

@@ -61,29 +61,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
-    def test_006_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = False
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertFalse(mock_adc.called)
-
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
-    def test_007_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = True
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
-    def test_008_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = False
-        self.assertEqual('Either CN or SANs are not allowed by configuration', self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
     def test_009__api_post(self):
         """ test _api_post() """
         mockresponse = Mock()
@@ -866,7 +843,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.organization_name = 'organization_name'
         self.assertFalse(self.cahandler._config_check())
 
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -885,7 +862,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_org.called)
         self.assertFalse(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -904,7 +881,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_org.called)
         self.assertFalse(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -914,16 +891,16 @@ class TestACMEHandler(unittest.TestCase):
         mock_eab.return_value = False
         mock_config.return_value = False
         mock_credential.return_value = 'mock_credential_error'
-        mock_org.return_value = 'mock_org_error'
-        mock_domain.return_value = 'mock_domain_error'
+        mock_org.return_value = False
+        mock_domain.return_value = False
         self.assertEqual('mock_credential_error', self.cahandler._enroll_check('csr'))
         self.assertTrue(mock_eab.called)
         self.assertTrue(mock_config.called)
         self.assertTrue(mock_credential.called)
-        self.assertFalse(mock_org.called)
-        self.assertFalse(mock_domain.called)
+        self.assertTrue(mock_org.called)
+        self.assertTrue(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -938,11 +915,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('mock_org_error', self.cahandler._enroll_check('csr'))
         self.assertTrue(mock_eab.called)
         self.assertTrue(mock_config.called)
-        self.assertTrue(mock_credential.called)
         self.assertTrue(mock_org.called)
         self.assertFalse(mock_domain.called)
+        self.assertFalse(mock_credential.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._allowed_domainlist_check')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -956,10 +933,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_domain.return_value = 'mock_domain_error'
         self.assertEqual('mock_domain_error', self.cahandler._enroll_check('csr'))
         self.assertTrue(mock_eab.called)
-        self.assertTrue(mock_config.called)
-        self.assertTrue(mock_credential.called)
         self.assertTrue(mock_org.called)
         self.assertTrue(mock_domain.called)
+        self.assertTrue(mock_config.called)
+        self.assertFalse(mock_credential.called)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')

@@ -617,8 +617,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertEqual('ADLFAILURE', self.cahandler.allowed_domainlist)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertEqual('failed to parse', self.cahandler.allowed_domainlist)
+        self.assertIn('WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_031_config_load(self, mock_load_cfg):
@@ -760,7 +760,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertIn('WARNING:test_a2c:CAhandler._config_load() enrollment_config_log failed with error: Not a boolean: aaaa', lcm.output)
+        self.assertIn('WARNING:test_a2c:loading enrollment_config_log failed with error: Not a boolean: aaaa', lcm.output)
         self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertFalse(self.cahandler.enrollment_config_log)
 
@@ -876,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
         self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -888,15 +888,16 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = 'user'
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
+        mock_dlchk.return_value = False
         mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = 'b2s'
         self.assertEqual((None, 'b2sfile_load', 'b2s', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_rcr.called)
-        self.assertFalse(mock_dlchk.called)
+        self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -909,7 +910,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
         self.cahandler.allowed_domainlist = ['allowed_domainlist']
-        mock_dlchk.return_value = True
+        mock_dlchk.return_value = False
         mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
@@ -918,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -931,16 +932,16 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
         self.cahandler.allowed_domainlist = ['allowed_domainlist']
-        mock_dlchk.return_value = False
+        mock_dlchk.return_value = 'error'
         mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = 'b2s'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -953,14 +954,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = 'password'
         self.cahandler.template = 'template'
         self.cahandler.allowed_domainlist = 'ADLFAILURE'
-        mock_dlchk.return_value = False
+        mock_dlchk.return_value = 'error'
         mock_rcr.return_value = Mock(return_value='raw_data')
         mock_file.return_value = 'file_load'
         mock_s2b.return_value = 's2b'
         mock_b2s.return_value = 'b2s'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_rcr.called)
-        self.assertFalse(mock_dlchk.called)
+        self.assertTrue(mock_dlchk.called)
 
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
