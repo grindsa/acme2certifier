@@ -408,8 +408,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
-        self.assertEqual('ADLFAILURE', self.cahandler.allowed_domainlist)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertEqual('failed to parse', self.cahandler.allowed_domainlist)
+        self.assertIn('WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.config_eab_profile_load')
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
@@ -519,7 +519,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -540,11 +540,12 @@ class TestACMEHandler(unittest.TestCase):
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
+        mock_adc.return_value = False
         self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
-        self.assertFalse(mock_adc.called)
+        self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -561,7 +562,7 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        mock_adc.return_value = True
+        mock_adc.return_value = False
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
@@ -571,7 +572,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -588,17 +589,17 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        mock_adc.return_value = False
+        mock_adc.return_value = 'error'
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -615,15 +616,15 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        # mock_adc.return_value = False
+        mock_adc.return_value = 'error'
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
-        self.assertFalse(mock_adc.called)
+        self.assertTrue(mock_adc.called)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')

@@ -15,7 +15,7 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme import errors
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check,  config_enroll_config_log_load, enrollment_config_log
+from acme_srv.helper import load_config, b64_url_recode, parse_url, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 """
 Config file section:
@@ -92,17 +92,10 @@ class CAhandler(object):
         """" load eab config """
         self.logger.debug('CAhandler._config_eab_load()')
 
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            try:
-                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-            except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-
         self.path_dic['directory_path'] = config_dic['CAhandler'].get('directory_path', '/directory')
         self.eab_kid = config_dic['CAhandler'].get('eab_kid', None)
         self.eab_hmac_key = config_dic['CAhandler'].get('eab_hmac_key', None)
         self.acme_keypath = config_dic['CAhandler'].get('acme_keypath', None)
-
         self.logger.debug('CAhandler._config_eab_load() ended')
 
     def _config_load(self):
@@ -119,6 +112,8 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file')
 
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
@@ -395,21 +390,6 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._zerossl_eab_get() failed: %s', response.text)
 
-    def _allowed_domainlist_check(self, csr: str) -> str:
-        """ check allowed domainlist """
-        self.logger.debug('CAhandler._allowed_domainlist_check()')
-
-        error = None
-        # check CN and SAN against black/whitlist
-        if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            if not result:
-                error = 'Either CN or SANs are not allowed by configuration'
-
-        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
-        return error
-
     def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._acme_keyfile_set(): list: key: %s, value: %s', key, value)
 
@@ -502,7 +482,8 @@ class CAhandler(object):
         cert_raw = None
         poll_indentifier = None
         user_key = None
-        error = self._allowed_domainlist_check(csr)
+
+        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
         # check for eab profiling and header_info
         if not error:

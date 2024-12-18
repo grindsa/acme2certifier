@@ -26,7 +26,7 @@ class TestACMEHandler(unittest.TestCase):
         """ setup unittest """
         import logging
         logging.basicConfig(level=logging.CRITICAL)
-        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check, csr_cn_lookup, request_operation, enrollment_config_log
+        from acme_srv.helper import b64decode_pad, b64_decode, b64_encode, b64_url_encode, b64_url_recode, convert_string_to_byte, convert_byte_to_string, decode_message, decode_deserialize, get_url, generate_random_string, signature_check, validate_email, uts_to_date_utc, date_to_uts_utc, load_config, cert_serial_get, cert_san_get, cert_san_pyopenssl_get, cert_dates_get, build_pem_file, date_to_datestr, datestr_to_date, dkeys_lower, csr_cn_get, cert_pubkey_get, csr_pubkey_get, url_get, url_get_with_own_dns,  dns_server_list_load, csr_san_get, csr_san_byte_get, csr_extensions_get, fqdn_resolve, fqdn_in_san_check, sha256_hash, sha256_hash_hex, cert_der2pem, cert_pem2der, cert_extensions_get, csr_dn_get, logger_setup, logger_info, print_debug, jwk_thumbprint_get, allowed_gai_family, patched_create_connection, validate_csr, servercert_get, txt_get, proxystring_convert, proxy_check, handle_exception, ca_handler_load, eab_handler_load, hooks_load, error_dic_get, _logger_nonce_modify, _logger_certificate_modify, _logger_token_modify, _logger_challenges_modify, config_check, cert_issuer_get, cert_cn_get, string_sanitize, pembundle_to_list, certid_asn1_get, certid_check, certid_hex_get, v6_adjust, ipv6_chk, ip_validate, header_info_get, encode_url, uts_now, cert_ski_get, cert_ski_pyopenssl_get, cert_aki_get, cert_aki_pyopenssl_get, validate_fqdn, validate_ip, validate_identifier, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, domainlist_check, allowed_domainlist_check, eab_profile_string_check, eab_profile_list_check, eab_profile_check, eab_profile_header_info_check, cert_extensions_py_openssl_get, cryptography_version_get, cn_validate, csr_subject_get, eab_profile_subject_string_check, eab_profile_subject_check, csr_cn_lookup, request_operation, enrollment_config_log, config_enroll_config_log_load, allowed_domainlist_check_error, config_allowed_domainlist_load
         self.logger = logging.getLogger('test_a2c')
         self.allowed_gai_family = allowed_gai_family
         self.b64_decode = b64_decode
@@ -116,6 +116,7 @@ class TestACMEHandler(unittest.TestCase):
         self.ip_validate = ip_validate
         self.config_headerinfo_load = config_headerinfo_load
         self.config_eab_profile_load = config_eab_profile_load
+        self.config_allowed_domainlist_load = config_allowed_domainlist_load
         self.domainlist_check = domainlist_check
         self.allowed_domainlist_check = allowed_domainlist_check
         self.eab_profile_string_check = eab_profile_string_check
@@ -129,6 +130,8 @@ class TestACMEHandler(unittest.TestCase):
         self.csr_cn_lookup = csr_cn_lookup
         self.request_operation = request_operation
         self.enrollment_config_log = enrollment_config_log
+        self.config_enroll_config_log_load = config_enroll_config_log_load
+        self.allowed_domainlist_check_error = allowed_domainlist_check_error
 
     def test_001_helper_b64decode_pad(self):
         """ test b64decode_pad() method with a regular base64 encoded string """
@@ -1761,7 +1764,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         config_dic = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler configuration missing in config file', lcm.output)
 
     @patch('importlib.import_module')
     def test_226_ca_handler_load(self, mock_imp):
@@ -1770,7 +1773,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
     @patch('importlib.import_module')
     def test_227_ca_handler_load(self, mock_imp):
@@ -1795,7 +1798,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.return_value = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('foo', self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: exc_mock_util', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading CAhandler configured in cfg failed with err: exc_mock_util', lcm.output)
 
     @patch('importlib.import_module')
     @patch('importlib.util')
@@ -1806,14 +1809,14 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.ca_handler_load(): loading default CAhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp', lcm.output)
 
     def test_231_eab_handler_load(self):
         """ test eab_handler_load """
         config_dic = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
-        self.assertIn('ERROR:test_a2c:Helper.eab_handler_load(): EABhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:EABhandler configuration missing in config file', lcm.output)
 
     @patch('importlib.import_module')
     def test_232_eab_handler_load(self, mock_imp):
@@ -1822,7 +1825,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp', lcm.output)
 
     @patch('importlib.import_module')
     def test_233_eab_handler_load(self, mock_imp):
@@ -1847,7 +1850,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.return_value = 'foo'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('foo', self.eab_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: exc_mock_util', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading EABhandler configured in cfg failed with err: exc_mock_util', lcm.output)
 
     @patch('importlib.import_module')
     @patch('importlib.util')
@@ -1858,7 +1861,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_imp.side_effect = Exception('exc_mock_imp')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
-        self.assertIn('CRITICAL:test_a2c:Helper.eab_handler_load(): loading default EABhandler failed with err: exc_mock_imp', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp', lcm.output)
 
     def test_237_hooks_load(self):
         """ test hooks load with empty config_dic """
@@ -2472,7 +2475,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.config_headerinfo_load(self.logger, config_dic))
-        self.assertIn('WARNING:test_a2c:Helper.config_headerinfo_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertIn('WARNING:test_a2c:header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('acme_srv.helper.eab_handler_load')
     def test_322_config_eab_profile_load(self, mock_eabload):
@@ -2497,7 +2500,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((True, None), self.config_eab_profile_load(self.logger, config_dic))
         self.assertFalse(mock_eabload.called)
-        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler configuration incomplete', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:EABHandler configuration incomplete', lcm.output)
         self.assertFalse(mock_eabload.called)
 
     @patch('acme_srv.helper.eab_handler_load')
@@ -2510,7 +2513,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual((True, None), self.config_eab_profile_load(self.logger, config_dic))
         self.assertTrue(mock_eabload.called)
-        self.assertIn('CRITICAL:test_a2c:CAhandler._config_load(): EABHandler could not get loaded', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:EABHandler could not get loaded', lcm.output)
 
     @patch('acme_srv.helper.eab_handler_load')
     def test_325_config_eab_profile_load(self, mock_eabload):
@@ -3100,7 +3103,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_san_get.return_value = ['foosan1', 'foo:san2']
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('san2', self.csr_cn_lookup(self.logger, 'csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() split failed: list index out of range', lcm.output)
+        self.assertIn('ERROR:test_a2c:SAN split failed: list index out of range', lcm.output)
 
     @patch('acme_srv.helper.csr_san_get')
     @patch('acme_srv.helper.csr_cn_get')
@@ -3110,7 +3113,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_san_get.return_value = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.csr_cn_lookup(self.logger, 'csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler._csr_cn_lookup() no SANs found in CSR', lcm.output)
+        self.assertIn('ERROR:test_a2c:no SANs found in CSR', lcm.output)
 
     @patch('acme_srv.helper.requests.put')
     @patch('acme_srv.helper.requests.post')
@@ -3259,8 +3262,84 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         myclass.password = 'password_val'
         myclass.secret = 'secret_val'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertFalse(self.enrollment_config_log(self.logger, myclass, 'ECLSLFAILURE'))
+            self.assertFalse(self.enrollment_config_log(self.logger, myclass, 'failed to parse'))
         self.assertIn("ERROR:test_a2c:Enrollment configuration won't get logged due to a configuration error.", lcm.output)
+
+    def test_399_config_enroll_config_log_load(self):
+        """ test config_enroll_config_log_load()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'enrollment_config_log': 'True'}
+        self.assertEqual((True, []), self.config_enroll_config_log_load(self.logger, config_dic))
+
+    def test_400_config_enroll_config_log_load(self):
+        """ test config_enroll_config_log_load()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'enrollment_config_log': 'False'}
+        self.assertEqual((False, []), self.config_enroll_config_log_load(self.logger, config_dic))
+
+    def test_401_config_enroll_config_log_load(self):
+        """ test config_enroll_config_log_load()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'enrollment_config_log': 'aaa'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((False, []), self.config_enroll_config_log_load(self.logger, config_dic))
+        self.assertIn('WARNING:test_a2c:loading enrollment_config_log failed with error: Not a boolean: aaa', lcm.output)
+
+    def test_402_config_enroll_config_log_load(self):
+        """ test config_enroll_config_log_load()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'enrollment_config_log': 'True', 'enrollment_config_log_skip_list': '["foo", "bar"]'}
+        self.assertEqual((True, ['foo', 'bar']), self.config_enroll_config_log_load(self.logger, config_dic))
+
+    def test_403_config_enroll_config_log_load(self):
+        """ test config_enroll_config_log_load()"""
+        config_dic = configparser.ConfigParser()
+        config_dic['CAhandler'] = {'enrollment_config_log': 'True', 'enrollment_config_log_skip_list': '"foo",'}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual((True, 'failed to parse'), self.config_enroll_config_log_load(self.logger, config_dic))
+        self.assertIn('WARNING:test_a2c:enrollment_config_log_skip_list failed with error: Extra data: line 1 column 6 (char 5)', lcm.output)
+
+    @patch('acme_srv.helper.allowed_domainlist_check')
+    def test_404_allowed_domainlist_check_error(self, mock_adc):
+        """ test allowed_domainlist_check() """
+        allowed_domainlist = []
+        self.assertFalse(self.allowed_domainlist_check_error(self.logger, 'csr', allowed_domainlist))
+        self.assertFalse(mock_adc.called)
+
+    @patch('acme_srv.helper.allowed_domainlist_check')
+    def test_405_allowed_domainlist_check_error(self, mock_adc):
+        """ test allowed_domainlist_check() """
+        allowed_domainlist = ['bump']
+        mock_adc.return_value = 'mock_adc'
+        self.assertFalse(self.allowed_domainlist_check_error(self.logger, 'csr', allowed_domainlist))
+        self.assertTrue(mock_adc.called)
+
+    @patch('acme_srv.helper.allowed_domainlist_check')
+    def test_406_allowed_domainlist_check_error(self, mock_adc):
+        """ test allowed_domainlist_check() """
+        allowed_domainlist = ['bump']
+        mock_adc.return_value = False
+        self.assertEqual('Either CN or SANs are not allowed by configuration', self.allowed_domainlist_check_error(self.logger, 'csr', allowed_domainlist))
+        self.assertTrue(mock_adc.called)
+
+    def test_319_config_allowed_domainlist_load(self):
+        """ test config_allowed_domainlist_load()"""
+        config_dic = {'CAhandler': {'allowed_domainlist': '["foo", "bar", "foobar"]'}}
+        self.assertEqual(['foo', 'bar', 'foobar'], self.config_allowed_domainlist_load(self.logger, config_dic))
+
+    def test_320_config_allowed_domainlist_load(self):
+        """ test config_allowed_domainlist_load()"""
+        config_dic = {'CAhandler': {'allowed_domainlist': '["foo"]'}}
+        self.assertEqual(['foo'], self.config_allowed_domainlist_load(self.logger, config_dic))
+
+    def test_321_config_allowed_domainlist_load(self):
+        """ test config_allowed_domainlist_load()"""
+        config_dic = {'CAhandler': {'allowed_domainlist': 'foo'}}
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual('failed to parse', self.config_allowed_domainlist_load(self.logger, config_dic))
+        self.assertIn('WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
+
+
 
 
 if __name__ == '__main__':
