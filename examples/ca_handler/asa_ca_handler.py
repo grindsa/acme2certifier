@@ -6,7 +6,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, csr_san_byte_get, header_info_field_validate, header_info_lookup, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log
 
 
 class CAhandler(object):
