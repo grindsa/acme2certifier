@@ -47,6 +47,7 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
         # sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.acme\", \"bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
