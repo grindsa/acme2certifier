@@ -13,8 +13,8 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
-# pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, config_headerinfo_load, config_eab_profile_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log
+# pylint: disable=e0401. c0302
+from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, config_headerinfo_load, config_eab_profile_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 DEFAULT_DATE_FORMAT = '%Y%m%d%H%M%SZ'
@@ -43,6 +43,7 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -361,6 +362,8 @@ class CAhandler(object):
         if 'template_name' in config_dic['CAhandler']:
             self.template_name = config_dic['CAhandler']['template_name']
 
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
@@ -933,6 +936,10 @@ class CAhandler(object):
 
         if not error:
             error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')
+
+        if not error:
+            # check for allowed domainlist
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
         if not error:
             request_name = self._requestname_get(csr)

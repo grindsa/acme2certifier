@@ -4,7 +4,6 @@ from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
 import os
-import json
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
