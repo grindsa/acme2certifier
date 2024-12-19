@@ -3322,6 +3322,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertEqual('Either CN or SANs are not allowed by configuration', self.allowed_domainlist_check_error(self.logger, 'csr', allowed_domainlist))
         self.assertTrue(mock_adc.called)
 
+    @patch('acme_srv.helper.allowed_domainlist_check')
+    def test_407_allowed_domainlist_check_error(self, mock_adc):
+        """ test allowed_domainlist_check() """
+        allowed_domainlist = 'failed to parse'
+        mock_adc.return_value = False
+        self.assertEqual('error loading allowed_domainlist', self.allowed_domainlist_check_error(self.logger, 'csr', allowed_domainlist))
+        self.assertFalse(mock_adc.called)
+
     def test_319_config_allowed_domainlist_load(self):
         """ test config_allowed_domainlist_load()"""
         config_dic = {'CAhandler': {'allowed_domainlist': '["foo", "bar", "foobar"]'}}

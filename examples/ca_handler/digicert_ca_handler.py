@@ -2,8 +2,6 @@
 """ CA handler using Digicert CertCentralAPI"""
 from __future__ import print_function
 from typing import Tuple, Dict
-import json
-import requests
 # pylint: disable=e0401
 from acme_srv.helper import load_config, cert_pem2der, b64_encode, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, request_operation, csr_cn_lookup, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 

@@ -1707,7 +1707,9 @@ def allowed_domainlist_check_error(logger: logging.Logger, csr: str, allowed_dom
 
     error = None
     # check CN and SAN against black/whitlist
-    if allowed_domainlist:
+    if allowed_domainlist == 'failed to parse':
+        error = 'error loading allowed_domainlist'
+    elif allowed_domainlist:
         # check sans / cn against list of allowed comains from config
         result = allowed_domainlist_check(logger, csr, allowed_domainlist)
         if not result:
