@@ -47,6 +47,7 @@ ca_bundle: <filename>
 - est_password - password for HTTP basic Authentication
 - est_password_variable - *optional* - name of the environment variable specifying the user password for HTTP basic authentication (a configured `est_password` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - CA certificate bundle needed to validate the EST server certificate (acme_srv/est/ca_bundle.pem). Setting to False disables the certificate check
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
 
 Important: TLSClientAuth and HTTP basic authentication cannot be combined with each other
 
