@@ -78,6 +78,7 @@ jobs:
         sudo echo "cmp_key: volume/ra_key.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -105,6 +106,23 @@ jobs:
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
         sudo rm -rf acme-sh/*
 
+    - name: "Allowed domainlist feature - Enroll lego (fail)"
+      continue-on-error: true
+      id: legofail01
+      run: |
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+
+    - name: "Allowed domainlist feature - check  result "
+      if: ${{ steps.legofail01.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+
     - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
         sudo touch examples/Docker/data/ca_bundle.pem
@@ -127,6 +145,7 @@ jobs:
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_ref: $CMP_REF" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -158,6 +177,24 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+    - name: "Allowed domainlist feature - Enroll lego (fail)"
+      continue-on-error: true
+      id: legofail02
+      run: |
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+
+    - name: "Allowed domainlist feature - check  result "
+      if: ${{ steps.legofail02.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail02.outcome }}"
+        exit 1
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
@@ -254,6 +291,7 @@ jobs:
         sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/acme_srv.cfg
         sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -281,6 +319,22 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+    - name: "Allowed domainlist feature - Enroll lego (fail)"
+      continue-on-error: true
+      id: legofail01
+      run: |
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+
+    - name: "Allowed domainlist feature - check  result "
+      if: ${{ steps.legofail01.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -370,6 +424,7 @@ jobs:
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/acme_srv.cfg
         sudo echo "cmp_ref: $CMP_REF" >> data/acme_srv.cfg
         sudo echo "cmp_secret: $CMP_SECRET" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -398,6 +453,22 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
         awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
         openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+    - name: "Allowed domainlist feature - Enroll lego (fail)"
+      continue-on-error: true
+      id: legofail01
+      run: |
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+
+    - name: "Allowed domainlist feature - check  result "
+      if: ${{ steps.legofail01.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

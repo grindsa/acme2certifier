@@ -293,15 +293,15 @@ class CAhandler(object):
         error = None
         cert_raw = None
 
-        # recode csr
-        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
-
-        if self.est_host:
-            (error, ca_pem) = self._cacerts_get()
+        # check for allowed domainlist
+        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
         if not error:
-            # check for allowed domainlist
-            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+            # recode csr
+            csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+
+            if self.est_host:
+                (error, ca_pem) = self._cacerts_get()
 
             if not error:
                 if ca_pem:
