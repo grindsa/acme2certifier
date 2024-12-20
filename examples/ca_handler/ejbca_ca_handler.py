@@ -5,7 +5,7 @@ from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log
+from acme_srv.helper import load_config, build_pem_file, b64_url_recode, cert_der2pem, b64_decode, convert_byte_to_string, cert_serial_get, cert_issuer_get, encode_url, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 class CAhandler(object):
@@ -29,6 +29,7 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -163,6 +164,8 @@ class CAhandler(object):
         self._config_auth_load(config_dic)
         self._config_cainfo_load(config_dic)
 
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
@@ -282,6 +285,11 @@ class CAhandler(object):
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(self.logger, self, csr, 'cert_profile_name')
+
+            if not error:
+                # check for allowed domainlist
+                error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+
             if not error:
                 # cnroll certificate
                 (error, cert_bundle, cert_raw) = self._enroll(csr)
