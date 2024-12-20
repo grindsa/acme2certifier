@@ -59,3 +59,29 @@ runs:
     run: |
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
     shell: bash
+
+  - name: "Allowed domainlist feature - Enroll lego (fail)"
+    continue-on-error: true
+    id: legofail01
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego  --key-type rsa2048 --http run
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      USE_RSA: ${{ inputs.USE_RSA }}
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Allowed domainlist feature - check  result "
+    if: ${{ steps.legofail01.outcome != 'failure' }}
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s

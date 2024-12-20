@@ -55,6 +55,7 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
         docker-compose logs
@@ -63,6 +64,13 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
       run: |
@@ -211,6 +219,7 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
         sudo echo "username: acme_srv" >> data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -220,6 +229,12 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
       run: |
