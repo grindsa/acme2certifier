@@ -75,6 +75,7 @@ jobs:
         sudo echo "acme_url: http://le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -84,6 +85,13 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check acme account found in keyfile"
       run: |
@@ -506,6 +514,7 @@ jobs:
         sudo echo "acme_url: http://le-sim" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
 
     - name: "Run Execute install scipt"
       run: |
@@ -513,6 +522,12 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "Check acme account found in keyfile"
       run: |

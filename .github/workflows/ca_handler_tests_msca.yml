@@ -183,6 +183,11 @@ jobs:
       with:
         NAME_SPACE: local
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
@@ -550,6 +555,11 @@ jobs:
 
     - name: "KRB - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -919,6 +929,10 @@ jobs:
       with:
         NAME_SPACE: local
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -1241,6 +1255,10 @@ jobs:
 
     - name: "KRB - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

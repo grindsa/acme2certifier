@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from typing import List, Tuple, Dict
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, b64_url_recode
+from acme_srv.helper import load_config, build_pem_file, b64_url_recode, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 class CAhandler(object):
@@ -23,6 +23,7 @@ class CAhandler(object):
         self.secret = None
         self.ca_pubs_file = None
         self.cert_file = None
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -158,6 +159,8 @@ class CAhandler(object):
         self._config_refsecret_load(config_dic)
         # load file and directory names
         self._config_paramters_load()
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -212,23 +215,26 @@ class CAhandler(object):
 
         if self.openssl_bin:
 
-            # prepare the CSR to be signed
-            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
-            # dump csr key
-            self._file_save(f'{self.tmp_dir}/csr.pem', csr)
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
-            # build openssl command and run it
-            openssl_cmd = self._opensslcmd_build()
-            rcode = subprocess.call(openssl_cmd)
-            if rcode:
-                self.logger.error(f'CAhandler.enroll(): failed: {rcode}')
-                error = 'rc from enrollment not 0'
+            if not error:
+                # prepare the CSR to be signed
+                csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+                # dump csr key
+                self._file_save(f'{self.tmp_dir}/csr.pem', csr)
 
-            # generate certificates we need to return
-            if os.path.isfile(f'{self.tmp_dir}/cert.pem'):
-                (cert_bundle, cert_raw) = self._certs_bundle()
-            else:
-                error = 'Enrollment failed'
+                # build openssl command and run it
+                openssl_cmd = self._opensslcmd_build()
+                rcode = subprocess.call(openssl_cmd)
+                if rcode:
+                    self.logger.error(f'CAhandler.enroll(): failed: {rcode}')
+                    error = 'rc from enrollment not 0'
+
+                # generate certificates we need to return
+                if os.path.isfile(f'{self.tmp_dir}/cert.pem'):
+                    (cert_bundle, cert_raw) = self._certs_bundle()
+                else:
+                    error = 'Enrollment failed'
 
             # delete temporary files
             self._tmp_dir_delete()
