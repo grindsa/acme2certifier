@@ -41,6 +41,7 @@ eab_profiling: <True|False>
 - cert_validity_days - certificate validity in days (default: 365)
 - allowed_domainlist: list of domain-names allowed for enrollment in json format (example: ["bar.local$, bar.foo.local])
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
