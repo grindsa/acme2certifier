@@ -106,6 +106,7 @@ jobs:
         sudo echo "cert_profile_name: tls-server" >> examples/Docker/data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> examples/Docker/data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -113,6 +114,13 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
@@ -132,6 +140,7 @@ jobs:
         sudo echo "cert_profile_name: tls-server" >> examples/Docker/data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> examples/Docker/data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -139,6 +148,13 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -266,6 +282,7 @@ jobs:
         sudo echo "cert_profile_name: tls-server" >> data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -275,6 +292,12 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
@@ -294,6 +317,7 @@ jobs:
         sudo echo "cert_profile_name: tls-server" >> data/acme_srv.cfg
         sudo echo "endpoint_name: enroll" >> data/acme_srv.cfg
         sudo echo "polling_timeout: 60" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -303,6 +327,12 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
