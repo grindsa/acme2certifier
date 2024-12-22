@@ -67,5 +67,6 @@ polling_timeout: <seconds>
 - cert_profile_name - name of the certificate profile
 - polling_timeout - timeout in seconds for enrollment operations (default 0 - polling disabled)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
