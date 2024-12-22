@@ -40,6 +40,7 @@ from .version import __version__
 
 
 USER_AGENT = f'acme2certifier/{__version__}'
+PARSING_ERR_MSG = 'failed to parse'
 
 
 def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
@@ -200,7 +201,7 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
                 enrollment_config_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
             except Exception as err_:
                 logger.warning('enrollment_config_log_skip_list failed with error: %s', err_)
-                enrollment_config_log_skip_list = 'failed to parse'
+                enrollment_config_log_skip_list = PARSING_ERR_MSG
 
     logger.debug('Helper.config_enroll_config_log_load() ended with: %s', enrollment_config_log)
     return enrollment_config_log, enrollment_config_log_skip_list
@@ -217,7 +218,7 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
             allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
         except Exception as err_:
             logger.warning('loading allowed_domainlist failed with error: %s', err_)
-            allowed_domainlist = 'failed to parse'
+            allowed_domainlist = PARSING_ERR_MSG
 
     logger.debug('Helper.config_allowed_domainlist_load() ended with: %s', allowed_domainlist)
     return allowed_domainlist
@@ -1707,7 +1708,7 @@ def allowed_domainlist_check_error(logger: logging.Logger, csr: str, allowed_dom
 
     error = None
     # check CN and SAN against black/whitlist
-    if allowed_domainlist == 'failed to parse':
+    if allowed_domainlist == PARSING_ERR_MSG:
         error = 'error loading allowed_domainlist'
     elif allowed_domainlist:
         # check sans / cn against list of allowed comains from config
@@ -1988,7 +1989,7 @@ def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist:
     if handler_skiplist and isinstance(handler_skiplist, list):
         skiplist.extend(handler_skiplist)
 
-    if handler_skiplist and 'failed to parse' in handler_skiplist:
+    if handler_skiplist and PARSING_ERR_MSG in handler_skiplist:
         logger.error('Enrollment configuration won\'t get logged due to a configuration error.')
     else:
         enroll_parameter_list = []
