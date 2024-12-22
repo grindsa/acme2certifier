@@ -782,13 +782,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('error', 'fullchain', 'raw', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_ecl.called)
 
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.acme_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_055_enroll(self, mock_messages, mock_clientnw, mock_key, mock_reg, mock_enroll, mock_ecl):
+    def test_055_enroll(self, mock_messages, mock_clientnw, mock_key, mock_reg, mock_enroll, mock_ecl,  mock_adl):
+        """ test enroll registration error """
+        mock_key.return_value = 'key'
+        mock_adl.return_value = 'mock_adl'
+        mock_reg.return_value = 'mock_reg'
+        mock_enroll.return_value = ('error', 'fullchain', 'raw')
+        self.assertEqual(('mock_adl', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_ecl.called)
+        self.assertFalse(mock_ecl.called)
+        self.assertFalse(mock_key.called)
+        self.assertFalse(mock_reg.called)
+        self.assertFalse(mock_clientnw.called)
+        self.assertFalse(mock_messages.called)
+
+    @patch('examples.ca_handler.acme_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._enroll')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    @patch('acme.client.ClientNetwork')
+    @patch('acme.messages')
+    def test_056_enroll(self, mock_messages, mock_clientnw, mock_key, mock_reg, mock_enroll, mock_ecl):
         """ test enroll registration error """
         mock_key.return_value = 'key'
         mock_reg.return_value = 'mock_reg'
@@ -802,7 +823,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_056_enroll(self, mock_messages, mock_clientnw, mock_key, mock_reg, mock_enroll):
+    def test_057_enroll(self, mock_messages, mock_clientnw, mock_key, mock_reg, mock_enroll):
         """ test enroll registration error """
         mock_key.return_value = 'key'
         mock_reg.return_value = None
@@ -822,7 +843,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.client.ClientV2.new_order')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_057_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
+    def test_058_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert):
         """ test enroll with no account configured """
         mock_key.return_value = 'key'
         mock_messages = Mock()
@@ -857,7 +878,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.client.ClientV2.new_order')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_058_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
+    def test_059_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
         """ test enroll with existing account """
         self.cahandler.account = 'account'
         mock_key.return_value = 'key'
@@ -894,7 +915,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.client.ClientV2.new_order')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_059_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
+    def test_060_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
         """ test enroll with bodystatus invalid """
         mock_key.return_value = 'key'
         mock_messages = Mock()
@@ -933,7 +954,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.client.ClientV2.new_order')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_060_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
+    def test_061_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk):
         """ test enroll with no fullchain """
         mock_key.return_value = 'key'
         mock_messages = Mock()
@@ -966,34 +987,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
-    def test_061_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk):
+    def test_062_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk):
         """ test enroll exception during enrollment  """
         mock_csrchk.return_value = False
         mock_key.side_effect = Exception('ex_user_key_load')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual(('ex_user_key_load', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load', lcm.output)
-        self.assertFalse(mock_store.called)
-        self.assertFalse(mock_nw.called)
-        self.assertFalse(mock_reg.called)
-        self.assertFalse(mock_newreg.called)
-
-    @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
-    @patch('acme.client.ClientV2.query_registration')
-    @patch('acme.client.ClientNetwork')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
-    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
-    def test_062_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
-        """ test enroll exception during enrollment  """
-        mock_profilechk.return_value = False
-        mock_csrchk.return_value = 'error'
-        self.cahandler.allowed_domainlist = ['allowed_domain']
-        mock_key.side_effect = Exception('ex_user_key_load')
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. error', lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
@@ -1020,6 +1020,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
+    @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('acme.client.ClientV2.query_registration')
+    @patch('acme.client.ClientNetwork')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
+    @patch('examples.ca_handler.acme_ca_handler.CAhandler._user_key_load')
+    def test_064_enroll(self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk, mock_profilechk):
+        """ test enroll exception during enrollment  """
+        mock_profilechk.return_value = False
+        mock_csrchk.return_value = 'error'
+        self.cahandler.allowed_domainlist = ['allowed_domain']
+        mock_key.side_effect = Exception('ex_user_key_load')
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertIn('ERROR:test_a2c:CAhandler.enroll: CSR rejected. error', lcm.output)
+        self.assertFalse(mock_store.called)
+        self.assertFalse(mock_nw.called)
+        self.assertFalse(mock_reg.called)
+        self.assertFalse(mock_newreg.called)
+
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._order_issue')
     @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
     @patch('OpenSSL.crypto.load_certificate')
@@ -1033,7 +1054,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('acme.client.ClientV2.new_order')
     @patch('acme.client.ClientNetwork')
     @patch('acme.messages')
-    def test_064_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk, mock_issue):
+    def test_065_enroll(self, mock_messages, mock_clientnw, mock_c2o, mock_ach, mock_pof, mock_key, mock_reg, mock_cinfo, mock_store, mock_dumpcert, mock_loadcert, mock_csrchk, mock_issue):
         """ test enroll with bodystatus None (existing account) """
         mock_key.return_value = 'key'
         mock_messages = Mock()
@@ -1063,7 +1084,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:Existing but not configured ACME account: uri', lcm.output)
 
     @patch('acme.messages')
-    def test_065__account_lookup(self, mock_messages):
+    def test_066__account_lookup(self, mock_messages):
         """ test account register existing account - no replacement """
         response = Mock()
         response.uri = 'urluriacc_info'
@@ -1077,7 +1098,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('urluriacc_info', self.cahandler.account)
 
     @patch('acme.messages')
-    def test_066__account_lookup(self, mock_messages):
+    def test_067__account_lookup(self, mock_messages):
         """ test account register existing account - url replacement """
         response = Mock()
         response.uri = 'urluriacc_info'
@@ -1092,7 +1113,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('uriacc_info', self.cahandler.account)
 
     @patch('acme.messages')
-    def test_067__account_lookup(self, mock_messages):
+    def test_068__account_lookup(self, mock_messages):
         """ test account register existing account - acct_path replacement """
         response = Mock()
         response.uri = 'urluriacc_info'
@@ -1107,7 +1128,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('urluri', self.cahandler.account)
 
     @patch('acme.messages')
-    def test_068__account_lookup(self, mock_messages):
+    def test_069__account_lookup(self, mock_messages):
         """ test account register existing account - acct_path replacement """
         response = Mock()
         response.uri = 'urluriacc_info'
@@ -1131,7 +1152,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('josepy.ComparableX509')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('os.path.exists')
-    def test_069_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_reg, mock_revoke, mock_key):
+    def test_070_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_reg, mock_revoke, mock_key):
         """ test revoke successful """
         self.cahandler.acme_keyfile = 'keyfile'
         self.cahandler.account = 'account'
@@ -1155,7 +1176,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('josepy.ComparableX509')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('os.path.exists')
-    def test_070_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_reg, mock_revoke, mock_key):
+    def test_071_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_reg, mock_revoke, mock_key):
         """ test revoke invalid status after reglookup """
         self.cahandler.acme_keyfile = 'keyfile'
         self.cahandler.account = 'account'
@@ -1179,7 +1200,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('josepy.ComparableX509')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('os.path.exists')
-    def test_071_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_lookup, mock_key):
+    def test_072_revoke(self, mock_exists, mock_load, mock_comp, mock_nw, mock_mess, mock_lookup, mock_key):
         """ test revoke account lookup failed """
         self.cahandler.acme_keyfile = 'keyfile'
         mock_exists.return_value = True
@@ -1198,7 +1219,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('josepy.ComparableX509')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('os.path.exists')
-    def test_072_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
+    def test_073_revoke(self, mock_exists, mock_load, mock_comp, mock_kload, mock_nw, mock_mess, mock_lookup):
         """ test revoke user key load failed """
         self.cahandler.acme_keyfile = 'keyfile'
         mock_exists.return_value = False
@@ -1210,7 +1231,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("builtins.open", mock_open(read_data='mock_open'), create=True)
     @patch('josepy.ComparableX509')
     @patch('OpenSSL.crypto.load_certificate')
-    def test_073_revoke(self, mock_load, mock_comp):
+    def test_074_revoke(self, mock_load, mock_comp):
         """ test revoke exception during processing """
         self.cahandler.acme_keyfile = 'keyfile'
         mock_load.side_effect = Exception('ex_user_key_load')
@@ -1219,7 +1240,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load', lcm.output)
 
     @patch('requests.post')
-    def test_074__zerossl_eab_get(self, mock_post):
+    def test_075__zerossl_eab_get(self, mock_post):
         """ CAhandler._zerossl_eab_get() - all ok """
         mock_post.return_value.json.return_value = {'success': True, 'eab_kid': 'eab_kid', 'eab_hmac_key': 'eab_hmac_key'}
         self.cahandler._zerossl_eab_get()
@@ -1228,7 +1249,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('eab_hmac_key', self.cahandler.eab_hmac_key)
 
     @patch('requests.post')
-    def test_075__zerossl_eab_get(self, mock_post):
+    def test_076__zerossl_eab_get(self, mock_post):
         """ CAhandler._zerossl_eab_get() - success false """
         mock_post.return_value.json.return_value = {'success': False, 'eab_kid': 'eab_kid', 'eab_hmac_key': 'eab_hmac_key'}
         mock_post.return_value.text = 'text'
@@ -1240,7 +1261,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text', lcm.output)
 
     @patch('requests.post')
-    def test_076__zerossl_eab_get(self, mock_post):
+    def test_077__zerossl_eab_get(self, mock_post):
         """ CAhandler._zerossl_eab_get() - no success key """
         mock_post.return_value.json.return_value = {'eab_kid': 'eab_kid', 'eab_hmac_key': 'eab_hmac_key'}
         mock_post.return_value.text = 'text'
@@ -1252,7 +1273,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text', lcm.output)
 
     @patch('requests.post')
-    def test_077__zerossl_eab_get(self, mock_post):
+    def test_078__zerossl_eab_get(self, mock_post):
         """ CAhandler._zerossl_eab_get() - no eab_kid key """
         mock_post.return_value.json.return_value = {'success': True, 'eab_hmac_key': 'eab_hmac_key'}
         mock_post.return_value.text = 'text'
@@ -1264,7 +1285,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text', lcm.output)
 
     @patch('requests.post')
-    def test_078__zerossl_eab_get(self, mock_post):
+    def test_079__zerossl_eab_get(self, mock_post):
         """ CAhandler._zerossl_eab_get() - no eab_mac key """
         mock_post.return_value.json.return_value = {'success': True, 'eab_kid': 'eab_kid'}
         mock_post.return_value.text = 'text'
@@ -1276,7 +1297,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text', lcm.output)
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_info')
-    def test_079__order_authorization(self, mock_info):
+    def test_080__order_authorization(self, mock_info):
         """ CAhandler._order_authorization - sectigo challenge """
         order = Mock()
         order.authorizations = ['foo']
@@ -1284,7 +1305,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler._order_authorization('acmeclient', order, 'user_key'))
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_info')
-    def test_080__order_authorization(self, mock_info):
+    def test_081__order_authorization(self, mock_info):
         """ CAhandler._order_authorization - sectigo challenge """
         order = Mock()
         order.authorizations = ['foo']
@@ -1292,7 +1313,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._order_authorization('acmeclient', order, 'user_key'))
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_info')
-    def test_081__order_authorization(self, mock_info):
+    def test_082__order_authorization(self, mock_info):
         """ CAhandler._order_authorization - sectigo challenge """
         order = Mock()
         order.authorizations = ['foo']
@@ -1300,27 +1321,27 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler._order_authorization('acmeclient', order, 'user_key'))
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_info')
-    def test_082__order_authorization(self, mock_info):
+    def test_083__order_authorization(self, mock_info):
         """ CAhandler._order_authorization - sectigo challenge """
         order = Mock()
         order.authorizations = ['foo']
         mock_info.return_value = [None, 'string', 'challenge']
         self.assertFalse(self.cahandler._order_authorization('acmeclient', order, 'user_key'))
 
-    def test_083_eab_profile_list_check(self):
+    def test_084_eab_profile_list_check(self):
         """ test eab_profile_list_check """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_keyfile', 'key_file'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile', lcm.output)
 
-    def test_084_eab_profile_list_check(self):
+    def test_085_eab_profile_list_check(self):
         """ test eab_profile_list_check """
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual('acme_keypath is missing in config', self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'acme_url', 'acme_url'))
         self.assertIn('ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keypath is missing in config', lcm.output)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_085_eab_profile_list_check(self, mock_hiv   ):
+    def test_086_eab_profile_list_check(self, mock_hiv   ):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1329,7 +1350,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_keypath/acme_url.json', self.cahandler.acme_keyfile)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_086_eab_profile_list_check(self, mock_hiv   ):
+    def test_087_eab_profile_list_check(self, mock_hiv   ):
         """ test eab_profile_list_check """
         mock_hiv.return_value = (None, 'error')
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1338,7 +1359,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_087_eab_profile_list_check(self, mock_hiv   ):
+    def test_088_eab_profile_list_check(self, mock_hiv   ):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1347,7 +1368,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_088_eab_profile_list_check(self, mock_hiv   ):
+    def test_089_eab_profile_list_check(self, mock_hiv   ):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1358,7 +1379,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_089_eab_profile_list_check(self, mock_hiv   ):
+    def test_090_eab_profile_list_check(self, mock_hiv   ):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1369,7 +1390,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_090_account_to_keyfile(self, mock_file):
+    def test_091_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = 'dummy_account'
@@ -1377,7 +1398,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_091_account_to_keyfile(self, mock_file):
+    def test_092_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = None
@@ -1385,7 +1406,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_092_account_to_keyfile(self, mock_file):
+    def test_093_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = None
         self.cahandler.account = 'dummy_account'
@@ -1393,7 +1414,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_093_account_to_keyfile(self, mock_file):
+    def test_094_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = 'dummy_account'
@@ -1403,35 +1424,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_file.called)
         self.assertIn('ERROR:test_a2c:CAhandler._account_to_keyfile() failed: ex_json_dump', lcm.output)
 
-    def test_094_accountname_get(self):
+    def test_095_accountname_get(self):
         """ test accountname_get """
         url = 'url'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('url', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_095_accountname_get(self):
+    def test_096_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('/foo', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_096_accountname_get(self):
+    def test_097_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo/acct_path'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('/foo/', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_097_accountname_get(self):
+    def test_098_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/acct_path/foo'
         acme_url = 'acme_url'
         path_dic = {'acct_path': '/'}
         self.assertEqual('acct_path/foo', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_098_accountname_get(self):
+    def test_099_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo/foo'
         acme_url = 'acme_url'
