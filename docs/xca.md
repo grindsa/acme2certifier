@@ -26,6 +26,7 @@ root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
 
 ```config
 [CAhandler]
+handler_file: examples/ca_handler/xca_ca_handler.py
 xdb_file: acme_srv/xca/acme2certifier.xdb
 issuing_ca_name: sub-ca
 issuing_ca_key: sub-ca-key
