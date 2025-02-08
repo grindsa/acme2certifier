@@ -239,8 +239,7 @@ class CAhandler(object):
 
     def _order_issue(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str) -> Tuple[str, str, str]:
         """ isuse order """
-        self.logger.debug('CAhandler.enroll() issuing signing order')
-        self.logger.debug('CAhandler.enroll() csr: ' + str(csr_pem))
+        self.logger.debug('CAhandler._order_issue() csr: ' + str(csr_pem))
         order = acmeclient.new_order(csr_pem)
 
         error = None
@@ -476,7 +475,7 @@ class CAhandler(object):
         # pylint: disable=R0915
         self.logger.debug('CAhandler.enroll()')
 
-        csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'
+        csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'.encode('utf-8')
 
         cert_bundle = None
         cert_raw = None
