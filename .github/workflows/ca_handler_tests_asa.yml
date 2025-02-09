@@ -368,7 +368,7 @@ jobs:
 
   asa_handler_tests_rpm:
     name: "asa_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: asa_handler_headerinfo_tests
     strategy:
       max-parallel: 1

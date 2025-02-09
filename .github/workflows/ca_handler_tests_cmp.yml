@@ -356,7 +356,7 @@ jobs:
 
   rpm_cmp_handler_tests_refpsk:
     name: "rpm_cmp_handler_tests_refpsk"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
