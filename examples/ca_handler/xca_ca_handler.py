@@ -430,6 +430,25 @@ class CAhandler(object):
         self.logger.debug('CAhandler._csr_search() ended with: %s', bool(db_result))
         return db_result
 
+    def _db_check(self):
+        """ do verious checks on database"""
+        self.logger.debug('CAhandler._db_check()')
+        error = None
+        # checks
+        # validates passphrase against database
+        # test open failure
+        # checks permissions
+        # warns if permissions are to wiede
+
+        ca_key = self._ca_key_load()
+        if not ca_key:
+            error = 'CAhandler._db_check(): ca_key_load failed. PLease check passphrase'
+
+
+
+        self.logger.debug('CAhandler._db_check() ended with: %s', error)
+        return error
+
     def _db_open(self):
         """ opens db and sets cursor """
         # pylint: disable=W0201
@@ -933,6 +952,9 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         error = self._config_check()
+
+        if not error:
+            error = self._db_check()
 
         if not error:
             error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')
