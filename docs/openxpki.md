@@ -4,15 +4,15 @@
 
 This handler can be use to enroll certificates from [OpenxPKI](https://www.openxpki.org/) as ACME support seems to be available in a commercial version only.
 
-Although a connection was already possible via the [generic EST CA handler](est.md) this handler should preferred as it supports revocation operations and provides the ability to specify a [certifiate-profiles](https://openxpki.readthedocs.io/en/stable/reference/configuration/profile.html)
+Although a connection was already possible via the [generic EST CA handler](est.md) this handler should preferred as it supports revocation operations and provides the ability to specify a [certifiate-profiles](https://openxpki.readthedocs.io/en/develop/reference/configuration/profile.html)
 
 ## Prerequisites
 
-- [OpenXPKI](https://www.openxpki.org/) with activated [RPC server](https://openxpki.readthedocs.io/en/stable/subsystems/rpc.html)
+- [OpenXPKI](https://www.openxpki.org/) with activated [RPC server](https://openxpki.readthedocs.io/en/develop/subsystems/rpc.html)
 - you'll also need:
   - an RPC endpoint supporting `RequestCertificate`, `RevokeCertificate` and `SearchCertificate` as decribed in the [example configuration](https://github.com/openxpki/openxpki-config/blob/community/rpc/enroll.conf)
   - a client certificate and key in pem format to authenticate towards the OpenXPKI
-  - a [certificate profile](https://openxpki.readthedocs.io/en/stable/reference/configuration/profile.html)
+  - a [certificate profile](https://openxpki.readthedocs.io/en/develop/reference/configuration/profile.html)
 
 # OpenXPKI configuration
 
