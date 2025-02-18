@@ -260,7 +260,7 @@ class CAhandler(object):
         poll_indentifier = None
 
         if self.host:
-          
+
             # check for allowed domainlist
             error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
