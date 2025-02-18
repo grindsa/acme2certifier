@@ -42,6 +42,15 @@ style:
             dn: CN=[% SAN_DNS.0 %]
 ```
 
+- acme2certifier will issue certificates on behalf of the end nodes. This needs to be allowed in OpenXPKI. Please see more info on enroll modes (especially `Signer on Behalf` section) here: [Enrollment Workflow](https://openxpki.readthedocs.io/en/develop/reference/configuration/workflows/enroll.html). For this, you will need to set the client certificate as an `authorized_signer` for your RPC endpoint. You can set this in `config.d/realm.tpl/rpc/enroll.yaml`:
+
+```
+authorized_signer:
+    rule1:
+        # Full DN
+        subject: CN=cn-of-your-client-cert-here(?:,.+|$)
+```
+
 ## Configuration
 
 - modify the acme2certifier configuration (`acme_srv.cfg`) and add the following parameters
