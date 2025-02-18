@@ -260,7 +260,7 @@ class CAhandler(object):
         poll_indentifier = None
 
         if self.host:
-
+          
             # check for allowed domainlist
             error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
@@ -272,7 +272,7 @@ class CAhandler(object):
                     'method': 'RequestCertificate',
                     'comment': 'acme2certifier',
                     'pkcs10': csr,
-                    'profile': self.cert_profile_name
+                    'cert_profile': self.cert_profile_name
                 }
                 if self.session:
                     # enroll via RPC
