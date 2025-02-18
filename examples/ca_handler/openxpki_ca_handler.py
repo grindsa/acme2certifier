@@ -265,7 +265,7 @@ class CAhandler(object):
                 'method': 'RequestCertificate',
                 'comment': 'acme2certifier',
                 'pkcs10': csr,
-                'profile': self.cert_profile_name
+                'cert_profile': self.cert_profile_name
             }
             if self.session:
                 # enroll via RPC
