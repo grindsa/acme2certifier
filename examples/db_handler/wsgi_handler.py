@@ -437,14 +437,14 @@ class DBstore(object):
         else:
             self.cursor.execute('''PRAGMA table_info(housekeeping)''')
             for column in self.cursor.fetchall():
-                if column[1] == 'name' and column[2].lower() == 'varchar(15)':
-                    self.logger.info('alter housekeeping table  - change size of the name field to 30')
-                    self.cursor.execute('''ALTER TABLE housekeeping RENAME TO tmp_hk''')
+                if column[1] == 'name' and column[2].lower() == 'varchar(15)':  # pragma: no cover
+                    self.logger.info('alter housekeeping table  - change size of the name field to 30')  # pragma: no cover
+                    self.cursor.execute('''ALTER TABLE housekeeping RENAME TO tmp_hk''')  # pragma: no cover
                     self.cursor.execute('''
                         CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                    ''')
-                    self.cursor.execute('''INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk''')
-                    self.cursor.execute('''DROP TABLE tmp_hk''')
+                    ''')  # pragma: no cover
+                    self.cursor.execute('''INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk''')  # pragma: no cover
+                    self.cursor.execute('''DROP TABLE tmp_hk''')  # pragma: no cover
 
     def _db_update_orders(self):
         """ alter orders table """

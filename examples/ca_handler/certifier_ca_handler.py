@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 class CAhandler(object):
@@ -32,6 +32,9 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes ACMEHandler a Context Manager """
@@ -135,6 +138,10 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_get(%s)', csr)
         ca_dic = self._ca_get_properties('name', self.ca_name)
         cert_dic = {}
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['auth', 'api_password'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if 'href' in ca_dic:
             data = {'ca': ca_dic['href'], 'pkcs10': csr}
@@ -258,6 +265,9 @@ class CAhandler(object):
             except Exception:
                 self.request_timeout = 20
 
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
+
         # load profile_id
         self.profile_id = config_dic['CAhandler'].get('profile_id', None)
 
@@ -304,6 +314,8 @@ class CAhandler(object):
             self._config_password_load(config_dic)
             # load parameters from config
             self._config_parameter_load(config_dic)
+            # load allowed domainlist
+            self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
             # load profiling
             self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
             # load header info
@@ -312,6 +324,20 @@ class CAhandler(object):
         # load proxy configuration
         self._config_proxy_load(config_dic)
         self.logger.debug('CAhandler._config_load() ended')
+
+    def _csr_check(self, csr: str) -> str:
+        """ check csr """
+        self.logger.debug('CAhandler._csr_check()')
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+
+        if not error and self.allowed_domainlist:
+            # check for allowed domainlist
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+
+        self.logger.debug('CAhandler._csr_check() ended with: %s', error)
+        return error
 
     def _poll_cert_get(self, request_dic: Dict[str, str], poll_identifier: str, error: str) -> Tuple[str, str, str, str, bool]:
         """ get certificate via poll request """
@@ -494,8 +520,8 @@ class CAhandler(object):
         cert_raw = None
         poll_identifier = None
 
-        # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+        # check CSR
+        error = self._csr_check(csr)
 
         # enrollment starts here
         if not error:

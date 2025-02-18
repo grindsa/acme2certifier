@@ -96,7 +96,7 @@ jobs:
 
   openssl_ca_handler_tests_rpm:
     name: "openssl_ca_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:

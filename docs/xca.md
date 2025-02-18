@@ -26,6 +26,7 @@ root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
 
 ```config
 [CAhandler]
+handler_file: examples/ca_handler/xca_ca_handler.py
 xdb_file: acme_srv/xca/acme2certifier.xdb
 issuing_ca_name: sub-ca
 issuing_ca_key: sub-ca-key
@@ -41,7 +42,10 @@ template_name: XCA template to be applied to CSRs
 - `passphrase` - *optional* - passphrase to access the database and decrypt the private CA Key
 - `ca_cert_chain_list` - *optional* - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issuing CA cert must not be included)
 - `template_name` - *optional* - name of the XCA template to be applied during certificate issuance
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- enrollment_config_log - optional - log enrollment parameters (default False)
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
 
 Template support has been introduced starting from v0.13. Support is limited to the below parameters which can be applied during certificate issuance:
 

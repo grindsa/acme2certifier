@@ -416,13 +416,14 @@ class TestACMEHandler(unittest.TestCase):
         """ test enroll without openssl_bin """
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
 
+    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
     @patch('os.path.isfile')
     @patch('subprocess.call')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_050_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+    def test_050_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle, mock_adl):
         """ test enroll subprocess.call returns 0 """
         self.cahandler.openssl_bin = 'openssl_bin'
         mock_save.return_value = True
@@ -431,6 +432,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_exists.return_value = True
         mock_bundle.return_value = ('cert_bundle', 'cert_raw')
         mock_del.return_value = True
+        mock_adl.return_value = None
         self.assertEqual((None, 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
@@ -438,6 +440,33 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_exists.called)
         self.assertTrue(mock_del.called)
         self.assertTrue(mock_bundle.called)
+        self.assertTrue(mock_adl.called)
+
+    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
+    @patch('os.path.isfile')
+    @patch('subprocess.call')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
+    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
+    def test_051_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle, mock_adl):
+        """ test enroll subprocess.call returns 0 """
+        self.cahandler.openssl_bin = 'openssl_bin'
+        mock_save.return_value = True
+        mock_build.return_value = 'opensslcmd'
+        mock_call.return_value = 0
+        mock_exists.return_value = True
+        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_del.return_value = True
+        mock_adl.return_value = 'mock_adl'
+        self.assertEqual(('mock_adl', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_save.called)
+        self.assertFalse(mock_build.called)
+        self.assertFalse(mock_call.called)
+        self.assertFalse(mock_exists.called)
+        self.assertTrue(mock_del.called)
+        self.assertFalse(mock_bundle.called)
+        self.assertTrue(mock_adl.called)
 
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
@@ -445,7 +474,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('subprocess.call')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_051_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+    def test_052_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
         """ test enroll subprocess.call returns other than 0 """
         self.cahandler.openssl_bin = 'openssl_bin'
         mock_save.return_value = True
@@ -470,7 +499,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('subprocess.call')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_052_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
+    def test_053_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
         """ test enroll tmp_dir does not exists """
         self.cahandler.openssl_bin = 'openssl_bin'
         mock_save.return_value = True
@@ -490,7 +519,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bundle.called)
 
     @patch("builtins.open")
-    def test_053__file_save(self, mock_op):
+    def test_054__file_save(self, mock_op):
         """ test file save """
         self.assertFalse(self.cahandler._file_save('filename', 'content'))
         self.assertTrue(mock_op.called)
