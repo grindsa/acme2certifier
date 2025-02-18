@@ -40,6 +40,7 @@ from .version import __version__
 
 
 USER_AGENT = f'acme2certifier/{__version__}'
+PARSING_ERR_MSG = 'failed to parse'
 
 
 def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
@@ -106,7 +107,7 @@ def ca_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impor
     logger.debug('Helper.ca_handler_load()')
 
     if 'CAhandler' not in config_dic:
-        logger.error('Helper.ca_handler_load(): CAhandler configuration missing in config file')
+        logger.error('CAhandler configuration missing in config file')
         return None
 
     if 'handler_file' in config_dic['CAhandler']:
@@ -117,13 +118,13 @@ def ca_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impor
             spec.loader.exec_module(ca_handler_module)
             return ca_handler_module
         except Exception as err_:
-            logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: %s', err_)
+            logger.critical('loading CAhandler configured in cfg failed with err: %s', err_)
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
         ca_handler_module = importlib.import_module('acme_srv.ca_handler')
     except Exception as err_:
-        logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: %s', err_)
+        logger.critical('loading default CAhandler failed with err: %s', err_)
         ca_handler_module = None
 
     return ca_handler_module
@@ -149,7 +150,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     try:
         eab_profiling = config_dic.getboolean('CAhandler', 'eab_profiling', fallback=False)
     except Exception as err:
-        logger.warning('CAhandler._config_eab_profile_load() failed with error: %s', err)
+        logger.warning('loading eabprofile failed with error: %s', err)
         eab_profiling = False
 
     if eab_profiling:
@@ -157,11 +158,11 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             # load eab_handler according to configuration
             eab_handler_module = eab_handler_load(logger, config_dic)
             if not eab_handler_module:
-                logger.critical('CAhandler._config_load(): EABHandler could not get loaded')
+                logger.critical('EABHandler could not get loaded')
             else:
                 eab_handler = eab_handler_module.EABhandler
         else:
-            logger.critical('CAhandler._config_load(): EABHandler configuration incomplete')
+            logger.critical('EABHandler configuration incomplete')
 
     logger.debug('_config_profile_load() ended')
     return eab_profiling, eab_handler
@@ -176,10 +177,51 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
         except Exception as err_:
-            logger.warning('Helper.config_headerinfo_load() header_info_list failed with error: %s', err_)
+            logger.warning('header_info_list failed with error: %s', err_)
 
-    logger.debug('config_headerinfo_load() ended')
+    logger.debug('Helper.config_headerinfo_load() ended')
     return header_info_field
+
+
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_enroll_config_log_load()')
+
+    enrollment_config_log = False
+    enrollment_config_log_skip_list = []
+
+    if 'CAhandler' in config_dic:
+        try:
+            enrollment_config_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            logger.warning('loading enrollment_config_log failed with error: %s', err_)
+
+        if 'enrollment_config_log_skip_list' in config_dic['CAhandler']:
+            try:
+                enrollment_config_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
+            except Exception as err_:
+                logger.warning('enrollment_config_log_skip_list failed with error: %s', err_)
+                enrollment_config_log_skip_list = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_enroll_config_log_load() ended with: %s', enrollment_config_log)
+    return enrollment_config_log, enrollment_config_log_skip_list
+
+
+def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_allowed_domainlist_load()')
+
+    allowed_domainlist = []
+
+    if 'CAhandler' in config_dic and 'allowed_domainlist' in config_dic['CAhandler']:
+        try:
+            allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        except Exception as err_:
+            logger.warning('loading allowed_domainlist failed with error: %s', err_)
+            allowed_domainlist = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_allowed_domainlist_load() ended with: %s', allowed_domainlist)
+    return allowed_domainlist
 
 
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
@@ -193,21 +235,21 @@ def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impo
             eab_handler_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(eab_handler_module)
         except Exception as err_:
-            logger.critical('Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: %s', err_)
+            logger.critical('loading EABhandler configured in cfg failed with err: %s', err_)
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
                 eab_handler_module = None
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
+                logger.critical('loading default EABhandler failed with err: %s', err_)
     else:
         if 'EABhandler' in config_dic:
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
+                logger.critical('loading default EABhandler failed with err: %s', err_)
                 eab_handler_module = None
         else:
-            logger.error('Helper.eab_handler_load(): EABhandler configuration missing in config file')
+            logger.error('EABhandler configuration missing in config file')
             eab_handler_module = None
 
     return eab_handler_module
@@ -1660,6 +1702,24 @@ def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: L
     return result
 
 
+def allowed_domainlist_check_error(logger: logging.Logger, csr: str, allowed_domainlist) -> str:
+    """ check allowed domainlist and resturn error """
+    logger.debug('Helper.allowed_domainlist_check_error()')
+
+    error = None
+    # check CN and SAN against black/whitlist
+    if allowed_domainlist == PARSING_ERR_MSG:
+        error = 'error loading allowed_domainlist'
+    elif allowed_domainlist:
+        # check sans / cn against list of allowed comains from config
+        result = allowed_domainlist_check(logger, csr, allowed_domainlist)
+        if not result:
+            error = 'Either CN or SANs are not allowed by configuration'
+
+    logger.debug('Helper.allowed_domainlist_check_error() ended with %s', error)
+    return error
+
+
 def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
     """ create lists for san check """
     logger.debug('Helper.sancheck_lists_create()')
@@ -1712,6 +1772,7 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
         hil_value = header_info_lookup(logger, csr, cahandler.header_info_field, handler_hifield)
         if hil_value:
             logger.debug('Helper.eab_profile_header_info_check(): setting %s to %s', handler_hifield, hil_value)
+            logger.info('Received enrollment parameter: %s value: %s via headerinfo field', handler_hifield, hil_value)
             setattr(cahandler, handler_hifield, hil_value)
             error = None
         else:
@@ -1899,7 +1960,7 @@ def request_operation(logger: logging.Logger, headers: Dict[str, str] = None, pr
 
 def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
     """ lookup  CN/ 1st san from CSR """
-    logger.debug('CAhandler._csr_cn_lookup()')
+    logger.debug('Heloer._csr_cn_lookup()')
 
     csr_cn = csr_cn_get(logger, csr)
     if not csr_cn:
@@ -1911,9 +1972,29 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
                     csr_cn = san.split(':')[1]
                     break
                 except Exception as err:
-                    logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+                    logger.error('SAN split failed: %s', err)
         else:
-            logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
+            logger.error('no SANs found in CSR')
 
-    logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
+    logger.debug('Helper._csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
+
+
+def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist: List[str] = None):
+    """ log enrollment configuration """
+    logger.debug('Helper.enrollment_config_log()')
+
+    skiplist = ['logger', 'session', 'password', 'api_key', 'api_password', 'key', 'secret', 'token']
+
+    if handler_skiplist and isinstance(handler_skiplist, list):
+        skiplist.extend(handler_skiplist)
+
+    if handler_skiplist and PARSING_ERR_MSG in handler_skiplist:
+        logger.error('Enrollment configuration won\'t get logged due to a configuration error.')
+    else:
+        enroll_parameter_list = []
+        for key, value in obj.__dict__.items():
+            if key.startswith('__') or key in skiplist:
+                continue
+            enroll_parameter_list.append(f'{key}: {value}')
+        logger.info('Enrollment configuration: %s', enroll_parameter_list)

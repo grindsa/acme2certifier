@@ -183,6 +183,11 @@ jobs:
       with:
         NAME_SPACE: local
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
@@ -551,6 +556,11 @@ jobs:
     - name: "KRB - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
@@ -783,7 +793,7 @@ jobs:
 
   mscertsrv_handler_tests_rpm:
     name: "mscertsrv_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: rpm_build_and_upload
     strategy:
       # max-parallel: 1
@@ -919,6 +929,10 @@ jobs:
       with:
         NAME_SPACE: local
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -941,7 +955,7 @@ jobs:
 
   mscertsrv_handler_eab_profile_tests_rpm:
     name: "mscertsrv_handler_eab_profile_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1
@@ -1068,7 +1082,7 @@ jobs:
 
   mswcce_handler_tests_rpm:
     name: "mswcce_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1
@@ -1242,6 +1256,10 @@ jobs:
     - name: "KRB - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -1265,7 +1283,7 @@ jobs:
 
   mswcce_handler_eab_profile_tests_rpm:
     name: "mswcce_handler_eab_profile_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1

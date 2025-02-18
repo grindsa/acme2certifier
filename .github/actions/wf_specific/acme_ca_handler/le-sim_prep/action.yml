@@ -4,7 +4,7 @@ inputs:
   LESIM_NAME:
     description: "Name of the le-sim"
     required: true
-    default: "le-sim"
+    default: "acme-le-sim"
   NAME_SPACE:
     description: "Name space of the le-sim"
     required: true

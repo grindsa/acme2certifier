@@ -7,7 +7,7 @@ from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get, config_allowed_domainlist_load, allowed_domainlist_check_error
 from acme_srv.db_handler import DBstore
 
 
@@ -29,6 +29,7 @@ class CAhandler(object):
         self.rpc_path = '/rpc/'
         self.err_msg_dic = error_dic_get(self.logger)
         self.dbstore = DBstore(False, self.logger)
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -154,6 +155,8 @@ class CAhandler(object):
         self._config_server_load(config_dic)
         self._config_ca_load(config_dic)
         self._config_session_load(config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
 
         if 'CAhandler' in config_dic and 'client_cert' in config_dic['CAhandler'] and not self.ca_bundle:
             self.logger.error('CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle.')
@@ -257,22 +260,26 @@ class CAhandler(object):
         poll_indentifier = None
 
         if self.host:
+          
+            # check for allowed domainlist
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
-            # prepare the CSR to be signed
-            csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
+            if not error:
+                # prepare the CSR to be signed
+                csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
 
-            data_dic = {
-                'method': 'RequestCertificate',
-                'comment': 'acme2certifier',
-                'pkcs10': csr,
-                'cert_profile': self.cert_profile_name
-            }
-            if self.session:
-                # enroll via RPC
-                (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(data_dic)
-            else:
-                self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
-                error = 'Configuration incomplete'
+                data_dic = {
+                    'method': 'RequestCertificate',
+                    'comment': 'acme2certifier',
+                    'pkcs10': csr,
+                    'cert_profile': self.cert_profile_name
+                }
+                if self.session:
+                    # enroll via RPC
+                    (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(data_dic)
+                else:
+                    self.logger.error('CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...')
+                    error = 'Configuration incomplete'
         else:
             self.logger.error('CAhandler.enroll(): Configuration incomplete. Host variable is missing...')
             error = 'Configuration incomplete'

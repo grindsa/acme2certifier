@@ -12,7 +12,7 @@ jobs:
 
   ha_django_mariadb_tests:
     name: "ha_django_mariadb_tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4

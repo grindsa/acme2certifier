@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
-from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, allowed_domainlist_check, eab_profile_header_info_check, config_eab_profile_load  # pylint: disable=e0401
+from acme_srv.helper import load_config, b64_url_recode, convert_byte_to_string, proxy_check, convert_string_to_byte, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error  # pylint: disable=e0401
 
 
 class CAhandler(object):
@@ -31,6 +31,8 @@ class CAhandler(object):
         self.verify = True
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -154,12 +156,10 @@ class CAhandler(object):
 
         self.verify = config_dic.getboolean('CAhandler', 'verify', fallback=True)
 
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            try:
-                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-            except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-                self.allowed_domainlist = 'ADLFAILURE'
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
 
         self.logger.debug('CAhandler._config_parameters_load() ended')
 
@@ -283,22 +283,6 @@ class CAhandler(object):
             self.logger.info('CAhandler.enroll(): load krb5config from %s', self.krb5_config)
             os.environ['KRB5_CONFIG'] = self.krb5_config
 
-    def _domainlist_check(self, csr: str) -> bool:
-        """ check if domain is in allowed domainlist """
-        self.logger.debug('CAhandler._domainlist_check()')
-
-        if self.allowed_domainlist:
-            if self.allowed_domainlist != 'ADLFAILURE':
-                # check sans / cn against list of allowed comains from config
-                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            else:
-                result = False
-        else:
-            result = True
-
-        self.logger.debug('CAhandler._domainlist_check() ended with: %s', result)
-        return result
-
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """ enroll certificate """
         self.logger.debug('CAhandler._enroll()')
@@ -311,6 +295,9 @@ class CAhandler(object):
 
         # check connection and credentials
         auth_check = self._check_credentials(ca_server)
+
+        if self.enrollment_config_log:
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if auth_check:
             # enroll certificate
@@ -333,10 +320,10 @@ class CAhandler(object):
 
         if (self.host or self.url) and self.user and self.password and self.template:
 
-            # check if domain is in allowed domainlis
-            result = self._domainlist_check(csr)
+            # check for allowed domainlist
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
-            if result:
+            if not error:
                 # check for eab profiling and header_info
                 error = eab_profile_header_info_check(self.logger, self, csr, 'template')
                 if not error:
@@ -345,8 +332,8 @@ class CAhandler(object):
                 else:
                     self.logger.error('EAB profile check failed')
             else:
-                self.logger.error('SAN/CN check failed')
-                error = 'SAN/CN check failed'
+                self.logger.error(error)
+
         else:
             self.logger.error('Config incomplete')
             error = 'Config incomplete'

@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check
+from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 class CAhandler(object):
@@ -29,6 +29,7 @@ class CAhandler(object):
         self.proxy = None
         self.request_timeout = 20
         self.session = None
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -224,6 +225,8 @@ class CAhandler(object):
                 self._config_password_load(config_dic)
                 # load paramters
                 self._config_parameters_load(config_dic)
+                # load allowed domainlist
+                self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
                 # check if we have one authentication scheme
                 if not self.est_client_cert and not self.est_user:
                     self.logger.error('CAhandler._config_load() configuration incomplete: either user or client authentication must be configured.')
@@ -290,11 +293,16 @@ class CAhandler(object):
         error = None
         cert_raw = None
 
-        # recode csr
-        csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+        # check for allowed domainlist
+        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
 
-        if self.est_host:
-            (error, ca_pem) = self._cacerts_get()
+        if not error:
+            # recode csr
+            csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + '\n'
+
+            if self.est_host:
+                (error, ca_pem) = self._cacerts_get()
+
             if not error:
                 if ca_pem:
                     (error, cert_raw) = self._simpleenroll(csr)

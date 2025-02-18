@@ -6,7 +6,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, encode_url, csr_pubkey_get, csr_cn_get, csr_san_get, uts_now, uts_to_date_utc, b64_decode, cert_der2pem, convert_byte_to_string, cert_ski_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
 class CAhandler(object):
@@ -28,6 +28,9 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -205,13 +208,17 @@ class CAhandler(object):
             if not getattr(self, ele):
                 self.logger.error('CAhandler._config_load(): %s not set', ele)
 
-        self._auth_set()
-
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
+
+        self._auth_set()
+
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
-
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         self.logger.debug('CAhandler._config_load() ended')
 
     def _csr_cn_get(self, csr: str) -> str:
@@ -392,6 +399,14 @@ class CAhandler(object):
 
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, 'profile_name')
+
+        if not error:
+            # check for allowed domainlist
+            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['api_password', 'auth'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if not error:
             # verify issuer

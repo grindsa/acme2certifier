@@ -61,7 +61,7 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
 
-    - name: "Setup le-sim"
+    - name: "Setup acme-le-sim"
       uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
     - name: "Setup acme ca_handler"
@@ -72,9 +72,10 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://le-sim" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -84,6 +85,13 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check acme account found in keyfile"
       run: |
@@ -111,7 +119,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: acme_ca_handler_container-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: acme_ca_handler_lesim_container-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   acme_ca_handler_sectigo_test:
@@ -161,7 +169,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://le-sim" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
@@ -467,7 +475,7 @@ jobs:
 
   rpm_acme_ca_handler_test:
     name: "rpm_acme_ca_handler_test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -503,9 +511,10 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://le-sim" >> data/acme_srv.cfg
+        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
 
     - name: "Run Execute install scipt"
       run: |
@@ -513,15 +522,22 @@ jobs:
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
+      with:
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "Check acme account found in keyfile"
       run: |
-        docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+        # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs le-sim > ${{ github.workspace }}/artifact/le-sim.log
+        docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
@@ -541,7 +557,7 @@ jobs:
 
   rpm_acme_ca_handler_sectigo_test:
     name: "rpm_acme_ca_handler_sectigo_test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -579,7 +595,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://le-sim" >> data/acme_srv.cfg
+        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
 
@@ -592,12 +608,12 @@ jobs:
 
     - name: "Check acme account found in keyfile"
       run: |
-        docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
-        docker logs acme-le-sim
+        docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
         mkdir -p ${{ github.workspace }}/artifact/upload
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
@@ -617,7 +633,7 @@ jobs:
 
   rpm_acme_ca_handler_profiling_test:
     name: "rpm_acme_ca_handler_profiling_test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -760,7 +776,7 @@ jobs:
 
   rpm_acme_ca_handler_smallstep_test:
     name: "rpm_acme_ca_handler_smallstep_test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -818,7 +834,8 @@ jobs:
 
     - name: "Check acme account found in keyfile"
       run: |
-        docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+        # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
