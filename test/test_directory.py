@@ -36,17 +36,20 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
+        self.directory.cahandler = MagicMock()
         output_dic = {'newNonce': 'http://tester.local/acme/newnonce'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_003_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "newnonce" tag in output"""
+        self.directory.cahandler = MagicMock()
         output_dic = {'newAccount': 'http://tester.local/acme/newaccount'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_004_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.supress_version = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -54,12 +57,14 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.tos_url = 'foo'
         self.directory.supress_version = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'termsOfService': 'foo'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
     def test_006_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -67,6 +72,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.version = '0.1'
         self.directory.tos_url = 'foo'
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'termsOfService': 'foo'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -74,6 +80,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "eab" key in meta tag"""
         self.directory.version = '0.1'
         self.directory.eab = 'foo'
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1', 'externalAccountRequired': True}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -81,6 +88,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory()  url prefix """
         self.directory.url_prefix = 'url_prefix'
         self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
         output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -91,6 +99,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1.1'
         self.directory.db_check = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         result = self.directory.directory_get()
         self.assertTrue(output_dic.items() <= result.items())
@@ -103,6 +112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1'
         self.directory.db_check = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         result = self.directory.directory_get()
         self.assertTrue(output_dic.items() <= result.items())
@@ -115,6 +125,7 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.version = '0.1'
         self.directory.dbversion = '0.1'
         self.directory.db_check = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'renewalInfo': 'http://tester.localurl_prefix/acme/renewal-info', 'newAuthz': 'http://tester.localurl_prefix/acme/new-authz', 'newNonce': 'http://tester.localurl_prefix/acme/newnonce', 'newAccount': 'http://tester.localurl_prefix/acme/newaccount', 'newOrder': 'http://tester.localurl_prefix/acme/neworders', 'revokeCert': 'http://tester.localurl_prefix/acme/revokecert', 'keyChange': 'http://tester.localurl_prefix/acme/key-change'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             result = self.directory.directory_get()
@@ -126,6 +137,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.home = 'home'
         self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
         output_dic = {'meta': {'home': 'home', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}}
         self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
 
@@ -133,6 +145,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.home = 'home'
         self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
         output_dic = {'home': 'home', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}
         self.assertEqual(output_dic, self.directory.directory_get()['meta'])
 
@@ -141,12 +154,14 @@ class TestACMEHandler(unittest.TestCase):
         self.directory.home = 'home'
         self.directory.version = '0.1'
         self.directory.suppress_product_information = True
+        self.directory.cahandler = MagicMock()
         output_dic = {'home': 'home'}
         self.assertEqual(output_dic, self.directory.directory_get()['meta'])
 
     def test_016_directory_directory_get(self):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.suppress_product_information = True
+        self.directory.cahandler = MagicMock()
         output_dic = {}
         self.assertEqual(output_dic, self.directory.directory_get()['meta'])
 
@@ -154,8 +169,35 @@ class TestACMEHandler(unittest.TestCase):
         """ test Directory.get_directory() method and check for "meta" tag in output"""
         self.directory.suppress_product_information = False
         self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
         output_dic = {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}
         self.assertEqual(output_dic, self.directory.directory_get()['meta'])
+
+    def test_018_directory_directory_get(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.suppress_product_information = False
+        self.directory.version = '0.1'
+        self.directory.cahandler = None
+        output_dic = {'error': 'error in ca_handler configuration'}
+        self.assertEqual(output_dic, self.directory.directory_get())
+
+    def test_019_directory_directory_get(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.suppress_product_information = False
+        self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
+        self.directory.cahandler.return_value.__enter__.return_value.handler_check.return_value = None
+        output_dic = {'home': 'https://github.com/grindsa/acme2certifier', 'author': 'grindsa <grindelsack@gmail.com>', 'name': 'acme2certifier', 'version': '0.1'}
+        self.assertEqual(output_dic, self.directory.directory_get()['meta'])
+
+    def test_20_directory_directory_get(self):
+        """ test Directory.get_directory() method and check for "meta" tag in output"""
+        self.directory.suppress_product_information = False
+        self.directory.version = '0.1'
+        self.directory.cahandler = MagicMock()
+        self.directory.cahandler.return_value.__enter__.return_value.handler_check.return_value = 'error'
+        output_dic = {'error': 'error in ca_handler configuration'}
+        self.assertEqual(output_dic, self.directory.directory_get())
 
     @patch('acme_srv.directory.load_config')
     def test_018_config_load(self, mock_load_cfg):
