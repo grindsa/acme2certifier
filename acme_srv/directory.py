@@ -122,7 +122,6 @@ class Directory(object):
         self.logger.debug('Directory._directory_get() ended')
         return d_dic
 
-
     def directory_get(self) -> Dict[str, str]:
         """ return response to ACME directory call """
         self.logger.debug('Directory.directory_get()')
