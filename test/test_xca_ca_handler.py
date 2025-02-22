@@ -1510,6 +1510,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertFalse(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
@@ -1519,8 +1520,37 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl):
+    def test_193_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
         """ test enroll() """
+        mock_db.return_value = 'mock_db'
+        mock_chk.return_value = None
+        mock_reqname.return_value = None
+        mock_prof.return_value = None
+        mock_adl.return_value = None
+        self.assertEqual(('mock_db', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(mock_reqname.called)
+        self.assertFalse(mock_csr.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_build.called)
+        self.assertFalse(mock_ca.called)
+        self.assertFalse(mock_sign.called)
+        self.assertFalse(mock_prof.called)
+        self.assertFalse(mock_adl.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
+    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
+    @patch('examples.ca_handler.xca_ca_handler.build_pem_file')
+    @patch('examples.ca_handler.xca_ca_handler.b64_url_recode')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
+    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
+        """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = None
         mock_prof.return_value = None
@@ -1536,6 +1566,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_prof.called)
         self.assertTrue(mock_adl.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
@@ -1545,8 +1576,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl):
+    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = None
         mock_prof.return_value = None
@@ -1562,6 +1594,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_prof.called)
         self.assertTrue(mock_adl.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1570,8 +1603,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = None
         mock_prof.return_value = None
@@ -1585,6 +1619,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1593,8 +1628,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = [None, 'cert', 'id']
@@ -1609,6 +1645,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1617,8 +1654,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_187_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_187_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', None, 'id']
@@ -1633,6 +1671,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1641,8 +1680,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_188_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_188_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', 'cert', None]
@@ -1657,6 +1697,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1665,8 +1706,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_189_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_189_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', 'cert', 'caid']
@@ -1682,6 +1724,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_sign.called)
         self.assertTrue(mock_prof.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1690,8 +1733,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_190_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof):
+    def test_190_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
+        mock_db.return_value = None
         mock_chk.return_value = None
         mock_reqname.return_value = 'request_name'
         mock_ca.return_value = ['key', 'cert', 'caid']
@@ -2067,6 +2111,114 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_crl.called)
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_202_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual(None, self.cahandler._db_check())
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_203_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [False, True]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual('xdb_file xdb_file is not readable', self.cahandler._db_check())
+        self.assertFalse(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_204_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, False]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual('xdb_file xdb_file is not writeable', self.cahandler._db_check())
+        self.assertFalse(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_205_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = None
+        self.assertEqual('ca_key_load failed. PLease check passphrase', self.cahandler._db_check())
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_206_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 660 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_207_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '260'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 260 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_208_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '222'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 222 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
 
 if __name__ == '__main__':
 
