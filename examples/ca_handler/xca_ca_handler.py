@@ -32,7 +32,7 @@ class CAhandler(object):
         self.debug = debug
         self.logger = logger
         self.xdb_file = None
-        self.xdb_permission = 660
+        self.xdb_permission = '660'
         self.passphrase = None
         self.issuing_ca_name = None
         self.issuing_ca_key = None
@@ -440,15 +440,15 @@ class CAhandler(object):
             error = f'xdb_file {self.xdb_file} is not readable'
         elif not os.access(self.xdb_file, os.W_OK):
             error = f'xdb_file {self.xdb_file} is not writeable'
-
-        # warns if permissions are to wiede
-        if int(oct_perm[0]) > int(self.xdb_permission[0]) or int(oct_perm[1]) > int(self.xdb_permission[1]) or int(oct_perm[2]) > int(self.xdb_permission[2]):
-            self.logger.warning('permissions for %s are to wide', self.xdb_file)
+        # warns if permissions are to wide
+        elif int(oct_perm[0]) > int(self.xdb_permission[0]) or int(oct_perm[1]) > int(self.xdb_permission[1]) or int(oct_perm[2]) > int(self.xdb_permission[2]):
+            self.logger.warning('permissions %s for %s are to wide. Should be %s', oct_perm, self.xdb_file, self.xdb_permission)
 
         # validates passphrase against database
-        ca_key = self._ca_key_load()
-        if not ca_key:
-            error = 'ca_key_load failed. PLease check passphrase'
+        if not error:
+            ca_key = self._ca_key_load()
+            if not ca_key:
+                error = 'ca_key_load failed. PLease check passphrase'
 
         self.logger.debug('CAhandler._db_check() ended with: %s', error)
         return error

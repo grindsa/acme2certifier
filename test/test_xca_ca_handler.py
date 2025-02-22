@@ -2112,6 +2112,114 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bc.called)
         self.assertFalse(mock_cdp.called)
 
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_202_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual(None, self.cahandler._db_check())
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_203_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [False, True]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual('xdb_file xdb_file is not readable', self.cahandler._db_check())
+        self.assertFalse(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_204_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, False]
+        mock_load.return_value = 'ca_key'
+        self.assertEqual('xdb_file xdb_file is not writeable', self.cahandler._db_check())
+        self.assertFalse(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_205_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = None
+        self.assertEqual('ca_key_load failed. PLease check passphrase', self.cahandler._db_check())
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_206_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '660'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 660 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_207_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '260'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 260 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
+
+    @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_key_load')
+    @patch('examples.ca_handler.xca_ca_handler.oct')
+    @patch('os.access')
+    @patch('os.stat')
+    def test_208_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+        """ test _db_check() """
+        self.cahandler.xdb_file = 'xdb_file'
+        mock_stat.return_value.st_mode = 2222
+        self.cahandler.xdb_permission = '220'
+        mock_oct.return_value = '222'
+        mock_access.side_effect = [True, True]
+        mock_load.return_value = 'ca_key'
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertEqual(None, self.cahandler._db_check())
+        self.assertIn('WARNING:test_a2c:permissions 222 for xdb_file are to wide. Should be 220', lcm.output)
+        self.assertTrue(mock_access.called)
+        self.assertTrue(mock_load.called)
+
 if __name__ == '__main__':
 
     unittest.main()
