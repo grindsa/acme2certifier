@@ -948,6 +948,17 @@ class CAhandler(object):
 
         return extension_list
 
+    def handler_check(self):
+        """ check if handler is ready """
+        self.logger.debug('CAhandler.check()')
+
+        error = self._config_check()
+        if not error:
+            error = self._db_check()
+
+        self.logger.debug('CAhandler.check() ended with %s', error)
+        return error
+
     def enroll(self, csr: str = None) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         # pylint: disable=R0914, R0915
