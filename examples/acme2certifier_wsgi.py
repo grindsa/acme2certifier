@@ -428,7 +428,8 @@ def not_found(_environ, start_response):
 
 # map urls to functions
 URLS = [
-    (r'^$', directory),
+    # fix for issue #210
+    # (r'^$', directory),
     (r'^acme/acct', acct),
     (r'^acme/authz', authz),
     (r'^acme/cert', cert),
