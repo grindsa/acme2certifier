@@ -17,7 +17,7 @@ else:
 
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls),
-    re_path(r'^$', views.directory, name='index'),
+    # re_path(r'^$', views.directory, name='index'),
     re_path(r'^directory$', views.directory, name='directory'),
     re_path(rf'^{PREFIX}get_servername$', views.servername_get, name='servername_get'),
     re_path(rf'^{PREFIX}trigger$', views.trigger, name='trigger'),

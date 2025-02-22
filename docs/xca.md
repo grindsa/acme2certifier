@@ -21,13 +21,14 @@ root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
 ```
 
 - place the XCA database into a directory which is accessible by acme2certifier.
-
+- set ownership to the user running the webservices and change the permission to restrict access
 - modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
 
 ```config
 [CAhandler]
 handler_file: examples/ca_handler/xca_ca_handler.py
 xdb_file: acme_srv/xca/acme2certifier.xdb
+xdb_permission: 600
 issuing_ca_name: sub-ca
 issuing_ca_key: sub-ca-key
 passphrase_variable: XCA_PASSPHRASE
@@ -36,6 +37,7 @@ template_name: XCA template to be applied to CSRs
 ```
 
 - `xdb_file` - path to XCA database
+- `xdb_permission` - *optional* - permissions of the xca database file (default: 660)
 - `issuing_ca_name` - XCA name of the certificate authority used to issue certificates.
 - `issuing_ca_key` - XCA name of the ley used to sign certificates. If not set same value as configured in `issuing_ca_name` will be assumed.
 - `passphrase_variable` - *optional* - name of the environment variable containing the passphrase to decrypt the CA key (a configured `passphrase` parameter takes precedence)
