@@ -1,3 +1,4 @@
+# pylint: disable=e0401, c0302
 # -*- coding: utf-8 -*-
 """ handler for xca ca handler """
 from __future__ import print_function
@@ -13,7 +14,6 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
-# pylint: disable=e0401. c0302
 from acme_srv.helper import load_config, build_pem_file, uts_now, uts_to_date_utc, b64_encode, b64_decode, b64_url_recode, cert_serial_get, convert_string_to_byte, convert_byte_to_string, csr_cn_get, csr_san_get, error_dic_get, config_headerinfo_load, config_eab_profile_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
 
 
@@ -32,6 +32,7 @@ class CAhandler(object):
         self.debug = debug
         self.logger = logger
         self.xdb_file = None
+        self.xdb_permission = 660
         self.passphrase = None
         self.issuing_ca_name = None
         self.issuing_ca_key = None
@@ -332,8 +333,13 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
         config_dic = load_config(self.logger, 'CAhandler')
 
-        if 'xdb_file' in config_dic['CAhandler']:
-            self.xdb_file = config_dic['CAhandler']['xdb_file']
+        if 'CAhandler' in config_dic:
+            cfg_dic = dict(config_dic['CAhandler'])
+            self.xdb_file = cfg_dic.get('xdb_file', None)
+            self.xdb_permission = cfg_dic.get('xdb_permission', '660')
+            self.issuing_ca_name = cfg_dic.get('issuing_ca_name', None)
+            self.issuing_ca_key = cfg_dic.get('issuing_ca_key', None)
+            self.template_name = cfg_dic.get('template_name', None)
 
         if 'passphrase_variable' in config_dic['CAhandler']:
             try:
@@ -347,20 +353,11 @@ class CAhandler(object):
                 self.logger.info('CAhandler._config_load() overwrite passphrase_variable')
             self.passphrase = config_dic['CAhandler']['passphrase']
 
-        if 'issuing_ca_name' in config_dic['CAhandler']:
-            self.issuing_ca_name = config_dic['CAhandler']['issuing_ca_name']
-
-        if 'issuing_ca_key' in config_dic['CAhandler']:
-            self.issuing_ca_key = config_dic['CAhandler']['issuing_ca_key']
-
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             try:
                 self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
             except Exception:
                 self.logger.error('CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded')
-
-        if 'template_name' in config_dic['CAhandler']:
-            self.template_name = config_dic['CAhandler']['template_name']
 
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
@@ -434,17 +431,24 @@ class CAhandler(object):
         """ do verious checks on database"""
         self.logger.debug('CAhandler._db_check()')
         error = None
-        # checks
-        # validates passphrase against database
-        # test open failure
-        # checks permissions
-        # warns if permissions are to wiede
 
+        st = os.stat(self.xdb_file)
+        oct_perm = oct(st.st_mode)[-3:]
+
+        # test open failure
+        if not os.access(self.xdb_file, os.R_OK):
+            error = f'xdb_file {self.xdb_file} is not readable'
+        elif not os.access(self.xdb_file, os.W_OK):
+            error = f'xdb_file {self.xdb_file} is not writeable'
+
+        # warns if permissions are to wiede
+        if int(oct_perm[0]) > int(self.xdb_permission[0]) or int(oct_perm[1]) > int(self.xdb_permission[1]) or int(oct_perm[2]) > int(self.xdb_permission[2]):
+            self.logger.warning('permissions for %s are to wide', self.xdb_file)
+
+        # validates passphrase against database
         ca_key = self._ca_key_load()
         if not ca_key:
-            error = 'CAhandler._db_check(): ca_key_load failed. PLease check passphrase'
-
-
+            error = 'ca_key_load failed. PLease check passphrase'
 
         self.logger.debug('CAhandler._db_check() ended with: %s', error)
         return error
