@@ -5,7 +5,7 @@ from __future__ import print_function
 import uuid
 from typing import Dict
 from .version import __version__, __dbversion__
-from .helper import load_config
+from .helper import load_config, ca_handler_load
 from .db_handler import DBstore
 
 
@@ -19,6 +19,7 @@ class Directory(object):
         self.server_name = srv_name
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
+        self.cahandler = None
         self.supress_version = False
         self.suppress_product_information = False
         self.home = GH_HOME
@@ -42,30 +43,34 @@ class Directory(object):
         self.logger.debug('Directory._config_load()')
         config_dic = load_config(self.logger, 'Directory')
         if 'Directory' in config_dic:
+            cfg_dic = dict(config_dic['Directory'])
+            self.tos_url = cfg_dic.get('tos_url', None)
+            self.url_prefix = cfg_dic.get('url_prefix', "")
+            self.home = cfg_dic.get('home', GH_HOME)
             if 'supress_version' in config_dic['Directory']:
                 self.supress_version = config_dic.getboolean('Directory', 'supress_version', fallback=False)
-            if 'tos_url' in config_dic['Directory']:
-                self.tos_url = config_dic['Directory']['tos_url']
             if 'db_check' in config_dic['Directory']:
                 self.db_check = config_dic.getboolean('Directory', 'db_check', fallback=False)
         if 'EABhandler' in config_dic and 'eab_handler_file' in config_dic['EABhandler']:
             self.eab = True
-        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
-            self.url_prefix = config_dic['Directory']['url_prefix']
-
-        self.home = config_dic.get('Directory', 'home', fallback=GH_HOME)
-
         try:
             self.suppress_product_information = config_dic.getboolean('Directory', 'suppress_product_information', fallback=False)
         except Exception as err_:
             self.logger.error('Directory._config_load() suppress_product_information not set: %s', err_)
 
+        # load ca_handler according to configuration
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
+        if ca_handler_module:
+            # store handler in variable
+            self.cahandler = ca_handler_module.CAhandler
+        else:
+            self.logger.critical('Certificate._config_load(): No ca_handler loaded')
+
         self.logger.debug('Directory._config_load() ended')
 
-    def directory_get(self) -> Dict[str, str]:
+    def _directory_get(self) -> Dict[str, str]:
         """ return response to ACME directory call """
-        self.logger.debug('Directory.directory_get()')
-
+        self.logger.debug('Directory._directory_get()')
         d_dic = {
             'newAuthz': self.server_name + self.url_prefix + '/acme/new-authz',
             'newNonce': self.server_name + self.url_prefix + '/acme/newnonce',
@@ -113,6 +118,31 @@ class Directory(object):
 
         # generate random key in json as recommended by LE
         d_dic[uuid.uuid4().hex] = 'https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417'
+
+        self.logger.debug('Directory._directory_get() ended')
+        return d_dic
+
+
+    def directory_get(self) -> Dict[str, str]:
+        """ return response to ACME directory call """
+        self.logger.debug('Directory.directory_get()')
+
+        if self.cahandler:
+            with self.cahandler(None, self.logger) as ca_handler:
+                if 'handler_check' in dir(ca_handler):
+                    error = ca_handler.handler_check()
+                else:
+                    error = None
+        else:
+            error = 'No handler loaded'
+
+        if not error:
+            d_dic = self._directory_get()
+        else:
+            self.logger.critical('Directory.directory_get() error: %s', error)
+            d_dic = {
+                'error': 'error in ca_handler configuration'
+            }
 
         return d_dic
 
