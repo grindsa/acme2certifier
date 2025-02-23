@@ -56,6 +56,11 @@ jobs:
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Test http://acme-srv/directory is accessible again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
