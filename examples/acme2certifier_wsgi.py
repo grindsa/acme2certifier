@@ -431,6 +431,7 @@ def redirect(environ, start_response):
     start_response('302 Found', [('Location', '/directory')])
     return []
 
+
 # map urls to functions
 URLS = [
     (r'^$', redirect),
