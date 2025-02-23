@@ -421,15 +421,19 @@ def housekeeping(environ, start_response):
 
 
 def not_found(_environ, start_response):
-    ''' called if no URL matches '''
+    """ called if no URL matches """
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
     return [json.dumps({'status': 404, 'message': HTTP_CODE_DIC[404], 'detail': 'Not Found'}).encode('utf-8')]
 
 
+def redirect(environ, start_response):
+    """ redirect to directory ressource"""
+    start_response('302 Found', [('Location', '/directory')])
+    return []
+
 # map urls to functions
 URLS = [
-    # fix for issue #210
-    # (r'^$', directory),
+    (r'^$', redirect),
     (r'^acme/acct', acct),
     (r'^acme/authz', authz),
     (r'^acme/cert', cert),
