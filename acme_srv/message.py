@@ -66,10 +66,15 @@ class Message(object):
         """ get name for account """
         self.logger.debug('Message._name_get()')
 
+        self.logger.debug('content: %s', content)
         if 'kid' in content:
             self.logger.debug('kid: %s', content['kid'])
+            self.logger.debug('server_name: %s', self.server_name)
+            self.logger.debug('acct_path: %s', self.path_dic["acct_path"])
             kid = content['kid'].replace(f'{self.server_name}{self.path_dic["acct_path"]}', '')
+            self.logger.debug('kid: %s', kid)
             if '/' in kid:
+                self.logger.debug('clear kid')
                 kid = None
         elif 'jwk' in content and 'url' in content:
             if content['url'] == f'{self.server_name}{self.path_dic["revocation_path"]}':
