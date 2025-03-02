@@ -843,7 +843,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.organization_name = 'organization_name'
         self.assertFalse(self.cahandler._config_check())
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -862,7 +862,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_org.called)
         self.assertFalse(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -881,7 +881,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_org.called)
         self.assertFalse(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -900,7 +900,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_org.called)
         self.assertTrue(mock_domain.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
@@ -919,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_domain.called)
         self.assertFalse(mock_credential.called)
 
-    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.entrust_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._org_domain_cfg_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')

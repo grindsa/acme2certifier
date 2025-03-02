@@ -526,7 +526,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('Error', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler.enroll() _simpleenroll error: Error', lcm.output)
 
-    @patch('examples.ca_handler.est_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.est_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._simpleenroll')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
     def test_050_enroll(self, mock_ca, mock_enroll, mock_adl):
@@ -539,7 +539,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, 'certca_pem', 'cert', None), self.cahandler.enroll('csr'))
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.est_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.est_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._simpleenroll')
     @patch('examples.ca_handler.est_ca_handler.CAhandler._cacerts_get')
     def test_051_enroll(self, mock_ca, mock_enroll, mock_adl):

@@ -553,7 +553,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler._issuer_chain_get())
         self.assertFalse(mock_pem.called)
 
-    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.asa_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
@@ -588,7 +588,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_ecl.called)
         self.assertFalse(mock_adl.called)
 
-    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.asa_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')

@@ -1107,7 +1107,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_template.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup')
@@ -1130,7 +1130,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enroll.called)
         self.assertFalse(mock_adl.called)
 
-    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup')

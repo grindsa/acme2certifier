@@ -7,7 +7,7 @@ import json
 from typing import List, Tuple, Dict
 import requests
 # pylint: disable=e0401, r0913
-from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 class CAhandler(object):
@@ -454,7 +454,7 @@ class CAhandler(object):
 
         if not error:
             # check for allowed domainlist
-            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         self.logger.debug('CAhandler._csr_check() ended with: %s', error)
         return error

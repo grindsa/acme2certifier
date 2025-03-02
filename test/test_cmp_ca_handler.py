@@ -416,7 +416,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test enroll without openssl_bin """
         self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
 
-    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
     @patch('os.path.isfile')
@@ -442,7 +442,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bundle.called)
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
     @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
     @patch('os.path.isfile')

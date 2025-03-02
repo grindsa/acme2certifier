@@ -1511,7 +1511,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_prof.called)
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
-    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1539,7 +1539,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_adl.called)
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
-    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')
@@ -1567,7 +1567,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_adl.called)
 
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._db_check')
-    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.xca_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.xca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._cert_sign')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._ca_load')

@@ -7,7 +7,7 @@ import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_pem2der, b64_encode, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, header_info_get, b64_url_recode, request_operation, csr_cn_lookup, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, cert_pem2der, b64_encode, eab_profile_header_info_check, uts_now, uts_to_date_utc, cert_serial_get, config_eab_profile_load, config_headerinfo_load, header_info_get, b64_url_recode, request_operation, csr_cn_lookup, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 CONTENT_TYPE = 'application/json'
@@ -314,7 +314,7 @@ class CAhandler(object):
 
         if not error:
             # check for allowed domainlist
-            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         if not error:
             error = self.credential_check()

@@ -408,7 +408,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_pem.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.openxpki_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
     @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')
@@ -426,7 +426,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_enroll.called)
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.openxpki_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.openxpki_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.openxpki_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.openxpki_ca_handler.build_pem_file')
     @patch('examples.ca_handler.openxpki_ca_handler.b64_url_recode')

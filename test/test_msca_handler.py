@@ -519,7 +519,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -545,7 +545,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -572,7 +572,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
@@ -599,7 +599,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
-    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
     @patch('examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string')
