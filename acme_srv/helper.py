@@ -183,6 +183,47 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return header_info_field
 
 
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_enroll_config_log_load()')
+
+    enrollment_cfg_log = False
+    enrollment_cfg_log_skip_list = []
+
+    if 'CAhandler' in config_dic:
+        try:
+            enrollment_cfg_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            logger.warning('loading enrollment_config_log failed with error: %s', err_)
+
+        if 'enrollment_config_log_skip_list' in config_dic['CAhandler']:
+            try:
+                enrollment_cfg_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
+            except Exception as err_:
+                logger.warning('enrollment_config_log_skip_list failed with error: %s', err_)
+                enrollment_cfg_log_skip_list = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_enroll_config_log_load() ended with: %s', enrollment_cfg_log)
+    return enrollment_cfg_log, enrollment_cfg_log_skip_list
+
+
+def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_allowed_domainlist_load()')
+
+    allowed_domainlist = []
+
+    if 'CAhandler' in config_dic and 'allowed_domainlist' in config_dic['CAhandler']:
+        try:
+            allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        except Exception as err_:
+            logger.warning('loading allowed_domainlist failed with error: %s', err_)
+            allowed_domainlist = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_allowed_domainlist_load() ended with: %s', allowed_domainlist)
+    return allowed_domainlist
+
+
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """ load and return eab_handler """
     logger.debug('Helper.eab_handler_load()')
@@ -1597,69 +1638,83 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     return result
 
 
-def is_domain_whitelisted(logger: logging.Logger, domain: str, whitelist: List[str]) -> bool:
-    """ compare domain to whitelist returns false if not matching"""
-    if not domain:
-        return False
-
-    domain = domain.lower().strip()
-    encoded_domain_base = None
-    encoded_domain = None
+def encode_domain(logger, domain: str) -> bytes:
+    """ encode domain """
+    logger.debug('Helper.encode_domain(%s)', domain)
 
     # Handle wildcard input *before* IDNA decoding.
     if domain.startswith("*."):
-        domain_base = domain[2:]
-        try:
-            encoded_domain_base = idna.encode(domain_base)
-        except Exception as err:
-            logger.error(f'Invalid domain format in csr: {err}')
-            return False
+        domain =  domain[2:]
+
+    encoded_domain = None
+    try:
+        encoded_domain = idna.encode(domain)
+    except Exception as err:
+        logger.error(f'Invalid domain format in csr: {err}')
+
+    return encoded_domain
+
+
+def wildcard_domain_check(logger: logging.Logger, domain: str, encoded_domain: str, encoded_pattern_base: str) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.domain_check(%s)', domain)
+
+    result = False
+    if domain.startswith("*."):
+        # Both input and pattern are wildcards. Check if input domain base includes the pattern
+        if encoded_domain.endswith(encoded_pattern_base):
+            result = True
     else:
-        try:
-            encoded_domain = idna.encode(domain)
-        except Exception as err:
-            logger.error(f'Invalid domain format in csr: {err}')
-            return False
+        # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
+        # for example domain foo.bar shouldn't match with pattern *.foo.bar
+        if encoded_domain.endswith(b"." + encoded_pattern_base):
+            result = True
+    logger.debug('Helper.domain_check() ended with %s', result)
+    return result
 
-    for pattern in whitelist:
-        # corner-case blank entry
-        if not pattern:
-            logger.error('Invalid pattern configured in allowed_domainlist: empty string')
-            continue
 
-        pattern = pattern.lower().strip()
+def pattern_check(logger, domain, pattern):
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.pattern_check(%s, %s)', domain, pattern)
+
+    pattern = pattern.lower().strip()
+    encoded_pattern_base = encode_domain(logger, pattern)
+    encoded_domain = encode_domain(logger, domain)
+
+    result = False
+    if encoded_pattern_base:
 
         if pattern.startswith("*."):
-            pattern_base = pattern[2:]
-            try:
-                encoded_pattern_base = idna.encode(pattern_base)
-            except Exception as err:
-                logger.error(f'Invalid pattern configured in allowed_domainlist: {pattern}')
-                continue
-
-            if domain.startswith("*."):
-                # Both input and pattern are wildcards. Check if input domain base includes the pattern
-                if encoded_domain_base.endswith(encoded_pattern_base):
-                    return True
-            else:
-                # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
-                # for example domain foo.bar shouldn't match with pattern *.foo.bar
-                if encoded_domain.endswith(b"." + encoded_pattern_base):
-                    return True
+            result = wildcard_domain_check(logger, domain, encoded_domain, encoded_pattern_base)
         else:
-            try:
-                encoded_pattern = idna.encode(pattern)
-            except Exception as err:
-                logger.error(f'Invalid pattern configured in allowed_domainlist: {err}')
-                continue
+            encoded_pattern = encode_domain(logger, pattern)
+            if not domain.startswith("*.") and encoded_domain == encoded_pattern:
+                result = True
+    else:
+        logger.error(f'Invalid pattern configured in allowed_domainlist: {pattern}')
 
-            if domain.startswith("*."):
-                # Input is wildcard, pattern is not. No direct match possible
-                continue
-            elif encoded_domain == encoded_pattern:
-                return True
+    logger.debug('Helper.pattern_check() ended with %s', result)
+    return result
 
-    return False
+
+def is_domain_whitelisted(logger: logging.Logger, domain: str, whitelist: List[str]) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.is_domain_whitelisted(%s)', domain)
+
+    result = False
+    if domain:
+        domain = domain.lower().strip()
+        for pattern in whitelist:
+            # corner-case blank entry
+            if not pattern:
+                logger.error('Invalid pattern configured in allowed_domainlist: empty string')
+                continue
+            result = pattern_check(logger, domain, pattern)
+            if result:
+                break
+
+    logger.debug('Helper.is_domain_whitelisted() ended with %s', result)
+    return result
 
 
 def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> str:
