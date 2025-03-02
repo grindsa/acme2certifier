@@ -782,7 +782,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('error', 'fullchain', 'raw', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_ecl.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.acme_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup')
@@ -866,7 +866,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -903,7 +903,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -942,7 +942,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_reg.called)
         self.assertIn('ERROR:test_a2c:CAhandler.enroll: Bad ACME account: error', lcm.output)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')
@@ -981,7 +981,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -1000,7 +1000,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -1021,7 +1021,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('acme.client.ClientV2.query_registration')
     @patch('acme.client.ClientNetwork')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._account_register')
@@ -1042,7 +1042,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_newreg.called)
 
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._order_issue')
-    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('OpenSSL.crypto.load_certificate')
     @patch('OpenSSL.crypto.dump_certificate')
     @patch('examples.ca_handler.acme_ca_handler.CAhandler._challenge_store')

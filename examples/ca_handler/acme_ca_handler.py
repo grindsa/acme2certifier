@@ -15,7 +15,7 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme import errors
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, parse_url, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, b64_url_recode, parse_url, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 """
 Config file section:
@@ -482,7 +482,7 @@ class CAhandler(object):
         poll_indentifier = None
         user_key = None
 
-        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         # check for eab profiling and header_info
         if not error:

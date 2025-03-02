@@ -22,7 +22,7 @@ from acme_srv.helper import (
     enrollment_config_log,
     config_enroll_config_log_load,
     config_allowed_domainlist_load,
-    allowed_domainlist_check_error
+    allowed_domainlist_check
 )
 
 
@@ -288,7 +288,7 @@ class CAhandler(object):
             return ("Config incomplete", None, None, None)
 
         # check for allowed domainlist
-        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         if not error:
 

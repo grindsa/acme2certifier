@@ -1068,7 +1068,7 @@ class TestACMEHandler(unittest.TestCase):
         result = (None, 'bundle', 'certificateBase64', 'url', False)
         self.assertEqual(result, self.cahandler._request_poll('url'))
 
-    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check')
     def test_104_csr_check(self, mock_eab, mock_dlc):
         """ test csr_check """
@@ -1079,7 +1079,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
         self.assertFalse(mock_dlc.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check')
     def test_105_csr_check(self, mock_eab, mock_dlc):
         """ test csr_check """
@@ -1091,7 +1091,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
         self.assertTrue(mock_dlc.called)
 
-    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.certifier_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check')
     def test_106_csr_check(self, mock_eab, mock_dlc):
         """ test csr_check """

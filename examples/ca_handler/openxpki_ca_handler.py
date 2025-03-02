@@ -7,7 +7,7 @@ from typing import Tuple, Dict
 import requests
 from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, build_pem_file, cert_pem2der, b64_url_recode, b64_encode, error_dic_get, config_allowed_domainlist_load, allowed_domainlist_check
 from acme_srv.db_handler import DBstore
 
 
@@ -262,7 +262,7 @@ class CAhandler(object):
         if self.host:
 
             # check for allowed domainlist
-            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
             if not error:
                 # prepare the CSR to be signed

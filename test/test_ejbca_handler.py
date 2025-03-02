@@ -670,7 +670,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_b2s.called)
         self.assertTrue(mock_ecl.called)
 
-    @patch('examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')
@@ -695,7 +695,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_b2s.called)
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.ejbca_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.ejbca_ca_handler.cert_der2pem')

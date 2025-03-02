@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import load_pem_pkcs7_certificates, load_der_pkcs7_certificates
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, b64_decode, b64_url_recode, convert_byte_to_string, convert_string_to_byte, parse_url, proxy_check, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 class CAhandler(object):
@@ -294,7 +294,7 @@ class CAhandler(object):
         cert_raw = None
 
         # check for allowed domainlist
-        error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         if not error:
             # recode csr

@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from typing import List, Tuple, Dict
 # pylint: disable=e0401
-from acme_srv.helper import load_config, build_pem_file, b64_url_recode, config_allowed_domainlist_load, allowed_domainlist_check_error
+from acme_srv.helper import load_config, build_pem_file, b64_url_recode, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 class CAhandler(object):
@@ -215,7 +215,7 @@ class CAhandler(object):
 
         if self.openssl_bin:
 
-            error = allowed_domainlist_check_error(self.logger, csr, self.allowed_domainlist)
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
             if not error:
                 # prepare the CSR to be signed

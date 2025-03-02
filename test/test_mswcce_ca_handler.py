@@ -876,7 +876,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:cert bundling failed', lcm.output)
         self.assertTrue(mock_rcr.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -897,7 +897,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -919,7 +919,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
@@ -941,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_rcr.called)
         self.assertTrue(mock_dlchk.called)
 
-    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check_error')
+    @patch('examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mswcce_ca_handler.CAhandler.request_create')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.mswcce_ca_handler.convert_byte_to_string')
