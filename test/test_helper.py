@@ -3200,7 +3200,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     def test_391_is_domain_whitelisted(self):
         """ is_domain_whitelisted unsuccessful as endcheck failed"""
         list_ = ['bar.foo', 'foo.bar']
-        entry = 'host.bar.foo.bar_'
+        entry = 'host.bar.foo.bar1'
         self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
 
     def test_392_is_domain_whitelisted(self):
@@ -3275,19 +3275,25 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         entry = 'bar.foo'
         self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
 
+    def test_403_is_domain_whitelisted(self):
+        """ wildcard domain name """
+        list_ = ['*.example.com', '*.bar.foo']
+        entry = '*.example.com'
+        self.assertTrue(self.is_domain_whitelisted(self.logger, entry, list_))
+
     @patch('idna.encode')
-    def test_403_is_domain_whitelisted(self, mock_idna):
+    def test_404_is_domain_whitelisted(self, mock_idna):
         """ exception  """
         list_ = ['example.com', '*.bar.foo']
         entry = 'foo.bar.foo'
-        mock_idna.side_effect = ['bar', Exception('idna error')]
+        mock_idna.side_effect = [Exception('idna error'), 'bar']
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.is_domain_whitelisted(self.logger, entry, list_))
         self.assertIn('ERROR:test_a2c:Invalid pattern configured in allowed_domainlist: *.bar.foo', lcm.output)
 
     @patch('acme_srv.helper.csr_cn_get')
     @patch('acme_srv.helper.csr_san_get')
-    def test_404_allowed_domainlist_check(self,  mock_san, mock_cn):
+    def test_405_allowed_domainlist_check(self,  mock_san, mock_cn):
         """ CAhandler._check_csr with empty allowed_domainlist """
         allowed_domainlist = []
         mock_san.return_value = ['DNS:host.foo.bar']
@@ -3297,7 +3303,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.csr_cn_get')
     @patch('acme_srv.helper.csr_san_get')
-    def test_405_allowed_domainlist_check(self,  mock_san, mock_cn):
+    def test_406_allowed_domainlist_check(self,  mock_san, mock_cn):
         """ CAhandler._check_csr with empty allowed_domainlist """
         allowed_domainlist = ['*.foo.bar']
         mock_san.return_value = ['DNS:host.foo.bar']
@@ -3307,7 +3313,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.csr_cn_get')
     @patch('acme_srv.helper.csr_san_get')
-    def test_406_allowed_domainlist_check(self,  mock_san, mock_cn):
+    def test_407_allowed_domainlist_check(self,  mock_san, mock_cn):
         """ CAhandler._check_csr with empty allowed_domainlist """
         allowed_domainlist = ['*.bar.bar']
         mock_san.return_value = ['DNS:host.foo.bar']
@@ -3317,7 +3323,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     @patch('acme_srv.helper.csr_cn_get')
     @patch('acme_srv.helper.csr_san_get')
-    def test_407_allowed_domainlist_check(self,  mock_san, mock_cn):
+    def test_408_allowed_domainlist_check(self,  mock_san, mock_cn):
         """ CAhandler._check_csr with empty allowed_domainlist """
         allowed_domainlist = ['*.foo.bar']
         mock_san.return_value = ['invalidhostname']
