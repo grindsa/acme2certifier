@@ -10,7 +10,7 @@ from typing import List, Tuple, Dict
 import requests
 from requests.auth import HTTPBasicAuth
 # pylint: disable=e0401
-from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check
+from acme_srv.helper import load_config, cert_serial_get, uts_now, uts_to_date_utc, b64_decode, b64_encode, cert_pem2der, parse_url, proxy_check, error_dic_get, config_eab_profile_load, config_headerinfo_load, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 class CAhandler(object):
@@ -312,6 +312,20 @@ class CAhandler(object):
         # load proxy configuration
         self._config_proxy_load(config_dic)
         self.logger.debug('CAhandler._config_load() ended')
+
+    def _csr_check(self, csr: str) -> str:
+        """ check csr """
+        self.logger.debug('CAhandler._csr_check()')
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+
+        if not error and self.allowed_domainlist:
+            # check for allowed domainlist
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+
+        self.logger.debug('CAhandler._csr_check() ended with: %s', error)
+        return error
 
     def _poll_cert_get(self, request_dic: Dict[str, str], poll_identifier: str, error: str) -> Tuple[str, str, str, str, bool]:
         """ get certificate via poll request """

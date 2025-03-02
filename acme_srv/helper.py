@@ -34,6 +34,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
+import idna
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
@@ -1596,68 +1597,91 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     return result
 
 
-def domainlist_check(logger, entry: str, list_: List[str], toggle: bool = False) -> bool:
-    """ check string against list """
-    logger.debug('Helper.domainlist_check(%s:%s)', entry, toggle)
-    # print(list_)
-    logger.debug('Helper.check against list: %s', list_)
+def is_domain_whitelisted(logger: logging.Logger, domain: str, whitelist: List[str]) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    if not domain:
+        return False
 
-    # default setting
-    check_result = False
+    domain = domain.lower().strip()
+    encoded_domain_base = None
+    encoded_domain = None
 
-    if entry:
-        if list_:
-            for regex in list_:
-                # check entry
-                check_result = domainlist_entry_check(logger, entry, regex, check_result)
+    # Handle wildcard input *before* IDNA decoding.
+    if domain.startswith("*."):
+        domain_base = domain[2:]
+        try:
+            encoded_domain_base = idna.encode(domain_base)
+        except Exception as err:
+            logger.error(f'Invalid domain format in csr: {err}')
+            return False
+    else:
+        try:
+            encoded_domain = idna.encode(domain)
+        except Exception as err:
+            logger.error(f'Invalid domain format in csr: {err}')
+            return False
+
+    for pattern in whitelist:
+        # corner-case blank entry
+        if not pattern:
+            logger.error('Invalid pattern configured in allowed_domainlist: empty string')
+            continue
+
+        pattern = pattern.lower().strip()
+
+        if pattern.startswith("*."):
+            pattern_base = pattern[2:]
+            try:
+                encoded_pattern_base = idna.encode(pattern_base)
+            except Exception as err:
+                logger.error(f'Invalid pattern configured in allowed_domainlist: {pattern}')
+                continue
+
+            if domain.startswith("*."):
+                # Both input and pattern are wildcards. Check if input domain base includes the pattern
+                if encoded_domain_base.endswith(encoded_pattern_base):
+                    return True
+            else:
+                # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
+                # for example domain foo.bar shouldn't match with pattern *.foo.bar
+                if encoded_domain.endswith(b"." + encoded_pattern_base):
+                    return True
         else:
-            # empty list, flip parameter to make the check successful
-            check_result = True
+            try:
+                encoded_pattern = idna.encode(pattern)
+            except Exception as err:
+                logger.error(f'Invalid pattern configured in allowed_domainlist: {err}')
+                continue
 
-    if toggle:
-        # toggle result if this is a blacklist
-        check_result = not check_result
+            if domain.startswith("*."):
+                # Input is wildcard, pattern is not. No direct match possible
+                continue
+            elif encoded_domain == encoded_pattern:
+                return True
 
-    logger.debug('Helper.domainlist_check() ended with: %s', check_result)
-    return check_result
-
-
-def domainlist_entry_check(logger, entry: str, regex: str, check_result: bool) -> bool:
-    """ check string against regex """
-    logger.debug('Helper.domainlist_entry_check(%s/%s):', entry, regex)
-
-    if regex.startswith('*.'):
-        regex = regex.replace('*.', '.')
-    regex_compiled = re.compile(regex)
-
-    if bool(regex_compiled.search(entry)):
-        # parameter is in set flag accordingly and stop loop
-        check_result = True
-
-    logger.debug('Helper.domainlist_entry_check() ended with: %s', check_result)
-    return check_result
+    return False
 
 
-def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> bool:
+def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> str:
     """ check if domain is in allowed domain list """
     logger.debug('Helper.allowed_domainlist_check(%s)')
 
-    result = False
-    (san_list, check_list) = sancheck_lists_create(logger, csr)
+    error = None
+    if allowed_domain_list:
+        (san_list, check_list) = sancheck_lists_create(logger, csr)
+        invalid_domains = []
 
-    # go over the san list and check each entry
-    for san in san_list:
-        check_list.append(domainlist_check(logger, san, allowed_domain_list))
+        # go over the san list and check each entry
+        for san in san_list:
+            if not is_domain_whitelisted(logger, san, allowed_domain_list):
+                invalid_domains.append(san)
+                error = 'Either CN or SANs are not allowed by configuration'
 
-    if check_list:
-        # cover a cornercase with empty checklist (no san, no cn)
-        if False in check_list:
-            result = False
-        else:
-            result = True
+        if check_list:
+            error = f'SAN list parsing failed {check_list}'
 
-    logger.debug('Helper.allowed_domainlist_check() ended with: %s', result)
-    return result
+        logger.debug('Helper.allowed_domainlist_check() ended with: %s', error)
+    return error
 
 
 def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
@@ -1678,7 +1702,7 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
                 san_list.append(san_value)
             except Exception:
                 # force check to fail as something went wrong during parsing
-                check_list.append(False)
+                check_list.append(san)
                 logger.debug('Helper.sancheck_lists_create(): san_list parsing failed at entry: $s', san)
 
     # get common name and attach it to san_list
@@ -1811,7 +1835,7 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
                 if 'eab_profile_list_check' in dir(cahandler):
                     result = cahandler.eab_profile_list_check(eab_handler, csr, key, value)
                 else:
-                    result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
+                    result = eab_profile_list_check(logger, cahandler, csr, key, value)
             if result:
                 break
 
@@ -1826,7 +1850,7 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
     return result
 
 
-def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
+def eab_profile_list_check(logger, cahandler, csr, key, value):
     """ check if a for a list value taken from profile if its a variable inside a class and apply value """
     logger.debug('Helper.eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
@@ -1840,7 +1864,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
             result = error
     elif key == 'allowed_domainlist':
         # check if csr contains allowed domains
-        error = eab_handler.allowed_domains_check(csr, value)
+        error = allowed_domainlist_check(logger, csr, value)
         if error:
             result = error
     else:

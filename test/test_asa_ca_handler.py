@@ -553,6 +553,8 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(self.cahandler._issuer_chain_get())
         self.assertFalse(mock_pem.called)
 
+    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.asa_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
@@ -584,6 +586,44 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
+    @patch('examples.ca_handler.asa_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.asa_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
+    @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
+    @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
+    @patch('examples.ca_handler.asa_ca_handler.b64_decode')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._validity_dates_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._csr_cn_get')
+    @patch('examples.ca_handler.asa_ca_handler.csr_pubkey_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_chain_get')
+    @patch('examples.ca_handler.asa_ca_handler.CAhandler._issuer_verify')
+    @patch('examples.ca_handler.asa_ca_handler.eab_profile_header_info_check')
+    def test_044_enroll(self, mock_pv, mock_iv, mock_icg, mock_cpg, mockccg, mock_vdg, mock_b64, mock_d2p, mock_b2s, mock_post, mock_ecl, mock_adl):
+        """ test enroll() """
+        mock_iv.return_value = None
+        mock_pv.return_value = None
+        mock_adl.return_value = 'adl_error'
+        mock_icg.return_value = 'issuer_chain'
+        mock_vdg.return_value = ('date1', 'date2')
+        mock_post.return_value = (200, 'cert')
+        mock_b2s.return_value = 'bcert'
+        self.cahandler.header_info_field = 'foo'
+        self.assertEqual(('adl_error', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_pv.called)
+        self.assertFalse(mock_iv.called)
+        self.assertFalse(mock_icg.called)
+        self.assertFalse(mock_cpg.called)
+        self.assertFalse(mockccg.called)
+        self.assertFalse(mock_vdg.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_post.called)
+        self.assertFalse(mock_b2s.called)
+        self.assertFalse(mock_d2p.called)
+        self.assertFalse(mock_ecl.called)
+        self.assertTrue(mock_adl.called)
+
+
+    @patch('examples.ca_handler.asa_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.asa_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.asa_ca_handler.convert_byte_to_string')
     @patch('examples.ca_handler.asa_ca_handler.cert_der2pem')
