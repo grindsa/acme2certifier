@@ -71,8 +71,9 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 eab_profiling: False
 ```
 
-- host - hostname of the system providing the enrollment service
+- host - hostname of the system providing the enrollment service, multiple hosts can be specified in the form of `server1, server2, server3`; in such case a random host will be choosen
 - host_variable - *optional* - name of the environment variable containing host address (a configured `host` parameter in acme_srv.cfg takes precedence)
+- ca_name - certificate authority name, multiple ca_names can be specified in the form of `ca1, ca2, ca3`; in such case a random list entry will be choosen
 - user - username used to access the service
 - user_variable - *optional* - name of the environment variable containing the username used for service access (a configured `user` parameter in acme_srv.cfg takes precedence)
 - password - password
@@ -80,7 +81,6 @@ eab_profiling: False
 - target_domain - *optional* - ads domain name
 - domain_controller - *optional* - IP Address of the domain controller / dns server.
 - dns_server - *optional* - IP Address of dns server.
-- ca_name - certificate authority name
 - ca_bundle - CA certificate chain in pem format delievered along with the client certificate
 - template - certificate template used for enrollment
 - timeout - *optional* - enrollment timeout (default: 5)
