@@ -22,7 +22,8 @@ from acme_srv.helper import (
     enrollment_config_log,
     config_enroll_config_log_load,
     config_allowed_domainlist_load,
-    allowed_domainlist_check
+    allowed_domainlist_check,
+    radomize_parameter_list
 )
 
 
@@ -173,6 +174,7 @@ class CAhandler(object):
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
+        radomize_parameter_list(self.logger, self, ['host', 'ca_name'])
 
         self.logger.debug("CAhandler._config_load() ended")
 
