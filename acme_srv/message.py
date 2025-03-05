@@ -64,21 +64,25 @@ class Message(object):
 
     def _name_get(self, content: Dict[str, str]) -> str:
         """ get name for account """
-        self.logger.debug('Message._name_get()')
+        self.logger.debug('Message._name_get(): content: %s', content)
 
         if 'kid' in content:
-            self.logger.debug('kid: %s', content['kid'])
+            self.logger.debug('Message._name_get(): kid: %s', content['kid'])
             kid = content['kid'].replace(f'{self.server_name}{self.path_dic["acct_path"]}', '')
             if '/' in kid:
+                self.logger.debug('Message._name_get(): clear kid')
                 kid = None
         elif 'jwk' in content and 'url' in content:
+            self.logger.debug('Message._name_get(): server_name: %s url: %s', self.server_name, content['url'])
             if content['url'] == f'{self.server_name}{self.path_dic["revocation_path"]}':
                 # this is needed for cases where we get a revocation message signed with account key but account name is missing
+                self.logger.debug('Message._name_get(): revocation')
                 kid = self._name_rev_get(content)
             else:
                 kid = None
         else:
             kid = None
+
         self.logger.debug('Message._name_get() returns: %s', kid)
         return kid
 
