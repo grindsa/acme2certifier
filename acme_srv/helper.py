@@ -1645,7 +1645,7 @@ def encode_domain(logger, domain: str) -> bytes:
 
     # Handle wildcard input *before* IDNA decoding.
     if domain.startswith("*."):
-        domain =  domain[2:]
+        domain = domain[2:]
 
     encoded_domain = None
     try:
