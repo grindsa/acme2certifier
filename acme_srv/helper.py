@@ -2018,3 +2018,30 @@ def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist:
                 continue
             enroll_parameter_list.append(f'{key}: {value}')
         logger.info('Enrollment configuration: %s', enroll_parameter_list)
+
+
+def radomize_parameter_list(logger: logging.Logger, ca_handler: object, parameter_list: List[str] = None):
+    """ randomize parameter list """
+    logger.debug('Helper.radomize_parameter_list()')
+
+    tmp_dic = {}
+    for parameter in parameter_list:
+        if hasattr(ca_handler, parameter):
+            value = getattr(ca_handler, parameter)
+            if value and ',' in value:
+                values_list = value.split(',')
+                tmp_dic[parameter] = []
+                for ele in values_list:
+                    tmp_dic[parameter].append(ele.strip())
+
+    if tmp_dic:
+        # Find the list with the minimum length in tmp_dic values
+        min_length_list = min(tmp_dic.values(), key=len)
+        # Get the length of that list
+        min_len = len(min_length_list)
+
+        # Calculate random number as index for the parameter list
+        index = random.randint(0, min_len - 1)
+        # set parameter values
+        for parameter, value_list in tmp_dic.items():
+            setattr(ca_handler, parameter, value_list[index])
