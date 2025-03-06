@@ -44,13 +44,16 @@ class DBstore(object):
         if not os.path.exists(self.db_name):
             self._db_create()
 
-    def _account_search(self, column: str, string: str) -> List[str]:
+    def _account_search(self, column: str, string: str, active: bool = True) -> List[str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
         self._db_open()
         result = None
         try:
-            pre_statement = f'SELECT * from account WHERE {column} LIKE ?'
+            if active:
+                pre_statement = f'SELECT * from account WHERE {column} LIKE ? AND status_id = 5'
+            else:
+                pre_statement = f'SELECT * from account WHERE {column} LIKE ?'
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
         except Exception as err:
@@ -329,7 +332,7 @@ class DBstore(object):
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
         if 'status_id' not in account_column_list:
             self.logger.info('alter account table - add status_id')
-            self.cursor.execute('''ALTER TABLE account ADD COLUMN status_id integer NOT NULL REFERENCES status(id) DEFAULT 2''')
+            self.cursor.execute('''ALTER TABLE account ADD COLUMN status_id integer NOT NULL REFERENCES status(id) DEFAULT 5''')
 
     def _db_update_authorization(self):
         """ alter orders table """
@@ -567,7 +570,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_lookup() ended')
         return result
 
-    def account_update(self, data_dic: Dict[str, str]) -> List[str]:
+    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> List[str]:
         """ update existing account """
         self.logger.debug('DBStore.account_update(%s)', data_dic)
 
@@ -583,9 +586,14 @@ class DBstore(object):
                 data_dic['contact'] = lookup['contact']
             if 'jwk' not in data_dic:
                 data_dic['jwk'] = lookup['jwk']
+            if 'status_id' not in data_dic:
+                data_dic['status_id'] = lookup['status_id']
             self._db_open()
-            self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk WHERE name = :name''', data_dic)
-            self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
+            self.cursor.execute('''UPDATE account SET alg = :alg, contact = :contact, jwk = :jwk, status_id = :status_id WHERE name = :name''', data_dic)
+            if active:
+                self.cursor.execute('''SELECT id FROM account WHERE name=:name AND status_id = 5''', {'name': data_dic['name']})
+            else:
+                self.cursor.execute('''SELECT id FROM account WHERE name=:name''', {'name': data_dic['name']})
             result = self.cursor.fetchone()[0]
             self._db_close()
         else:
