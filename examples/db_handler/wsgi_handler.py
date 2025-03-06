@@ -244,19 +244,7 @@ class DBstore(object):
         """ create the database if dos not exist """
         self.logger.debug('DBStore._db_create(%s)', self.db_name)
         self._db_open()
-        # create nonce table
-        self.logger.debug('create nonce')
-        self.cursor.execute('''
-            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create account')
-        self.cursor.execute('''
-            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
-        self.logger.debug('create cliaccount')
-        self.cursor.execute('''
-            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        ''')
+        # create status table
         self.logger.debug('create status')
         self.cursor.execute('''
             CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
@@ -270,6 +258,19 @@ class DBstore(object):
         self.cursor.execute(insert_status_statement, {'name': 'expired'})
         self.cursor.execute(insert_status_statement, {'name': 'deactivated'})
         self.cursor.execute(insert_status_statement, {'name': 'revoked'})
+        # create nonce table
+        self.logger.debug('create nonce')
+        self.cursor.execute('''
+            CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create account')
+        self.cursor.execute('''
+            CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
+        self.logger.debug('create cliaccount')
+        self.cursor.execute('''
+            CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+        ''')
         self.logger.debug('create orders')
         self.cursor.execute('''
             CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
@@ -326,6 +327,9 @@ class DBstore(object):
         if 'eab_kid' not in account_column_list:
             self.logger.info('alter account table - add eab_kid')
             self.cursor.execute('''ALTER TABLE account ADD COLUMN eab_kid varchar(255) DEFAULT \'\'''')
+        if 'status_id' not in account_column_list:
+            self.logger.info('alter account table - add status_id')
+            self.cursor.execute('''ALTER TABLE account ADD COLUMN status_id integer NOT NULL REFERENCES status(id) DEFAULT 2''')
 
     def _db_update_authorization(self):
         """ alter orders table """
