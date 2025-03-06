@@ -3,7 +3,8 @@
 from __future__ import print_function
 import os
 import json
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
+import random
 
 # pylint: disable=e0401, e0611
 from examples.ca_handler.ms_wcce.target import Target
@@ -173,8 +174,37 @@ class CAhandler(object):
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
+        self._radomize_parameter_list(['host', 'ca_name'])
+        self.logger.info('Radomized parameters: host: %s, ca_name: %s', self.host, self.ca_name)
 
         self.logger.debug("CAhandler._config_load() ended")
+
+    def _radomize_parameter_list(self, parameter_list: List[str] = None):
+        """ randomize parameter list """
+        self.logger.debug('Helper.radomize_parameter_list()')
+
+        tmp_dic = {}
+        for parameter in parameter_list:
+            if hasattr(self, parameter):
+                value = getattr(self, parameter)
+                if value and ',' in value:
+                    values_list = value.split(',')
+                    tmp_dic[parameter] = []
+                    for ele in values_list:
+                        tmp_dic[parameter].append(ele.strip())
+
+        if tmp_dic:
+            # Find the list with the minimum length in tmp_dic values
+            min_length_list = min(tmp_dic.values(), key=len)
+            # Get the length of that list
+            min_len = len(min_length_list)
+
+            # Calculate random number as index for the parameter list
+            index = random.randint(0, min_len - 1)
+            # set parameter values
+            for parameter, value_list in tmp_dic.items():
+                setattr(self, parameter, value_list[index])
+
 
     def _file_load(self, bundle: str) -> str:
         """ load file """
