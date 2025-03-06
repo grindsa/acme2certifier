@@ -94,7 +94,7 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic: Dict[str, str]) -> int:
+    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:  # pylint: disable=W0613
         """ update existing account """
         self.logger.debug('DBStore.account_update(%s)', data_dic)
         obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
@@ -364,7 +364,7 @@ class DBstore(object):
     def jwk_load(self, aname: str) -> Dict[str, str]:
         """ looad account informatino and build jwk key dictionary """
         self.logger.debug('DBStore.jwk_load(%s)', aname)
-        account_dict = Account.objects.filter(name=aname).values('jwk', 'alg')[:1]
+        account_dict = Account.objects.filter(name=aname, status_id=5).values('jwk', 'alg')[:1]
         jwk_dict = {}
         if account_dict:
             try:
