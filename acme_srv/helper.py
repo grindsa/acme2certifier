@@ -1679,16 +1679,14 @@ def pattern_check(logger, domain, pattern):
     logger.debug('Helper.pattern_check(%s, %s)', domain, pattern)
 
     pattern = pattern.lower().strip()
-    encoded_pattern_base = encode_domain(logger, pattern)
+    encoded_pattern = encode_domain(logger, pattern)
     encoded_domain = encode_domain(logger, domain)
 
     result = False
-    if encoded_pattern_base:
-
+    if encoded_pattern:
         if pattern.startswith("*."):
-            result = wildcard_domain_check(logger, domain, encoded_domain, encoded_pattern_base)
+            result = wildcard_domain_check(logger, domain, encoded_domain, encoded_pattern)
         else:
-            encoded_pattern = encode_domain(logger, pattern)
             if not domain.startswith("*.") and encoded_domain == encoded_pattern:
                 result = True
     else:
@@ -1720,7 +1718,7 @@ def is_domain_whitelisted(logger: logging.Logger, domain: str, whitelist: List[s
 
 def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> str:
     """ check if domain is in allowed domain list """
-    logger.debug('Helper.allowed_domainlist_check(%s)')
+    logger.debug('Helper.allowed_domainlist_check()')
 
     error = None
     if allowed_domain_list:
@@ -1736,7 +1734,7 @@ def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: L
         if check_list:
             error = f'SAN list parsing failed {check_list}'
 
-        logger.debug('Helper.allowed_domainlist_check() ended with: %s', error)
+        logger.debug(f'CAhandler._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}')
     return error
 
 
@@ -1892,7 +1890,7 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
                 if 'eab_profile_list_check' in dir(cahandler):
                     result = cahandler.eab_profile_list_check(eab_handler, csr, key, value)
                 else:
-                    result = eab_profile_list_check(logger, cahandler, csr, key, value)
+                    result = eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value)
             if result:
                 break
 
@@ -1907,7 +1905,7 @@ def eab_profile_check(logger: logging.Logger, cahandler, csr: str, handler_hifie
     return result
 
 
-def eab_profile_list_check(logger, cahandler, csr, key, value):
+def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     """ check if a for a list value taken from profile if its a variable inside a class and apply value """
     logger.debug('Helper.eab_profile_list_check(): list: key: %s, value: %s', key, value)
 
@@ -1921,7 +1919,14 @@ def eab_profile_list_check(logger, cahandler, csr, key, value):
             result = error
     elif key == 'allowed_domainlist':
         # check if csr contains allowed domains
-        error = allowed_domainlist_check(logger, csr, value)
+        if 'allowed_domains_check' in dir(eab_handler):
+            # execute a function from eab_handler
+            logger.info('Execute allowed_domains_check() from eab handler')
+            error = eab_handler.allowed_domains_check(csr, value)
+        else:
+            # execute default adl function from helper
+            logger.debug('Helper.eab_profile_list_check(): execute default allowed_domainlist_check()')
+            error = allowed_domainlist_check(logger, csr, value)
         if error:
             result = error
     else:
