@@ -422,7 +422,14 @@ class CAhandler(object):
 
         elif key == 'allowed_domainlist':
             # check if csr contains allowed domains
-            error = eab_handler.allowed_domains_check(csr, value)
+            if 'allowed_domains_check' in dir(eab_handler):
+                # execute a function from eab_handler
+                self.logger.info('Execute allowed_domains_check() from eab handler')
+                error = eab_handler.allowed_domains_check(csr, value)
+            else:
+                # execute default adl function from helper
+                self.logger.debug('Helper.eab_profile_list_check(): execute default allowed_domainlist_check()')
+                error = allowed_domainlist_check(self.logger, csr, value)
             if error:
                 result = error
         else:
