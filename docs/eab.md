@@ -94,6 +94,8 @@ keyid_03: bWFjXzAz
 
 Creating your own eab-handler is pretty straightforward.  All you need to do is to create your own handler.py with a "EABhandler" class containing a __mac_key_get__ method to lookup the `mac_key` based on a given `kid`.
 
+The __allowed_domains_check__ method is optional an can be use to customize the [`allowed_domainlist_check()` function](https://github.com/grindsa/acme2certifier/blob/master/acme_srv/helper.py#L1641).
+
 The [skeleton_eab_handler.py](../examples/eab_handler/skeleton_eab_handler.py) contains a skeleton which can be used to create a customized handler.
 
 The below code describes the different input parameters given by acme2certifier as well as the expected return values.
@@ -123,6 +125,13 @@ class EABhandler(object):
             self.key = config_dic['EABhandler']['key']
 
         self.logger.debug('EABhandler._config_load() ended')
+
+    def allowed_domains_check(self, csr, value) -> str:
+        """ check allowed domains """
+        self.logger.debug('EABhandler.allowed_domains_check(%s, %s)', csr, value)
+        error = 'ERROR' # error message or None
+
+        return error
 
     def mac_key_get(self, kid=None):
         """ check external account binding """
