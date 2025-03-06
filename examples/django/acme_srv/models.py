@@ -29,7 +29,7 @@ class Account(models.Model):
     contact = models.CharField(max_length=255)
     eab_kid = models.TextField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
+    status = models.ForeignKey(Status, default=5, on_delete=models.CASCADE)
     def __unicode__(self):
         return self.contact
 
