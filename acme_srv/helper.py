@@ -1734,7 +1734,7 @@ def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: L
         if check_list:
             error = f'SAN list parsing failed {check_list}'
 
-        logger.debug(f'CAhandler._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}')
+        logger.debug(f'Helper._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}')
     return error
 
 
