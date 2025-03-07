@@ -228,7 +228,7 @@ jobs:
 
     - name: "Test syncronisation between cluster nodes"
       run: |
-        docker exec alma9-c1 touch /opt/acme2certifier/volume/lsycd_test.txt
+        docker exec alma9-c1 echo "aa" > /opt/acme2certifier/volume/lsycd_test.txt
         sleep 20
         docker exec alma9-c2 ls /opt/acme2certifier/volume/
         docker exec alma9-c2 ls /opt/acme2certifier/volume/  | grep -i lsycd_test.txt
