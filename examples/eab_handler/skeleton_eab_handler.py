@@ -35,7 +35,7 @@ class EABhandler(object):
     def allowed_domains_check(self, csr, value) -> str:
         """ check allowed domains """
         self.logger.debug('EABhandler.allowed_domains_check(%s, %s)', csr, value)
-        error = 'ERROR' # error message or None
+        error = 'ERROR'  # error message or None
 
         return error
 

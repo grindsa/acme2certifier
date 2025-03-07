@@ -1367,8 +1367,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_profile_list_check('eab_handler', 'csr', 'unknown', 'unknown'))
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
 
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_089_eab_profile_list_check(self, mock_hiv   ):
+    def test_089_eab_profile_list_check(self, mock_hiv, mock_chk):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1377,9 +1378,12 @@ class TestACMEHandler(unittest.TestCase):
         eab_handler.allowed_domains_check.return_value = False
         self.assertFalse(self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
+        self.assertTrue(eab_handler.allowed_domains_check.called)
+        self.assertFalse(mock_chk.called)
 
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
-    def test_090_eab_profile_list_check(self, mock_hiv   ):
+    def test_090_eab_profile_list_check(self, mock_hiv, mock_chk):
         """ test eab_profile_list_check """
         mock_hiv.return_value = ('http://acme_url', None)
         self.cahandler.acme_keypath = 'acme_keypath'
@@ -1388,9 +1392,41 @@ class TestACMEHandler(unittest.TestCase):
         eab_handler.allowed_domains_check.return_value = 'error'
         self.assertEqual('error', self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
         self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
+        self.assertTrue(eab_handler.allowed_domains_check.called)
+        self.assertFalse(mock_chk.called)
+
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_091_eab_profile_list_check(self, mock_hiv, mock_chk):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        eab_handler = MagicMock()
+        eab_handler.foo.return_value = 'error'
+        mock_chk.return_value = 'check_error'
+        self.assertEqual('check_error', self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(eab_handler.allowed_domains_check.called)
+
+    @patch('examples.ca_handler.acme_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.acme_ca_handler.header_info_field_validate')
+    def test_092_eab_profile_list_check(self, mock_hiv, mock_chk):
+        """ test eab_profile_list_check """
+        mock_hiv.return_value = ('http://acme_url', None)
+        self.cahandler.acme_keypath = 'acme_keypath'
+        self.cahandler.acme_keyfile = 'acme_keyfile'
+        eab_handler = MagicMock()
+        eab_handler.foo.return_value = 'error'
+        mock_chk.return_value = None
+        self.assertFalse(self.cahandler.eab_profile_list_check(eab_handler, 'csr', 'allowed_domainlist', ['unknown']))
+        self.assertEqual('acme_keyfile', self.cahandler.acme_keyfile)
+        self.assertTrue(mock_chk.called)
+        self.assertFalse(eab_handler.allowed_domains_check.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_091_account_to_keyfile(self, mock_file):
+    def test_093_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = 'dummy_account'
@@ -1398,7 +1434,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_092_account_to_keyfile(self, mock_file):
+    def test_094_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = None
@@ -1406,7 +1442,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_093_account_to_keyfile(self, mock_file):
+    def test_095_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = None
         self.cahandler.account = 'dummy_account'
@@ -1414,7 +1450,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_file.called)
 
     @patch("builtins.open", new_callable=mock_open, read_data='{}')
-    def test_094_account_to_keyfile(self, mock_file):
+    def test_096_account_to_keyfile(self, mock_file):
         """ test account_to_keyfile """
         self.cahandler.acme_keyfile = 'dummy_keyfile_path'
         self.cahandler.account = 'dummy_account'
@@ -1424,35 +1460,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_file.called)
         self.assertIn('ERROR:test_a2c:CAhandler._account_to_keyfile() failed: ex_json_dump', lcm.output)
 
-    def test_095_accountname_get(self):
+    def test_097_accountname_get(self):
         """ test accountname_get """
         url = 'url'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('url', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_096_accountname_get(self):
+    def test_098_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('/foo', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_097_accountname_get(self):
+    def test_099_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo/acct_path'
         acme_url = 'acme_url'
         path_dic = {'acct_path': 'acct_path'}
         self.assertEqual('/foo/', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_098_accountname_get(self):
+    def test_100_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/acct_path/foo'
         acme_url = 'acme_url'
         path_dic = {'acct_path': '/'}
         self.assertEqual('acct_path/foo', self.cahandler._accountname_get(url, acme_url, path_dic))
 
-    def test_099_accountname_get(self):
+    def test_101_accountname_get(self):
         """ test accountname_get """
         url = 'acme_url/foo/foo'
         acme_url = 'acme_url'
