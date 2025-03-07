@@ -174,7 +174,7 @@ class CAhandler(object):
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
-        radomize_parameter_list(self.logger, self, ['host', 'ca_name'])
+        radomize_parameter_list(self.logger, self, ['host', 'ca_name', 'ca_bundle'])
 
         self.logger.debug("CAhandler._config_load() ended")
 
