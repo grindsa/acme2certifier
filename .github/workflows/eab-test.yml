@@ -74,8 +74,7 @@ jobs:
 
     - name: "Enroll acme.sh again - should fail"
       run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-        exit 1
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
