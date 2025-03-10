@@ -58,5 +58,5 @@ class EABhandler(object):
         if kid and kid in data_dic:
             mac_key = data_dic[kid]
 
-        self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(bool(mac_key)))
+        self.logger.debug('EABhandler.mac_key_get() ended with: {0}'.format(mac_key))
         return mac_key
