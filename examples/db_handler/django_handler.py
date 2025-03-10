@@ -78,10 +78,10 @@ class DBstore(object):
             aname = data_dic['name']
         return aname, created
 
-    def account_lookup(self, mkey: str, value: str) -> Dict[str, str]:
+    def account_lookup(self, mkey: str, value: str, vlist: List = ['id', 'jwk', 'name', 'contact', 'alg', 'created_at']) -> Dict[str, str]:
         """ search account for a given id """
         self.logger.debug('DBStore.account_lookup(%s:%s)', mkey, value)
-        account_dict = Account.objects.filter(**{mkey: value}).values('id', 'jwk', 'name', 'contact', 'alg', 'created_at')[:1]
+        account_dict = Account.objects.filter(**{mkey: value}).values(*vlist)[:1]
         if account_dict.exists():
             result = account_dict[0]
         else:
@@ -94,7 +94,7 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:  # pylint: disable=W0613
+    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:
         """ update existing account """
         self.logger.debug('DBStore.account_update(%s)', data_dic)
         obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
