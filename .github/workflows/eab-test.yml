@@ -65,16 +65,24 @@ jobs:
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
         # openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "activate eab_check and rename kid"
+    - name: "Activate eab_check and rename kid"
       run: |
-        sudo echo "eab_kid_check: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_kid_check: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" examples/eab_handler/key_file.json
         cd examples/Docker/
         docker-compose restart
 
-    - name: "Enroll acme.sh again - should fail"
+    - name: "Enroll acme.sh with unknown kid - should fail"
+      id: acmekidfail
+      continue-on-error: true
       run: |
         docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+
+    - name: "Check result "
+      if: steps.acmekidfail.outcome != 'failure'
+      run: |
+        echo "certbot outcome is ${{steps.acmekidfail.outcome }}"
+        exit 1
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
