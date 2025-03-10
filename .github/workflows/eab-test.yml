@@ -294,6 +294,11 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
 
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
     - name: "Enroll acme.sh with unknown kid - should fail"
       id: acmekidfail
       continue-on-error: true
