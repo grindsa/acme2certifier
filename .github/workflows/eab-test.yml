@@ -283,13 +283,16 @@ jobs:
       run: |
         sudo echo "eab_kid_check: True" >> data/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" data/acme_ca/key_file.json
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
 
     - name: "Activate eab_check and rename kid"
       if: matrix.execscript == 'django_tester.sh'
       run: |
         sudo echo "eab_kid_check: True" >> data/volume/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
+
+    - name: "Reconfigure a2c"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
 
     - name: "Enroll acme.sh with unknown kid - should fail"
       id: acmekidfail
