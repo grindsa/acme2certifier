@@ -29,6 +29,9 @@
 | `Directory` | `supress_version` | Do not show version information when fetching the directory resource | True/False | False|
 | `Directory` | `tos_url` | Terms of Service URL | URL | None|
 | `Directory` | `url_prefix` | url prefix for acme2certifier resources | '/foo' | None|
+| `EABhandler` | `eab_handler_file` | EAB handler file  | path/file | None|
+| `EABhandler` | `key_file` | EAB credential file | path/file | None|
+| `EABhandler` | `eab_kid_check` | validate kid during every transaction | True/False | False|
 | `Helper` | `log_format` | Format of logging information | check the 'LogRecord attributes' Section of the [python logging module](https://docs.python.org/3/library/logging.html)| `%(message)s`|
 | `Hooks` | `hooks_file` | path and name of hooks (for pre- and post-enrollment hooks) file to be loaded |  None |
 | `Hooks` | `ignore_pre_hook_failure` | True/False | False |
