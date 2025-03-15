@@ -22,7 +22,7 @@ class Message(object):
         self.server_name = srv_name
         self.path_dic = {'acct_path': '/acme/acct/', 'revocation_path': '/acme/revokecert'}
         self.disable_dic = {'signature_check_disable': False, 'nonce_check_disable': False}
-        self.eab_kid_check = False
+        self.eabkid_check_disable = False
         self.eab_handler = None
         self._config_load()
 
@@ -42,8 +42,8 @@ class Message(object):
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
         if 'EABhandler' in config_dic:
-            if config_dic.getboolean('EABhandler', 'eab_kid_check', fallback=False) and 'eab_handler_file' in config_dic['EABhandler']:
-                self.eab_kid_check = True
+            if config_dic.getboolean('EABhandler', 'eabkid_check_disable', fallback=False) and 'eab_handler_file' in config_dic['EABhandler']:
+                self.eabkid_check_disable = True
                 # load eab_handler according to configuration
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
@@ -155,7 +155,7 @@ class Message(object):
         # nonce check successful - get account name
         account_name = self._name_get(protected)
         # check for invalid eab-credentials
-        if code == 200 and self.eab_kid_check:
+        if code == 200 and not self.eabkid_check_disable:
             account_name = self._invalid_eab_check(account_name)
             if not account_name:
                 return (403, 'urn:ietf:params:acme:error:unauthorized', 'invalid eab credentials', None)
