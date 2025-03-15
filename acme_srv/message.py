@@ -43,9 +43,10 @@ class Message(object):
 
         if 'EABhandler' in config_dic:
             if config_dic.getboolean('EABhandler', 'eabkid_check_disable', fallback=False):
+                # disable eabkid check no need to lead handler
                 self.eabkid_check_disable = True
             elif 'eab_handler_file' in config_dic['EABhandler']:
-                # load eab_handler according to configuration
+                # load eab_handler according to configuration as we need to check kid
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
                     # store handler in variable
@@ -54,6 +55,9 @@ class Message(object):
                     self.logger.critical('Message._config_load(): EABHandler could not get loaded')
             else:
                 self.logger.critical('Message._config_load(): EABHandler configuration incomplete')
+        else:
+            # no eab_handler configuration found - disable check
+            self.eabkid_check_disable = True
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
