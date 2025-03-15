@@ -42,17 +42,18 @@ class Message(object):
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
 
         if 'EABhandler' in config_dic:
-            if config_dic.getboolean('EABhandler', 'eabkid_check_disable', fallback=False) and 'eab_handler_file' in config_dic['EABhandler']:
+            if config_dic.getboolean('EABhandler', 'eabkid_check_disable', fallback=False):
                 self.eabkid_check_disable = True
+            elif 'eab_handler_file' in config_dic['EABhandler']:
                 # load eab_handler according to configuration
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
-                    self.logger.critical('Account._config_load(): EABHandler could not get loaded')
+                    self.logger.critical('Message._config_load(): EABHandler could not get loaded')
             else:
-                self.logger.critical('Account._config_load(): EABHandler configuration incomplete')
+                self.logger.critical('Message._config_load(): EABHandler configuration incomplete')
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
@@ -154,8 +155,8 @@ class Message(object):
 
         # nonce check successful - get account name
         account_name = self._name_get(protected)
-        # check for invalid eab-credentials
-        if code == 200 and not self.eabkid_check_disable:
+        # check for invalid eab-credentials if not disabled and not using embedded key
+        if code == 200 and not self.eabkid_check_disable and not use_emb_key:
             account_name = self._invalid_eab_check(account_name)
             if not account_name:
                 return (403, 'urn:ietf:params:acme:error:unauthorized', 'invalid eab credentials', None)

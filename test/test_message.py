@@ -345,7 +345,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
-        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_eab.called)
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -358,7 +358,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertFalse(self.message.eabkid_check_disable)
-        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_eab.called)
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -382,13 +382,13 @@ class TestACMEHandler(unittest.TestCase):
         parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file', 'eabkid_check_disable': True}
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.message._config_load()
-        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.message._config_load()
+        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
-        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_eab.called)
 
     @patch('acme_srv.message.decode_message')
     def test_032_message_check(self, mock_decode):
