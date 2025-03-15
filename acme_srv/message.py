@@ -22,6 +22,8 @@ class Message(object):
         self.server_name = srv_name
         self.path_dic = {'acct_path': '/acme/acct/', 'revocation_path': '/acme/revokecert'}
         self.disable_dic = {'signature_check_disable': False, 'nonce_check_disable': False}
+        self.eabkid_check_disable = False
+        self.eab_handler = None
         self._config_load()
 
     def __enter__(self):
@@ -38,6 +40,19 @@ class Message(object):
         if 'Nonce' in config_dic:
             self.disable_dic['nonce_check_disable'] = config_dic.getboolean('Nonce', 'nonce_check_disable', fallback=False)
             self.disable_dic['signature_check_disable'] = config_dic.getboolean('Nonce', 'signature_check_disable', fallback=False)
+
+        if 'EABhandler' in config_dic:
+            if config_dic.getboolean('EABhandler', 'eabkid_check_disable', fallback=False) and 'eab_handler_file' in config_dic['EABhandler']:
+                self.eabkid_check_disable = True
+                # load eab_handler according to configuration
+                eab_handler_module = eab_handler_load(self.logger, config_dic)
+                if eab_handler_module:
+                    # store handler in variable
+                    self.eab_handler = eab_handler_module.EABhandler
+                else:
+                    self.logger.critical('Account._config_load(): EABHandler could not get loaded')
+            else:
+                self.logger.critical('Account._config_load(): EABHandler configuration incomplete')
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
@@ -98,6 +113,24 @@ class Message(object):
             detail = None
         else:
             (code, message, detail) = self.nonce.check(protected)
+
+        self.logger.debug('Message._nonce_check() ended with: %s', code)
+        return (code, message, detail)
+
+    def _check(self, skip_nonce_check: bool, skip_signature_check: bool, content: str, protected: Dict[str, str], use_emb_key: bool) -> Tuple[int, str, str, str]:
+        """ decoding successful - check nonce for anti replay protection """
+        self.logger.debug('Message._check()')
+
+        (code, message, detail) = self._nonce_check(skip_nonce_check, protected)
+        account_name = None
+
+        # nonce check successful - get account name
+        account_name = self._name_get(protected)
+        # check for invalid eab-credentials
+        if code == 200 and not self.eabkid_check_disable:
+            account_name = self._invalid_eab_check(account_name)
+            if not account_name:
+                return (403, 'urn:ietf:params:acme:error:unauthorized', 'invalid eab credentials', None)
 
         if code == 200 and not skip_signature_check:
             # nonce check successful - check signature

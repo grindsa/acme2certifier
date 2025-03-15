@@ -134,7 +134,7 @@ jobs:
 
     - name: "Activate eab_check and rename kid"
       run: |
-        sudo echo "eab_kid_check: True" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eabkid_check_disable: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" examples/Docker/data/acme_ca/key_file.json
         cd examples/Docker/
         docker-compose restart
@@ -327,13 +327,13 @@ jobs:
     - name: "Activate eab_check and rename kid"
       if: matrix.execscript == 'rpm_tester.sh'
       run: |
-        sudo echo "eab_kid_check: True" >> data/acme_srv.cfg
+        sudo echo "eabkid_check_disable: True" >> data/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" data/acme_ca/key_file.json
 
     - name: "Activate eab_check and rename kid"
       if: matrix.execscript == 'django_tester.sh'
       run: |
-        sudo echo "eab_kid_check: True" >> data/volume/acme_srv.cfg
+        sudo echo "eabkid_check_disable: True" >> data/volume/acme_srv.cfg
         sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
 
     - name: "Reconfigure a2c"
