@@ -14,15 +14,15 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 
-**acme2certifier** is a development project aimed at creating an **ACME protocol proxy**. Its primary goal is to enable **ACME services** for **CA servers** that do not natively support this protocol.  
+**acme2certifier** is a development project aimed at creating an **ACME protocol proxy**. Its primary goal is to enable **ACME services** for **CA servers** that do not natively support this protocol.
 
 The project consists of two main libraries:
 
 - **`acme_srv/*.py`** – Implements ACME server functionality based on [RFC 8555](https://tools.ietf.org/html/rfc8555).
-- **`ca_handler.py`** – Provides an **interface to CA servers**, designed to be modular for easy adaptation to various CA systems.  
+- **`ca_handler.py`** – Provides an **interface to CA servers**, designed to be modular for easy adaptation to various CA systems.
   The currently available handlers are listed below:
 
-### Supported CA Handlers
+## Supported CA Handlers
 
 | Feature Support | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
 |----------------|---------------|---------------|---------------|
@@ -42,14 +42,14 @@ The project consists of two main libraries:
 | [XCA](docs/xca.md) | ✅ | ✅ | ✅ |
 | [acme2dfn](https://github.com/pfisterer/acme2dfn) (ACME proxy for [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)) | ✅ | ❌ | ❌ |
 
-For the latest updates and additional documentation, visit the project's homepage:  
+For the latest updates and additional documentation, visit the project's homepage:
 [**acme2certifier on GitHub**](https://github.com/grindsa/acme2certifier)
 
 ---
 
 ## 📌 ChangeLog
 
-Release notes and changelogs are available at:  
+Release notes and changelogs are available at:
 [**GitHub Releases**](https://github.com/grindsa/acme2certifier/releases)
 
 ---
@@ -68,7 +68,7 @@ The following ACME clients are **regularly tested** for compatibility:
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
 - [win-acme](https://www.win-acme.com/)
 
-Other clients are **on the list for future testing**.  
+Other clients are **on the list for future testing**.
 If you test additional ACME clients, feel free to raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
 [List of command-line parameters used for testing](docs/acme-clients.md)
@@ -78,11 +78,11 @@ If you test additional ACME clients, feel free to raise an [issue](https://githu
 ## 🚀 Features
 
 - **ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant** server implementation, including:
-  - [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html) – **TLS ALPN-01 Challenge**  
-  - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**  
-  - [Renewal Information (ARI)](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/)  
-  - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))  
-  - **tkauth-01 Challenge** ([Authority Token](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09))  
+  - [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html) – **TLS ALPN-01 Challenge**
+  - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**
+  - [Renewal Information (ARI)](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/)
+  - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))
+  - **tkauth-01 Challenge** ([Authority Token](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09))
   - [Certificate Polling](docs/poll.md) and [Callbacks](docs/trigger.md) for CA servers.
 
 Supported challenge types:
@@ -98,10 +98,10 @@ Supported challenge types:
 
 **acme2certifier** can be installed as:
 
-- **WSGI application** (Apache2/Nginx)  
-- **Django project** (allows using alternative databases)  
+- **WSGI application** (Apache2/Nginx)
+- **Django project** (allows using alternative databases)
 
-The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/). 
+The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
 In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
 
 Installation guides:
@@ -127,4 +127,3 @@ I use [SemVer](http://semver.org/) for versioning. For the versions available, s
 ## License
 
 This project is licensed under the GPLv3 - see the [LICENSE](LICENSE) file for details
-
