@@ -4,7 +4,7 @@
 
 This CA handler uses Microsoft's [Certification Authority Web Enrollment Service](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649(v=ws.11)) for certificate enrollment. It also utilizes a modified version of the Python library [magnuswatn](https://github.com/magnuswatn/)/[certsrv](https://github.com/magnuswatn/certsrv) to communicate with the enrollment service.
 
-### Limitations
+## Limitations
 
 Be aware of the following limitations when using this handler:
 
@@ -90,7 +90,7 @@ krb5_config: <path_to_individual>/krb5.conf
 eab_profiling: False
 ```
 
-#### Parameter Explanations
+### Parameter Explanations
 
 - **host** – The hostname of the system providing the Web Enrollment Service.
 - **host_variable** *(optional)* – Name of the environment variable containing the host address (overridden if `host` is set in `acme_srv.cfg`).
@@ -130,7 +130,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
 ```
 
-# EAB Profiling
+## EAB Profiling
 
 This handler supports [EAB profiling](eab_profiling.md) to allow individual enrollment configurations per ACME account, as well as restrictions on CN and SANs in the CSR. To enable it, configure `acme_srv.cfg` as follows:
 
@@ -152,7 +152,7 @@ eab_profiling: True
     "cahandler": {
       "template": ["WebServerModified", "WebServer"],
       "allowed_domainlist": ["www.example.com", "www.example.org", "*.local"]
-    } 
+    }
   },
   "keyid_01": {
     "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
@@ -170,7 +170,6 @@ eab_profiling: True
   },
   "keyid_03": {
     "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
-  }
   }
 }
 ```

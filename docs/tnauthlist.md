@@ -34,4 +34,3 @@ To enroll a certificate that includes a **TNAuthList** certificate extension, us
 ```sh
 acme.sh --server http://<server-name> --issue -d <fqdn>         --tnauth <TN Authorization List> --spctoken <Service Provider Code Token>         --standalone -w /tmp --debug 2 --output-insecure --force --log acme.log
 ```
-

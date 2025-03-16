@@ -14,22 +14,22 @@ The following command generates a CA certificate and key:
 openssl req -x509 -new -extensions v3_ca -newkey rsa:4096 -keyout ca-key.pem -out ca-cert.pem -days 3650
 ```
 
-## Configuration
+## Installation and Configuration
 
-1. **Create directories** to store CA certificates, keys, and certificate revocation lists (CRLs):
+- **Create directories** to store CA certificates, keys, and certificate revocation lists (CRLs):
 
 ```bash
 mkdir -p acme_srv/ca/certs
 ```
 
-2. **Move the generated key and certificate** into the CA directory:
+- **Move the generated key and certificate** into the CA directory:
 
 ```bash
 mv ca-key.pem acme_srv/ca/
 mv ca-cert.pem acme_srv/ca/
 ```
 
-3. **Modify the server configuration** (`/acme_srv/acme_srv.cfg`) and add the following parameters:
+- **Modify the server configuration** (`/acme_srv/acme_srv.cfg`) and add the following parameters:
 
 ```ini
 [CAhandler]
@@ -91,4 +91,4 @@ extendedKeyUsage        = critical, clientAuth, serverAuth
 - During enrollment, **all extensions included in the CSR will be copied** to the issued certificate. *(This may be a security risk, but this handler is not recommended for production use.)*
 - The CRL "next update interval" is set to **7 days**.
 
-### Enjoy enrolling and revoking certificates!
+Enjoy enrolling and revoking certificates!

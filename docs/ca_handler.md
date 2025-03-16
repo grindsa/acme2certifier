@@ -102,7 +102,7 @@ class CAhandler:
         return (error, cert_bundle, cert_raw)
 ```
 
-### Additional Customization
+## Additional Customization
 
 You can add additional methods as needed. Additionally, you can configure `acme_srv.cfg` to customize the behavior of the CA handler.
 

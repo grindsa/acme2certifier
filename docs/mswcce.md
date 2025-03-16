@@ -4,7 +4,7 @@
 
 This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protocol](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy), a pentesting tool for Active Directory Certificate Services (AD-CS).
 
-### Limitations
+## Limitations
 
 Be aware of the following limitations when using this handler:
 
@@ -105,7 +105,7 @@ This handler uses the [header_info_list feature](header_info.md), allowing an AC
 header_info_list: ["HTTP_USER_AGENT"]
 ```
 
-### Example Usage
+## Example Usage
 
 - **acme.sh**:
 
@@ -132,7 +132,7 @@ key_file: <profile_file>
 eab_profiling: True
 ```
 
-### Example Key File
+## Example Key File
 
 ```json
 {
