@@ -2,17 +2,17 @@
 <!-- wiki-title External Account Binding -->
 # External Account Binding
 
-"External Account binding (EAB)" can allow an ACME account to use authorizations that have been granted to an external, non-ACME account. This allows acme2certifer to address issuance scenarios that cannot yet be fully automated, such as the issuance of "Extended Validation" certificates.
+"External Account binding (EAB)" can allow an ACME account to use authorizations granted to an external, non-ACME account. This allows acme2certifier to address issuance scenarios that cannot yet be fully automated, such as the issuance of "Extended Validation" certificates.
 
-To enable EAB the CA operator needs to provide both ACME client and acme2certifier with a key identifier (kid) and a MAC key (mac_key) which will we be used to authenticate `NewAccount` requests.
+To enable EAB the CA operator needs to provide both ACME client and acme2certifier with a key identifier (kid) and a MAC key (mac_key) which will be used to authenticate `NewAccount` requests.
 
-Kid and mac_key will be loaded into acme2certifer by using a plugin based mechanism. Two plugins will be shipped by default and are stored in the `example/eab_handler` directory.
+KID and MAC key will be loaded into acme2certifier by using a plugin based mechanism. Two plugins will be shipped by default and are stored in the `example/eab_handler` directory.
 
-The key identifers will be part of the reports created by [Housekeeping](housekeeping.md) class.
+The key identifiers will be part of the reports created by [Housekeeping](housekeeping.md) class.
 
 ## file_handler
 
-The eab_file_handler.py allows to load kid and mac_key from a csv-file. The handler needs to be activated in `EABhandler` section of `acme_srv.cfg`
+The eab_file_handler.py allows to load kid and mac_key from a CSV file. The handler needs to be activated in `EABhandler` section of `acme_srv.cfg`
 
 ```bash
 [EABhandler]
@@ -32,7 +32,7 @@ keyid_03,bWFjXzAz
 
 ## json_handler
 
-The eab_json_handler.py allows to load kid and mac_key (base64 encoded) in json format. The handler gets activated in `EABhandler` section of `acme_srv.cfg` as shown below.
+The eab_json_handler.py allows to load kid and mac_key (base64 encoded) in JSON format. The handler gets activated in `EABhandler` section of `acme_srv.cfg` as shown below.
 
 ```bash
 [EABhandler]
@@ -40,7 +40,7 @@ eab_handler_file: examples/eab_handler/json_handler.py
 key_file: examples/eab_handler/key_file.json
 ```
 
-kid and mac_key need to be stored as key/value pairs in json format.
+kid and mac_key need to be stored as key/value pairs in JSON format.
 
 ```json
 {
@@ -76,7 +76,7 @@ options:
   -s, --summary         summary
 ```
 
-Below the example output by using the above mentioned json keyfile
+Below is an example output using the previously mentioned JSON key file
 
 ```bash
  py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
@@ -90,9 +90,9 @@ keyid_02: bWFjXzAy
 keyid_03: bWFjXzAz
 ```
 
-## create a customized eab handler
+## Create a Customized EAB Handler
 
-Creating your own eab-handler is pretty straightforward.  All you need to do is to create your own handler.py with a "EABhandler" class containing a __mac_key_get__ method to lookup the `mac_key` based on a given `kid`.
+Creating your own EAB handler is straightforward.  All you need to do is to create your own handler.py with a "EABhandler" class containing a __mac_key_get__ method to lookup the `mac_key` based on a given `kid`.
 
 The __allowed_domains_check__ method is optional an can be use to customize the [`allowed_domainlist_check()` function](https://github.com/grindsa/acme2certifier/blob/master/acme_srv/helper.py#L1641).
 
@@ -115,10 +115,10 @@ class EABhandler(object):
         return self
 
     def __exit__(self, *args):
-        """ cose the connection at the end of the context """
+        """ close the connection at the end of the context """
 
     def _config_load(self):
-        """" load additial config paramerters from acme_srv.cfg """
+        """" load additional configuration parameters from acme_srv.cfg """
         self.logger.debug('EABhandler._config_load()')
         config_dic = load_config(self.logger, 'EABhandler')
         if 'key' in config_dic['EABhandler']:

@@ -8,14 +8,14 @@ This handler can be used to enroll certificates from Entrust ECS Enterprise API.
 
 - you'll need:
   - Username and Password for HTTP-BASIC authentication
-  - if configured - a client certificate for mutual TLS authentication towards the Entrust RESt API
-  - an pre-validated Organization name
+  - if configured - a client certificate for mutual TLS authentication towards the Entrust REST API
+  - a pre-validated Organization name
 
 ## Configuration
 
-- modify the server configuration (`acme_srv.cfg`) and add the first thre of the below mentioned parameters
+- modify the server configuration (`acme_srv.cfg`) and add the first three of the below mentioned parameters
 
-```confag
+```config
 [CAhandler]
 handler_file: examples/ca_handler/entrust_ca_handler.py
 username: <Username>
@@ -36,13 +36,13 @@ eab_profiling: <True|False>
 - organization_name - required - Organization name as specified in DigiCert CertCentral
 - client_cert - optional - client certificate to access the API (to be stored in either pem or pkcs#12 format)
 - client_key - optional - client private key to access the API (must be stored in pem format)
-- client_passphrase - passphrase to access the client_cert (if stored in pkcs#2 format)
-- cert_type - optional - certificate type to be isused. (default: STANDARD_SSL)
+- client_passphrase - passphrase to access the client_cert (if stored in PKCS#12 format)
+- cert_type - optional - certificate type to be issued. (default: STANDARD_SSL)
 - cert_validity_days - certificate validity in days (default: 365)
-- allowed_domainlist: list of domain-names allowed for enrollment in json format (example: ["bar.local$, bar.foo.local])
-- request_timeout - optional - requests timeout in seconds for requests (default: 5s)
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- allowed_domainlist: list of domain-names allowed for enrollment in JSON format (example: ["bar.local$, bar.foo.local])
+- request_timeout - optional - request timeout in seconds for requests (default: 5s)
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format example: ["bar.local$, bar.foo.local] (default: [])
+- eab_profiling - optional - [activate EAB profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
 
@@ -50,7 +50,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a cert_type from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate type to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate type to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
 
 ```config
 [Order]
@@ -74,7 +74,7 @@ docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-
 
 # eab profiling
 
-This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+This handler can use the [EAB profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
@@ -85,7 +85,7 @@ key_file: <profile_file>
 eab_profiling: True
 ```
 
-below an example key-file used during regression testing:
+below an example key file used during regression testing:
 
 ```json
 {

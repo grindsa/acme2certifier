@@ -1,24 +1,22 @@
 <!-- markdownlint-disable  MD013 -->
 <!-- wiki-title CA handler using CMPv2 protocol -->
-# Generic CMPv2 protocol handler
+# Generic CMPv2 Protocol Handler
 
-The CMPv2 protocol handler is not bound to a specific ca server. Certificate enrollment is done by using the [cmp application from Openssl 3.x](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
-That means that this handler just a wrapper calling openssl with special parameters by using the `subprocess` module.
+The CMPv2 protocol handler is not bound to a specific CA server. Certificate enrollment is done using the [CMP application from OpenSSL 3.x](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).  
+This handler acts as a wrapper that calls OpenSSL with specific parameters using the `subprocess` module.  
 As of today, revocation operations are not supported.
 
-The handler has been tested against [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier)
+The handler has been tested against [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier).
 
-## Pre-requisites
+## Prerequisites
 
-You need a system using Openssl 3.x or higher.
+You need a system using OpenSSL 3.x or higher.
 
-Technically the ca-handler acts as registration authority towards CMPv2 server. That means you need to configure a registration authority on your CMPv2 server with
-either Refnum/PSK or certificate authentication. Please check your CA server documentation how to do this.
+Technically, the CA handler acts as a registration authority (RA) towards the CMPv2 server. This means you need to configure a registration authority on your CMPv2 server with either Refnum/PSK or certificate authentication. Please check your CA server documentation on how to do this.
 
-The configuration could be a bid tricky and may require finetuning depending on type and configuration of your CMPv2 server. I strongly suggest to try enrollment via
-command line first and adapt the ca_handler accordingly.
+The configuration can be a bit tricky and may require fine-tuning depending on the type and setup of your CMPv2 server. I strongly suggest trying enrollment via the command line first and adapting the CA handler accordingly.
 
-In my setup acme2certifier is authenticating via refnum/secret towards CMPv2 server. Certificate based authentication is supported as well. The later described ca-handler configuration maps to the below command line.
+In my setup, acme2certifier authenticates via Refnum/Secret towards the CMPv2 server. Certificate-based authentication is also supported. The CA handler configuration described below maps to the following command-line command:
 
 ```shell
 grindsa@ub-22:~/a2c$ openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -cert ra_cert.pem -trusted capubs.pem -popo 0 -ignore_keyusage -extracertsout ca_certs.pem -certout test-cert.pem -csr csr.pem  
@@ -26,35 +24,35 @@ grindsa@ub-22:~/a2c$ openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path p
 
 | Parameter | Value | Description |
 | :-------  | :---- | :---------- |
-|-cmd | ir | request type "initial request"|
-|-server| 192.168.14.137:8080| address and port of CMPv2 server|
-|-path | pkix/ | path on CMPv2 server |
-|-ref | 1234 | reference number used for authentication towards CMPv2 server |
-|-ref_variable | CMPV2_REF | name of the environment variable containing the reference number used for authentication (a configured `ref` parameter in acme_srv.cfg takes precedence)
-|-secret | pass:xxx | secret used for authentication towards CMPv2 server |
-|-secret_variable | CMPV2_SECRET | name of the environment variable containing the authentication secret (a configured `secret` parameter in acme_srv.cfg takes precedence)
-|-recipient | "/C=DE/CN=tst_sub_ca" | dn of issuing ca |
-|-cert | ra_cert.pem | public key of local registration authority |
-|-trusted | capubs.pem | ca certificate bundle needed to verify the CMPv2 server certificate |
-|-popo | 0 | set the ra verified Set Proof-of-Possession (POPO) method to "raverified" |
-|-extracertsout | ca_certs.pem | file containing the ca certificates extracted from the CMMPv2 response |
-|-certout | test-cert.pem | file containing the certificate returned from ca server |
-|-csr | csr.pem | csr to be imported
+| -cmd | ir | Request type "initial request" |
+| -server | 192.168.14.137:8080 | Address and port of the CMPv2 server |
+| -path | pkix/ | Path on the CMPv2 server |
+| -ref | 1234 | Reference number used for authentication towards the CMPv2 server |
+| -ref_variable | CMPV2_REF | Name of the environment variable containing the reference number used for authentication (a configured `ref` parameter in `acme_srv.cfg` takes precedence) |
+| -secret | pass:xxx | Secret used for authentication towards the CMPv2 server |
+| -secret_variable | CMPV2_SECRET | Name of the environment variable containing the authentication secret (a configured `secret` parameter in `acme_srv.cfg` takes precedence) |
+| -recipient | "/C=DE/CN=tst_sub_ca" | DN of the issuing CA |
+| -cert | ra_cert.pem | Public key of the local registration authority |
+| -trusted | capubs.pem | CA certificate bundle needed to verify the CMPv2 server certificate |
+| -popo | 0 | Set the RA verified Set Proof-of-Possession (POPO) method to "RA verified" |
+| -extracertsout | ca_certs.pem | File containing the CA certificates extracted from the CMPv2 response |
+| -certout | test-cert.pem | File containing the certificate returned from the CA server |
+| -csr | csr.pem | CSR to be imported |
 
-The latest version of the documentation for the openssl cmp application can be found [here](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html)
+The latest version of the documentation for the OpenSSL CMP application can be found [here](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
 
 ## Installation and Configuration
 
-- note down the openssl command line for a successful certificate enrollment.
+1. Note down the OpenSSL command line for a successful certificate enrollment.
 
 ```config
 [CAhandler]
 handler_file: examples/ca_handler/cmp_ca_handler.py
 ```
 
-- modify the server configuration (/acme_srv/acme_srv.cfg) according to your needs. every parameter used in the openssl CLI command requires a corresponding entry in the CAhandler section. The entry is the name of the openssl parameter with the prefix "cmp_", value is the parameter value used in the openssl CLI command. In addition you can to customize the path to your openssl 3.x binary (`cmp_openssl_bin`).
+2. Modify the server configuration (`/acme_srv/acme_srv.cfg`) according to your needs. Every parameter used in the OpenSSL CLI command requires a corresponding entry in the `[CAhandler]` section. The entry should be the name of the OpenSSL parameter with the prefix `cmp_`, and the value should match the parameter used in the OpenSSL CLI command. You can also customize the path to your OpenSSL 3.x binary (`cmp_openssl_bin`).
 
-The above mentioned CLI commend will result in the below configuration to be inserted in acme_srv.cfg
+The CLI command mentioned above will result in the following configuration to be inserted into `acme_srv.cfg`:
 
 ```config
 [CAhandler]
@@ -68,7 +66,6 @@ cmp_recipient: C=DE, CN=tst_sub_ca
 cmp_ignore_keyusage: True
 ```
 
-The parameters `-cmp ir`, `-popo 0` are set by the ca-handler. There is not need to specify these in the config. Same applies for `-extracertsout` and `-certout` options.
-They will be set by the handler at runtime.
+The parameters `-cmp ir` and `-popo 0` are set by the CA handler, so there is no need to specify these in the config. The same applies to the `-extracertsout` and `-certout` options, which will be set by the handler at runtime.
 
-Happy enrolling :-)
+Happy enrolling! :-)

@@ -2,7 +2,7 @@
 <!-- wiki-title Using cert manager to enroll certificate in Kubernetes environments -->
 # Using cert-manager to enroll certificate in Kubernetes environments
 
-I don not really have a full kubernets environment. Thus, I was using [https://microk8s.io/](https://microk8s.io/) for testing.
+I do not really have a full Kubernetes environment. Thus, I was using [https://microk8s.io/](https://microk8s.io/) for testing.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ I don not really have a full kubernets environment. Thus, I was using [https://m
 
 ## Issuer configuration
 
-The below steps based on instructions taken from [cert-manager documention](https://cert-manager.io/docs/configuration/acme/). Cert-manager can run as `Issuser` or `ClusterIssuer` ressource. The below configuration example uses `Issuer` ressource; an `ClusterIssuer` configuration is part of the [release regression](../.github/k8s-cert-mgr-http-01.yml) testing both `http-01` and `dns-01` challenge validation.
+The below steps based on instructions taken from [cert-manager documentation](https://cert-manager.io/docs/configuration/acme/). Cert-manager can run as `Issuer` or `ClusterIssuer` resource. The below configuration example uses `Issuer` resource; a `ClusterIssuer` configuration is part of the [release regression](../.github/k8s-cert-mgr-http-01.yml) testing both `http-01` and `dns-01` challenge validation.
 
 - Create an issuer configuration file as below
 
@@ -99,7 +99,7 @@ Events:
 
 There are [extensive troubleshooting guides at the cert-manager website](https://cert-manager.io/docs/faq/acme/).
 
-Below a list of commends I considered as most useful for me:
+Below is a list of commands I that I found most useful:
 
 - `kubectl get order -n <name-space>` - to get the list of orders
 - `kubectl describe order -n <name-space> <order>` - to display the details of an order

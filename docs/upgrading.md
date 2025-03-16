@@ -1,45 +1,78 @@
-<!-- markdownlint-disable  MD013 MD029 -->
-<!-- wiki-title upgrading acme2certifier -->
+<!-- markdownlint-disable MD013 MD029 -->
+<!-- wiki-title Upgrading acme2certifier -->
 # Upgrading acme2certifier
 
-## Upgrade to version 0.17
+## Upgrade to Version 0.17
 
-The `acme` module whch is implementing acme-server functionality has been renamed in acme2certifier v0.17 to `acme_srv`. Renaming has been done to avoid naming conflicts with  [acme-python](https://acme-python.readthedocs.io/en/stable/) and impacts acme2certifier deployments running as django projects as the django application need to be renamed and the database-scheme needs to be updated.
+In **acme2certifier v0.17**, the `acme` module (which implements ACME server functionality) has been **renamed** to `acme_srv`.  
 
-If you are running the ready-made [django containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/tags?page=1&ordering=last_updated) using either apache2 or nginx the needed modifications will be done automatically when deploying the new containers.
+This renaming was done to **avoid naming conflicts** with [acme-python](https://acme-python.readthedocs.io/en/stable/) and affects **acme2certifier deployments running as Django projects**, as the Django application must be renamed, and the **database schema** must be updated.
 
-If you installed acme2certifer manually as django project the following steps need to be done.
+### Automatic Upgrade for Container-Based Deployments
 
-1. download and unpack the 0.17 archive in `/var/www/acme2certifier`
-2. install the `django-rename-app` by using pip
+If you are using the **prebuilt Django containers** running on **Apache2** or **NGINX**, the necessary modifications will be **applied automatically** when deploying the updated containers:
 
-```bash
-root@rlh:~# pip install django-rename-app
-```
+[acme2certifier Django Containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/tags?page=1&ordering=last_updated)
 
-3. add the app to your Django settings.py (should be stored in `/var/www/acme2certifier/acme2certifier`) and rename the existing `acme` app to `acme_srv`
+### Manual Upgrade for Custom Django Deployments
 
- ```cfg
- INSTALLED_APPS = [
-     ...
-     'acme_srv'
-     ...
- ]
- ```
+If you installed **acme2certifier** manually as a **Django project**, follow these steps:
 
-4. rename the app
+### 1. Download and Extract the v0.17 Archive
 
 ```bash
-root@rlh:~# python manage.py rename_app acme acme_srv
+cd /var/www/acme2certifier
+wget <new_version_url> -O acme2certifier-0.17.tar.gz
+tar -xzf acme2certifier-0.17.tar.gz
 ```
 
-5. copy `acme_srv.cfg` from `acme` to `acme_srv` directory
-6. copy `examples/db_handler/django_handler.py` to `acme_srv/db_hander.py`
-7. copy your ca_handler from `examples/ca_handler` into the `acme_srv` directory if there is no `handler_file` parameter in your `acme_srv.cfg`
-6. start acme2certifier and try to query the `directory` ressource
+### 2. Install `django-rename-app`
 
 ```bash
-root@rlh:~# curl http[s]://<acme-srv>/directory
+pip install django-rename-app
 ```
 
-7. delete the `acme` directory
+### 3. Modify `settings.py`
+
+Edit your **Django settings** file (usually found at `/var/www/acme2certifier/acme2certifier/settings.py`) and rename the existing `acme` app to `acme_srv`:
+
+```python
+INSTALLED_APPS = [
+    ...
+    'acme_srv',
+    ...
+]
+```
+
+### 4. Rename the App
+
+```bash
+python manage.py rename_app acme acme_srv
+```
+
+### 5. Update Configuration and Handlers
+
+```bash
+cp acme/acme_srv.cfg acme_srv/acme_srv.cfg
+cp examples/db_handler/django_handler.py acme_srv/db_handler.py
+
+# If there is no `handler_file` parameter in `acme_srv.cfg`, copy your CA handler
+cp examples/ca_handler/* acme_srv/
+```
+
+### 6. Start acme2certifier and Verify
+
+```bash
+systemctl restart acme2certifier
+curl http[s]://<acme-srv>/directory
+```
+
+### 7. Cleanup
+
+Once the upgrade is verified, remove the old `acme` directory:
+
+```bash
+rm -rf acme
+```
+
+Your acme2certifier instance is now successfully upgraded to v0.17! 🚀

@@ -2,9 +2,9 @@
 <!-- wiki-title Enrollment profiling via external account binding -->
 # Enrollment profiling via external account binding
 
-Starting with  version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authoritzies.
+Starting with  version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authorities.
 
-Currently the following ca-handlers had been modified and do support this feature:
+Currently the following ca-handlers have been modified and support this feature:
 
 - [generic ACME](acme_ca.md)
 - [EJBCA](ejbca.md)
@@ -14,7 +14,7 @@ Currently the following ca-handlers had been modified and do support this featur
 - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](mswcce.md)
 - [XCA](xca.md)
 
-In case you need support for a different ca-handler feel free to raise an [issue](https://github.com/grindsa/acme2certifier/issues/new).
+In case you need support for a different ca-handler feel free to open an [issue](https://github.com/grindsa/acme2certifier/issues/new).
 
 ## Configuration
 
@@ -26,7 +26,7 @@ eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: volume/kid_profiles.json
 ```
 
-The `key_file` allows the specification enrollmenmt parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:
+The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below is an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:
 
 ```json
 {
@@ -53,11 +53,11 @@ The `key_file` allows the specification enrollmenmt parameters per (external) ac
 }
 ```
 
-- Acme-accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SAN/Common names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
-- Acme-accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment paramters will be taken from acme_srv.cfg
-- Acme-accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg`
+- ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
+- ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg
+- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg`
 
-Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality than the above json configuration
+Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
 ```yaml
 ---
@@ -88,7 +88,7 @@ keyid_02:
   hmac: "hmac-key"
 ```
 
-## subject profiling
+## Subject Profiling
 
 Starting from v0.36 the eab-profiling feature can be used to check and white-list the certificate subject DN.
 
@@ -98,13 +98,13 @@ Attribute names must follow [RFC3039](https://www.rfc-editor.org/rfc/rfc3039.htm
 - list - attribute in CSR DN must match one of the list entries
 - "*" - any value matches as long as the attribute is present
 
-The below example configuration will only allow CSR matching the following ciriterias:
+The below example configuration will only allow CSR matching the following criteria:
 
 - serial number can be of any value but must be included
-- organizationalUnitName must be either "acme1" or "acme2"
+- organizationalUnitName must be one of "acme1" or "acme2"
 - organizationName must be "acme corp"
 - countryName must be "AC"
-- additional CSR DN such as localityName or stateOrProvinceName are not allowed
+- additional CSR DN attributes such as localityName or stateOrProvinceName are not allowed
 
 ```json
 ...
@@ -128,7 +128,7 @@ The below example configuration will only allow CSR matching the following cirit
 
 ## Profile verification
 
-In the keyfile can be checked for consistency by using the `tools/eab_chk.py` utility.
+The key file can be checked for consistency by using the `tools/eab_chk.py` utility.
 
 ```bash
  py /var/www/acme2certifier/tools/eab_chk.py --help
@@ -151,7 +151,7 @@ options:
   -s, --summary         summary
 ```
 
-Below the example output by using the above mentioned keyfile
+Below is an example output by using the above mentioned keyfile
 
 - show a summary only
 

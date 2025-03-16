@@ -8,7 +8,7 @@ This handler can be used to enroll certificates from the [Open Source version of
 
 - [EJBCA](https://www.ejbca.org) needs to have the RESTv1-service enabled
 - you'll need:
-  - a [client certificate and key in p12](https://docs.keyfactor.com/ejbca/latest/authentication-methods) format to authenticate towards the rest-service
+  - a [client certificate and key in p12](https://docs.keyfactor.com/ejbca/latest/authentication-methods) format to authenticate towards the REST service
   - the name of the CA issuing the certificates from EJBA admin UI
   - a username and enrolment code
   - a [certificate profile name](https://docs.keyfactor.com/ejbca/latest/certificate-profiles-overview)
@@ -34,10 +34,10 @@ eab_profiling: <True|False>
 ```
 
 - api_host - URL of the EJBCA-Rest service
-- cert_file - certicate and key in pkcs#12 format to authenticate towards EJBCA-Rest service
-- cert_passphrase - phassphrase to access the pkcs#12 container
+- cert_file - certificate and key in pkcs#12 format to authenticate towards EJBCA-Rest service
+- cert_passphrase - passphrase to access the pkcs#12 container
 - cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
-- ca_bundle - optional - ca certificate chain in pem format needed to validate the ejbca-server certificate - can be True/False or a filename (default: True)
+- ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
 - username - PKI username
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
 - enrollment_code - enrollment code
@@ -45,10 +45,10 @@ eab_profiling: <True|False>
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: ["bar.local$, bar.foo.local] (default: [])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+- enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: [ "parameter1", "parameter2" ] (default: [])
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 
 You can test the connection by running the following curl command against your EJBCA server.
@@ -71,7 +71,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a profile_id from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+The handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
 
 ```config
 [Order]
@@ -79,7 +79,7 @@ The handler makes use of the [header_info_list feature](header_info.md) allowing
 header_info_list: ["HTTP_USER_AGENT"]
 ```
 
-The acme-client can then specify the profileID as part of its user-agent string.
+The ACME client can then specify the profileID as part of its user-agent string.
 
 Example for acme.sh:
 
@@ -95,7 +95,7 @@ docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-
 
 # eab profiling
 
-This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
@@ -106,7 +106,7 @@ key_file: <profile_file>
 eab_profiling: True
 ```
 
-below an example key-file used during regression testing:
+Below is an example key file used during regression testing:
 
 ```json
 {

@@ -1,43 +1,44 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Pass information from acme client to CA-handler -->
-# Pass information from acme client to CA-handler
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title: Pass Information from ACME Client to CA Handler -->
 
-Since version 0.30 acme2certifier allows to pass information to the CA handler. To avoid breaking compatibility with [RFC8555](https://datatracker.ietf.org/doc/html/rfc8555) acme-clients need to insert these information as attributes into the http-header being part of the order-finalization message.
+# Pass Information from ACME Client to CA Handler
 
-The header attributes including payload must be specified in `acme_srv.cfg`
+Since version 0.30, `acme2certifier` allows passing information to the CA handler. To maintain compatibility with [RFC8555](https://datatracker.ietf.org/doc/html/rfc8555), ACME clients need to insert this information as attributes into the HTTP header, which is part of the order-finalization message.
+
+The header attributes, including the payload, must be specified in `acme_srv.cfg`:
 
 ```config
 [Order]
 header_info_list: ["HTTP_USER_AGENT", "CONTENT_TYPE", "REMOTE_ADDR"]
 ```
 
-The headers will be added into the header_info column of the certificates table; the ca_handle can load these information by using the `heder_info_get()` function from `helper.py` as serialized json.
+The headers will be added to the `header_info` column of the certificates table. The CA handler can retrieve this information using the `header_info_get()` function from `helper.py` as serialized JSON.
 
 ```python
-class CAhandler(object):
+class CAHandler(object):
     ...
     def enroll(self, csr):
-        """ enroll certificate  """
-        self.logger.debug('CAhandler.enroll()')
+        """Enroll certificate"""
+        self.logger.debug('CAHandler.enroll()')
 
         cert_bundle = None
         error = None
         cert_raw = None
-        poll_indentifier = None
+        poll_identifier = None
 
-        # lookup http header information from request
+        # Lookup HTTP header information from request
         qset = header_info_get(self.logger, csr=csr)
         if qset:
-            self.logger.info('header_info: {0}'.format(qset[-1]['header_info']))
-            # Do other intersting things with the header information...
+            self.logger.info('Header info: {0}'.format(qset[-1]['header_info']))
+            # Perform additional processing with the header information...
         ...
         self.logger.debug('Certificate.enroll() ended')
 
-        return (error, cert_bundle, cert_raw, poll_indentifier)
+        return (error, cert_bundle, cert_raw, poll_identifier)
 ```
 
-Output from the above configuration example would be:
+The output from the above configuration example would be:
 
 ```log
-2023-11-03 16:52:14 - acme2certifier - IFNO - header_info: {"HTTP_USER_AGENT": "CertbotACMEClient/1.21.0 (certbot; Ubuntu 22.04.3 LTS) Authenticator/standalone Installer/None (certonly; flags: ) Py/3.10.12", "CONTENT_TYPE": "application/jose+json", "REMOTE_ADDR": "192.168.14.131"}
+2023-11-03 16:52:14 - acme2certifier - INFO - Header info: {"HTTP_USER_AGENT": "CertbotACMEClient/1.21.0 (certbot; Ubuntu 22.04.3 LTS) Authenticator/standalone Installer/None (certonly; flags: ) Py/3.10.12", "CONTENT_TYPE": "application/jose+json", "REMOTE_ADDR": "192.168.14.131"}
 ```
