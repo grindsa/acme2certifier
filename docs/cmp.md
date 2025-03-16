@@ -2,8 +2,8 @@
 <!-- wiki-title CA handler using CMPv2 protocol -->
 # Generic CMPv2 Protocol Handler
 
-The CMPv2 protocol handler is not bound to a specific CA server. Certificate enrollment is done using the [CMP application from OpenSSL 3.x](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).  
-This handler acts as a wrapper that calls OpenSSL with specific parameters using the `subprocess` module.  
+The CMPv2 protocol handler is not bound to a specific CA server. Certificate enrollment is done using the [CMP application from OpenSSL 3.x](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
+This handler acts as a wrapper that calls OpenSSL with specific parameters using the `subprocess` module.
 As of today, revocation operations are not supported.
 
 The handler has been tested against [Insta Certifier](https://www.insta.fi/en/services/cyber-security/insta-certifier).
@@ -19,7 +19,7 @@ The configuration can be a bit tricky and may require fine-tuning depending on t
 In my setup, acme2certifier authenticates via Refnum/Secret towards the CMPv2 server. Certificate-based authentication is also supported. The CA handler configuration described below maps to the following command-line command:
 
 ```shell
-grindsa@ub-22:~/a2c$ openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -cert ra_cert.pem -trusted capubs.pem -popo 0 -ignore_keyusage -extracertsout ca_certs.pem -certout test-cert.pem -csr csr.pem  
+grindsa@ub-22:~/a2c$ openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -cert ra_cert.pem -trusted capubs.pem -popo 0 -ignore_keyusage -extracertsout ca_certs.pem -certout test-cert.pem -csr csr.pem
 ```
 
 | Parameter | Value | Description |
@@ -43,14 +43,14 @@ The latest version of the documentation for the OpenSSL CMP application can be f
 
 ## Installation and Configuration
 
-1. Note down the OpenSSL command line for a successful certificate enrollment.
+- Note down the OpenSSL command line for a successful certificate enrollment.
 
 ```config
 [CAhandler]
 handler_file: examples/ca_handler/cmp_ca_handler.py
 ```
 
-2. Modify the server configuration (`/acme_srv/acme_srv.cfg`) according to your needs. Every parameter used in the OpenSSL CLI command requires a corresponding entry in the `[CAhandler]` section. The entry should be the name of the OpenSSL parameter with the prefix `cmp_`, and the value should match the parameter used in the OpenSSL CLI command. You can also customize the path to your OpenSSL 3.x binary (`cmp_openssl_bin`).
+- Modify the server configuration (`/acme_srv/acme_srv.cfg`) according to your needs. Every parameter used in the OpenSSL CLI command requires a corresponding entry in the `[CAhandler]` section. The entry should be the name of the OpenSSL parameter with the prefix `cmp_`, and the value should match the parameter used in the OpenSSL CLI command. You can also customize the path to your OpenSSL 3.x binary (`cmp_openssl_bin`).
 
 The CLI command mentioned above will result in the following configuration to be inserted into `acme_srv.cfg`:
 

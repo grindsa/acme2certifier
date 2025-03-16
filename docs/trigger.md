@@ -41,4 +41,3 @@ If a **valid certificate** is returned, **acme2certifier** will:
 1. **Update the local database**.
 2. **Set the order resource status to "valid"**.
 3. **Establish correlation** between the certificate and certificate resource by comparing the public keys of the **certificate** and **CSR** (which should already exist in the database).
-

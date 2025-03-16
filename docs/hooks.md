@@ -42,7 +42,7 @@ class Hooks:
         self.logger.debug('Hook.success_hook()')
 ```
 
-### Input Parameters:
+### Input Parameters
 
 - `self.logger` - Reference to a logging object.
 - `certificate` - Certificate in `application/pem-certificate-chain` format.

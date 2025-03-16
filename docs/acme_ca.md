@@ -177,8 +177,3 @@ Example key-file:
   }
 }
 ```
-
----
-
-This version includes all necessary corrections and improvements while maintaining the original intent and technical accuracy.
-
