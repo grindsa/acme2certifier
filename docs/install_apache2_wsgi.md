@@ -92,7 +92,7 @@ sudo mkdir /var/www/acme2certifier/acme_srv
 sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
 ```
 
-###10. Configure `acme_srv.cfg`
+### 10. Configure `acme_srv.cfg`
 
 Create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv`, or use the example stored in the `examples` directory.
 
