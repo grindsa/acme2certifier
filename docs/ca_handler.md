@@ -1,27 +1,28 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title How to create your own CA Handler -->
-# How to create your own CA-Handler
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title How to Create Your Own CA Handler -->
 
-Creating your own CA-handler should be pretty easy.  All you need to do is to create your own ca_handler.py with a "CAhandler" class containing the following methods required by acme2certifier:
+# How to Create Your Own CA Handler
 
-- __enroll__: to enroll a new certificate from CA server
-- [__poll__](poll.md): to poll a pending certificate request from CA server
-- __revoke__: to revoke an existing certificate on CA server
-- [__trigger__](trigger.md): to process trigger send by CA server
+Creating your own CA handler should be straightforward. All you need to do is create a `ca_handler.py` file with a `CAhandler` class that contains the following methods required by `acme2certifier`:
 
-The [skeleton_ca_handler.py](../examples/ca_handler/skeleton_ca_handler.py) contains a skeleton which can be used to create customized ca_handlers.
+- **`enroll`**: Enrolls a new certificate from the CA server.
+- **[`poll`](poll.md)**: Polls a pending certificate request from the CA server.
+- **`revoke`**: Revokes an existing certificate on the CA server.
+- **[`trigger`](trigger.md)**: Processes triggers sent by the CA server.
 
-The below skeleton describes the different input parameters given by acme2certifier as well as the expected return values.
+The [`skeleton_ca_handler.py`](../examples/ca_handler/skeleton_ca_handler.py) file provides a template that you can use to create customized CA handlers.
+
+The following skeleton outlines the input parameters received by `acme2certifier`, as well as the expected return values:
 
 ```python
-class CAhandler(object):
+class CAhandler:
     """ CA handler """
 
     def __init__(self, debug=None, logger=None):
         """
-        input:
-            debug - debug mode (True/False)
-            logger - log handler
+        Input:
+            debug - Debug mode (True/False)
+            logger - Log handler
         """
         self.debug = debug
         self.logger = logger
@@ -31,71 +32,69 @@ class CAhandler(object):
         return self
 
     def __exit__(self, *args):
-        """ cose the connection at the end of the context """
+        """ Closes the connection at the end of the context """
+        pass
 
     def enroll(self, csr):
-        """ enroll certificate """
-        input:
-            csr - csr in pkcs10 format
+        """ Enrolls a certificate """
+        # Input:
+        #     csr - CSR in PKCS#10 format
 
-        output:
-            error - error message during cert enrollment (None in case no error occured)
-            cert_bundle - certificate chain in pem format
-            cert_raw - certificate in asn1 (binary) format - base64 encoded
-            poll_identifier - callback identifier to lookup enrollment request in case the CA server does not issue
-                              certificate immediately. This identifier will be used by the polling method check if
-                              a CSR got accepted
+        # Output:
+        #     error - Error message during certificate enrollment (None if no error occurred)
+        #     cert_bundle - Certificate chain in PEM format
+        #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
+        #     poll_identifier - Callback identifier to track enrollment requests when the CA server does not
+        #                       issue certificates immediately.
 
         self.logger.debug('Certificate.enroll()')
         ...
         self.logger.debug('Certificate.enroll() ended')
-        return(error, cert_bundle, cert_raw, poll_identifier)
+        return None, None, None, None
 
-    def poll(self, cert_name, poll_identifier, _csr):
-        """ poll pending status of pending CSR and download certificates """
-        input:
-            cert_name - certificate ressource name
-            poll_identifier - poll identifier
-            csr - certificate signing request
+    def poll(self, cert_name, poll_identifier, csr):
+        """ Polls the status of a pending CSR and downloads certificates """
+        # Input:
+        #     cert_name - Certificate resource name
+        #     poll_identifier - Poll identifier
+        #     csr - Certificate Signing Request
 
-        output:
-            error - error message during cert polling (None in case no error occured)
-            cert_bundle - certificate chain in pem format
-            cert_raw - certificate in asn1 (binary) format - base64 encoded
-            poll_identifier - (updated) callback identifier - will be updated in database for later lookups
-            rejected - indicates of request has been rejected by CA admistrator - in case of a request rejection
-                       the corresponding order status will be set to "invalid" state
+        # Output:
+        #     error - Error message during certificate polling (None if no error occurred)
+        #     cert_bundle - Certificate chain in PEM format
+        #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
+        #     poll_identifier - Updated callback identifier for future lookups
+        #     rejected - Indicates whether the request has been rejected by the CA administrator.
 
         self.logger.debug('CAhandler.poll()')
         ...
-        return(error, cert_bundle, cert_raw, poll_identifier, rejected)
+        return None, None, None, None, False
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=uts_to_date_utc(uts_now())):
-        """ revoke certificate
-        input:
-            cert - certificate in pem format
-            reason - revocation reason
-            rev_date - revocation date
+    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
+        """ Revokes a certificate """
+        # Input:
+        #     cert - Certificate in PEM format
+        #     rev_reason - Revocation reason
+        #     rev_date - Revocation date
 
-        output:
-            code - http status code to be give back to the client
-            message - urn:ietf:params:acme:error:serverInternal in case of an error, None in case of no errors
-            detail - error details to be added to the client response """
+        # Output:
+        #     code - HTTP status code to be returned to the client
+        #     message - Error message if applicable, None otherwise
+        #     detail - Additional error details
 
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        self.logger.debug(f'CAhandler.revoke({rev_reason}: {rev_date})')
         ...
-        self.logger.debug('Certificate.enroll() ended with: {0}, {1}, {2}'.format(code, message, detail))
-        return(code, message, detail)
+        return 200, None, None
 
     def trigger(self, payload):
-        """ process trigger send by CA server """
-        input:
-            payload = payload content
+        """ Processes triggers sent by the CA server """
+        # Input:
+        #     payload - Payload content
 
-        output:
-            error - - error message (in case something went wrong)
-            cert_bundle - certificate chain in pem format
-            cert_raw - certificate in asn1 (binary) format - base64 encoded
+        # Output:
+        #     error - Error message (if something went wrong)
+        #     cert_bundle - Certificate chain in PEM format
+        #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
 
         self.logger.debug('CAhandler.trigger()')
         ...
@@ -103,5 +102,8 @@ class CAhandler(object):
         return (error, cert_bundle, cert_raw)
 ```
 
-You can add additional methods according to your needs. You can also add configuration options to acme_srv.cfg allowing you to configure the ca_handler according to your needs.
-Check the [certifier_ca_handler.py](../examples/ca_handler/certifier_ca_handler.py) especially the `_config_load()` method for further details.
+### Additional Customization
+
+You can add additional methods as needed. Additionally, you can configure `acme_srv.cfg` to customize the behavior of the CA handler.
+
+For further details, check [`certifier_ca_handler.py`](../examples/ca_handler/certifier_ca_handler.py), especially the `_config_load()` method.

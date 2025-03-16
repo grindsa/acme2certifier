@@ -1,30 +1,39 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title CA handler for XCA -->
-# Support for an XCA based Certificate Authorities
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title CA Handler for XCA -->
+# Support for XCA-Based Certificate Authorities
 
-This handler can be used to store, certificates and requests in an [XCA](https://github.com/chris2511/xca/) SQLite database.
+This handler allows **acme2certifier** to store **certificates** and **requests** in an [XCA](https://github.com/chris2511/xca/) SQLite database.
 
-It is also possible to fetch enrollment templates from XCA an apply them to certificate signing requests.
+It also supports fetching **enrollment templates** from XCA and applying them to **certificate signing requests (CSRs)**.
 
 ## Prerequisites
 
-You need to have a ready-made xca database with CA certificate and keys imported. You further need the `Internal Name` from the Certificate Authorities to be used as show in the XCA application.
+To use this handler, you need:
+
+- A **preconfigured XCA database** with **CA certificates** and **keys** imported.
+- The **Internal Name** of the Certificate Authority, as shown in the XCA application.
 
 ![xca-ca-list](xca-ca-list.png)
 
 ## Configuration
 
-- copy the ca_handler into the acme directory
+### 1. Copy the CA Handler to the acme2certifier Directory
 
 ```bash
-root@rlh:~# cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
+cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
 ```
 
-- place the XCA database into a directory which is accessible by acme2certifier.
-- set ownership to the user running the webservices and change the permission to restrict access
-- modify the server configuration (/acme_srv/acme_srv.cfg) and add the following parameters
+### 2. Ensure Database Accessibility
 
-```config
+- Place the **XCA database** in a directory accessible to **acme2certifier**.
+- Set ownership to the user running the web services.
+- Restrict permissions to prevent unauthorized access.
+
+### 3. Modify the Server Configuration
+
+Edit the **server configuration** (`/acme_srv/acme_srv.cfg`) and add the following parameters:
+
+```ini
 [CAhandler]
 handler_file: examples/ca_handler/xca_ca_handler.py
 xdb_file: acme_srv/xca/acme2certifier.xdb
@@ -36,38 +45,48 @@ ca_cert_chain_list: ["root-ca"]
 template_name: XCA template to be applied to CSRs
 ```
 
-- `xdb_file` - path to XCA database
-- `xdb_permission` - *optional* - permissions of the xca database file (default: 660)
-- `issuing_ca_name` - XCA name of the certificate authority used to issue certificates.
-- `issuing_ca_key` - XCA name of the ley used to sign certificates. If not set same value as configured in `issuing_ca_name` will be assumed.
-- `passphrase_variable` - *optional* - name of the environment variable containing the passphrase to decrypt the CA key (a configured `passphrase` parameter takes precedence)
-- `passphrase` - *optional* - passphrase to access the database and decrypt the private CA Key
-- `ca_cert_chain_list` - *optional* - List of root and intermediate CA certificates to be added to the bundle return to an ACME-client (the issuing CA cert must not be included)
-- `template_name` - *optional* - name of the XCA template to be applied during certificate issuance
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
-- enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+### Parameter Explanations
 
-Template support has been introduced starting from v0.13. Support is limited to the below parameters which can be applied during certificate issuance:
+- **xdb_file** – Path to the **XCA database**.
+- **xdb_permission** *(optional)* – **File permissions** for the XCA database (default: `660`).
+- **issuing_ca_name** – **XCA name** of the CA used for certificate issuance.
+- **issuing_ca_key** – **XCA name** of the key used to sign certificates. If not set, it defaults to the value in `issuing_ca_name`.
+- **passphrase_variable** *(optional)* – Environment variable containing the **passphrase** to decrypt the CA key (overridden if `passphrase` is set).
+- **passphrase** *(optional)* – **Passphrase** to access the database and decrypt the private CA key.
+- **ca_cert_chain_list** *(optional)* – List of **root and intermediate CA certificates** to be included in the bundle returned to an ACME client (**do not include the issuing CA certificate**).
+- **template_name** *(optional)* – Name of the **XCA template** to be applied during certificate issuance.
+- **allowed_domainlist** *(optional)* – List of allowed **domain names** for enrollment (JSON format). Example: `["bar.local", "bar.foo.local"]` (default: `[]`).
+- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
+- **enrollment_config_log** *(optional)* – Enable logging of enrollment parameters (default: `False`).
+- **enrollment_config_log_skip_list** *(optional)* – List of **enrollment parameters** to exclude from logs (JSON format). Example: `["parameter1", "parameter2"]` (default: `[]`).
 
-- Certificate validity (`validN`/`validM`)
-- basicConstraints (`ca`)
-- KeyUsage attributes (`keyUse`) - if not included attribute will be defaulted to `digitalSignature, nonRepudiation, keyEncipherment, keyAgreement`
-- extendedKeyUsage attributes (`eKeyUse`)
-- crlDistributionPoints (`crlDist`)
-- Enforcement of the following DN attributes:
-  - OU: OrganizationalUnit
-  - O: Organization
-  - L: Locality
-  - S: StateOrProvinceName
-  - C: CountryName
+## Template Support
 
-# eab profiling
+**Template support was introduced in v0.13** and applies the following parameters during certificate issuance:
 
-This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+- **Certificate validity** (`validN`/`validM`)
+- **Basic Constraints** (`ca`)
+- **Key Usage Attributes** (`keyUse`) – Defaults to:  
+  `digitalSignature, nonRepudiation, keyEncipherment, keyAgreement` if not specified.
+- **Extended Key Usage Attributes** (`eKeyUse`)
+- **CRL Distribution Points** (`crlDist`)
+- **Enforcement of DN Attributes:**
+  - **OU**: Organizational Unit
+  - **O**: Organization
+  - **L**: Locality
+  - **S**: State or Province Name
+  - **C**: Country Name
 
-```cfg
+## Enabling EAB Profiling
+
+This handler supports the **EAB profiling feature**, which allows:
+
+- **Custom enrollment configurations per ACME account**.
+- **Restrictions on CN and SANs in the CSR**.
+
+To enable **EAB profiling**, modify `acme_srv.cfg`:
+
+```ini
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
@@ -76,7 +95,7 @@ key_file: <profile_file>
 eab_profiling: True
 ```
 
-below an example key-file used during regression testing:
+### Example Key File (Used in Regression Testing)
 
 ```json
 {
@@ -109,4 +128,6 @@ below an example key-file used during regression testing:
 }
 ```
 
-Enjoy enrolling and revoking certificates...
+## Final Notes
+
+Enjoy enrolling and revoking certificates! 🚀

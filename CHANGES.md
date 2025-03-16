@@ -11,7 +11,7 @@ and pick the appropriate release branch.
 
 - refactored [NCLM ca handler](docs/nclm.md) using the external REST-API
 - [ca handler](docs/digicert.md) using the [DigiCert CertCentral API](https://dev.digicert.com/en/certcentral-apis.html)
-- [ca handler](docs/entrust.md) using the Entrust ECS Enterprise APIl
+- [ca handler](docs/entrust.md) using the Entrust ECS Enterprise API
 - [EAB Profiling support](docs/eab_profiling.md) in Microsoft CA handlers
 - [#187](https://github.com/grindsa/acme2certifier/pull/187) url option for mscertsrv ca handler
 - subject profiling feature
@@ -25,7 +25,7 @@ and pick the appropriate release branch.
 - openssl-ca-handler: basicConstraints extension will not be marked as critical anymore
 - openssl-ca-handler: subjectkeyidentifier extension will not be marked as critical anymore
 - fall-back option to python-openssl for Redhat deployments
-- detect and handle django installations on Debian/Ubunto systems
+- detect and handle django installations on Debian/Ubuntu systems
 - automated schema updates in case of RPM updates
 
 # Changes in 0.35
@@ -39,7 +39,7 @@ and pick the appropriate release branch.
 - [#165](https://github.com/grindsa/acme2certifier/issues/165) [EAB profiling](docs/eab_profiling.md#enrollment-profiling-via-external-account-binding) for ejbca_handler
 - [#166](https://github.com/grindsa/acme2certifier/issues/166) [EAB profiling](docs/acme_ca.md#eab-profiling) for acme_ca_handler
 - documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 22.04](docs/a2c-ubuntu-loadbalancing.md)
-- [#165](https://github.com/grindsa/acme2certifier/issues/165) documentaion of [external database support](docs/external_database_support.md) via django_handler
+- [#165](https://github.com/grindsa/acme2certifier/issues/165) documentation of [external database support](docs/external_database_support.md) via django_handler
 
 **Bugfixes**:
 
@@ -52,12 +52,12 @@ and pick the appropriate release branch.
 **Features and Improvements**:
 
 - [Enrollment profiling via external account binding](docs/eab_profiling.md)
-- [#144](https://github.com/grindsa/acme2certifier/issues/144) configuration option to supress product name
+- [#144](https://github.com/grindsa/acme2certifier/issues/144) configuration option to suppress product name
 - [#143](https://github.com/grindsa/acme2certifier/issues/143) template name as part of the user-agent field in wcce/wes handler
 - configuration option to limit the number of identifiers in a single order request
 - `burst` parameter in example nginx.conf to ratelimit incoming requests
-- [container images for arm64 plattforms](https://hub.docker.com/layers/grindsa/acme2certifier/apache2-wsgi/images/sha256-9092e98ad23fa94dfb17534333a9306ec447b274c2e4b5bbaee0b8bc41c6becc?context=repo)
-- regression tests on arm64 plattforms
+- [container images for arm64 platforms](https://hub.docker.com/layers/grindsa/acme2certifier/apache2-wsgi/images/sha256-9092e98ad23fa94dfb17534333a9306ec447b274c2e4b5bbaee0b8bc41c6becc?context=repo)
+- regression tests on arm64 platforms
 
 **Bugfixes**:
 
@@ -111,7 +111,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
-- [#114](https://github.com/grindsa/acme2certifier/issues/114) `cert_validity_adjust` parameter in openssl_ca_handler.py to limi cartificate validity so that a certificate is never valid longer than any ca certificate in the certificate chain
+- [#114](https://github.com/grindsa/acme2certifier/issues/114) `cert_validity_adjust` parameter in openssl_ca_handler.py to limit certificate validity so that a certificate is never valid longer than any ca certificate in the certificate chain
 
 # Changes in 0.31
 
@@ -367,11 +367,11 @@ and pick the appropriate release branch.
 - [acme_ca_handler](docs/acme_ca.md)
   - support for account registration and http_challenge validation
 - [openssl_ca_handler](docs/openssl.md):
-  - `cn_enforce` parameter to enfore setting a common name in certificate
+  - `cn_enforce` parameter to enforce setting a common name in certificate
   - `whitelist` parameter got renamed to `allowed_domainlist`
   - `blocklist` parameter got renamed to `blocked_domainlist`
 - [xca_ca_handler](docs/xca.md):
-  - `cn_enforce` parameter to enfore setting a common name in certificate
+  - `cn_enforce` parameter to enforce setting a common name in certificate
 
 ## Changes in 0.17.1
 
@@ -627,7 +627,7 @@ and pick the appropriate release branch.
 - py3 support for est_handler
 - [#9 - base64-parsing of dns challenge](https://github.com/grindsa/acme2certifier/issues/9)
 - openssl_handler: set correct x509 version
-- openssl_handler: mandentory cert-extensions
+- openssl_handler: mandatory cert-extensions
 - harmonization of apache config files
 - migration support for docker_django deployment
 
