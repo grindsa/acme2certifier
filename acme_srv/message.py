@@ -4,7 +4,7 @@
 from __future__ import print_function
 import json
 from typing import Tuple, Dict
-from acme_srv.helper import decode_message, load_config, eab_handler_load
+from acme_srv.helper import decode_message, load_config, eab_handler_load, uts_to_date_utc, uts_now
 from acme_srv.error import Error
 from acme_srv.db_handler import DBstore
 from acme_srv.nonce import Nonce
@@ -23,6 +23,7 @@ class Message(object):
         self.path_dic = {'acct_path': '/acme/acct/', 'revocation_path': '/acme/revokecert'}
         self.disable_dic = {'signature_check_disable': False, 'nonce_check_disable': False}
         self.eabkid_check_disable = False
+        self.invalid_eabkid_deactivate = False
         self.eab_handler = None
         self._config_load()
 
@@ -49,6 +50,7 @@ class Message(object):
                 # load eab_handler according to configuration as we need to check kid
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
+                    self.invalid_eabkid_deactivate = config_dic.getboolean('EABhandler', 'invalid_eabkid_deactivate', fallback=False)
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
@@ -74,6 +76,11 @@ class Message(object):
                     eab_mac_key = eab_handler.mac_key_get(eab_kid)
                     if not eab_mac_key:
                         self.logger.error('EAB credentials: %s could not be found in eab-credential store.', eab_kid)
+                        if self.invalid_eabkid_deactivate:
+                            # deactivate account
+                            self.logger.error('Account %s will be deactivated due to missing eab credentials', account_name)
+                            data_dic = {'name': account_name, 'status_id': 7, 'jwk': f'DEACTIVATED invalid_eabkid_deactivate {uts_to_date_utc(uts_now())}'}
+                            _result = self.dbstore.account_update(data_dic, active=False)
                         # invalidate account_name
                         account_name = None
             else:

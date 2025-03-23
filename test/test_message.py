@@ -288,6 +288,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.load_config')
     def test_029_config_load(self, mock_load_cfg):
@@ -299,6 +300,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.load_config')
     def test_030_config_load(self, mock_load_cfg):
@@ -310,6 +312,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.message.disable_dic['nonce_check_disable'])
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.load_config')
     def test_031_config_load(self, mock_load_cfg):
@@ -321,6 +324,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['nonce_check_disable'])
         self.assertTrue(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.load_config')
     def test_032_config_load(self, mock_load_cfg):
@@ -333,6 +337,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertEqual({'acct_path': 'url_prefix/acme/acct/', 'revocation_path': 'url_prefix/acme/revokecert'}, self.message.path_dic)
         self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -346,6 +351,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertFalse(self.message.eabkid_check_disable)
         self.assertTrue(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -359,6 +365,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -373,6 +380,25 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
+
+    @patch('acme_srv.message.eab_handler_load')
+    @patch('acme_srv.message.load_config')
+    def test_136_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'foo': 'bar', 'invalid_eabkid_deactivate': True}
+        mock_load_cfg.return_value = parser
+        mock_eab.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.message._config_load()
+        self.assertIn('CRITICAL:test_a2c:Message._config_load(): EABHandler configuration incomplete', lcm.output)
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+        self.assertFalse(self.message.eabkid_check_disable)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
+
 
     @patch('acme_srv.message.eab_handler_load')
     @patch('acme_srv.message.load_config')
@@ -389,6 +415,57 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.message.disable_dic['signature_check_disable'])
         self.assertTrue(self.message.eabkid_check_disable)
         self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
+
+    @patch('acme_srv.message.eab_handler_load')
+    @patch('acme_srv.message.load_config')
+    def test_137_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file'}
+        mock_load_cfg.return_value = parser
+        mock_eab.return_value = None
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.message._config_load()
+        self.assertIn('CRITICAL:test_a2c:Message._config_load(): EABHandler could not get loaded', lcm.output)
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+        self.assertFalse(self.message.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
+
+    @patch('acme_srv.message.eab_handler_load')
+    @patch('acme_srv.message.load_config')
+    def test_037_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file', 'invalid_eabkid_deactivate': True}
+        mock_load_cfg.return_value = parser
+        mock_eab.return_value = MagicMock()
+        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.message._config_load()
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+        self.assertFalse(self.message.eabkid_check_disable)
+        self.assertTrue(mock_eab.called)
+        self.assertTrue(self.message.invalid_eabkid_deactivate)
+
+    @patch('acme_srv.message.eab_handler_load')
+    @patch('acme_srv.message.load_config')
+    def test_038_config_load(self, mock_load_cfg, mock_eab):
+        """ test _config_load """
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'eab_handler_file': 'eab_handler_file', 'invalid_eabkid_deactivate': True, 'eabkid_check_disable': True}
+        mock_load_cfg.return_value = parser
+        mock_eab.return_value = None
+        # with self.assertLogs('test_a2c', level='INFO') as lcm:
+        self.message._config_load()
+        # self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        self.assertFalse(self.message.disable_dic['nonce_check_disable'])
+        self.assertFalse(self.message.disable_dic['signature_check_disable'])
+        self.assertTrue(self.message.eabkid_check_disable)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(self.message.invalid_eabkid_deactivate)
 
     @patch('acme_srv.message.decode_message')
     def test_037_message_check(self, mock_decode):
@@ -440,6 +517,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.message._invalid_eab_check('account_name'))
         self.assertIn('ERROR:test_a2c:EAB credentials: eab_kid could not be found in eab-credential store.', lcm.output)
+
+    def test_141_invalid_eab_check(self):
+        """ test _invalid_eab_check - ok """
+        self.message.dbstore.account_lookup.side_effect = None
+        self.message.dbstore.account_lookup.return_value = {'eab_kid': 'eab_kid'}
+        eab_handler_module = importlib.import_module('examples.eab_handler.skeleton_eab_handler')
+        self.message.eab_handler = eab_handler_module.EABhandler
+        self.message.eab_handler.mac_key_get = MagicMock(return_value=None)
+        self.message.invalid_eabkid_deactivate = True
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.message._invalid_eab_check('account_name'))
+        self.assertIn('ERROR:test_a2c:EAB credentials: eab_kid could not be found in eab-credential store.', lcm.output)
+        self.assertIn('ERROR:test_a2c:Account account_name will be deactivated due to missing eab credentials', lcm.output)
+        self.assertTrue(self.message.dbstore.account_update.called)
 
     def test_042_invalid_eab_check(self):
         """ test _invalid_eab_check - ok """
