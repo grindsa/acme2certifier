@@ -5,6 +5,33 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.37
+
+**Features and Improvements**:
+
+- **EAB Environments Only**:
+  - Implemented a check to prevent certificate enrollment from ACME accounts without EAB credentials. This can be disabled by setting `eabkid_check_disable: True` in `acme_srv.cfg`.
+  - Introduced the `invalid_eabkid_deactivate` option to deactivate ACME accounts lacking EAB credentials.
+- [#213](https://github.com/grindsa/acme2certifier/issues/213) - Added support for multiple CA servers in `mscertsrv_handler`.
+- Introduced the `allowed_domainlist` parameter to filter domain names permitted for enrollment.
+- Developed a prototype `handler_check()` method in `XCA-handler` to reject requests when there is a handler misconfiguration.
+- Added the ability to log enrollment configurations by setting the `enrollment_config_log` parameter.
+- Reviewed and updated multiple documentation files.
+- [#208](https://github.com/grindsa/acme2certifier/pull/209) - Updated OpenXPKI documentation with `authorized_signer` information.
+- [#206](https://github.com/grindsa/acme2certifier/pull/206) - Improved OpenXPKI documentation for enhanced DN handling.
+- [#200](https://github.com/grindsa/acme2certifier/issues/200) - Updated ACME Clients documentation.
+- Disabled logging in Nginx and uWSGI containers.
+
+**Bug Fixes**:
+
+- [#210](https://github.com/grindsa/acme2certifier/issues/210) - Corrected redirection of the root endpoint to the appropriate directory.
+- [#207](https://github.com/grindsa/acme2certifier/pull/207) - Fixed RPC calls in the OpenXPKI CA handler.
+- Refactored allowed_domainlist_check() function to address a potential security issue
+- Enhanced error handling in `xca-handler`.
+- Disabled logging in Nginx and uWSGI containers.
+- Improved logging in `message.py`.
+- Resolved various linting issues.
+
 # Changes in 0.36
 
 **Features and Improvements**:
