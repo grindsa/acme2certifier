@@ -523,6 +523,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_046_invalid_eab_check(self):
         """ test _invalid_eab_check - ok """
         self.message.dbstore.account_lookup.side_effect = None
+        self.message.dbstore.account_update.side_effect = None
         self.message.dbstore.account_lookup.return_value = {'eab_kid': 'eab_kid'}
         eab_handler_module = importlib.import_module('examples.eab_handler.skeleton_eab_handler')
         self.message.eab_handler = eab_handler_module.EABhandler
