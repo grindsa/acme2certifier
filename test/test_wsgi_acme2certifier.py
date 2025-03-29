@@ -563,7 +563,7 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         self.assertEqual([b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'], self.not_found(environ, Mock()))
 
-    @patch('acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_049_application(self):
         """Test redirect to /directory when root URL is accessed."""
         self.environ = {
@@ -577,7 +577,7 @@ class TestACMEHandler(unittest.TestCase):
         self.start_response.assert_called_with('302 Found', [('Location', '/directory')])
         self.assertEqual(response, [])
 
-    @patch('acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_050_application(self):
         """Test accessing the /acme/directory endpoint."""
         self.environ = {
@@ -586,12 +586,12 @@ class TestACMEHandler(unittest.TestCase):
             'REMOTE_ADDR': '127.0.0.1',
             'PATH_INFO': '/acme/directory',
         }
-        with patch('acme2certifier_wsgi.directory', self.directory):
+        with patch('examples.acme2certifier_wsgi.directory', self.directory):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch('acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_051_application(self):
         """Test accessing the /acme/acct endpoint."""
         self.environ = {
@@ -600,12 +600,12 @@ class TestACMEHandler(unittest.TestCase):
             'REMOTE_ADDR': '127.0.0.1',
             'PATH_INFO': '/acme/acct',
         }
-        with patch('acme2certifier_wsgi.acct', self.acct):
+        with patch('examples.acme2certifier_wsgi.acct', self.acct):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch('acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_052_application(self):
         """Test accessing the /acme/newaccount endpoint."""
         self.environ = {
@@ -614,12 +614,12 @@ class TestACMEHandler(unittest.TestCase):
             'REMOTE_ADDR': '127.0.0.1',
             'PATH_INFO': '/acme/newaccount',
         }
-        with patch('acme2certifier_wsgi.newaccount', self.newaccount):
+        with patch('examples.acme2certifier_wsgi.newaccount', self.newaccount):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called()
             self.assertIsInstance(response, list)
 
-    @patch('acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_053_application(self):
         """Test accessing an unknown endpoint."""
         self.environ = {
@@ -628,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
             'REMOTE_ADDR': '127.0.0.1',
             'PATH_INFO': '/unknown/path',
         }
-        with patch('acme2certifier_wsgi.not_found', self.not_found):
+        with patch('examples.acme2certifier_wsgi.not_found', self.not_found):
             response = self.application(self.environ, self.start_response)
             self.start_response.assert_called_with('404 NOT FOUND', [('Content-Type', 'text/plain')])
             self.assertIsInstance(response, list)
