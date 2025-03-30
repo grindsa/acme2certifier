@@ -1084,6 +1084,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_template.called)
         self.assertFalse(mock_enroll.called)
 
+    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup')
@@ -1103,6 +1104,30 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_policy.called)
         self.assertTrue(mock_template.called)
         self.assertFalse(mock_enroll.called)
+        self.assertFalse(mock_adl.called)
+
+    @patch('examples.ca_handler.nclm_ca_handler.allowed_domainlist_check')
+    @patch('examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup')
+    @patch('examples.ca_handler.nclm_ca_handler.b64_url_recode')
+    def test_098_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll, mock_eab, mock_adl):
+        """ test enroll """
+        mock_recode.return_value = 'csr'
+        mock_policy.return_value = 'policylink_id'
+        mock_template.return_value = 'template_id'
+        mock_adl.return_value = 'mock_adl'
+        mock_enroll.return_value = ('error', 'bundle', 'raw', 'cert_id')
+        mock_eab.return_value = False
+        self.cahandler.template_info_dic = {'name': 'name', 'id': None}
+        self.cahandler.container_info_dic = {'name': 'name', 'id': 'id'}
+        self.assertEqual(('mock_adl', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_recode.called)
+        self.assertTrue(mock_policy.called)
+        self.assertTrue(mock_template.called)
+        self.assertFalse(mock_enroll.called)
+        self.assertTrue(mock_adl.called)
 
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll')
     @patch('examples.ca_handler.nclm_ca_handler.CAhandler._api_post')
