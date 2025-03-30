@@ -51,7 +51,9 @@ The handler must be configured via `acme_srv`.
 | acme_account_email | email address used to register a new account | no | None |
 | allowed_domainlist | list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] | no | [] |
 | directory_path | path to directory ressource on ca server | no | '/directory' |
-| eab_profiling |  enable eab-profiling  | None |  False |
+| eab_profiling |  enable eab-profiling  | no |  False |
+| enrollment_config_log | log enrollment parameters | no  | False |
+| enrollment_config_log_skip_list | list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] | no | [] |
 | ssl_verify | verify certificates on SSL connections | no | True |
 
 - modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters.

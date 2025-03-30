@@ -7,7 +7,7 @@ import json
 from typing import List, Tuple, Dict
 import requests
 # pylint: disable=e0401, r0913
-from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load
+from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load, config_enroll_config_log_load, enrollment_config_log
 
 
 class CAhandler(object):
@@ -31,6 +31,8 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -414,6 +416,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -548,6 +552,10 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
         cert_id = None
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['headers', 'credential_dic'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if ca_id and self.container_info_dic['id']:
             # enroll operation

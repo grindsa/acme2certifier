@@ -87,6 +87,8 @@ eab_profiling: False
 - use_kerberos - use kerboros for authentication; if set to `False` authentication will be done via NTLM. Considering a [Microsoft accouncement from October 2023](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848) the usage of Kerberos should be preferred. Nevertheless, for backwards compatibility reasons the default setting is `False`
 - allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- enrollment_config_log - optional - log enrollment parameters (default False)
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
 
 ## Passing a template from client to server
 
