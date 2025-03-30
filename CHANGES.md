@@ -7,6 +7,12 @@ and pick the appropriate release branch.
 
 # Changes in 0.37
 
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
 **Features and Improvements**:
 
 - **EAB Environments Only**:
