@@ -3,7 +3,7 @@ from django.urls import include, re_path
 from django.contrib import admin
 from acme_srv import views
 from acme_srv.helper import load_config
-
+from django.views.generic import RedirectView
 # load config to set url_prefix
 CONFIG = load_config()
 
@@ -17,7 +17,7 @@ else:
 
 urlpatterns = [
     re_path(r'^admin/', admin.site.urls),
-    re_path(r'^$', views.directory, name='index'),
+    re_path(r'^$', RedirectView.as_view(url='/directory')),
     re_path(r'^directory$', views.directory, name='directory'),
     re_path(rf'^{PREFIX}get_servername$', views.servername_get, name='servername_get'),
     re_path(rf'^{PREFIX}trigger$', views.trigger, name='trigger'),
