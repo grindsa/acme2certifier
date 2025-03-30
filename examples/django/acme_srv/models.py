@@ -14,6 +14,14 @@ class Nonce(models.Model):
         return self.nonce
 
 
+class Status(models.Model):
+    """ order status """
+    name = models.CharField(max_length=15, unique=True)
+
+    def __unicode__(self):
+        return self.name
+
+
 class Account(models.Model):
     """ account table """
     name = models.CharField(max_length=15, unique=True)
@@ -22,6 +30,7 @@ class Account(models.Model):
     contact = models.CharField(max_length=255)
     eab_kid = models.TextField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    status = models.ForeignKey(Status, default=5, on_delete=models.CASCADE)
 
     def __unicode__(self):
         return self.contact
@@ -36,14 +45,6 @@ class Cliaccount(models.Model):
     cliadmin = models.BooleanField(default=False)
     certificateadmin = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-
-
-class Status(models.Model):
-    """ order status """
-    name = models.CharField(max_length=15, unique=True)
-
-    def __unicode__(self):
-        return self.name
 
 
 class Order(models.Model):
